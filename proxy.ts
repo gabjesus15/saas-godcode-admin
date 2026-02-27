@@ -25,7 +25,7 @@ const extractSubdomain = (hostHeader: string | null) => {
   return parts.length >= 3 ? parts[0] : null;
 };
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const subdomain = extractSubdomain(req.headers.get("host"));
 
@@ -37,7 +37,6 @@ export function middleware(req: NextRequest) {
       return NextResponse.next();
     }
 
-    // Comentario: reescribimos hacia la ruta dinamica del tenant.
     const rewriteUrl = new URL(`/${subdomain}${pathname}`, req.url);
     rewriteUrl.search = req.nextUrl.search;
 
