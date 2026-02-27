@@ -55,6 +55,7 @@ export function AdminPage({ companyName, logoUrl }: AdminPageProps) {
         onLogout={() => setActiveTab("store")}
         logoUrl={logoUrl}
         showCompanyTab={userRole === "admin" || userRole === "owner"}
+        userRole={userRole}
       />
 
       <main className="admin-content">

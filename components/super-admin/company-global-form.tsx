@@ -89,14 +89,23 @@ interface CompanyUser {
 // SUB-COMPONENTE: GESTIÓN DE USUARIOS (Sin <form> anidados)
 // ============================================================================
 
+
+
+
 function UserManagement({ companyId }: { companyId: string }) {
   const [users, setUsers] = useState<CompanyUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newEmail, setNewEmail] = useState("");
   const [newRole, setNewRole] = useState("admin");
+  const [newPassword, setNewPassword] = useState("");
   const [adding, setAdding] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editEmail, setEditEmail] = useState("");
+  const [editRole, setEditRole] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -122,22 +131,21 @@ function UserManagement({ companyId }: { companyId: string }) {
 
   async function handleAddUser() {
     const emailToSave = newEmail.trim();
-    if (!emailToSave) return;
-    
+    const passwordToSave = newPassword.trim();
+    if (!emailToSave || !passwordToSave) return;
     setAdding(true);
     setError(null);
-    
     try {
-      const supabase = createSupabaseBrowserClient();
-      const { error } = await supabase.from("users").insert({
-        email: emailToSave,
-        role: newRole,
-        company_id: companyId,
+      const res = await fetch("/api/superadmin-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailToSave, password: passwordToSave, role: newRole, company_id: companyId })
       });
-      if (error) throw error;
-      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Error al agregar usuario");
       setNewEmail("");
       setNewRole("admin");
+      setNewPassword("");
       await fetchUsers();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al agregar usuario");
@@ -150,17 +158,51 @@ function UserManagement({ companyId }: { companyId: string }) {
     if (!window.confirm("¿Estás seguro de quitar este usuario?")) return;
     setRemovingId(id);
     setError(null);
-    
     try {
-      const supabase = createSupabaseBrowserClient();
-      const { error } = await supabase.from("users").delete().eq("id", id);
-      if (error) throw error;
+      const res = await fetch("/api/superadmin-user", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Error al quitar usuario");
       await fetchUsers();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al quitar usuario");
     } finally {
       setRemovingId(null);
     }
+  }
+
+  function startEditUser(user: CompanyUser) {
+    setEditingId(user.id);
+    setEditEmail(user.email);
+    setEditRole(user.role);
+    setEditPassword("");
+  }
+
+  async function handleEditUser(id: string) {
+    setError(null);
+    try {
+      const res = await fetch("/api/superadmin-user", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, email: editEmail, role: editRole, password: editPassword })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Error al editar usuario");
+      setEditingId(null);
+      await fetchUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al editar usuario");
+    }
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditEmail("");
+    setEditRole("");
+    setEditPassword("");
   }
 
   return (
@@ -180,50 +222,58 @@ function UserManagement({ companyId }: { companyId: string }) {
             ) : users.length === 0 ? (
               <tr><td colSpan={3} className="px-4 py-4 text-center text-zinc-400">Sin usuarios registrados</td></tr>
             ) : users.map((user) => (
-              <tr key={user.id} className="hover:bg-zinc-50 transition-colors">
-                <td className="px-4 py-3 text-zinc-700">{user.email}</td>
-                <td className="px-4 py-3">
-                  <Badge variant="neutral" className="capitalize">{user.role}</Badge>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <Button 
-                    size="sm" 
-                    variant="destructive" 
-                    type="button"
-                    onClick={() => handleRemoveUser(user.id)} 
-                    disabled={removingId === user.id}
-                  >
-                    {removingId === user.id ? "Quitando..." : "Quitar"}
-                  </Button>
-                </td>
-              </tr>
+              editingId === user.id ? (
+                <tr key={user.id} className="hover:bg-zinc-50 transition-colors">
+                  <td className="px-4 py-3 text-zinc-700">
+                    <Input value={editEmail} onChange={e => setEditEmail(e.target.value)} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <select value={editRole} onChange={e => setEditRole(e.target.value)} className="capitalize border rounded px-2 py-1">
+                      <option value="admin">Admin</option>
+                      <option value="ceo">CEO</option>
+                      <option value="cashier">Cajero</option>
+                    </select>
+                    <Input type="password" value={editPassword} onChange={e => setEditPassword(e.target.value)} placeholder="Nueva contraseña (opcional)" className="mt-1" />
+                  </td>
+                  <td className="px-4 py-3 text-right flex gap-2">
+                    <Button size="sm" type="button" onClick={() => handleEditUser(user.id)}>Guardar</Button>
+                    <Button size="sm" type="button" variant="outline" onClick={cancelEdit}>Cancelar</Button>
+                  </td>
+                </tr>
+              ) : (
+                <tr key={user.id} className="hover:bg-zinc-50 transition-colors">
+                  <td className="px-4 py-3 text-zinc-700">{user.email}</td>
+                  <td className="px-4 py-3">
+                    <Badge variant="neutral" className="capitalize">{user.role}</Badge>
+                  </td>
+                  <td className="px-4 py-3 text-right flex gap-2">
+                    <Button size="sm" type="button" onClick={() => startEditUser(user)}>Editar</Button>
+                    <Button size="sm" variant="destructive" type="button" onClick={() => handleRemoveUser(user.id)} disabled={removingId === user.id}>
+                      {removingId === user.id ? "Quitando..." : "Quitar"}
+                    </Button>
+                  </td>
+                </tr>
+              )
             ))}
           </tbody>
         </table>
       </div>
-      
       <div className="flex flex-col gap-3 md:flex-row md:items-end mt-4">
         <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700 flex-1">
           Nuevo correo
-          <Input 
-            type="email" 
-            placeholder="usuario@empresa.com" 
-            value={newEmail} 
-            onChange={e => setNewEmail(e.target.value)} 
+          <Input
+            type="email"
+            placeholder="usuario@empresa.com"
+            value={newEmail}
+            onChange={e => setNewEmail(e.target.value)}
             disabled={adding}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault(); 
-                handleAddUser();
-              }
-            }}
           />
         </label>
         <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700 w-full md:w-48">
           Rol
-          <select 
-            className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 disabled:opacity-50" 
-            value={newRole} 
+          <select
+            className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 disabled:opacity-50"
+            value={newRole}
             onChange={e => setNewRole(e.target.value)}
             disabled={adding}
           >
@@ -232,12 +282,22 @@ function UserManagement({ companyId }: { companyId: string }) {
             <option value="cashier">Cajero</option>
           </select>
         </label>
-        <Button 
-          type="button" 
+        <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700 w-full md:w-48">
+          Contraseña
+          <Input
+            type="password"
+            placeholder="Contraseña"
+            value={newPassword}
+            onChange={e => setNewPassword(e.target.value)}
+            disabled={adding}
+          />
+        </label>
+        <Button
+          type="button"
           onClick={handleAddUser}
-          className="mt-2 md:mt-0" 
-          loading={adding} 
-          disabled={adding || !newEmail.trim()}
+          className="mt-2 md:mt-0"
+          loading={adding}
+          disabled={adding || !newEmail.trim() || !newPassword.trim()}
         >
           Agregar usuario
         </Button>

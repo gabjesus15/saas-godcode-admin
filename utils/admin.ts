@@ -16,19 +16,33 @@ export async function requireAdminRole(allowedRoles: string[]) {
   }
 
   const email = userData.user.email;
-  const { data: adminUser, error: adminError } = await supabase
+  // Buscar primero en admin_users
+  let { data: adminUser, error: adminError } = await supabase
     .from("admin_users")
     .select("role")
     .eq("email", email)
     .maybeSingle();
 
-  if (adminError || !adminUser?.role) {
+  let role = adminUser?.role;
+  if ((!role || adminError) && email) {
+    // Si no está en admin_users, buscar en users
+    const { data: userRow, error: userError } = await supabase
+      .from("users")
+      .select("role")
+      .eq("email", email)
+      .maybeSingle();
+    if (!userError && userRow?.role) {
+      role = userRow.role;
+    }
+  }
+
+  if (!role) {
     return { ok: false, error: "No tienes permisos asignados." } as const;
   }
 
-  if (!allowedRoles.includes(adminUser.role)) {
+  if (!allowedRoles.includes(role)) {
     return { ok: false, error: "No tienes permisos para esta accion." } as const;
   }
 
-  return { ok: true, email, role: adminUser.role } as const;
+  return { ok: true, email, role } as const;
 }

@@ -39,46 +39,62 @@ export function AdminSidebar({
 	onLogout,
 	logoUrl,
 	showCompanyTab = true,
-}: AdminSidebarProps) {
-	const menuItems = useMemo(() => {
-		const items = [
-			{
-				id: "orders",
-				label: "Pedidos",
-				icon: ChefHat,
-				badge: pendingCount > 0 ? pendingCount : null,
-			},
-			{
-				id: "sales-group",
-				label: "Ventas",
-				icon: DollarSign,
-				isGroup: true,
-				children: [
-					{ id: "caja", label: "Caja", icon: DollarSign },
-					{ id: "analytics", label: "Reportes", icon: BarChart3 },
-				],
-			},
-			{
-				id: "menu-group",
-				label: "Menú",
-				icon: List,
-				isGroup: true,
-				children: [
-					{ id: "categories", label: "Categorías", icon: Tag },
-					{ id: "products", label: "Productos", icon: ShoppingBag },
-					{ id: "inventory", label: "Inventario", icon: ClipboardList },
-				],
-			},
-			{ id: "clients", label: "Clientes", icon: Users },
-			{ id: "settings", label: "Herramientas", icon: Settings },
-		];
-
-		if (showCompanyTab) {
-			items.push({ id: "company", label: "Datos de la empresa", icon: Building2 });
-		}
-
-		return items;
-	}, [pendingCount, showCompanyTab]);
+	userRole,
+	}: AdminSidebarProps & { userRole?: string | null }) {
+		const menuItems = useMemo(() => {
+			// Cashier role: only show Pedidos and Caja
+			if (userRole === "cashier") {
+				return [
+					{
+						id: "orders",
+						label: "Pedidos",
+						icon: ChefHat,
+						badge: pendingCount > 0 ? pendingCount : null,
+					},
+					{
+						id: "caja",
+						label: "Caja",
+						icon: DollarSign,
+					},
+				];
+			}
+			// Default: all items
+			const items = [
+				{
+					id: "orders",
+					label: "Pedidos",
+					icon: ChefHat,
+					badge: pendingCount > 0 ? pendingCount : null,
+				},
+				{
+					id: "sales-group",
+					label: "Ventas",
+					icon: DollarSign,
+					isGroup: true,
+					children: [
+						{ id: "caja", label: "Caja", icon: DollarSign },
+						{ id: "analytics", label: "Reportes", icon: BarChart3 },
+					],
+				},
+				{
+					id: "menu-group",
+					label: "Menú",
+					icon: List,
+					isGroup: true,
+					children: [
+						{ id: "categories", label: "Categorías", icon: Tag },
+						{ id: "products", label: "Productos", icon: ShoppingBag },
+						{ id: "inventory", label: "Inventario", icon: ClipboardList },
+					],
+				},
+				{ id: "clients", label: "Clientes", icon: Users },
+				{ id: "settings", label: "Herramientas", icon: Settings },
+			];
+			if (showCompanyTab) {
+				items.push({ id: "company", label: "Datos de la empresa", icon: Building2 });
+			}
+			return items;
+		}, [pendingCount, showCompanyTab, userRole]);
 
 	const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
