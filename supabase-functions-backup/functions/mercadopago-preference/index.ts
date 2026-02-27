@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createClient } from "jsr:@supabase/functions-js";
 
 Deno.serve(async (req) => {
   const origin = req.headers.get("origin") ?? "*";
