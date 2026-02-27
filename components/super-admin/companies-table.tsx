@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Badge } from "../ui/badge";
 import { Card } from "../ui/card";
 import { CompanyStatusToggle } from "./company-status-toggle";
+import { getTenantHost, getTenantUrl } from "../../utils/tenant-url";
 
 type PlanInfo = {
   name: string | null;
@@ -55,8 +56,10 @@ const getExpiryBadge = (subscriptionEndsAt?: string | null) => {
 };
 
 export function CompaniesTable({ companies }: CompaniesTableProps) {
-  const baseDomain =
-    process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN ?? "tuapp.com";
+  const buildTenantHost = (slug: string | null | undefined) =>
+    slug ? getTenantHost(slug) : "";
+  const buildTenantUrl = (slug: string | null | undefined) =>
+    slug ? getTenantUrl(slug) : "";
 
   return (
     <Card className="overflow-hidden p-0">
@@ -97,12 +100,12 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
                 <p className="text-xs text-zinc-500">ID: {company.id}</p>
                 {company.public_slug ? (
                   <Link
-                    href={`https://${company.public_slug}.${baseDomain}`}
+                    href={buildTenantUrl(company.public_slug)}
                     className="mt-2 inline-flex items-center rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-semibold text-zinc-600"
                     target="_blank"
                     rel="noreferrer"
                   >
-                    {company.public_slug}.{baseDomain}
+                    {buildTenantHost(company.public_slug)}
                   </Link>
                 ) : null}
               </div>

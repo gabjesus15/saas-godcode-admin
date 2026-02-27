@@ -13,7 +13,17 @@ interface CompanyGlobalTabProps {
     plan_id: string | null;
     subscription_status: string | null;
     subscription_ends_at?: string | null;
-    theme_config?: { primaryColor?: string; logoUrl?: string } | null;
+    theme_config?: {
+      primaryColor?: string;
+      secondaryColor?: string;
+      priceColor?: string;
+      discountColor?: string;
+      hoverColor?: string;
+      logoUrl?: string;
+      backgroundColor?: string;
+      backgroundImageUrl?: string;
+      displayName?: string;
+    } | null;
   };
   businessInfo: {
     name: string | null;

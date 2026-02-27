@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const adminPaths = [
-  "/api",
-  "/_next",
-  "/dashboard",
-  "/companies",
-  "/login",
-  "/plans",
-];
+const adminPaths = ["/dashboard", "/companies", "/login", "/plans"];
+const tenantBypassPaths = ["/api", "/_next", "/favicon.ico"];
 
 const extractSubdomain = (hostHeader: string | null) => {
   if (!hostHeader) {
@@ -33,22 +27,28 @@ const extractSubdomain = (hostHeader: string | null) => {
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const subdomain = extractSubdomain(req.headers.get("host"));
+
+  if (subdomain) {
+    if (
+      tenantBypassPaths.some((path) => pathname.startsWith(path)) ||
+      pathname.includes(".")
+    ) {
+      return NextResponse.next();
+    }
+
+    // Comentario: reescribimos hacia la ruta dinamica del tenant.
+    const rewriteUrl = new URL(`/${subdomain}${pathname}`, req.url);
+    rewriteUrl.search = req.nextUrl.search;
+
+    return NextResponse.rewrite(rewriteUrl);
+  }
 
   if (adminPaths.some((path) => pathname.startsWith(path))) {
     return NextResponse.next();
   }
 
-  const subdomain = extractSubdomain(req.headers.get("host"));
-
-  if (!subdomain) {
-    return NextResponse.next();
-  }
-
-  // Comentario: reescribimos hacia la ruta dinamica del tenant.
-  const rewriteUrl = new URL(`/${subdomain}${pathname}`, req.url);
-  rewriteUrl.search = req.nextUrl.search;
-
-  return NextResponse.rewrite(rewriteUrl);
+  return NextResponse.next();
 }
 
 export const config = {

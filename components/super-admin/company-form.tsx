@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 
 import { Button } from "../ui/button";
@@ -9,6 +10,13 @@ import { Input } from "../ui/input";
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 import { logAdminAction } from "../../utils/audit";
 import { requireAdminRole, roleSets } from "../../utils/admin";
+import { getTenantBaseDomain } from "../../utils/tenant-url";
+import { uploadImage } from "../tenant/utils/cloudinary";
+
+const BrandingPreview = dynamic(
+  () => import("./branding-preview").then((mod) => mod.BrandingPreview),
+  { ssr: false }
+);
 
 interface PlanOption {
   id: string;
@@ -20,22 +28,73 @@ interface CompanyFormProps {
   plans: PlanOption[];
 }
 
-const baseDomain =
-  process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN ?? "tuapp.com";
+const baseDomain = getTenantBaseDomain();
 
 export function CompanyForm({ plans }: CompanyFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [slugTouched, setSlugTouched] = useState(false);
-  const [logoError, setLogoError] = useState(false);
+  const [backgroundUploading, setBackgroundUploading] = useState(false);
+  const [backgroundUploadError, setBackgroundUploadError] = useState<
+    string | null
+  >(null);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: "",
     public_slug: "",
     plan_id: "",
+    display_name: "",
     primary_color: "#111827",
+    secondary_color: "#111827",
+    price_color: "#ff4757",
+    discount_color: "#25d366",
+    hover_color: "#ff2e40",
+    background_color: "#0a0a0a",
+    background_image_url: "",
     logo_url: "",
   });
+
+  const handleBackgroundUpload = async (file: File | null) => {
+    if (!file) return;
+    setBackgroundUploading(true);
+    setBackgroundUploadError(null);
+
+    try {
+      const url = await uploadImage(file, "tenant");
+      setForm((prev) => ({
+        ...prev,
+        background_image_url: url,
+      }));
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "No se pudo subir la imagen.";
+      setBackgroundUploadError(message);
+    } finally {
+      setBackgroundUploading(false);
+    }
+  };
+
+  const handleLogoUpload = async (file: File | null) => {
+    if (!file) return;
+    setLogoUploading(true);
+    setLogoUploadError(null);
+
+    try {
+      const url = await uploadImage(file, "tenant");
+      setForm((prev) => ({
+        ...prev,
+        logo_url: url,
+      }));
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "No se pudo subir el logo.";
+      setLogoUploadError(message);
+    } finally {
+      setLogoUploading(false);
+    }
+  };
 
   const slugify = (value: string) =>
     value
@@ -46,12 +105,6 @@ export function CompanyForm({ plans }: CompanyFormProps) {
       .trim()
       .replace(/\s+/g, "-")
       .replace(/-+/g, "-");
-
-  const getInitials = (name: string) => {
-    const parts = name.trim().split(/\s+/).filter(Boolean);
-    const initials = parts.slice(0, 2).map((part) => part[0]?.toUpperCase());
-    return initials.join("") || "GC";
-  };
 
   const currency = useMemo(
     () =>
@@ -99,8 +152,15 @@ export function CompanyForm({ plans }: CompanyFormProps) {
         subscription_status: "active",
         created_by: userRow.id,
         theme_config: {
+          displayName: form.display_name.trim() || form.name,
           primaryColor: form.primary_color,
+          secondaryColor: form.secondary_color,
+          priceColor: form.price_color,
+          discountColor: form.discount_color,
+          hoverColor: form.hover_color,
           logoUrl: form.logo_url,
+          backgroundColor: form.background_color,
+          backgroundImageUrl: form.background_image_url.trim() || null,
         },
       });
 
@@ -147,14 +207,23 @@ export function CompanyForm({ plans }: CompanyFormProps) {
               onChange={(event) =>
                 setForm((prev) => {
                   const nextName = event.target.value;
+                  const nextDisplayName =
+                    prev.display_name.trim().length > 0
+                      ? prev.display_name
+                      : nextName;
                   if (slugTouched) {
-                    return { ...prev, name: nextName };
+                    return {
+                      ...prev,
+                      name: nextName,
+                      display_name: nextDisplayName,
+                    };
                   }
 
                   // Comentario: el slug se auto-genera mientras no haya edicion manual.
                   return {
                     ...prev,
                     name: nextName,
+                    display_name: nextDisplayName,
                     public_slug: slugify(nextName),
                   };
                 })
@@ -199,10 +268,21 @@ export function CompanyForm({ plans }: CompanyFormProps) {
               <option value="">Selecciona un plan</option>
               {plans.map((plan) => (
                 <option key={plan.id} value={plan.id}>
-                  {plan.name ?? "Plan"} · {currency.format(Number(plan.price ?? 0))}
+                  {plan.name ?? "Plan"} -� {currency.format(Number(plan.price ?? 0))}
                 </option>
               ))}
             </select>
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
+            Nombre visible
+            <Input
+              value={form.display_name}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, display_name: event.target.value }))
+              }
+              placeholder={form.name || "Nombre visible"}
+            />
           </label>
 
           <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
@@ -220,55 +300,156 @@ export function CompanyForm({ plans }: CompanyFormProps) {
             </div>
           </label>
 
+          <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
+            Color secundario
+            <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-3 py-2">
+              <input
+                type="color"
+                value={form.secondary_color}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    secondary_color: event.target.value,
+                  }))
+                }
+                className="h-8 w-12 cursor-pointer rounded-lg border border-zinc-200"
+              />
+              <span className="text-xs text-zinc-500">{form.secondary_color}</span>
+            </div>
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
+            Color precio
+            <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-3 py-2">
+              <input
+                type="color"
+                value={form.price_color}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    price_color: event.target.value,
+                  }))
+                }
+                className="h-8 w-12 cursor-pointer rounded-lg border border-zinc-200"
+              />
+              <span className="text-xs text-zinc-500">{form.price_color}</span>
+            </div>
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
+            Color descuento
+            <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-3 py-2">
+              <input
+                type="color"
+                value={form.discount_color}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    discount_color: event.target.value,
+                  }))
+                }
+                className="h-8 w-12 cursor-pointer rounded-lg border border-zinc-200"
+              />
+              <span className="text-xs text-zinc-500">{form.discount_color}</span>
+            </div>
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
+            Color hover botones
+            <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-3 py-2">
+              <input
+                type="color"
+                value={form.hover_color}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    hover_color: event.target.value,
+                  }))
+                }
+                className="h-8 w-12 cursor-pointer rounded-lg border border-zinc-200"
+              />
+              <span className="text-xs text-zinc-500">{form.hover_color}</span>
+            </div>
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
+            Fondo principal
+            <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-3 py-2">
+              <input
+                type="color"
+                value={form.background_color}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    background_color: event.target.value,
+                  }))
+                }
+                className="h-8 w-12 cursor-pointer rounded-lg border border-zinc-200"
+              />
+              <span className="text-xs text-zinc-500">{form.background_color}</span>
+            </div>
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
+            Imagen de fondo (URL)
+            <Input
+              value={form.background_image_url}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  background_image_url: event.target.value,
+                }))
+              }
+              placeholder="https://.../background.webp"
+            />
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
+            Subir imagen de fondo
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(event) =>
+                handleBackgroundUpload(event.target.files?.[0] ?? null)
+              }
+              className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-600"
+              disabled={backgroundUploading}
+            />
+            {backgroundUploading ? (
+              <span className="text-xs text-zinc-500">Subiendo...</span>
+            ) : null}
+            {backgroundUploadError ? (
+              <span className="text-xs text-red-600">
+                {backgroundUploadError}
+              </span>
+            ) : null}
+          </label>
+
           <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700 md:col-span-2">
             Logo URL
             <Input
               value={form.logo_url}
-              onChange={(event) => {
-                setLogoError(false);
-                setForm((prev) => ({ ...prev, logo_url: event.target.value }));
-              }}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, logo_url: event.target.value }))
+              }
               placeholder="https://.../logo.png"
             />
           </label>
         </div>
 
-        <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
-            Vista previa
-          </p>
-          <div
-            className="mt-3 flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3"
-            style={{ borderLeft: `4px solid ${form.primary_color}` }}
-          >
-            <div
-              className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-zinc-200"
-              style={{ backgroundColor: form.primary_color }}
-            >
-              {form.logo_url && !logoError ? (
-                <img
-                  src={form.logo_url}
-                  alt="Logo"
-                  className="h-full w-full object-contain"
-                  onError={() => setLogoError(true)}
-                />
-              ) : (
-                // Comentario: usamos iniciales si el logo no carga.
-                <span className="text-xs font-semibold text-white">
-                  {getInitials(form.name || "GodCode")}
-                </span>
-              )}
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-zinc-900">
-                {form.name || "Nombre del tenant"}
-              </span>
-              <span className="text-xs text-zinc-500">
-                {form.public_slug ? `${form.public_slug}.${baseDomain}` : "subdominio"}
-              </span>
-            </div>
-          </div>
-        </div>
+        <BrandingPreview
+          displayName={form.display_name}
+          name={form.name}
+          publicSlug={form.public_slug}
+          primaryColor={form.primary_color}
+          secondaryColor={form.secondary_color}
+          backgroundColor={form.background_color}
+          backgroundImageUrl={form.background_image_url}
+          logoUrl={form.logo_url}
+          priceColor={form.price_color}
+          discountColor={form.discount_color}
+          hoverColor={form.hover_color}
+        />
       </Card>
 
       {error ? (
