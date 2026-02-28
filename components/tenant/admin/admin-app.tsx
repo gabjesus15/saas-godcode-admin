@@ -7,21 +7,22 @@ import { CashProvider } from "./kit/context/CashContext";
 import { BusinessProvider } from "./kit/context/BusinessContext";
 
 interface AdminAppProps {
-  companyName: string;
-  logoUrl?: string | null;
-  userEmail?: string | null;
+	companyId: string;
+	companyName: string;
+	logoUrl?: string | null;
+	userEmail?: string | null;
 }
 
-export function AdminApp({ companyName, logoUrl, userEmail }: AdminAppProps) {
-  return (
-    <LocationProvider>
-      <CashProvider>
-        <BusinessProvider>
-          <AdminProvider>
-            <AdminPage companyName={companyName} logoUrl={logoUrl} userEmail={userEmail} />
-          </AdminProvider>
-        </BusinessProvider>
-      </CashProvider>
-    </LocationProvider>
-  );
+export function AdminApp({ companyId, companyName, logoUrl, userEmail }: AdminAppProps) {
+	return (
+		<LocationProvider>
+			<CashProvider>
+				<BusinessProvider>
+					<AdminProvider companyId={companyId}>
+						<AdminPage companyName={companyName} logoUrl={logoUrl} userEmail={userEmail} />
+					</AdminProvider>
+				</BusinessProvider>
+			</CashProvider>
+		</LocationProvider>
+	);
 }

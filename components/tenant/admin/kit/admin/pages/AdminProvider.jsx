@@ -22,7 +22,7 @@ export const useAdmin = () => {
 	return context;
 };
 
-export const AdminProvider = ({ children }) => {
+export const AdminProvider = ({ children, companyId }) => {
 	const router = useRouter();
 	const navigate = useCallback((path) => router.push(path), [router]);
 
@@ -105,7 +105,16 @@ export const AdminProvider = ({ children }) => {
 	}, [navigate, showNotify]);
 
 	const refreshBranches = useCallback(async () => {
-		const { data, error } = await supabase.from(TABLES.branches).select('*').order('name');
+		if (!companyId) {
+			setBranches([]);
+			setSelectedBranch(null);
+			return;
+		}
+		const { data, error } = await supabase
+			.from(TABLES.branches)
+			.select('*')
+			.eq('company_id', companyId)
+			.order('name');
 		if (!error && data?.length > 0) {
 			setBranches(data);
 			setSelectedBranch(prev => {
@@ -113,8 +122,11 @@ export const AdminProvider = ({ children }) => {
 				const updated = data.find(b => b.id === prev.id);
 				return updated || data[0];
 			});
+		} else if (!error) {
+			setBranches([]);
+			setSelectedBranch(null);
 		}
-	}, []);
+	}, [companyId]);
 
 	useEffect(() => { refreshBranches(); }, [refreshBranches]);
 

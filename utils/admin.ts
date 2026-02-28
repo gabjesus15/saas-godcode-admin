@@ -1,48 +1,31 @@
-import { createSupabaseBrowserClient } from "./supabase/client";
-
 export type AdminRole = "owner" | "super_admin" | "admin" | "support" | string;
 
 export const roleSets = {
-  billing: ["owner", "super_admin", "admin"],
-  destructive: ["owner", "super_admin"],
+	billing: ["owner", "super_admin", "admin"],
+	destructive: ["owner", "super_admin"],
 };
 
 export async function requireAdminRole(allowedRoles: string[]) {
-  const supabase = createSupabaseBrowserClient();
-  const { data: userData, error: userError } = await supabase.auth.getUser();
+	try {
+		const response = await fetch("/api/admin-permissions", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ allowedRoles }),
+		});
 
-  if (userError || !userData.user?.email) {
-    return { ok: false, error: "No se pudo validar el usuario." } as const;
-  }
+		const data = (await response.json()) as
+			| { ok: true; email: string; role: string }
+			| { ok: false; error?: string };
 
-  const email = userData.user.email;
-  // Buscar primero en admin_users
-  let { data: adminUser, error: adminError } = await supabase
-    .from("admin_users")
-    .select("role")
-    .eq("email", email)
-    .maybeSingle();
+		if (!response.ok || !data.ok) {
+			return {
+				ok: false,
+				error: data.ok ? "No autorizado" : data.error ?? "No autorizado",
+			} as const;
+		}
 
-  let role = adminUser?.role;
-  if ((!role || adminError) && email) {
-    // Si no está en admin_users, buscar en users
-    const { data: userRow, error: userError } = await supabase
-      .from("users")
-      .select("role")
-      .eq("email", email)
-      .maybeSingle();
-    if (!userError && userRow?.role) {
-      role = userRow.role;
-    }
-  }
-
-  if (!role) {
-    return { ok: false, error: "No tienes permisos asignados." } as const;
-  }
-
-  if (!allowedRoles.includes(role)) {
-    return { ok: false, error: "No tienes permisos para esta accion." } as const;
-  }
-
-  return { ok: true, email, role } as const;
+		return { ok: true, email: data.email, role: data.role } as const;
+	} catch {
+		return { ok: false, error: "No se pudo validar el usuario." } as const;
+	}
 }

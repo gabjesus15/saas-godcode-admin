@@ -14,10 +14,15 @@ const ProtectedRoute = ({ children }) => {
 	useEffect(() => {
 		let cancelled = false;
 
-		const checkAdminAccess = async (nextSession) => {
+		const checkAdminAccess = async () => {
+			const {
+				data: { user },
+				error: userError,
+			} = await supabase.auth.getUser();
+
 			if (cancelled) return;
-			if (!nextSession?.user?.email) {
-				setSession(nextSession ?? null);
+			if (userError || !user?.email) {
+				setSession(null);
 				setIsAdmin(false);
 				setLoading(false);
 				return;
@@ -31,31 +36,11 @@ const ProtectedRoute = ({ children }) => {
 			} else {
 				setIsAdmin(!!isAdmin);
 			}
-			setSession(nextSession);
+			setSession({ user });
 			setLoading(false);
 		};
 
-		// Primera vez: getSession (lee de storage). Si viene null, dar una oportunidad a que
-		// Supabase restaure la sesión antes de redirigir (evita "se queda pegado" al recargar).
-		supabase.auth.getSession()
-			.then(async ({ data: { session: nextSession } }) => {
-				if (cancelled) return;
-				if (nextSession) {
-					await checkAdminAccess(nextSession);
-					return;
-				}
-				// Sesión null: esperar un instante por si el storage aún no estaba listo al recargar
-				await new Promise(r => setTimeout(r, 200));
-				if (cancelled) return;
-				const { data: { session: retrySession } } = await supabase.auth.getSession();
-				if (retrySession) {
-					await checkAdminAccess(retrySession);
-				} else {
-					setSession(null);
-					setIsAdmin(false);
-					setLoading(false);
-				}
-			})
+		checkAdminAccess()
 			.catch(() => {
 				if (!cancelled) {
 					setSession(null);
@@ -66,8 +51,14 @@ const ProtectedRoute = ({ children }) => {
 
 		const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
 			if (cancelled) return;
-			// Cuando la sesión se restaura (ej. al recargar), actualizar estado
-			if (nextSession) checkAdminAccess(nextSession);
+			// Revalidar siempre contra servidor para evitar sesion stale de storage local.
+			if (nextSession) {
+				checkAdminAccess();
+				return;
+			}
+			setSession(null);
+			setIsAdmin(false);
+			setLoading(false);
 		});
 
 		return () => {

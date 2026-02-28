@@ -103,27 +103,50 @@ export default async function TenantMenuPage({
   }
 
   // --- B. Ejecutar consultas secundarias en PARALELO para máximo rendimiento ---
-  const [
-    { data: branches },
-    { data: openShifts },
-    { data: businessInfoRaw }
-  ] = await Promise.all([
-    supabase
-      .from("branches")
-      .select("id,name,address,phone,schedule,company_id")
-      .eq("company_id", company.id)
-      .order("name"),
-    supabase
-      .from("cash_shifts")
-      .select("branch_id")
-      .eq("company_id", company.id)
-      .eq("status", "open"),
-    supabase
-      .from("business_info")
-      .select("schedule")
-      .eq("company_id", company.id)
-      .maybeSingle()
-  ]);
+	const [
+		{ data: branches, error: branchesError },
+		{ data: openShifts, error: openShiftsError },
+		{ data: businessInfoRaw, error: businessInfoError },
+	] = await Promise.all([
+		supabase
+			.from("branches")
+			.select("id,name,address,phone,schedule,company_id")
+			.eq("company_id", company.id)
+			.order("name"),
+		supabase
+			.from("cash_shifts")
+			.select("branch_id")
+			.eq("company_id", company.id)
+			.eq("status", "open"),
+		supabase
+			.from("business_info")
+			.select("schedule")
+			.eq("company_id", company.id)
+			.maybeSingle(),
+	]);
+
+	if (branchesError || openShiftsError || businessInfoError) {
+		if (resolvedSearchParams?.debug === "1") {
+			return (
+				<div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
+					No se pudo cargar la informacion base del menu.
+					<pre style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
+						{JSON.stringify(
+							{
+								subdomain: resolvedParams.subdomain,
+								branchesError: branchesError?.message ?? null,
+								openShiftsError: openShiftsError?.message ?? null,
+								businessInfoError: businessInfoError?.message ?? null,
+							},
+							null,
+							2
+						)}
+					</pre>
+				</div>
+			);
+		}
+		return <StoreUnavailable />;
+	}
 
   const openBranchIds = (openShifts ?? [])
     .map((shift) => String(shift.branch_id))
@@ -146,10 +169,29 @@ export default async function TenantMenuPage({
     p_branch_id: selectedBranch.id,
   });
 
-  if (menuError) {
-    console.error("Error al obtener el menú RPC:", menuError);
-    // Continuamos ejecutando con arrays vacíos para mostrar la UI correctamente (Graceful Degradation)
-  }
+	if (menuError) {
+		console.error("Error al obtener el menú RPC:", menuError);
+		if (resolvedSearchParams?.debug === "1") {
+			return (
+				<div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
+					No se pudo cargar el menu de la sucursal seleccionada.
+					<pre style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
+						{JSON.stringify(
+							{
+								subdomain: resolvedParams.subdomain,
+								branchId: selectedBranch.id,
+								error: menuError.message ?? null,
+								code: menuError.code ?? null,
+							},
+							null,
+							2
+						)}
+					</pre>
+				</div>
+			);
+		}
+		return <StoreUnavailable />;
+	}
 
   // --- E. Asignación de tipos fuertes (¡Adiós 'any'!) ---
   const categoriesRaw = (menuData?.categories ?? []) as RawRPCCategory[];
