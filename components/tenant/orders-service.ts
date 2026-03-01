@@ -54,6 +54,8 @@ function normalizeOrderItems(items: OrderItem[]): OrderItem[] {
 
 export const ordersService = {
   async createOrder(orderData: CreateOrderPayload, receiptFile: File | null = null) {
+    const supabase = createSupabaseBrowserClient();
+
     if (!orderData.branch_id) {
       throw new Error("El ID de sucursal es obligatorio para crear un pedido.");
     }
@@ -63,8 +65,41 @@ export const ordersService = {
     }
 
     const normalizedItems = normalizeOrderItems(orderData.items);
+    const requestedIds = Array.from(
+      new Set(normalizedItems.map((item) => String(item.id)).filter(Boolean))
+    );
 
-    const supabase = createSupabaseBrowserClient();
+    const [{ data: activePrices, error: activePricesError }, { data: activeBranch, error: activeBranchError }] =
+      await Promise.all([
+        supabase
+          .from("product_prices")
+          .select("product_id")
+          .in("product_id", requestedIds)
+          .eq("branch_id", orderData.branch_id)
+          .eq("is_active", true),
+        supabase
+          .from("product_branch")
+          .select("product_id")
+          .in("product_id", requestedIds)
+          .eq("branch_id", orderData.branch_id)
+          .eq("is_active", true),
+      ]);
+
+    if (activePricesError || activeBranchError) {
+      throw new Error("No se pudo validar el menu actual. Intenta nuevamente.");
+    }
+
+    const allowedPriceIds = new Set((activePrices ?? []).map((row) => String(row.product_id)));
+    const allowedBranchIds = new Set((activeBranch ?? []).map((row) => String(row.product_id)));
+    const unavailableItems = normalizedItems.filter(
+      (item) => !allowedPriceIds.has(String(item.id)) || !allowedBranchIds.has(String(item.id))
+    );
+
+    if (unavailableItems.length > 0) {
+      throw new Error(
+        "Algunos productos ya no estan disponibles en esta sucursal. Actualiza el menu y vuelve a intentar."
+      );
+    }
 
     const { data: openShift } = await supabase
       .from("cash_shifts")

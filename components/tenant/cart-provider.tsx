@@ -43,18 +43,21 @@ export function CartProvider({
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
   const cartProductIds = useMemo(
-    () => (Array.isArray(cart) ? cart.map((item) => item.id).filter(Boolean).join(",") : ""),
+    () =>
+      Array.isArray(cart)
+        ? Array.from(new Set(cart.map((item) => String(item.id || "")).filter(Boolean))).join(",")
+        : "",
     [cart]
   );
 
   useEffect(() => {
-    if (cart.length === 0 || !selectedBranchId) return;
+    if (!cartProductIds || !selectedBranchId) return;
     if (!isValidBranchId(selectedBranchId)) return;
 
     let cancelled = false;
 
     const validatePrices = async () => {
-      const ids = filterValidProductIds(cart.map((item) => item.id));
+      const ids = filterValidProductIds(cartProductIds.split(","));
       if (ids.length === 0) return;
 
       try {
@@ -72,13 +75,16 @@ export function CartProvider({
         }
 
         setCart((prevCart) => {
-          const next = prevCart
-            .map((cartItem) => {
-              const priceRow = data ? data.find((row) => row.product_id === cartItem.id) : null;
+          const priceByProductId = new Map(
+            (data ?? []).map((row) => [String(row.product_id), row])
+          );
+
+          const next = prevCart.reduce<CartItem[]>((acc, cartItem) => {
+              const priceRow = priceByProductId.get(String(cartItem.id)) ?? null;
               const meta = (priceRow as any)?.products;
 
               if (priceRow) {
-                return {
+                acc.push({
                   ...cartItem,
                   price: priceRow.price,
                   has_discount: priceRow.has_discount,
@@ -86,21 +92,32 @@ export function CartProvider({
                   name: meta?.name ?? cartItem.name,
                   is_active: meta?.is_active ?? cartItem.is_active,
                   description: meta?.description ?? cartItem.description,
-                };
+                });
               }
 
-              if (meta) {
-                return {
-                  ...cartItem,
-                  name: meta.name,
-                  is_active: meta.is_active,
-                  description: meta.description,
-                };
-              }
-
-              return cartItem;
-            })
+              return acc;
+            }, [])
             .filter((item) => item.is_active !== false);
+
+          const sameLength = prevCart.length === next.length;
+          const isSame =
+            sameLength &&
+            prevCart.every((prevItem, index) => {
+              const nextItem = next[index];
+              return (
+                nextItem &&
+                prevItem.id === nextItem.id &&
+                prevItem.quantity === nextItem.quantity &&
+                Number(prevItem.price ?? 0) === Number(nextItem.price ?? 0) &&
+                Boolean(prevItem.has_discount) === Boolean(nextItem.has_discount) &&
+                Number(prevItem.discount_price ?? 0) === Number(nextItem.discount_price ?? 0) &&
+                prevItem.is_active === nextItem.is_active &&
+                (prevItem.name ?? "") === (nextItem.name ?? "") &&
+                (prevItem.description ?? "") === (nextItem.description ?? "")
+              );
+            });
+
+          if (isSame) return prevCart;
           return next;
         });
       } catch {
@@ -114,7 +131,7 @@ export function CartProvider({
     return () => {
       cancelled = true;
     };
-  }, [selectedBranchId, cartProductIds, cart, supabase]);
+  }, [selectedBranchId, cartProductIds, supabase]);
 
   useEffect(() => {
     localStorage.setItem("tenant_cart", JSON.stringify(cart));
