@@ -70,6 +70,7 @@ const ClientFormModal = ({ isOpen, onClose, onClientCreated, showNotify, company
                 .from(TABLES.clients)
                 .select('id')
                 .eq('phone', phone)
+                .eq('company_id', companyId)
                 .single();
 
             if (existing) {

@@ -406,7 +406,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
 
         {/* 2.5 NUEVO INVENTARIO (INSUMOS) */}
         {activeTab === 'inventory' && (
-            <AdminInventory showNotify={showNotify} branchId={selectedBranch?.id} branches={branches} />
+          <AdminInventory showNotify={showNotify} branchId={selectedBranch?.id} branches={branches} companyId={companyIdForClients} />
         )}
 
         {/* 3. REPORTES */}
@@ -612,6 +612,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
                 loadData={loadData} 
                 isMobile={isMobile}
                 selectedBranch={selectedBranch}
+               companyId={companyIdForClients}
              />
           </div>
         )}

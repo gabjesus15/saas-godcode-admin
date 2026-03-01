@@ -74,6 +74,34 @@ export async function POST(req: NextRequest) {
 	if (error) {
 		return NextResponse.json({ error: error.message }, { status: 400 });
 	}
+
+	const { data: existingAdminUser } = await supabaseAdmin
+		.from("admin_users")
+		.select("id")
+		.ilike("email", normalizedEmail)
+		.maybeSingle();
+
+	if (existingAdminUser?.id) {
+		const { error: adminUpdateError } = await supabaseAdmin
+			.from("admin_users")
+			.update({ email: normalizedEmail, role })
+			.eq("id", existingAdminUser.id);
+
+		if (adminUpdateError) {
+			return NextResponse.json({ error: adminUpdateError.message }, { status: 400 });
+		}
+	} else {
+		const { error: adminInsertError } = await supabaseAdmin
+			.from("admin_users")
+			.insert({
+				email: normalizedEmail,
+				role,
+			});
+
+		if (adminInsertError) {
+			return NextResponse.json({ error: adminInsertError.message }, { status: 400 });
+		}
+	}
 	return NextResponse.json({ success: true });
 }
 
@@ -88,10 +116,21 @@ export async function DELETE(req: NextRequest) {
 	// Buscar auth_id
 	const { data: userRow, error: userError } = await supabaseAdmin
 		.from("users")
-		.select("auth_id")
+		.select("auth_id,email,company_id")
 		.eq("id", id)
 		.maybeSingle();
 	if (userError) return NextResponse.json({ error: userError.message }, { status: 400 });
+
+	if (userRow?.email) {
+		const { error: adminDeleteError } = await supabaseAdmin
+			.from("admin_users")
+			.delete()
+			.ilike("email", String(userRow.email).trim().toLowerCase());
+		if (adminDeleteError) {
+			return NextResponse.json({ error: adminDeleteError.message }, { status: 400 });
+		}
+	}
+
 	if (userRow?.auth_id) {
 		const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userRow.auth_id);
 		if (authError) return NextResponse.json({ error: authError.message }, { status: 400 });
@@ -143,7 +182,7 @@ export async function PUT(req: NextRequest) {
 	// Buscar auth_id
 	const { data: userRow, error: userError } = await supabaseAdmin
 		.from("users")
-		.select("auth_id")
+		.select("auth_id,company_id,email")
 		.eq("id", id)
 		.maybeSingle();
 	if (userError) return NextResponse.json({ error: userError.message }, { status: 400 });
@@ -168,5 +207,35 @@ export async function PUT(req: NextRequest) {
 		.update({ email: normalizedEmail, role, branch_id: normalizedBranchId })
 		.eq("id", id);
 	if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+	if (userRow) {
+		const previousEmail = String(userRow.email ?? "").trim().toLowerCase();
+		const { data: existingAdminUser } = await supabaseAdmin
+			.from("admin_users")
+			.select("id")
+			.ilike("email", previousEmail)
+			.maybeSingle();
+
+		if (existingAdminUser?.id) {
+			const { error: adminUpdateError } = await supabaseAdmin
+				.from("admin_users")
+				.update({ email: normalizedEmail, role })
+				.eq("id", existingAdminUser.id);
+			if (adminUpdateError) {
+				return NextResponse.json({ error: adminUpdateError.message }, { status: 400 });
+			}
+		} else {
+			const { error: adminInsertError } = await supabaseAdmin
+				.from("admin_users")
+				.insert({
+					email: normalizedEmail,
+					role,
+				});
+			if (adminInsertError) {
+				return NextResponse.json({ error: adminInsertError.message }, { status: 400 });
+			}
+		}
+	}
+
 	return NextResponse.json({ success: true });
 }

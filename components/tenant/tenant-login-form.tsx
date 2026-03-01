@@ -34,13 +34,49 @@ export function TenantLoginForm({ subdomain }: TenantLoginFormProps) {
         throw signInError;
       }
 
-      const { data: adminUser, error: adminError } = await supabase
-        .from("admin_users")
+      const { data: company, error: companyError } = await supabase
+        .from("companies")
         .select("id")
-        .ilike("email", normalizedEmail)
+        .eq("public_slug", subdomain)
         .maybeSingle();
 
-      if (adminError || !adminUser) {
+      if (companyError || !company?.id) {
+        await supabase.auth.signOut();
+        throw new Error("No se pudo validar la empresa del subdominio.");
+      }
+
+      const { data: adminUser, error: adminError } = await supabase
+        .from("admin_users")
+        .select("id,role")
+        .ilike("email", normalizedEmail)
+        .in("role", ["owner", "super_admin", "admin", "ceo", "cashier"]);
+
+      if (adminError) {
+        await supabase.auth.signOut();
+        throw new Error("No se pudo validar tus permisos de administrador.");
+      }
+
+      const adminRows = Array.isArray(adminUser) ? adminUser : [];
+      let hasAccess = adminRows.length > 0;
+
+      if (!hasAccess) {
+        const { data: userRow, error: userError } = await supabase
+          .from("users")
+          .select("id,role")
+          .ilike("email", normalizedEmail)
+          .eq("company_id", company.id)
+          .maybeSingle();
+
+        if (userError) {
+          await supabase.auth.signOut();
+          throw new Error("No se pudo validar tus permisos de usuario.");
+        }
+
+        const allowedRoles = new Set(["owner", "super_admin", "admin", "ceo", "cashier"]);
+        hasAccess = Boolean(userRow?.role && allowedRoles.has(String(userRow.role).toLowerCase()));
+      }
+
+      if (!hasAccess) {
         await supabase.auth.signOut();
         throw new Error("No tienes permisos para acceder al panel admin.");
       }

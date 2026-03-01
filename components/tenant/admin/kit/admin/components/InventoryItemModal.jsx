@@ -5,7 +5,7 @@ import { X, Save, AlertCircle, MapPin } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { TABLES } from '../../lib/supabaseTables';
 
-const InventoryItemModal = ({ isOpen, onClose, onItemSaved, itemToEdit = null, showNotify, branchId, branches }) => {
+const InventoryItemModal = ({ isOpen, onClose, onItemSaved, itemToEdit = null, showNotify, branchId, branches, companyId }) => {
     const [formData, setFormData] = useState({
         name: '',
         stock: 0,
@@ -61,6 +61,12 @@ const InventoryItemModal = ({ isOpen, onClose, onItemSaved, itemToEdit = null, s
         e.preventDefault();
         setLoading(true);
 
+        if (!companyId) {
+            showNotify('No hay empresa asociada para este inventario.', 'error');
+            setLoading(false);
+            return;
+        }
+
         try {
             let itemId = itemToEdit?.id;
 
@@ -88,7 +94,11 @@ const InventoryItemModal = ({ isOpen, onClose, onItemSaved, itemToEdit = null, s
             }
 
             if (itemToEdit) {
-                const { error } = await supabase.from(TABLES.inventory_items).update(itemData).eq('id', itemId);
+                const { error } = await supabase
+                    .from(TABLES.inventory_items)
+                    .update(itemData)
+                    .eq('id', itemId)
+                    .eq('company_id', companyId);
                 if (error) throw error;
             } else {
                 const { data, error } = await supabase.from(TABLES.inventory_items).insert([itemData]).select().single();

@@ -7,7 +7,7 @@ import { TABLES } from '../../lib/supabaseTables';
 import { Loader2, AlertCircle, XCircle, FileText, Trash2, Users, ChevronDown } from 'lucide-react';
 import { downloadExcel } from '../../shared/utils/exportUtils';
 
-const AdminDangerZone = ({ orders, showNotify, loadData, isMobile, selectedBranch }) => {
+const AdminDangerZone = ({ orders, showNotify, loadData, isMobile, selectedBranch, companyId }) => {
   const [analyticsDate, setAnalyticsDate] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -82,6 +82,10 @@ const AdminDangerZone = ({ orders, showNotify, loadData, isMobile, selectedBranc
         .gte('created_at', range.startIso)
         .lt('created_at', range.endIso)
         .order('created_at', { ascending: true });
+
+      if (companyId) {
+        query = query.eq('company_id', companyId);
+      }
 
       // Filtrar por sucursal si corresponde
       if (selectedBranch && selectedBranch.id && selectedBranch.id !== 'all') {
@@ -179,6 +183,10 @@ const AdminDangerZone = ({ orders, showNotify, loadData, isMobile, selectedBranc
         const range = getMonthRangeUtc(analyticsDate);
         if (!range) {
           throw new Error('Mes inválido');
+        }
+
+        if (!selectedBranch || selectedBranch.id === 'all') {
+          throw new Error('Selecciona una sucursal para borrar datos mensuales de forma segura.');
         }
 
         const isSingleBranch = selectedBranch && selectedBranch.id && selectedBranch.id !== 'all';

@@ -7,7 +7,7 @@ import { TABLES } from '../../lib/supabaseTables';
 import InventoryItemModal from './InventoryItemModal';
 import { downloadExcel } from '../../shared/utils/exportUtils';
 
-const AdminInventory = ({ showNotify, branchId, branches }) => {
+const AdminInventory = ({ showNotify, branchId, branches, companyId }) => {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -16,12 +16,18 @@ const AdminInventory = ({ showNotify, branchId, branches }) => {
 
     const loadItems = useCallback(async () => {
         if (!branchId) return;
+        if (!companyId) {
+            setItems([]);
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         try {
             // 1. Fetch all item definitions
             const { data: allItems, error: itemsError } = await supabase
                 .from(TABLES.inventory_items)
                 .select('*')
+                .eq('company_id', companyId)
                 .order('name');
             
             if (itemsError) throw itemsError;
@@ -87,7 +93,7 @@ const AdminInventory = ({ showNotify, branchId, branches }) => {
         } finally {
             setLoading(false);
         }
-    }, [showNotify, branchId]);
+    }, [showNotify, branchId, companyId, branches]);
 
     useEffect(() => {
         loadItems();
@@ -99,7 +105,8 @@ const AdminInventory = ({ showNotify, branchId, branches }) => {
             const { error } = await supabase
                 .from(TABLES.inventory_items)
                 .delete()
-                .eq('id', id);
+                .eq('id', id)
+                .eq('company_id', companyId);
             
             if (error) throw error;
             showNotify('Insumo eliminado', 'success');
@@ -264,6 +271,7 @@ const AdminInventory = ({ showNotify, branchId, branches }) => {
                 showNotify={showNotify}
                 branchId={branchId}
                 branches={branches}
+                companyId={companyId}
             />
         </div>
     );

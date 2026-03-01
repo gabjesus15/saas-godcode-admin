@@ -154,29 +154,48 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions }) => {
 			}
 			const normalizedEmail = user.email.trim().toLowerCase();
 			setUserEmail(normalizedEmail);
+			const allowedRoles = ['owner', 'super_admin', 'admin', 'ceo', 'cashier'];
 
-			const { data: adminUser, error: adminError } = await supabase
+			const { data: adminRows, error: adminError } = await supabase
 				.from(TABLES.admin_users)
 				.select('role')
 				.ilike('email', normalizedEmail)
+				.in('role', allowedRoles);
+
+			if (adminError) {
+				setUserRole(null);
+				setAssignedBranchId(null);
+				await supabase.auth.signOut();
+				navigate('/login');
+				showNotify('No se pudieron validar tus permisos de administrador', 'error');
+				return;
+			}
+
+			const adminMatches = Array.isArray(adminRows) ? adminRows : [];
+			const adminMatch = adminMatches.find((row) => Boolean(row?.role)) || null;
+
+			let resolvedRole = String(adminMatch?.role || '').toLowerCase() || null;
+
+			const { data: userRow } = await supabase
+				.from(TABLES.users)
+				.select('role,branch_id')
+				.eq('auth_user_id', user.id)
+				.eq('company_id', companyId)
 				.maybeSingle();
 
-			if (adminError || !adminUser) {
+			const userRole = String(userRow?.role || '').toLowerCase();
+			if (!resolvedRole && userRole && allowedRoles.includes(userRole)) {
+				resolvedRole = userRole;
+			}
+
+			if (!resolvedRole) {
 				setUserRole(null);
 				setAssignedBranchId(null);
 				await supabase.auth.signOut();
 				navigate('/login');
 				showNotify('No tienes permisos de administrador', 'error');
 			} else {
-				setUserRole(adminUser.role || 'admin');
-
-				const { data: userRow } = await supabase
-					.from(TABLES.users)
-					.select('branch_id')
-					.eq('auth_user_id', user.id)
-					.eq('company_id', companyId)
-					.maybeSingle();
-
+				setUserRole(resolvedRole);
 				setAssignedBranchId(userRow?.branch_id || null);
 			}
 		};
@@ -237,27 +256,29 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions }) => {
 
 	const loadData = useCallback(async (isRefresh = false) => {
 		if (!selectedBranch) return;
+		if (!companyId) return;
 		if (isRefresh) setRefreshing(true);
 		else setLoading(true);
 		try {
 			const isAllBranches = selectedBranch.id === 'all';
 			const categoriesQuery = isAllBranches
-				? supabase.from(TABLES.categories).select('*').order('order')
+				? supabase.from(TABLES.categories).select('*').eq('company_id', companyId).order('order')
 				: supabase
 					.from(TABLES.categories)
 					.select('id, name, company_id, category_branch!inner(order, is_active, branch_id)')
+					.eq('company_id', companyId)
 					.eq('category_branch.branch_id', selectedBranch.id);
 			const promises = [
 				categoriesQuery,
-				supabase.from(TABLES.products).select('*').order('name'),
+				supabase.from(TABLES.products).select('*').eq('company_id', companyId).order('name'),
 				isAllBranches
-					? supabase.from(TABLES.orders).select('*').order('created_at', { ascending: false }).limit(100)
-					: supabase.from(TABLES.orders).select('*').eq('branch_id', selectedBranch.id).order('created_at', { ascending: false }).limit(100),
-				supabase.from(TABLES.clients).select('*').order('last_order_at', { ascending: false }).limit(200)
+					? supabase.from(TABLES.orders).select('*').eq('company_id', companyId).order('created_at', { ascending: false }).limit(100)
+					: supabase.from(TABLES.orders).select('*').eq('company_id', companyId).eq('branch_id', selectedBranch.id).order('created_at', { ascending: false }).limit(100),
+				supabase.from(TABLES.clients).select('*').eq('company_id', companyId).order('last_order_at', { ascending: false }).limit(200)
 			];
 			if (!isAllBranches) {
-				promises.push(supabase.from(TABLES.product_prices).select('*').eq('branch_id', selectedBranch.id));
-				promises.push(supabase.from(TABLES.product_branch).select('*').eq('branch_id', selectedBranch.id));
+				promises.push(supabase.from(TABLES.product_prices).select('*').eq('company_id', companyId).eq('branch_id', selectedBranch.id));
+				promises.push(supabase.from(TABLES.product_branch).select('*').eq('company_id', companyId).eq('branch_id', selectedBranch.id));
 			}
 			const results = await Promise.all(promises);
 			const [catsRes, globalProductsRes, ordsRes, cltsRes] = results;
@@ -313,16 +334,18 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions }) => {
 			setLoading(false);
 			setRefreshing(false);
 		}
-	}, [showNotify, selectedBranch]);
+	}, [showNotify, selectedBranch, companyId]);
 
 	const loadClientHistory = useCallback(async (client) => {
 		if (!client) return;
+		if (!companyId) return;
 		setClientHistoryLoading(true);
 		try {
 			const { data, error } = await supabase
 				.from(TABLES.orders)
 				.select('*')
 				.eq('client_id', client.id)
+				.eq('company_id', companyId)
 				.order('created_at', { ascending: false });
 			if (error) throw error;
 			setSelectedClientOrders((data || []).map(sanitizeOrder));
@@ -331,7 +354,7 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions }) => {
 		} finally {
 			setClientHistoryLoading(false);
 		}
-	}, [showNotify]);
+	}, [showNotify, companyId]);
 
 	const handleSelectClient = useCallback((client) => {
 		setSelectedClient(client);
@@ -381,7 +404,11 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions }) => {
 		const previousOrders = [...orders];
 		setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: nextStatus } : o));
 		try {
-			const { error } = await supabase.from(TABLES.orders).update({ status: nextStatus }).eq('id', orderId);
+			const { error } = await supabase
+				.from(TABLES.orders)
+				.update({ status: nextStatus })
+				.eq('id', orderId)
+				.eq('company_id', companyId);
 			if (error) throw error;
 			if (nextStatus === 'completed' || nextStatus === 'picked_up') {
 				const targetOrder = previousOrders.find(o => o.id === orderId);
@@ -406,14 +433,18 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions }) => {
 			setOrders(previousOrders);
 			showNotify("Error al actualizar", "error");
 		}
-	}, [orders, activeTab, cashSystem, showNotify]);
+	}, [orders, activeTab, cashSystem, showNotify, companyId]);
 
 	const uploadReceiptToOrder = useCallback(async (orderId, file) => {
 		if (!file) return;
 		setUploadingReceipt(true);
 		try {
 			const receiptUrl = await uploadImage(file, 'receipts');
-			const { error } = await supabase.from(TABLES.orders).update({ payment_ref: receiptUrl }).eq('id', orderId);
+			const { error } = await supabase
+				.from(TABLES.orders)
+				.update({ payment_ref: receiptUrl })
+				.eq('id', orderId)
+				.eq('company_id', companyId);
 			if (error) throw error;
 			setOrders(prev => prev.map(o => o.id === orderId ? { ...o, payment_ref: receiptUrl } : o));
 			if (selectedClient) {
@@ -427,7 +458,7 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions }) => {
 		} finally {
 			setUploadingReceipt(false);
 		}
-	}, [selectedClient, showNotify]);
+	}, [selectedClient, showNotify, companyId]);
 
 	const handleReceiptFileChange = useCallback((e) => {
 		const file = e.target.files[0];
@@ -514,22 +545,29 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions }) => {
 		}
 		try {
 			if (scope === 'global' || selectedBranch?.id === 'all') {
-				await supabase.from(TABLES.products).update({ is_active: newActive }).eq('id', item.id);
+				const scopedCompanyId = companyId || selectedBranch?.company_id || item.company_id || null;
+				let query = supabase.from(TABLES.products).update({ is_active: newActive }).eq('id', item.id);
+				if (scopedCompanyId) {
+					query = query.eq('company_id', scopedCompanyId);
+				}
+				const { error } = await query;
+				if (error) throw error;
 				showNotify(newActive ? 'Activado en todos los locales' : 'Desactivado en todos los locales');
 			} else {
-				await supabase.from(TABLES.product_branch).upsert({
+				const { error } = await supabase.from(TABLES.product_branch).upsert({
 					product_id: item.id,
 					branch_id: selectedBranch.id,
 					is_active: newActive,
 					company_id: selectedBranch.company_id || null
 				}, { onConflict: 'product_id, branch_id' });
+				if (error) throw error;
 				showNotify(newActive ? 'Activado en este local' : 'Desactivado en este local');
 			}
 		} catch {
 			loadData(true);
 			showNotify('Error al cambiar estado', 'error');
 		}
-	}, [scopeModal, selectedBranch, showNotify, loadData]);
+	}, [scopeModal, selectedBranch, showNotify, loadData, companyId]);
 
 	const handleSaveCategory = useCallback(async (formData) => {
 		if (!selectedBranch || selectedBranch.id === 'all') {
@@ -624,15 +662,23 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions }) => {
 		const id = categoryToDelete.id;
 		setCategoryToDelete(null);
 		try {
-			await supabase.from(TABLES.products).update({ category_id: null }).eq('category_id', id);
-			const { error } = await supabase.from(TABLES.categories).delete().eq('id', id);
+			await supabase
+				.from(TABLES.products)
+				.update({ category_id: null })
+				.eq('category_id', id)
+				.eq('company_id', companyId);
+			const { error } = await supabase
+				.from(TABLES.categories)
+				.delete()
+				.eq('id', id)
+				.eq('company_id', companyId);
 			if (error) throw error;
 			showNotify('Categoría eliminada');
 			loadData(true);
 		} catch (error) {
 			showNotify('No se pudo eliminar: ' + (error.message || 'Error desconocido'), 'error');
 		}
-	}, [categoryToDelete, showNotify, loadData]);
+	}, [categoryToDelete, showNotify, loadData, companyId]);
 
 	const kanbanColumns = useMemo(() => ({
 		pending: orders.filter(o => o.status === 'pending'),

@@ -30,13 +30,32 @@ export default async function TenantAdminPage({
 		redirect("/");
 	}
 
-	const { data: adminUser } = await supabase
+	const { data: adminRows, error: adminError } = await supabase
 		.from("admin_users")
-		.select("id")
+		.select("id,role")
 		.ilike("email", user.email)
-		.maybeSingle();
+		.in("role", ["owner", "super_admin", "admin", "ceo", "cashier"]);
 
-	if (!adminUser) {
+	if (adminError) {
+		redirect("/login");
+	}
+
+	const adminMatches = Array.isArray(adminRows) ? adminRows : [];
+	let hasAccess = adminMatches.length > 0;
+
+	if (!hasAccess) {
+		const { data: userRow } = await supabase
+			.from("users")
+			.select("role")
+			.ilike("email", user.email)
+			.eq("company_id", company.id)
+			.maybeSingle();
+
+		const allowedRoles = new Set(["owner", "super_admin", "admin", "ceo", "cashier"]);
+		hasAccess = Boolean(userRow?.role && allowedRoles.has(String(userRow.role).toLowerCase()));
+	}
+
+	if (!hasAccess) {
 		redirect("/login");
 	}
 
