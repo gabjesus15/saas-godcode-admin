@@ -29,6 +29,11 @@ const isLocalhostLike = (host: string) => {
   );
 };
 
+const shouldUsePathRouting = (baseDomain: string) => {
+  const cleanHost = baseDomain.toLowerCase();
+  return isLocalhostLike(cleanHost) || cleanHost.endsWith(".vercel.app");
+};
+
 const getRuntimeHostBase = () => {
   if (typeof window === "undefined") return null;
 
@@ -86,14 +91,27 @@ export const getTenantHost = (slug: string) => {
     return "";
   }
 
-  return `${safeSlug}.${getTenantBaseDomain()}`;
+  const baseDomain = getTenantBaseDomain();
+  if (shouldUsePathRouting(baseDomain)) {
+    return `${baseDomain}/${safeSlug}`;
+  }
+
+  return `${safeSlug}.${baseDomain}`;
 };
 
 export const getTenantUrl = (slug: string) => {
-  const host = getTenantHost(slug);
-  if (!host) {
+  const safeSlug = slug.trim();
+  if (!safeSlug) {
     return "";
   }
+
+  const baseDomain = getTenantBaseDomain();
+  if (!baseDomain) {
+    return "";
+  }
+
+  const usePathRouting = shouldUsePathRouting(baseDomain);
+  const host = usePathRouting ? baseDomain : `${safeSlug}.${baseDomain}`;
 
   const protocolOverride = process.env.NEXT_PUBLIC_TENANT_PROTOCOL;
   const isLocal = host.includes("localhost") || host.startsWith("127.0.0.1");
@@ -103,5 +121,7 @@ export const getTenantUrl = (slug: string) => {
       ? "http"
       : "https";
 
-  return `${protocol}://${host}`;
+  return usePathRouting
+    ? `${protocol}://${host}/${safeSlug}`
+    : `${protocol}://${host}`;
 };
