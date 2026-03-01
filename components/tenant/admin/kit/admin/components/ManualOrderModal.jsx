@@ -22,6 +22,18 @@ const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderS
 
     const [searchQuery, setSearchQuery] = useState('');
 
+    const getEffectivePrice = (product) => {
+        const basePrice = Number(product?.price || 0);
+        const hasDiscount = Boolean(product?.has_discount) && product?.discount_price != null && Number(product.discount_price) > 0;
+        return hasDiscount ? Number(product.discount_price) : basePrice;
+    };
+
+    const isProductAvailableForManualOrder = (product) => {
+        if (!product) return false;
+        if (product.is_active !== true) return false;
+        return getEffectivePrice(product) > 0;
+    };
+
     const getQty = (id) => manualOrder.items.find(i => i.id === id)?.quantity || 0;
 
 	// [MEJORA SEGURIDAD] Función de sanitización
@@ -241,7 +253,10 @@ const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderS
                         <div className="manual-order-categories-scroll">
                             {(() => {
                                 const query = searchQuery.toLowerCase();
-                                const activeProducts = products.filter(p => p.is_active && p.name.toLowerCase().includes(query));
+                                const activeProducts = (products || []).filter((p) => {
+                                    const productName = String(p?.name || '').toLowerCase();
+                                    return isProductAvailableForManualOrder(p) && productName.includes(query);
+                                });
 
                                 if (activeProducts.length === 0) {
                                     return (
@@ -251,13 +266,21 @@ const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderS
                                     );
                                 }
 
-                                const sortedCategories = [...categories].sort((a, b) => (a.order || 0) - (b.order || 0));
+                                const sortedCategories = [...(categories || [])]
+                                    .filter((cat) => cat?.is_active !== false)
+                                    .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-                                const uncategorized = activeProducts.filter(p => !p.category_id || !categories.some(c => c.id === p.category_id));
+                                const visibleCategories = sortedCategories.filter((cat) =>
+                                    activeProducts.some((p) => p.category_id === cat.id)
+                                );
+
+                                const uncategorized = activeProducts.filter(
+                                    (p) => !p.category_id || !visibleCategories.some((c) => c.id === p.category_id)
+                                );
 
                                 return (
                                     <>
-                                        {sortedCategories.map(cat => {
+                                        {visibleCategories.map(cat => {
                                             const catProducts = activeProducts.filter(p => p.category_id === cat.id);
                                             if (catProducts.length === 0) return null;
 

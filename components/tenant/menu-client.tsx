@@ -112,9 +112,14 @@ export function MenuClient({
     () => getTenantScopedPath(pathname ?? "/", "/menu"),
     [pathname]
   );
+
+  const visibleCategories = useMemo(
+    () => categories.filter((category) => products.some((product) => product.category_id === category.id)),
+    [categories, products]
+  );
   
   const [activeCategory, setActiveCategory] = useState<string | null>(
-    categories[0]?.id ?? null
+    visibleCategories[0]?.id ?? null
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [searchExpanded, setSearchExpanded] = useState(false);
@@ -305,10 +310,12 @@ export function MenuClient({
   useEffect(() => {
     if (specialProducts.length > 0) {
       setActiveCategory("special");
-    } else if (categories[0]?.id) {
-      setActiveCategory(categories[0].id);
+    } else if (visibleCategories[0]?.id) {
+      setActiveCategory(visibleCategories[0].id);
+    } else {
+      setActiveCategory(null);
     }
-  }, [specialProducts.length, categories]);
+  }, [specialProducts.length, visibleCategories]);
 
   const scrollToCategory = useCallback((id: string) => {
     setIsManualScrolling(true);
@@ -344,7 +351,7 @@ export function MenuClient({
     sections.forEach((section) => observer.observe(section));
 
     return () => observer.disconnect();
-  }, [query, isManualScrolling, categories]);
+  }, [query, isManualScrolling, visibleCategories]);
 
   const handleBranchSelect = (branch: BranchModalItem) => {
     setIsLocationModalOpen(false);
@@ -456,7 +463,7 @@ export function MenuClient({
                 },
               ]
             : []),
-          ...categories,
+          ...visibleCategories,
         ]}
         activeCategory={activeCategory}
         onCategoryClick={(id) => scrollToCategory(id)}
@@ -516,7 +523,7 @@ export function MenuClient({
           ) : null}
 
           {!query && selectedBranch
-            ? categories.map((category) => {
+            ? visibleCategories.map((category) => {
                 const categoryProducts = products.filter(
                   (product) => product.category_id === category.id
                 );
@@ -528,17 +535,11 @@ export function MenuClient({
                     className="category-section"
                   >
                     <h2 className="category-title">{category.name}</h2>
-                    {categoryProducts.length > 0 ? (
-                      <div className="product-grid">
-                        {categoryProducts.map((product) => (
-                          <ProductCard key={product.id} product={product} priority={nextPriority()} />
-                        ))}
-                      </div>
-                    ) : (
-                      <p style={{ color: "var(--text-secondary)", marginTop: 12 }}>
-                        Sin productos disponibles en esta categoria por ahora.
-                      </p>
-                    )}
+                    <div className="product-grid">
+                      {categoryProducts.map((product) => (
+                        <ProductCard key={product.id} product={product} priority={nextPriority()} />
+                      ))}
+                    </div>
                   </section>
                 );
               })
