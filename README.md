@@ -52,4 +52,4 @@ Configurar en Project Settings → Environment Variables:
 
 ## Nota técnica de build
 
-El build de Next excluye carpetas no-app (`supabase-functions-backup/**`, `tenant-template/**`) en `tsconfig.json` para evitar errores de tipado Deno durante deploy.
+El build de Next excluye carpetas no-app (`supabase-functions-backup/**`) en `tsconfig.json` para evitar errores de tipado Deno durante deploy.
