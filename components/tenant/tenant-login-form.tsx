@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { AlertCircle, Loader2, Lock, Mail } from "lucide-react";
 
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
+import { getTenantScopedPath } from "./utils/tenant-route";
 
 interface TenantLoginFormProps {
   subdomain: string;
@@ -12,6 +13,7 @@ interface TenantLoginFormProps {
 
 export function TenantLoginForm({ subdomain }: TenantLoginFormProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +83,7 @@ export function TenantLoginForm({ subdomain }: TenantLoginFormProps) {
         throw new Error("No tienes permisos para acceder al panel admin.");
       }
 
-      router.push("/admin");
+      router.push(getTenantScopedPath(pathname ?? "/", "/admin"));
       router.refresh();
     } catch (err) {
       const message =

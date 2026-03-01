@@ -3,7 +3,7 @@
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronLeft, Loader2, MapPin, Search, X } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { BranchSelectorModal } from "./branch-selector-modal";
 import { Navbar } from "./navbar";
@@ -11,6 +11,7 @@ import { CartProvider } from "./cart-provider";
 import { CartFloat } from "./cart-float";
 import { CartModal } from "./cart-modal";
 import { ProductCard } from "./product-card";
+import { getTenantScopedPath } from "./utils/tenant-route";
 
 interface BranchInfo {
   id: string;
@@ -97,6 +98,17 @@ export function MenuClient({
   let priorityCounter = 0;
   const nextPriority = () => priorityCounter++ < 6;
   const router = useRouter();
+  const pathname = usePathname();
+
+  const homePath = useMemo(
+    () => getTenantScopedPath(pathname ?? "/", "/"),
+    [pathname]
+  );
+
+  const menuPath = useMemo(
+    () => getTenantScopedPath(pathname ?? "/", "/menu"),
+    [pathname]
+  );
   
   const [activeCategory, setActiveCategory] = useState<string | null>(
     categories[0]?.id ?? null
@@ -234,7 +246,7 @@ export function MenuClient({
 
   const handleBranchSelect = (branch: BranchModalItem) => {
     setIsLocationModalOpen(false);
-    router.push(`/menu?branch=${branch.id}`);
+    router.push(`${menuPath}?branch=${branch.id}`);
   };
 
   const navbar = (
@@ -244,7 +256,7 @@ export function MenuClient({
         style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: "10px" }}
       >
         <button
-          onClick={() => router.push("/")}
+          onClick={() => router.push(homePath)}
           style={{ background: "none", border: "none", color: "white", cursor: "pointer", padding: 0 }}
         >
           <ChevronLeft size={28} />

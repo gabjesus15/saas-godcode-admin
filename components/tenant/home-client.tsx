@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
 import { Instagram, MapPin, MessageCircle, Settings, Utensils, QrCode } from "lucide-react";
 
 import { ContactBranchModal } from "./contact-branch-modal";
+import { getTenantScopedPath } from "./utils/tenant-route";
 
 interface BranchInfo {
   id: string;
@@ -24,7 +25,18 @@ interface HomeClientProps {
 
 export function HomeClient({ name, logoUrl, schedule, branches }: HomeClientProps) {
   const router = useRouter();
+  const pathname = usePathname();
   
+  const menuPath = useMemo(
+    () => getTenantScopedPath(pathname ?? "/", "/menu"),
+    [pathname]
+  );
+
+  const loginPath = useMemo(
+    () => getTenantScopedPath(pathname ?? "/", "/login"),
+    [pathname]
+  );
+
   // 1. ESTADO DE HIDRATACIÓN
   const [isMounted, setIsMounted] = useState(false);
 
@@ -44,8 +56,8 @@ export function HomeClient({ name, logoUrl, schedule, branches }: HomeClientProp
   // Generación de URL segura para el QR
   const menuUrl = useMemo(() => {
     if (!isMounted || typeof window === "undefined") return "";
-    return `${window.location.origin}/menu`;
-  }, [isMounted]);
+    return `${window.location.origin}${menuPath}`;
+  }, [isMounted, menuPath]);
 
   // Manejador centralizado para botones que SÍ abren el modal (Contacto/Ubicación)
   const handleActionClick = (action: ActionType) => {
@@ -103,7 +115,7 @@ export function HomeClient({ name, logoUrl, schedule, branches }: HomeClientProp
       label: "Ver Menú Digital",
       icon: <Utensils size={20} />,
       // AL HACER CLIC, VA DIRECTO AL MENÚ SIN ABRIR MODAL AQUÍ
-      onClick: () => router.push("/menu"), 
+      onClick: () => router.push(menuPath), 
       primary: true,
     },
     {
@@ -121,7 +133,7 @@ export function HomeClient({ name, logoUrl, schedule, branches }: HomeClientProp
       icon: <MapPin size={20} />,
       onClick: () => handleActionClick("location"),
     },
-  ], [router, branches.length]); // Dependencias actualizadas
+  ], [router, branches.length, menuPath]); // Dependencias actualizadas
 
   // Generador de iniciales robusto
   const initials = useMemo(() => {
@@ -135,7 +147,7 @@ export function HomeClient({ name, logoUrl, schedule, branches }: HomeClientProp
   return (
     <div className="home-container animate-fade">
       <button
-        onClick={() => router.push("/login")}
+        onClick={() => router.push(loginPath)}
         className="settings-btn"
         title="Acceso Administrativo"
         aria-label="Acceso Administrativo"

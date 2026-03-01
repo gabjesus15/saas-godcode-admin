@@ -17,12 +17,13 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { useCart } from "./use-cart";
 import { ordersService } from "./orders-service";
 import { formatRut, validateRut } from "./utils/formatters";
 import { getCloudinaryOptimizedUrl, validateImageFile } from "./utils/cloudinary";
+import { getTenantScopedPath } from "./utils/tenant-route";
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 
 import "../../app/[subdomain]/styles/CartModal.css";
@@ -90,7 +91,12 @@ export function CartModal({
   selectedBranch?: BranchInfo | null;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const homePath = useMemo(
+    () => getTenantScopedPath(pathname ?? "/", "/"),
+    [pathname]
+  );
 
   const {
     cart,
@@ -356,7 +362,7 @@ export function CartModal({
             onNewOrder={resetFlow}
             onGoHome={() => {
               resetFlow();
-              router.push("/");
+              router.push(homePath);
             }}
             receiptUploadFailed={viewState.receiptUploadFailed}
             activeInfo={activeInfo}
