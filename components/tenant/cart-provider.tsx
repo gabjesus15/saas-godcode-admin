@@ -40,6 +40,22 @@ export function CartProvider({
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [orderNote, setOrderNote] = useState("");
 
+  useEffect(() => {
+    if (!selectedBranchId) return;
+
+    try {
+      const storedBranchId = localStorage.getItem("tenant_cart_branch_id");
+      if (storedBranchId && storedBranchId !== selectedBranchId && cart.length > 0) {
+        setCart([]);
+        setOrderNote("");
+        localStorage.setItem("tenant_cart", "[]");
+      }
+      localStorage.setItem("tenant_cart_branch_id", selectedBranchId);
+    } catch {
+      return;
+    }
+  }, [selectedBranchId]);
+
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
   const cartProductIds = useMemo(
@@ -78,6 +94,7 @@ export function CartProvider({
           const priceByProductId = new Map(
             (data ?? []).map((row) => [String(row.product_id), row])
           );
+          const hasAnyRows = (data ?? []).length > 0;
 
           const next = prevCart.reduce<CartItem[]>((acc, cartItem) => {
               const priceRow = priceByProductId.get(String(cartItem.id)) ?? null;
@@ -96,7 +113,9 @@ export function CartProvider({
                 return acc;
               }
 
-              acc.push(cartItem);
+              if (!hasAnyRows) {
+                acc.push(cartItem);
+              }
 
               return acc;
             }, [])

@@ -45,42 +45,6 @@ export const ordersService = {
                 };
             });
 
-            const requestedIds = Array.from(
-                new Set(normalizedItems.map((item) => String(item.id)).filter(Boolean))
-            );
-
-            const [
-                { data: activePrices, error: activePricesError },
-                { data: activeBranch, error: activeBranchError },
-            ] = await Promise.all([
-                supabase
-                    .from('product_prices')
-                    .select('product_id')
-                    .in('product_id', requestedIds)
-                    .eq('branch_id', orderData.branch_id)
-                    .eq('is_active', true),
-                supabase
-                    .from('product_branch')
-                    .select('product_id')
-                    .in('product_id', requestedIds)
-                    .eq('branch_id', orderData.branch_id)
-                    .eq('is_active', true),
-            ]);
-
-            if (activePricesError || activeBranchError) {
-                throw new Error('No se pudo validar el menu actual. Intenta nuevamente.');
-            }
-
-            const allowedPriceIds = new Set((activePrices || []).map((row) => String(row.product_id)));
-            const allowedBranchIds = new Set((activeBranch || []).map((row) => String(row.product_id)));
-            const unavailableItems = normalizedItems.filter(
-                (item) => !allowedPriceIds.has(String(item.id)) || !allowedBranchIds.has(String(item.id))
-            );
-
-            if (unavailableItems.length > 0) {
-                throw new Error('Algunos productos ya no están disponibles en esta sucursal. Actualiza el menú y vuelve a intentar.');
-            }
-
             const { data: openShift } = await supabase
                 .from('cash_shifts')
                 .select('id')
@@ -146,7 +110,13 @@ export const ordersService = {
                 p_status: orderData.status || 'pending'
             });
 
-            if (orderError) throw orderError;
+            if (orderError) {
+                const rpcMessage = String(orderError.message || '').toLowerCase();
+                if (rpcMessage.includes('invalid_item_price')) {
+                    throw new Error('Hay productos del carrito que no están disponibles para esta sucursal. Actualiza el menú e intenta nuevamente.');
+                }
+                throw orderError;
+            }
 
             return { order: newOrder, receiptUploadFailed };
         } catch (error) {
