@@ -93,7 +93,10 @@ export function CartProvider({
                   is_active: meta?.is_active ?? cartItem.is_active,
                   description: meta?.description ?? cartItem.description,
                 });
+                return acc;
               }
+
+              acc.push(cartItem);
 
               return acc;
             }, [])
