@@ -12,6 +12,7 @@ import { CartFloat } from "./cart-float";
 import { CartModal } from "./cart-modal";
 import { ProductCard } from "./product-card";
 import { getTenantScopedPath } from "./utils/tenant-route";
+import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 
 interface BranchInfo {
   id: string;
@@ -99,6 +100,8 @@ export function MenuClient({
   const nextPriority = () => priorityCounter++ < 6;
   const router = useRouter();
   const pathname = usePathname();
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const homePath = useMemo(
     () => getTenantScopedPath(pathname ?? "/", "/"),
@@ -119,10 +122,9 @@ export function MenuClient({
   const [logoError, setLogoError] = useState(false);
   const [isManualScrolling, setIsManualScrolling] = useState(false);
   
-  // Modal should open only if no branch is selected.
-  // If no branches are open, keep browsing UI visible and block checkout later.
+  // Modal should always open on entry so user explicitly selects a branch.
   const hasOpenBranches = (openBranchIds ?? []).length > 0;
-  const [isLocationModalOpen, setIsLocationModalOpen] = useState(!selectedBranchId);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(true);
 
   // Disable scroll when modal is open
   useEffect(() => {
@@ -137,9 +139,108 @@ export function MenuClient({
   }, [isLocationModalOpen]);
 
   const selectedBranch = useMemo(
-    () => branches.find((branch) => branch.id === selectedBranchId) ?? branches[0],
+    () => branches.find((branch) => branch.id === selectedBranchId) ?? null,
     [branches, selectedBranchId]
   );
+  const companyId = useMemo(
+    () => selectedBranch?.company_id ?? branches[0]?.company_id ?? null,
+    [selectedBranch?.company_id, branches]
+  );
+
+  const scheduleServerRefresh = useCallback(() => {
+    if (refreshTimerRef.current) {
+      clearTimeout(refreshTimerRef.current);
+    }
+
+    refreshTimerRef.current = setTimeout(() => {
+      router.refresh();
+    }, 350);
+  }, [router]);
+
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!companyId) return;
+
+    let channel = supabase
+      .channel(`tenant-menu-realtime:${companyId}:${selectedBranchId ?? "none"}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "branches",
+          filter: `company_id=eq.${companyId}`,
+        },
+        scheduleServerRefresh
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "cash_shifts",
+          filter: `company_id=eq.${companyId}`,
+        },
+        scheduleServerRefresh
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "products",
+          filter: `company_id=eq.${companyId}`,
+        },
+        scheduleServerRefresh
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "categories",
+          filter: `company_id=eq.${companyId}`,
+        },
+        scheduleServerRefresh
+      );
+
+    if (selectedBranchId) {
+      channel = channel
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "product_prices",
+            filter: `branch_id=eq.${selectedBranchId}`,
+          },
+          scheduleServerRefresh
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "product_branch",
+            filter: `branch_id=eq.${selectedBranchId}`,
+          },
+          scheduleServerRefresh
+        );
+    }
+
+    channel.subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, companyId, selectedBranchId, scheduleServerRefresh]);
 
   const branchesWithOpenCaja = useMemo(
     () => (openBranchIds ?? []).map((id) => String(id)),
@@ -175,7 +276,7 @@ export function MenuClient({
       });
   }, [branches, branchesWithOpenCaja, hasOpenBranches]);
 
-  // Open modal only if no branch is selected
+  // Keep modal open until there is an explicit selected branch.
   useEffect(() => {
     if (!selectedBranchId) {
       setIsLocationModalOpen(true);
@@ -363,15 +464,15 @@ export function MenuClient({
     </header>
   );
 
-  const cartUi = (
+  const cartUi = selectedBranch ? (
     <>
       <CartFloat />
       <CartModal
         businessInfo={{ name, ...(businessInfo ?? {}) }}
-        selectedBranch={selectedBranch ?? null}
+        selectedBranch={selectedBranch}
       />
     </>
-  );
+  ) : null;
 
   return (
     <CartProvider selectedBranchId={selectedBranch?.id ?? null}>
@@ -383,7 +484,7 @@ export function MenuClient({
         <div style={{ height: "var(--menu-header-height)", width: "100%" }} />
 
         <main className="container">
-          {query ? (
+          {query && selectedBranch ? (
             <section id="section-search" className="category-section">
               <h2 className="category-title">Resultados para &quot;{searchQuery.trim()}&quot;</h2>
               {filteredBySearch.length > 0 ? (
@@ -400,7 +501,7 @@ export function MenuClient({
             </section>
           ) : null}
 
-          {!query && specialProducts.length > 0 ? (
+          {!query && selectedBranch && specialProducts.length > 0 ? (
             <section id="section-special" className="category-section">
               <h2 className="category-title">
                 <img src={FIRE_ICON} className="category-icon" alt="🔥" />
@@ -414,7 +515,7 @@ export function MenuClient({
             </section>
           ) : null}
 
-          {!query
+          {!query && selectedBranch
             ? categories.map((category) => {
                 const categoryProducts = products.filter(
                   (product) => product.category_id === category.id
@@ -437,6 +538,14 @@ export function MenuClient({
                 );
               })
             : null}
+
+          {!selectedBranch ? (
+            <section className="category-section" style={{ marginTop: 24 }}>
+              <p style={{ color: "var(--text-secondary)", marginTop: 12 }}>
+                Selecciona una sucursal para ver su menu y precios.
+              </p>
+            </section>
+          ) : null}
         </main>
 
         {typeof document !== "undefined" && document.getElementById("cart-portal-root")

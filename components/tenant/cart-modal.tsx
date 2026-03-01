@@ -135,32 +135,70 @@ export function CartModal({
   const [isShiftLoading, setIsShiftLoading] = useState(false);
   const [isShiftOpen, setIsShiftOpen] = useState(true);
 
-  useEffect(() => {
+  const fetchShiftStatus = useCallback(async () => {
     if (!selectedBranch?.id) {
       setIsShiftOpen(false);
       setIsShiftLoading(false);
       return;
     }
 
-    let cancelled = false;
     setIsShiftLoading(true);
-
-    supabase
+    const { data, error } = await supabase
       .from("cash_shifts")
       .select("id")
       .eq("status", "open")
       .eq("branch_id", selectedBranch.id)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (cancelled) return;
-        setIsShiftOpen(Boolean(data) || Boolean(error));
+      .maybeSingle();
+
+    if (error) {
+      setIsShiftOpen(false);
+      setIsShiftLoading(false);
+      return;
+    }
+
+    setIsShiftOpen(Boolean(data));
+    setIsShiftLoading(false);
+  }, [selectedBranch?.id, supabase]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchShiftStatus().catch(() => {
+      if (!cancelled) {
+        setIsShiftOpen(false);
         setIsShiftLoading(false);
-      });
+      }
+    });
+
+    if (!selectedBranch?.id) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const channel = supabase
+      .channel(`cart-shift-realtime:${selectedBranch.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "cash_shifts",
+          filter: `branch_id=eq.${selectedBranch.id}`,
+        },
+        () => {
+          fetchShiftStatus().catch(() => {
+            setIsShiftOpen(false);
+          });
+        }
+      )
+      .subscribe();
 
     return () => {
       cancelled = true;
+      supabase.removeChannel(channel);
     };
-  }, [selectedBranch?.id, supabase]);
+  }, [selectedBranch?.id, supabase, fetchShiftStatus]);
 
   const canCheckout = isShiftOpen;
 

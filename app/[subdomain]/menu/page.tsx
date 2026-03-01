@@ -151,47 +151,58 @@ export default async function TenantMenuPage({
   const openBranchIds = (openShifts ?? [])
     .map((shift) => String(shift.branch_id))
     .filter(Boolean);
+  const openBranchIdSet = new Set(openBranchIds);
 
-  // --- C. Selección segura de la sucursal ---
-  const safeBranches = branches ?? [];
-  const selectedBranch =
-    safeBranches.find((branch) => branch.id === resolvedSearchParams?.branch) ??
-    safeBranches[0] ??
-    null;
-
-  if (!selectedBranch) {
+  if (openBranchIds.length === 0) {
     return <StoreUnavailable />;
   }
 
-  // --- D. Obtener Menú vía RPC ---
-  const { data: menuData, error: menuError } = await supabase.rpc("get_public_menu", {
-    p_company_slug: resolvedParams.subdomain,
-    p_branch_id: selectedBranch.id,
-  });
+  // --- C. Selección segura de la sucursal ---
+  const safeBranches = branches ?? [];
+  const requestedBranchId = resolvedSearchParams?.branch;
+  const requestedBranch = requestedBranchId
+    ? safeBranches.find((branch) => branch.id === requestedBranchId) ?? null
+    : null;
+  const selectedBranch =
+    requestedBranch && openBranchIdSet.has(String(requestedBranch.id))
+      ? requestedBranch
+      : null;
 
-	if (menuError) {
-		console.error("Error al obtener el menú RPC:", menuError);
-		if (resolvedSearchParams?.debug === "1") {
-			return (
-				<div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
-					No se pudo cargar el menu de la sucursal seleccionada.
-					<pre style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
-						{JSON.stringify(
-							{
-								subdomain: resolvedParams.subdomain,
-								branchId: selectedBranch.id,
-								error: menuError.message ?? null,
-								code: menuError.code ?? null,
-							},
-							null,
-							2
-						)}
-					</pre>
-				</div>
-			);
-		}
-		return <StoreUnavailable />;
-	}
+  let menuData: any = null;
+
+  if (selectedBranch) {
+    // --- D. Obtener Menú vía RPC ---
+    const { data, error: menuError } = await supabase.rpc("get_public_menu", {
+      p_company_slug: resolvedParams.subdomain,
+      p_branch_id: selectedBranch.id,
+    });
+
+    if (menuError) {
+      console.error("Error al obtener el menú RPC:", menuError);
+      if (resolvedSearchParams?.debug === "1") {
+        return (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
+            No se pudo cargar el menu de la sucursal seleccionada.
+            <pre style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
+              {JSON.stringify(
+                {
+                  subdomain: resolvedParams.subdomain,
+                  branchId: selectedBranch.id,
+                  error: menuError.message ?? null,
+                  code: menuError.code ?? null,
+                },
+                null,
+                2
+              )}
+            </pre>
+          </div>
+        );
+      }
+      return <StoreUnavailable />;
+    }
+
+    menuData = data;
+  }
 
   // --- E. Asignación de tipos fuertes (¡Adiós 'any'!) ---
   const categoriesRaw = (menuData?.categories ?? []) as RawRPCCategory[];
@@ -261,7 +272,7 @@ export default async function TenantMenuPage({
       openBranchIds={openBranchIds}
       categories={categories}
       products={products}
-      selectedBranchId={selectedBranch.id}
+      selectedBranchId={selectedBranch?.id ?? null}
     />
   );
 }
