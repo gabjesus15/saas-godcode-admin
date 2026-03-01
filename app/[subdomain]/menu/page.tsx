@@ -153,28 +153,34 @@ export default async function TenantMenuPage({
     .filter(Boolean);
   const openBranchIdSet = new Set(openBranchIds);
 
-  if (openBranchIds.length === 0) {
+  // --- C. Selección segura de la sucursal ---
+  const safeBranches = branches ?? [];
+  if (safeBranches.length === 0) {
     return <StoreUnavailable />;
   }
 
-  // --- C. Selección segura de la sucursal ---
-  const safeBranches = branches ?? [];
+  const hasOpenBranches = openBranchIds.length > 0;
   const requestedBranchId = resolvedSearchParams?.branch;
   const requestedBranch = requestedBranchId
     ? safeBranches.find((branch) => branch.id === requestedBranchId) ?? null
     : null;
   const selectedBranch =
-    requestedBranch && openBranchIdSet.has(String(requestedBranch.id))
+    requestedBranch && (!hasOpenBranches || openBranchIdSet.has(String(requestedBranch.id)))
       ? requestedBranch
       : null;
+  const menuBranch =
+    selectedBranch ??
+    (hasOpenBranches
+      ? safeBranches.find((branch) => openBranchIdSet.has(String(branch.id))) ?? null
+      : safeBranches[0] ?? null);
 
   let menuData: any = null;
 
-  if (selectedBranch) {
+  if (menuBranch) {
     // --- D. Obtener Menú vía RPC ---
     const { data, error: menuError } = await supabase.rpc("get_public_menu", {
       p_company_slug: resolvedParams.subdomain,
-      p_branch_id: selectedBranch.id,
+      p_branch_id: menuBranch.id,
     });
 
     if (menuError) {
@@ -187,7 +193,7 @@ export default async function TenantMenuPage({
               {JSON.stringify(
                 {
                   subdomain: resolvedParams.subdomain,
-                  branchId: selectedBranch.id,
+                  branchId: menuBranch.id,
                   error: menuError.message ?? null,
                   code: menuError.code ?? null,
                 },

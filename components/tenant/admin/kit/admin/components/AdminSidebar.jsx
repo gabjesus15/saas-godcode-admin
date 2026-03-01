@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { ChefHat, ShoppingBag, BarChart3, Users, List, Settings, LogOut, DollarSign, Store, ChevronDown, ClipboardList, Building2 } from 'lucide-react';
 const cashIcon = '/tenant/cash.svg';
 const categoryIcon = '/tenant/category.svg';
@@ -34,8 +34,16 @@ const CategoryIcon = ({ size }) => (
 
 const AdminSidebar = ({ activeTab, setActiveTab, isMobile, kanbanColumns, userRole, onLogout, userEmail, branchName, logoUrl, canAccessTab, onDeniedAccess }) => {
     const router = useRouter();
+    const pathname = usePathname();
     const pendingCount = kanbanColumns?.pending?.length || 0;
     const isTabAllowed = (tabId) => (typeof canAccessTab === 'function' ? canAccessTab(tabId) : true);
+
+    const storeHomePath = useMemo(() => {
+        const currentPath = String(pathname || '/');
+        const normalized = currentPath.replace(/\/+$/, '');
+        const withoutAdmin = normalized.replace(/\/admin(?:\/.*)?$/i, '');
+        return withoutAdmin || '/';
+    }, [pathname]);
 
     const menuItems = useMemo(() => {
         const items = [
@@ -220,7 +228,7 @@ const AdminSidebar = ({ activeTab, setActiveTab, isMobile, kanbanColumns, userRo
                     }
                 })}
 
-                <button onClick={() => router.push('/')} className="nav-item" style={!isMobile ? { marginTop: 'auto', marginBottom: 10 } : {}}>
+                <button onClick={() => router.push(storeHomePath)} className="nav-item" style={!isMobile ? { marginTop: 'auto', marginBottom: 10 } : {}}>
                     <Store size={isMobile ? 20 : 22} />
                     {isMobile ? <span className="nav-label-mobile">Tienda</span> : <span className="nav-text">Ver Tienda</span>}
                 </button>

@@ -119,7 +119,7 @@ export const ProductCard = memo(function ProductCard({ product, priority = false
         <img
           src={imageSrc}
           alt={product.name ?? "Producto"}
-          loading={priority ? "eager" : "lazy"}
+          loading="eager"
           fetchPriority={priority ? "high" : "auto"}
           decoding="async"
           onLoad={() => setImageLoaded(true)}

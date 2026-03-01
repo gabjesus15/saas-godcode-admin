@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Utensils, MessageCircle, Instagram, MapPin, Settings } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 const logoPlaceholder = '/tenant/logo-placeholder.svg';
@@ -13,16 +13,37 @@ import ContactBranchModal from './ContactBranchModal';
 
 const Home = () => {
   const router = useRouter();
-  const navigate = (path) => router.push(path);
+  const pathname = usePathname();
+
+  const getTenantScopedPath = (targetPath) => {
+    const rawTarget = String(targetPath || '/').trim();
+    const normalizedPath = rawTarget.startsWith('/') ? rawTarget : `/${rawTarget}`;
+    const currentPath = String(pathname || '/').split(/[?#]/)[0] || '/';
+    const segments = currentPath.split('/').filter(Boolean);
+    const reserved = new Set(['menu', 'login', 'admin']);
+
+    const tenantPrefix = segments.length > 0 && !reserved.has(String(segments[0]).toLowerCase())
+      ? `/${segments[0]}`
+      : '';
+
+    if (!tenantPrefix) return normalizedPath;
+    if (normalizedPath === '/') return tenantPrefix;
+    if (normalizedPath.startsWith(`${tenantPrefix}/`) || normalizedPath === tenantPrefix) return normalizedPath;
+    return `${tenantPrefix}${normalizedPath}`;
+  };
+
+  const navigate = (path) => router.push(getTenantScopedPath(path));
   const { businessInfo } = useBusiness();
   const { allBranches, loadingBranches } = useLocation();
   const [showModal, setShowModal] = useState(false);
   const [pendingAction, setPendingAction] = useState(null); // 'menu', 'whatsapp', 'instagram', 'location'
 
   // Genera automáticamente la URL del menú basada en donde estés alojado
+  const menuPath = getTenantScopedPath('/menu');
+  const loginPath = getTenantScopedPath('/login');
   const menuUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/menu`
-    : '/menu';
+    ? `${window.location.origin}${menuPath}`
+    : menuPath;
 
   const handleActionClick = (action) => {
     // Fallback: Si no hay info global configurada, usar el selector de sucursales
@@ -68,7 +89,7 @@ const Home = () => {
     <div className="home-container animate-fade">
       {/* Botón de Login/Admin con alta prioridad de click */}
       <button
-        onClick={() => navigate('/login')}
+        onClick={() => router.push(loginPath)}
         className="settings-btn"
         title="Admin Login"
       >

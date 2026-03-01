@@ -28,10 +28,43 @@ export function AdminPage({ companyName, logoUrl }: AdminPageProps) {
     return (
       <div
         className="admin-layout flex-center"
-        style={{ height: "100vh", background: "#0a0a0a", flexDirection: "column", gap: 20 }}
+        style={{ minHeight: "100vh", padding: "24px", background: "var(--bg-primary)" }}
       >
-        <Loader2 className="animate-spin" size={60} color="#e63946" />
-        <h3 style={{ color: "white" }}>Cargando Sistema...</h3>
+        <div
+          className="glass animate-fade"
+          style={{
+            width: "100%",
+            maxWidth: 420,
+            borderRadius: 20,
+            padding: "28px 24px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 14,
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{
+              width: 66,
+              height: 66,
+              borderRadius: "50%",
+              display: "grid",
+              placeItems: "center",
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid var(--card-border)",
+            }}
+          >
+            <Loader2 className="animate-spin" size={30} color="var(--accent-primary)" />
+          </div>
+
+          <h3 style={{ margin: 0, color: "var(--text-primary)", fontSize: "1.1rem", fontWeight: 700 }}>
+            Cargando panel admin
+          </h3>
+          <p style={{ margin: 0, color: "var(--text-secondary)", fontSize: "0.92rem" }}>
+            Estamos preparando pedidos, productos y caja.
+          </p>
+        </div>
       </div>
     );
   }

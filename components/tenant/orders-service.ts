@@ -27,29 +27,78 @@ interface CreateOrderPayload {
   payment_ref?: string | null;
 }
 
-function normalizeOrderItems(items: OrderItem[]): OrderItem[] {
-  return items.map((item) => {
-    const quantity = Math.max(1, Number(item.quantity) || 1);
-    const basePrice = Number(item.price);
-    const discountPrice = Number(item.discount_price);
+async function buildOrderItemsFromBranch(
+  supabase: ReturnType<typeof createSupabaseBrowserClient>,
+  branchId: string,
+  items: OrderItem[]
+): Promise<OrderItem[]> {
+  const requestedMap = new Map(
+    items
+      .filter((item) => Boolean(item?.id))
+      .map((item) => [String(item.id), { quantity: Math.max(1, Number(item.quantity) || 1), description: item.description ?? null }])
+  );
 
-    const hasValidDiscount =
-      Boolean(item.has_discount) && Number.isFinite(discountPrice) && discountPrice > 0;
+  const requestedIds = Array.from(requestedMap.keys());
+  if (requestedIds.length === 0) return [];
 
-    const effectivePrice = hasValidDiscount ? discountPrice : basePrice;
+  const [{ data: prices, error: pricesError }, { data: branchRows, error: branchError }, { data: products, error: productsError }] =
+    await Promise.all([
+      supabase
+        .from("product_prices")
+        .select("product_id, price, has_discount, discount_price")
+        .eq("branch_id", branchId)
+        .eq("is_active", true)
+        .in("product_id", requestedIds),
+      supabase
+        .from("product_branch")
+        .select("product_id")
+        .eq("branch_id", branchId)
+        .eq("is_active", true)
+        .in("product_id", requestedIds),
+      supabase
+        .from("products")
+        .select("id, name")
+        .eq("is_active", true)
+        .in("id", requestedIds),
+    ]);
 
-    if (!Number.isFinite(effectivePrice) || effectivePrice <= 0) {
-      throw new Error(`Precio inválido para el producto: ${item.name || "sin nombre"}`);
-    }
+  if (pricesError || branchError || productsError) {
+    throw new Error("No se pudo validar los productos de la sucursal. Intenta nuevamente.");
+  }
 
-    return {
-      ...item,
-      quantity,
+  const pricesByProduct = new Map((prices ?? []).map((row) => [String(row.product_id), row]));
+  const activeBranchProducts = new Set((branchRows ?? []).map((row) => String(row.product_id)));
+  const productNames = new Map((products ?? []).map((row) => [String(row.id), row.name]));
+
+  const normalizedItems: OrderItem[] = [];
+
+  for (const productId of requestedIds) {
+    if (!activeBranchProducts.has(productId)) continue;
+
+    const dbPriceRow = pricesByProduct.get(productId);
+    if (!dbPriceRow) continue;
+
+    const basePrice = Number(dbPriceRow.price || 0);
+    const discountPrice = Number(dbPriceRow.discount_price || 0);
+    const hasDiscount = Boolean(dbPriceRow.has_discount) && discountPrice > 0;
+    const effectivePrice = hasDiscount ? discountPrice : basePrice;
+    if (!Number.isFinite(effectivePrice) || effectivePrice <= 0) continue;
+
+    const requested = requestedMap.get(productId);
+    if (!requested) continue;
+
+    normalizedItems.push({
+      id: productId,
+      name: String(productNames.get(productId) || "Producto"),
+      quantity: requested.quantity,
       price: effectivePrice,
       has_discount: false,
       discount_price: null,
-    };
-  });
+      description: requested.description,
+    });
+  }
+
+  return normalizedItems;
 }
 
 export const ordersService = {
@@ -64,7 +113,17 @@ export const ordersService = {
       throw new Error("El pedido debe contener al menos un producto.");
     }
 
-    const normalizedItems = normalizeOrderItems(orderData.items);
+    const normalizedItems = await buildOrderItemsFromBranch(
+      supabase,
+      orderData.branch_id,
+      orderData.items
+    );
+
+    if (normalizedItems.length === 0) {
+      throw new Error(
+        "Ningun producto del carrito esta disponible en esta sucursal en este momento."
+      );
+    }
 
     const { data: openShift } = await supabase
       .from("cash_shifts")

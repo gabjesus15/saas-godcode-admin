@@ -491,7 +491,7 @@ export function MenuClient({
         <div style={{ height: "var(--menu-header-height)", width: "100%" }} />
 
         <main className="container">
-          {query && selectedBranch ? (
+          {query ? (
             <section id="section-search" className="category-section">
               <h2 className="category-title">Resultados para &quot;{searchQuery.trim()}&quot;</h2>
               {filteredBySearch.length > 0 ? (
@@ -508,7 +508,7 @@ export function MenuClient({
             </section>
           ) : null}
 
-          {!query && selectedBranch && specialProducts.length > 0 ? (
+          {!query && specialProducts.length > 0 ? (
             <section id="section-special" className="category-section">
               <h2 className="category-title">
                 <img src={FIRE_ICON} className="category-icon" alt="🔥" />
@@ -522,7 +522,7 @@ export function MenuClient({
             </section>
           ) : null}
 
-          {!query && selectedBranch
+          {!query
             ? visibleCategories.map((category) => {
                 const categoryProducts = products.filter(
                   (product) => product.category_id === category.id
@@ -545,13 +545,6 @@ export function MenuClient({
               })
             : null}
 
-          {!selectedBranch ? (
-            <section className="category-section" style={{ marginTop: 24 }}>
-              <p style={{ color: "var(--text-secondary)", marginTop: 12 }}>
-                Selecciona una sucursal para ver su menu y precios.
-              </p>
-            </section>
-          ) : null}
         </main>
 
         {typeof document !== "undefined" && document.getElementById("cart-portal-root")
@@ -560,7 +553,11 @@ export function MenuClient({
 
         <BranchSelectorModal
           isOpen={isLocationModalOpen}
-          onClose={() => setIsLocationModalOpen(false)}
+          onClose={() => {
+            if (selectedBranchId) {
+              setIsLocationModalOpen(false);
+            }
+          }}
           branches={modalBranches}
           allBranches={branches}
           isLoadingCaja={false}
