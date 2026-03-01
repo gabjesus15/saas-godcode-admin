@@ -21,6 +21,30 @@ export const ordersService = {
                 throw new Error("El pedido debe contener al menos un producto.");
             }
 
+            const normalizedItems = orderData.items.map((item) => {
+                const quantity = Math.max(1, Number(item.quantity) || 1);
+                const basePrice = Number(item.price);
+                const discountPrice = Number(item.discount_price);
+
+                const hasValidDiscount = Boolean(item.has_discount)
+                    && Number.isFinite(discountPrice)
+                    && discountPrice > 0;
+
+                const effectivePrice = hasValidDiscount ? discountPrice : basePrice;
+
+                if (!Number.isFinite(effectivePrice) || effectivePrice <= 0) {
+                    throw new Error(`Precio inválido para el producto: ${item.name || 'sin nombre'}`);
+                }
+
+                return {
+                    ...item,
+                    quantity,
+                    price: effectivePrice,
+                    has_discount: false,
+                    discount_price: null,
+                };
+            });
+
             const { data: openShift } = await supabase
                 .from('cash_shifts')
                 .select('id')
@@ -33,7 +57,7 @@ export const ordersService = {
             }
 
             // [MEJORA DE SEGURIDAD] Recalcular total para evitar manipulación de precios
-            const calculatedTotal = orderData.items.reduce((sum, item) => {
+            const calculatedTotal = normalizedItems.reduce((sum, item) => {
                 // Priorizar precio de descuento si existe y es válido
                 const price = (item.has_discount && item.discount_price && Number(item.discount_price) > 0) 
                     ? Number(item.discount_price) 
@@ -76,7 +100,7 @@ export const ordersService = {
                 p_client_name: orderData.client_name,
                 p_client_phone: orderData.client_phone,
                 p_client_rut: orderData.client_rut || '',
-                p_items: orderData.items,
+                p_items: normalizedItems,
                 p_total: totalToUse,
                 p_payment_type: orderData.payment_type,
                 p_payment_ref: paymentRef,

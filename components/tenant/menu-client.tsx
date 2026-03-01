@@ -119,9 +119,10 @@ export function MenuClient({
   const [logoError, setLogoError] = useState(false);
   const [isManualScrolling, setIsManualScrolling] = useState(false);
   
-  // Modal should open if no branch is selected or if there are no open branches
+  // Modal should open only if no branch is selected.
+  // If no branches are open, keep browsing UI visible and block checkout later.
   const hasOpenBranches = (openBranchIds ?? []).length > 0;
-  const [isLocationModalOpen, setIsLocationModalOpen] = useState(!selectedBranchId || !hasOpenBranches);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(!selectedBranchId);
 
   // Disable scroll when modal is open
   useEffect(() => {
@@ -169,17 +170,17 @@ export function MenuClient({
               </span>
             </div>
           ),
-          disabled: !isOpen,
+          disabled: hasOpenBranches ? !isOpen : false,
         };
       });
-  }, [branches, branchesWithOpenCaja]);
+  }, [branches, branchesWithOpenCaja, hasOpenBranches]);
 
-  // Open modal if no branch is selected or if there are no open branches
+  // Open modal only if no branch is selected
   useEffect(() => {
-    if (!selectedBranchId || !hasOpenBranches) {
+    if (!selectedBranchId) {
       setIsLocationModalOpen(true);
     }
-  }, [selectedBranchId, hasOpenBranches]);
+  }, [selectedBranchId]);
 
   const FIRE_ICON =
     "https://fonts.gstatic.com/s/e/notoemoji/latest/1f525/512.gif";
@@ -250,7 +251,7 @@ export function MenuClient({
   };
 
   const navbar = (
-    <header className="navbar-sticky" style={{ zIndex: isLocationModalOpen ? 0 : 100 }}>
+    <header className="navbar-sticky" style={{ zIndex: 100 }}>
       <div
         className="container"
         style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: "10px" }}
@@ -444,12 +445,12 @@ export function MenuClient({
 
         <BranchSelectorModal
           isOpen={isLocationModalOpen}
-          onClose={() => {}}
+          onClose={() => setIsLocationModalOpen(false)}
           branches={modalBranches}
           allBranches={branches}
           isLoadingCaja={false}
           onSelectBranch={handleBranchSelect}
-          allowClose={false}
+          allowClose={Boolean(selectedBranchId)}
           schedule={businessInfo?.schedule ?? null}
         />
       </div>

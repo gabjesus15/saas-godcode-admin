@@ -27,6 +27,31 @@ interface CreateOrderPayload {
   payment_ref?: string | null;
 }
 
+function normalizeOrderItems(items: OrderItem[]): OrderItem[] {
+  return items.map((item) => {
+    const quantity = Math.max(1, Number(item.quantity) || 1);
+    const basePrice = Number(item.price);
+    const discountPrice = Number(item.discount_price);
+
+    const hasValidDiscount =
+      Boolean(item.has_discount) && Number.isFinite(discountPrice) && discountPrice > 0;
+
+    const effectivePrice = hasValidDiscount ? discountPrice : basePrice;
+
+    if (!Number.isFinite(effectivePrice) || effectivePrice <= 0) {
+      throw new Error(`Precio inválido para el producto: ${item.name || "sin nombre"}`);
+    }
+
+    return {
+      ...item,
+      quantity,
+      price: effectivePrice,
+      has_discount: false,
+      discount_price: null,
+    };
+  });
+}
+
 export const ordersService = {
   async createOrder(orderData: CreateOrderPayload, receiptFile: File | null = null) {
     if (!orderData.branch_id) {
@@ -36,6 +61,8 @@ export const ordersService = {
     if (!Array.isArray(orderData.items) || orderData.items.length === 0) {
       throw new Error("El pedido debe contener al menos un producto.");
     }
+
+    const normalizedItems = normalizeOrderItems(orderData.items);
 
     const supabase = createSupabaseBrowserClient();
 
@@ -52,7 +79,7 @@ export const ordersService = {
       );
     }
 
-    const calculatedTotal = orderData.items.reduce((sum, item) => {
+    const calculatedTotal = normalizedItems.reduce((sum, item) => {
       const price =
         item.has_discount && item.discount_price && Number(item.discount_price) > 0
           ? Number(item.discount_price)
@@ -95,7 +122,7 @@ export const ordersService = {
         p_client_name: orderData.client_name,
         p_client_phone: orderData.client_phone,
         p_client_rut: orderData.client_rut || "",
-        p_items: orderData.items,
+        p_items: normalizedItems,
         p_total: totalToUse,
         p_payment_type: orderData.payment_type,
         p_payment_ref: paymentRef,
