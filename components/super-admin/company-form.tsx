@@ -28,10 +28,9 @@ interface CompanyFormProps {
   plans: PlanOption[];
 }
 
-const baseDomain = getTenantBaseDomain();
-
 export function CompanyForm({ plans }: CompanyFormProps) {
   const router = useRouter();
+  const baseDomain = useMemo(() => getTenantBaseDomain(), []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [slugTouched, setSlugTouched] = useState(false);
