@@ -32,10 +32,10 @@ const CategoryIcon = ({ size }) => (
     />
 );
 
-const AdminSidebar = ({ activeTab, setActiveTab, isMobile, kanbanColumns, userRole, onLogout, userEmail, branchName, logoUrl }) => {
+const AdminSidebar = ({ activeTab, setActiveTab, isMobile, kanbanColumns, userRole, onLogout, userEmail, branchName, logoUrl, canAccessTab, onDeniedAccess }) => {
     const router = useRouter();
     const pendingCount = kanbanColumns?.pending?.length || 0;
-    const isAdmin = userRole === 'admin';
+    const isTabAllowed = (tabId) => (typeof canAccessTab === 'function' ? canAccessTab(tabId) : true);
 
     const menuItems = useMemo(() => {
         const items = [
@@ -69,11 +69,18 @@ const AdminSidebar = ({ activeTab, setActiveTab, isMobile, kanbanColumns, userRo
             { id: 'clients', label: 'Clientes', icon: Users },
             { id: 'settings', label: 'Herramientas', icon: Settings }
         ];
-        if (isAdmin) {
-            items.push({ id: 'company', label: 'Datos de la empresa', icon: Building2, adminOnly: true });
-        }
+        items.push({ id: 'company', label: 'Datos de la empresa', icon: Building2 });
         return items;
-    }, [pendingCount, isAdmin]);
+    }, [pendingCount]);
+
+    const hasRestrictedItems = useMemo(() => (
+        menuItems.some((item) => {
+            if (item.isGroup) {
+                return item.children?.some((child) => !isTabAllowed(child.id));
+            }
+            return !isTabAllowed(item.id);
+        })
+    ), [menuItems, canAccessTab]);
 
     const [expandedGroups, setExpandedGroups] = useState(() => {
         const activeGroup = menuItems.find(item => item.isGroup && item.children?.some(child => child.id === activeTab));
@@ -115,14 +122,27 @@ const AdminSidebar = ({ activeTab, setActiveTab, isMobile, kanbanColumns, userRo
                     if (item.isGroup) {
                         if (isMobile) {
                             return item.children.map(child => (
+                                (() => {
+                                    const disabled = !isTabAllowed(child.id);
+                                    return (
                                 <button 
                                     key={child.id}
-                                    onClick={() => setActiveTab(child.id)}
+                                    onClick={() => {
+                                        if (disabled) {
+                                            onDeniedAccess?.();
+                                            return;
+                                        }
+                                        setActiveTab(child.id);
+                                    }}
                                     className={`nav-item ${activeTab === child.id ? 'active' : ''}`}
+                                    title={disabled ? 'Necesitas un rol diferente para acceder.' : undefined}
+                                    style={disabled ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
                                 >
                                     <child.icon size={20} />
                                     <span className="nav-label-mobile">{child.label}</span>
                                 </button>
+                                    );
+                                })()
                             ));
                         }
 
@@ -147,24 +167,46 @@ const AdminSidebar = ({ activeTab, setActiveTab, isMobile, kanbanColumns, userRo
                                 
                                 <div className={`nav-sub-menu ${isExpanded ? 'expanded' : ''}`}>
                                     {item.children.map(child => (
+                                        (() => {
+                                            const disabled = !isTabAllowed(child.id);
+                                            return (
                                         <button 
                                             key={child.id}
-                                            onClick={() => setActiveTab(child.id)}
+                                            onClick={() => {
+                                                if (disabled) {
+                                                    onDeniedAccess?.();
+                                                    return;
+                                                }
+                                                setActiveTab(child.id);
+                                            }}
                                             className={`nav-item ${activeTab === child.id ? 'active' : ''}`}
+                                            title={disabled ? 'Necesitas un rol diferente para acceder.' : undefined}
+                                            style={disabled ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
                                         >
                                             <child.icon size={18} />
                                             <span className="nav-text">{child.label}</span>
                                         </button>
+                                            );
+                                        })()
                                     ))}
                                 </div>
                             </div>
                         );
                     } else {
+                        const disabled = !isTabAllowed(item.id);
                         return (
                             <button 
                                 key={item.id}
-                                onClick={() => setActiveTab(item.id)} 
+                                onClick={() => {
+                                    if (disabled) {
+                                        onDeniedAccess?.();
+                                        return;
+                                    }
+                                    setActiveTab(item.id);
+                                }} 
                                 className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
+                                title={disabled ? 'Necesitas un rol diferente para acceder.' : undefined}
+                                style={disabled ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
                             >
                                 <item.icon size={isMobile ? 20 : 22} /> 
                                 {isMobile ? (
@@ -186,6 +228,12 @@ const AdminSidebar = ({ activeTab, setActiveTab, isMobile, kanbanColumns, userRo
                     <LogOut size={isMobile ? 20 : 22} />
                     {isMobile ? <span className="nav-label-mobile">Salir</span> : <span className="nav-text">Cerrar Sesión</span>}
                 </button>
+
+                {hasRestrictedItems && !isMobile && (
+                    <p style={{ marginTop: 8, fontSize: 12, opacity: 0.7 }}>
+                        Las opciones en gris requieren un rol diferente.
+                    </p>
+                )}
             </nav>
         </aside>
     );

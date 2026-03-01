@@ -24,13 +24,25 @@ export function TenantLoginForm({ subdomain }: TenantLoginFormProps) {
 
     try {
       const supabase = createSupabaseBrowserClient();
+      const normalizedEmail = email.trim().toLowerCase();
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
+        email: normalizedEmail,
         password,
       });
 
       if (signInError) {
         throw signInError;
+      }
+
+      const { data: adminUser, error: adminError } = await supabase
+        .from("admin_users")
+        .select("id")
+        .ilike("email", normalizedEmail)
+        .maybeSingle();
+
+      if (adminError || !adminUser) {
+        await supabase.auth.signOut();
+        throw new Error("No tienes permisos para acceder al panel admin.");
       }
 
       router.push("/admin");

@@ -24,13 +24,13 @@ export async function validateAdminRolesOnServer(
 			return { ok: false, status: 401, error: "No autenticado" };
 		}
 
-		const email = user.email;
+		const email = user.email.trim();
 		let role: string | null = null;
 
 		const { data: adminUser, error: adminError } = await supabase
 			.from("admin_users")
 			.select("role")
-			.eq("email", email)
+			.ilike("email", email)
 			.maybeSingle();
 
 		if (adminError) {
@@ -43,7 +43,7 @@ export async function validateAdminRolesOnServer(
 			const { data: userRow, error: roleError } = await supabase
 				.from("users")
 				.select("role")
-				.eq("email", email)
+				.ilike("email", email)
 				.maybeSingle();
 
 			if (roleError) {

@@ -30,20 +30,20 @@ export default async function TenantAdminPage({
 		redirect("/");
 	}
 
-	// Comentario: evitar acceso cross-tenant validando pertenencia del usuario al tenant actual.
-	const { data: tenantUser } = await supabase
-		.from("users")
+	const { data: adminUser } = await supabase
+		.from("admin_users")
 		.select("id")
-		.eq("email", user.email)
-		.eq("company_id", company.id)
+		.ilike("email", user.email)
 		.maybeSingle();
 
-	if (!tenantUser) {
+	if (!adminUser) {
 		redirect("/login");
 	}
 
 	const name = company.theme_config?.displayName ?? company.name ?? "GodCode";
 	const logoUrl = company.theme_config?.logoUrl ?? null;
+	const roleNavPermissions =
+		(company.theme_config as Record<string, unknown> | null)?.roleNavPermissions ?? null;
 
 	return (
 		<AdminApp
@@ -51,6 +51,7 @@ export default async function TenantAdminPage({
 			companyName={name}
 			logoUrl={logoUrl}
 			userEmail={user.email ?? null}
+			roleNavPermissions={roleNavPermissions as Record<string, string[]> | null}
 		/>
 	);
 }

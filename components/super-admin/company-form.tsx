@@ -161,6 +161,12 @@ export function CompanyForm({ plans }: CompanyFormProps) {
           logoUrl: form.logo_url,
           backgroundColor: form.background_color,
           backgroundImageUrl: form.background_image_url.trim() || null,
+          roleNavPermissions: {
+            owner: ["orders", "caja", "analytics", "categories", "products", "inventory", "clients", "settings", "company"],
+            admin: ["orders", "caja", "analytics", "categories", "products", "inventory", "clients", "settings", "company"],
+            ceo: ["orders", "caja", "analytics", "categories", "products", "inventory", "clients", "settings"],
+            cashier: ["orders", "caja"],
+          },
         },
       });
 

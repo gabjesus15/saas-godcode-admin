@@ -8,6 +8,31 @@ import { uploadImage, validateImageFile } from '../../shared/utils/cloudinary';
 import { useCashSystem } from '../hooks/useCashSystem';
 import { sanitizeOrder } from '../../shared/utils/orderUtils';
 
+const ALL_ADMIN_TABS = ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'settings', 'company'];
+
+const DEFAULT_ROLE_NAV_PERMISSIONS = {
+	owner: ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'settings', 'company'],
+	admin: ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'settings', 'company'],
+	ceo: ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'settings'],
+	cashier: ['orders', 'caja'],
+};
+
+const normalizeRoleNavPermissions = (raw) => {
+	const allowed = new Set(ALL_ADMIN_TABS);
+	const normalized = { ...DEFAULT_ROLE_NAV_PERMISSIONS };
+
+	if (!raw || typeof raw !== 'object') return normalized;
+
+	Object.keys(DEFAULT_ROLE_NAV_PERMISSIONS).forEach((role) => {
+		const tabs = raw[role];
+		if (!Array.isArray(tabs)) return;
+		const cleanTabs = [...new Set(tabs.filter((tab) => typeof tab === 'string' && allowed.has(tab)))];
+		normalized[role] = cleanTabs;
+	});
+
+	return normalized;
+};
+
 let notificationAudio;
 try {
 	notificationAudio = new Audio('/sounds/notification.mp3');
@@ -22,7 +47,7 @@ export const useAdmin = () => {
 	return context;
 };
 
-export const AdminProvider = ({ children, companyId }) => {
+export const AdminProvider = ({ children, companyId, roleNavPermissions }) => {
 	const router = useRouter();
 	const navigate = useCallback((path) => router.push(path), [router]);
 
@@ -59,9 +84,27 @@ export const AdminProvider = ({ children, companyId }) => {
 	const [categoryToDelete, setCategoryToDelete] = useState(null);
 	const [userRole, setUserRole] = useState(null);
 	const [userEmail, setUserEmail] = useState(null);
+	const [assignedBranchId, setAssignedBranchId] = useState(null);
 	const [selectedClient, setSelectedClient] = useState(null);
 	const [selectedClientOrders, setSelectedClientOrders] = useState([]);
 	const [clientHistoryLoading, setClientHistoryLoading] = useState(false);
+
+	const resolvedRolePermissions = useMemo(
+		() => normalizeRoleNavPermissions(roleNavPermissions || {}),
+		[roleNavPermissions]
+	);
+
+	const allowedTabs = useMemo(() => {
+		const roleKey = (userRole || '').toLowerCase();
+		const configuredTabs = resolvedRolePermissions[roleKey];
+		if (Array.isArray(configuredTabs)) {
+			return new Set(configuredTabs);
+		}
+		return new Set(DEFAULT_ROLE_NAV_PERMISSIONS.cashier);
+	}, [resolvedRolePermissions, userRole]);
+
+	const canAccessTab = useCallback((tabId) => allowedTabs.has(tabId), [allowedTabs]);
+	const isBranchLocked = Boolean(assignedBranchId);
 
 	useEffect(() => {
 		const handleResize = () => setIsMobile(window.innerWidth <= 1024);
@@ -74,12 +117,34 @@ export const AdminProvider = ({ children, companyId }) => {
 		setTimeout(() => setNotification(null), 3000);
 	}, []);
 
+	const setActiveTabWithGuard = useCallback((tabId) => {
+		if (canAccessTab(tabId)) {
+			setActiveTab(tabId);
+			return;
+		}
+
+		showNotify('Necesitas un rol diferente para acceder a esta sección.', 'error');
+	}, [canAccessTab, showNotify]);
+
+	const setSelectedBranchWithGuard = useCallback((nextBranch) => {
+		if (!isBranchLocked) {
+			setSelectedBranch(nextBranch);
+			return;
+		}
+
+		const nextBranchId = nextBranch?.id || null;
+		if (nextBranchId === assignedBranchId) {
+			setSelectedBranch(nextBranch);
+			return;
+		}
+
+		showNotify('Tu correo está asignado a un local específico y no puedes cambiar de sucursal.', 'error');
+	}, [assignedBranchId, isBranchLocked, showNotify]);
+
 	const cashSystem = useCashSystem(showNotify, selectedBranch?.id);
 
 	useEffect(() => {
 		const verifyAdminAccess = async () => {
-			// Usar getSession() (storage) en lugar de getUser() (red) para no redirigir al recargar
-			// mientras la sesión ya fue validada por ProtectedRoute.
 			const { data: { session } } = await supabase.auth.getSession();
 			const user = session?.user;
 			if (!user?.email) {
@@ -87,22 +152,36 @@ export const AdminProvider = ({ children, companyId }) => {
 				navigate('/login');
 				return;
 			}
-			setUserEmail(user.email);
-				const [{ data: isAdmin, error: adminError }, { data: role, error: roleError }] = await Promise.all([
-					supabase.rpc('is_admin'),
-					supabase.rpc('get_user_role')
-				]);
-				if (adminError || !isAdmin) {
+			const normalizedEmail = user.email.trim().toLowerCase();
+			setUserEmail(normalizedEmail);
+
+			const { data: adminUser, error: adminError } = await supabase
+				.from(TABLES.admin_users)
+				.select('role')
+				.ilike('email', normalizedEmail)
+				.maybeSingle();
+
+			if (adminError || !adminUser) {
 				setUserRole(null);
+				setAssignedBranchId(null);
 				await supabase.auth.signOut();
 				navigate('/login');
 				showNotify('No tienes permisos de administrador', 'error');
 			} else {
-					setUserRole(role || null);
+				setUserRole(adminUser.role || 'admin');
+
+				const { data: userRow } = await supabase
+					.from(TABLES.users)
+					.select('branch_id')
+					.eq('auth_user_id', user.id)
+					.eq('company_id', companyId)
+					.maybeSingle();
+
+				setAssignedBranchId(userRow?.branch_id || null);
 			}
 		};
 		verifyAdminAccess();
-	}, [navigate, showNotify]);
+	}, [navigate, showNotify, companyId]);
 
 	const refreshBranches = useCallback(async () => {
 		if (!companyId) {
@@ -118,6 +197,10 @@ export const AdminProvider = ({ children, companyId }) => {
 		if (!error && data?.length > 0) {
 			setBranches(data);
 			setSelectedBranch(prev => {
+				if (assignedBranchId) {
+					const assignedBranch = data.find(b => b.id === assignedBranchId);
+					return assignedBranch || data[0];
+				}
 				if (!prev || prev.id === 'all') return prev || data[0];
 				const updated = data.find(b => b.id === prev.id);
 				return updated || data[0];
@@ -126,16 +209,31 @@ export const AdminProvider = ({ children, companyId }) => {
 			setBranches([]);
 			setSelectedBranch(null);
 		}
-	}, [companyId]);
+	}, [assignedBranchId, companyId]);
 
 	useEffect(() => { refreshBranches(); }, [refreshBranches]);
 
 	useEffect(() => {
 		if (branches.length === 0) return;
+		if (assignedBranchId) {
+			const assignedBranch = branches.find((branch) => branch.id === assignedBranchId);
+			if (assignedBranch && selectedBranch?.id !== assignedBranch.id) {
+				setSelectedBranch(assignedBranch);
+			}
+			return;
+		}
 		if (activeTab !== 'analytics' && (!selectedBranch || selectedBranch.id === 'all')) {
 			setSelectedBranch(branches[0]);
 		}
-	}, [activeTab, branches, selectedBranch]);
+	}, [activeTab, assignedBranchId, branches, selectedBranch]);
+
+	useEffect(() => {
+		if (!userRole) return;
+		if (canAccessTab(activeTab)) return;
+
+		const [firstAllowedTab] = Array.from(allowedTabs);
+		setActiveTab(firstAllowedTab || 'orders');
+	}, [activeTab, allowedTabs, canAccessTab, userRole]);
 
 	const loadData = useCallback(async (isRefresh = false) => {
 		if (!selectedBranch) return;
@@ -567,13 +665,15 @@ export const AdminProvider = ({ children, companyId }) => {
 
 	const value = useMemo(() => ({
 		navigate,
-		activeTab, setActiveTab,
+		activeTab, setActiveTab: setActiveTabWithGuard,
 		products, setProducts,
 		categories, setCategories,
 		orders, setOrders,
 		clients, setClients,
 		branches, setBranches,
-		selectedBranch, setSelectedBranch,
+		selectedBranch, setSelectedBranch: setSelectedBranchWithGuard,
+		assignedBranchId,
+		isBranchLocked,
 		isHistoryView, setIsHistoryView,
 		mobileTab, setMobileTab,
 		searchQuery, setSearchQuery,
@@ -618,6 +718,8 @@ export const AdminProvider = ({ children, companyId }) => {
 		confirmDeleteCategory,
 		toggleCategoryActive,
 		reorderCategories,
+		canAccessTab,
+		roleNavPermissions: resolvedRolePermissions,
 		kanbanColumns,
 		processedProducts,
 		productStats,
@@ -626,7 +728,7 @@ export const AdminProvider = ({ children, companyId }) => {
 		setProductToDelete,
 		confirmDeleteProduct,
 	}), [
-		navigate, activeTab, products, categories, orders, clients, branches, selectedBranch,
+		navigate, activeTab, setActiveTabWithGuard, products, categories, orders, clients, branches, selectedBranch,
 		isHistoryView, mobileTab, searchQuery, filterCategory, filterStatus, viewMode, sortOrder,
 		loading, refreshing, isMobile, isModalOpen, editingProduct, isCategoryModalOpen, editingCategory,
 		notification, receiptModalOrder, receiptPreview, isManualOrderModalOpen, uploadingReceipt,
@@ -634,7 +736,7 @@ export const AdminProvider = ({ children, companyId }) => {
 		loadData, refreshBranches, handleSelectClient, moveOrder, uploadReceiptToOrder, handleReceiptFileChange,
 		handleSaveProduct, deleteProduct, toggleProductActive, scopeModal, handleScopeConfirm, handleSaveCategory,
 		deleteCategory, categoryToDelete, confirmDeleteCategory, toggleCategoryActive, reorderCategories,
-		kanbanColumns, processedProducts, productStats, userEmail, productToDelete, confirmDeleteProduct,
+		assignedBranchId, isBranchLocked, setSelectedBranchWithGuard, canAccessTab, resolvedRolePermissions, kanbanColumns, processedProducts, productStats, userEmail, productToDelete, confirmDeleteProduct,
 	]);
 
 	return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>;

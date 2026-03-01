@@ -51,7 +51,57 @@ interface CompanyData {
     backgroundColor?: string;
     backgroundImageUrl?: string;
     displayName?: string;
+    roleNavPermissions?: Record<string, string[]>;
   } | null;
+}
+
+type RoleNavPermissions = Record<string, string[]>;
+
+const ADMIN_TAB_OPTIONS = [
+  { id: "orders", label: "Cocina / Pedidos" },
+  { id: "caja", label: "Caja" },
+  { id: "analytics", label: "Reportes" },
+  { id: "categories", label: "Categorías" },
+  { id: "products", label: "Productos" },
+  { id: "inventory", label: "Inventario" },
+  { id: "clients", label: "Clientes" },
+  { id: "settings", label: "Herramientas" },
+  { id: "company", label: "Datos de la empresa" },
+] as const;
+
+const ROLE_LABELS: Record<string, string> = {
+  owner: "Owner",
+  admin: "Admin",
+  ceo: "CEO",
+  cashier: "Cajero",
+};
+
+const DEFAULT_ROLE_NAV_PERMISSIONS: RoleNavPermissions = {
+  owner: ["orders", "caja", "analytics", "categories", "products", "inventory", "clients", "settings", "company"],
+  admin: ["orders", "caja", "analytics", "categories", "products", "inventory", "clients", "settings", "company"],
+  ceo: ["orders", "caja", "analytics", "categories", "products", "inventory", "clients", "settings"],
+  cashier: ["orders", "caja"],
+};
+
+function normalizeRoleNavPermissions(raw: unknown): RoleNavPermissions {
+  const allowedTabIds = new Set<string>(ADMIN_TAB_OPTIONS.map((tab) => tab.id));
+  const normalized: RoleNavPermissions = { ...DEFAULT_ROLE_NAV_PERMISSIONS };
+
+  if (!raw || typeof raw !== "object") {
+    return normalized;
+  }
+
+  for (const role of Object.keys(DEFAULT_ROLE_NAV_PERMISSIONS)) {
+    const tabs = (raw as Record<string, unknown>)[role];
+    if (!Array.isArray(tabs)) continue;
+    const cleanTabs = tabs
+      .filter((value): value is string => typeof value === "string")
+      .filter((value) => allowedTabIds.has(value));
+
+    normalized[role] = cleanTabs.length > 0 ? Array.from(new Set(cleanTabs)) : [];
+  }
+
+  return normalized;
 }
 
 interface BusinessInfo {
@@ -83,6 +133,13 @@ interface CompanyUser {
   id: string;
   email: string;
   role: string;
+  branch_id?: string | null;
+  branch_name?: string | null;
+}
+
+interface BranchOption {
+  id: string;
+  name: string | null;
 }
 
 // ============================================================================
@@ -94,16 +151,19 @@ interface CompanyUser {
 
 function UserManagement({ companyId }: { companyId: string }) {
   const [users, setUsers] = useState<CompanyUser[]>([]);
+  const [branches, setBranches] = useState<BranchOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newEmail, setNewEmail] = useState("");
   const [newRole, setNewRole] = useState("admin");
+  const [newBranchId, setNewBranchId] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [adding, setAdding] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editEmail, setEditEmail] = useState("");
   const [editRole, setEditRole] = useState("");
+  const [editBranchId, setEditBranchId] = useState("");
   const [editPassword, setEditPassword] = useState("");
 
 
@@ -114,10 +174,17 @@ function UserManagement({ companyId }: { companyId: string }) {
       const supabase = createSupabaseBrowserClient();
       const { data, error } = await supabase
         .from("users")
-        .select("id,email,role")
+        .select("id,email,role,branch_id,branch:branches(name)")
         .eq("company_id", companyId);
       if (error) throw error;
-      setUsers((data as CompanyUser[]) || []);
+      const mappedUsers = ((data as Array<Record<string, unknown>>) || []).map((row) => ({
+        id: String(row.id),
+        email: String(row.email),
+        role: String(row.role),
+        branch_id: (row.branch_id as string | null) ?? null,
+        branch_name: ((row.branch as { name?: string | null } | null)?.name ?? null),
+      }));
+      setUsers(mappedUsers);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al cargar usuarios");
     } finally {
@@ -125,9 +192,28 @@ function UserManagement({ companyId }: { companyId: string }) {
     }
   }, [companyId]);
 
+  const fetchBranches = useCallback(async () => {
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from("branches")
+        .select("id,name")
+        .eq("company_id", companyId)
+        .order("name");
+      if (error) throw error;
+      setBranches((data as BranchOption[]) || []);
+    } catch {
+      setBranches([]);
+    }
+  }, [companyId]);
+
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
+
+  useEffect(() => {
+    fetchBranches();
+  }, [fetchBranches]);
 
   async function handleAddUser() {
     const emailToSave = newEmail.trim();
@@ -136,15 +222,17 @@ function UserManagement({ companyId }: { companyId: string }) {
     setAdding(true);
     setError(null);
     try {
+      const branchToSave = newBranchId || null;
       const res = await fetch("/api/superadmin-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: emailToSave, password: passwordToSave, role: newRole, company_id: companyId })
+        body: JSON.stringify({ email: emailToSave, password: passwordToSave, role: newRole, company_id: companyId, branch_id: branchToSave })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error al agregar usuario");
       setNewEmail("");
       setNewRole("admin");
+      setNewBranchId("");
       setNewPassword("");
       await fetchUsers();
     } catch (err) {
@@ -178,16 +266,18 @@ function UserManagement({ companyId }: { companyId: string }) {
     setEditingId(user.id);
     setEditEmail(user.email);
     setEditRole(user.role);
+    setEditBranchId(user.branch_id ?? "");
     setEditPassword("");
   }
 
   async function handleEditUser(id: string) {
     setError(null);
     try {
+      const branchToSave = editBranchId || null;
       const res = await fetch("/api/superadmin-user", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, email: editEmail, role: editRole, password: editPassword })
+        body: JSON.stringify({ id, email: editEmail, role: editRole, password: editPassword, branch_id: branchToSave })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error al editar usuario");
@@ -202,38 +292,56 @@ function UserManagement({ companyId }: { companyId: string }) {
     setEditingId(null);
     setEditEmail("");
     setEditRole("");
+    setEditBranchId("");
     setEditPassword("");
   }
 
   return (
     <>
+      <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-xs text-zinc-600">
+        Puedes dejar la sucursal en "Todos los locales" para acceso global, o asignar una sucursal fija por correo.
+      </div>
+
       <div className="overflow-x-auto rounded-lg border border-zinc-200">
         <table className="min-w-full text-sm">
           <thead>
             <tr className="bg-zinc-50 border-b border-zinc-200">
               <th className="px-4 py-3 text-left font-semibold text-zinc-700">Correo</th>
               <th className="px-4 py-3 text-left font-semibold text-zinc-700">Rol</th>
+              <th className="px-4 py-3 text-left font-semibold text-zinc-700">Sucursal</th>
               <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-200">
             {loading ? (
-              <tr><td colSpan={3} className="px-4 py-4 text-center text-zinc-500">Cargando usuarios...</td></tr>
+              <tr><td colSpan={4} className="px-4 py-4 text-center text-zinc-500">Cargando usuarios...</td></tr>
             ) : users.length === 0 ? (
-              <tr><td colSpan={3} className="px-4 py-4 text-center text-zinc-400">Sin usuarios registrados</td></tr>
+              <tr><td colSpan={4} className="px-4 py-4 text-center text-zinc-400">Sin usuarios registrados</td></tr>
             ) : users.map((user) => (
               editingId === user.id ? (
                 <tr key={user.id} className="hover:bg-zinc-50 transition-colors">
                   <td className="px-4 py-3 text-zinc-700">
                     <Input value={editEmail} onChange={e => setEditEmail(e.target.value)} />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 align-top">
                     <select value={editRole} onChange={e => setEditRole(e.target.value)} className="capitalize border rounded px-2 py-1">
                       <option value="admin">Admin</option>
                       <option value="ceo">CEO</option>
                       <option value="cashier">Cajero</option>
                     </select>
                     <Input type="password" value={editPassword} onChange={e => setEditPassword(e.target.value)} placeholder="Nueva contraseña (opcional)" className="mt-1" />
+                  </td>
+                  <td className="px-4 py-3 align-top">
+                    <select
+                      value={editBranchId}
+                      onChange={e => setEditBranchId(e.target.value)}
+                      className="w-full capitalize border rounded px-2 py-1"
+                    >
+                      <option value="">Todos los locales</option>
+                      {branches.map((branch) => (
+                        <option key={branch.id} value={branch.id}>{branch.name ?? "Sucursal"}</option>
+                      ))}
+                    </select>
                   </td>
                   <td className="px-4 py-3 text-right flex gap-2">
                     <Button size="sm" type="button" onClick={() => handleEditUser(user.id)}>Guardar</Button>
@@ -246,11 +354,14 @@ function UserManagement({ companyId }: { companyId: string }) {
                   <td className="px-4 py-3">
                     <Badge variant="neutral" className="capitalize">{user.role}</Badge>
                   </td>
-                  <td className="px-4 py-3 text-right flex gap-2">
+                  <td className="px-4 py-3 text-zinc-600">{user.branch_name ?? "Todos los locales"}</td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex flex-wrap justify-end gap-2">
                     <Button size="sm" type="button" onClick={() => startEditUser(user)}>Editar</Button>
                     <Button size="sm" variant="destructive" type="button" onClick={() => handleRemoveUser(user.id)} disabled={removingId === user.id}>
                       {removingId === user.id ? "Quitando..." : "Quitar"}
                     </Button>
+                    </div>
                   </td>
                 </tr>
               )
@@ -258,7 +369,7 @@ function UserManagement({ companyId }: { companyId: string }) {
           </tbody>
         </table>
       </div>
-      <div className="flex flex-col gap-3 md:flex-row md:items-end mt-4">
+      <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5 xl:items-end">
         <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700 flex-1">
           Nuevo correo
           <Input
@@ -282,6 +393,20 @@ function UserManagement({ companyId }: { companyId: string }) {
             <option value="cashier">Cajero</option>
           </select>
         </label>
+        <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700 w-full md:w-56">
+          Sucursal asignada
+          <select
+            className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 disabled:opacity-50"
+            value={newBranchId}
+            onChange={e => setNewBranchId(e.target.value)}
+            disabled={adding}
+          >
+            <option value="">Todos los locales</option>
+            {branches.map((branch) => (
+              <option key={branch.id} value={branch.id}>{branch.name ?? "Sucursal"}</option>
+            ))}
+          </select>
+        </label>
         <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700 w-full md:w-48">
           Contraseña
           <Input
@@ -292,15 +417,17 @@ function UserManagement({ companyId }: { companyId: string }) {
             disabled={adding}
           />
         </label>
-        <Button
-          type="button"
-          onClick={handleAddUser}
-          className="mt-2 md:mt-0"
-          loading={adding}
-          disabled={adding || !newEmail.trim() || !newPassword.trim()}
-        >
-          Agregar usuario
-        </Button>
+        <div className="flex items-end">
+          <Button
+            type="button"
+            onClick={handleAddUser}
+            className="w-full"
+            loading={adding}
+            disabled={adding || !newEmail.trim() || !newPassword.trim()}
+          >
+            Agregar usuario
+          </Button>
+        </div>
       </div>
       {error && <div className="mt-2 text-sm font-medium text-red-600">{error}</div>}
     </>
@@ -353,6 +480,7 @@ export function CompanyGlobalForm({
     backgroundColor: company.theme_config?.backgroundColor ?? "#0a0a0a",
     backgroundImageUrl: company.theme_config?.backgroundImageUrl ?? "",
     logoUrl: company.theme_config?.logoUrl ?? "",
+    roleNavPermissions: normalizeRoleNavPermissions(company.theme_config?.roleNavPermissions),
   });
 
   const [businessForm, setBusinessForm] = useState({
@@ -441,6 +569,23 @@ export function CompanyGlobalForm({
     } finally {
       setLogoUploading(false);
     }
+  };
+
+  const toggleRoleTabPermission = (role: string, tabId: string, checked: boolean) => {
+    setThemeForm((prev) => {
+      const currentTabs = prev.roleNavPermissions[role] ?? [];
+      const nextTabs = checked
+        ? Array.from(new Set([...currentTabs, tabId]))
+        : currentTabs.filter((tab) => tab !== tabId);
+
+      return {
+        ...prev,
+        roleNavPermissions: {
+          ...prev.roleNavPermissions,
+          [role]: nextTabs,
+        },
+      };
+    });
   };
 
   // Manejador de Cobros (Stripe / MP)
@@ -536,6 +681,7 @@ export function CompanyGlobalForm({
             logoUrl: themeForm.logoUrl,
             backgroundColor: themeForm.backgroundColor,
             backgroundImageUrl: themeForm.backgroundImageUrl.trim() || null,
+            roleNavPermissions: themeForm.roleNavPermissions,
           },
         })
         .eq("id", company.id);
@@ -642,10 +788,10 @@ export function CompanyGlobalForm({
   };
 
   return (
-    <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
-      <fieldset disabled={loading} className="flex flex-col gap-6">
+    <form className="mx-auto flex w-full max-w-6xl flex-col gap-8" onSubmit={handleSubmit}>
+      <fieldset disabled={loading} className="flex flex-col gap-8">
         
-        <Card className="flex flex-col gap-5">
+        <Card className="flex flex-col gap-6">
           <div>
             <h2 className="text-lg font-semibold text-zinc-900">Empresa</h2>
             <p className="text-sm text-zinc-500">Datos generales del cliente y su plan actual.</p>
@@ -743,7 +889,7 @@ export function CompanyGlobalForm({
           </div>
         </Card>
 
-        <Card className="flex flex-col gap-5">
+        <Card className="flex flex-col gap-6">
           <div>
             <h3 className="text-lg font-semibold text-zinc-900">Información de negocio</h3>
             <p className="text-sm text-zinc-500">Datos visibles para clientes finales en la tienda.</p>
@@ -797,7 +943,7 @@ export function CompanyGlobalForm({
           </div>
         </Card>
 
-        <Card className="flex flex-col gap-5">
+        <Card className="flex flex-col gap-6">
           <div>
             <h3 className="text-lg font-semibold text-zinc-900">Branding</h3>
             <p className="text-sm text-zinc-500">Configura color y logo para el tenant.</p>
@@ -933,7 +1079,57 @@ export function CompanyGlobalForm({
           />
         </Card>
 
-        <Card className="flex flex-col gap-5">
+        <Card className="flex flex-col gap-6">
+          <div>
+            <h3 className="text-lg font-semibold text-zinc-900">Permisos de panel por rol</h3>
+            <p className="text-sm text-zinc-500">
+              Define qué secciones del navbar puede ver cada rol en el panel admin del negocio.
+            </p>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-zinc-200">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="bg-zinc-50 border-b border-zinc-200">
+                  <th className="px-4 py-3 text-left font-semibold text-zinc-700">Sección</th>
+                  {Object.keys(DEFAULT_ROLE_NAV_PERMISSIONS).map((role) => (
+                    <th key={role} className="px-4 py-3 text-center font-semibold text-zinc-700">
+                      {ROLE_LABELS[role] ?? role}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-200">
+                {ADMIN_TAB_OPTIONS.map((tab) => (
+                  <tr key={tab.id} className="hover:bg-zinc-50 transition-colors">
+                    <td className="px-4 py-3 text-zinc-700">{tab.label}</td>
+                    {Object.keys(DEFAULT_ROLE_NAV_PERMISSIONS).map((role) => {
+                      const checked = (themeForm.roleNavPermissions[role] ?? []).includes(tab.id);
+                      return (
+                        <td key={`${role}-${tab.id}`} className="px-4 py-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) =>
+                              toggleRoleTabPermission(role, tab.id, e.target.checked)
+                            }
+                            className="h-4 w-4 accent-zinc-900"
+                          />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <p className="text-xs text-zinc-500">
+            Las opciones deshabilitadas se muestran en gris en el navbar y muestran mensaje de acceso restringido al hacer click.
+          </p>
+        </Card>
+
+        <Card className="flex flex-col gap-6">
           <div>
             <h3 className="text-lg font-semibold text-zinc-900">Suscripción</h3>
             <p className="text-sm text-zinc-500">Extiende el acceso manualmente usando meses de 30 días.</p>
@@ -983,7 +1179,7 @@ export function CompanyGlobalForm({
           )}
         </Card>
 
-        <Card className="flex flex-col gap-5">
+        <Card className="flex flex-col gap-6">
           <div>
             <h3 className="text-lg font-semibold text-zinc-900">Cobros</h3>
             <p className="text-sm text-zinc-500">Genera links de pago con Stripe o MercadoPago.</p>
@@ -1034,7 +1230,7 @@ export function CompanyGlobalForm({
           )}
         </Card>
 
-        <Card className="flex flex-col gap-5">
+        <Card className="flex flex-col gap-6">
           <div>
             <h3 className="text-lg font-semibold text-zinc-900">Historial de pagos</h3>
             <p className="text-sm text-zinc-500">Últimos movimientos registrados.</p>
@@ -1089,7 +1285,7 @@ export function CompanyGlobalForm({
           )}
         </Card>
 
-        <Card className="flex flex-col gap-5">
+        <Card className="flex flex-col gap-6">
           <div>
             <h3 className="text-lg font-semibold text-zinc-900">Usuarios y roles</h3>
             <p className="text-sm text-zinc-500">Gestiona los correos y roles asignados a esta empresa.</p>
@@ -1104,7 +1300,7 @@ export function CompanyGlobalForm({
         )}
       </fieldset>
 
-      <div className="flex justify-end sticky bottom-6 z-10">
+      <div className="sticky bottom-4 z-10 flex justify-end rounded-2xl border border-zinc-200 bg-white/90 px-4 py-3 shadow-sm backdrop-blur">
         <Button type="submit" loading={loading} className="shadow-lg shadow-zinc-200" size="lg">
           Guardar cambios
         </Button>

@@ -8,7 +8,7 @@ const supabaseAdmin = createClient(
 );
 
 async function validateSuperAdminAccess() {
-	const result = await validateAdminRolesOnServer(["owner", "super_admin"]);
+	const result = await validateAdminRolesOnServer(["owner", "super_admin", "admin"]);
 	if (!result.ok) {
 		return {
 			ok: false as const,
@@ -27,13 +27,35 @@ export async function POST(req: NextRequest) {
 		return access.response;
 	}
 
-	const { email, password, role, company_id } = await req.json();
+	const { email, password, role, company_id, branch_id } = await req.json();
 	if (!email || !password || !role || !company_id) {
 		return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
 	}
+	const normalizedBranchId =
+		typeof branch_id === "string" && branch_id.trim().length > 0
+			? branch_id.trim()
+			: null;
+
+	if (normalizedBranchId) {
+		const { data: branch, error: branchError } = await supabaseAdmin
+			.from("branches")
+			.select("id,company_id")
+			.eq("id", normalizedBranchId)
+			.maybeSingle();
+
+		if (branchError) {
+			return NextResponse.json({ error: branchError.message }, { status: 400 });
+		}
+
+		if (!branch || branch.company_id !== company_id) {
+			return NextResponse.json({ error: "La sucursal no pertenece a la empresa" }, { status: 400 });
+		}
+	}
+
+	const normalizedEmail = String(email).trim().toLowerCase();
 	// 1. Crear usuario en Auth
 	const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
-		email,
+		email: normalizedEmail,
 		password,
 		email_confirm: true,
 	});
@@ -42,9 +64,11 @@ export async function POST(req: NextRequest) {
 	}
 	// 2. Guardar en tabla users
 	const { error } = await supabaseAdmin.from("users").insert({
-		email,
+		email: normalizedEmail,
 		role,
 		company_id,
+		branch_id: normalizedBranchId,
+		auth_user_id: authUser.user?.id,
 		auth_id: authUser.user?.id,
 	});
 	if (error) {
@@ -83,8 +107,39 @@ export async function PUT(req: NextRequest) {
 		return access.response;
 	}
 
-	const { id, email, role, password } = await req.json();
+	const { id, email, role, password, branch_id } = await req.json();
 	if (!id || !email || !role) return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
+	const normalizedEmail = String(email).trim().toLowerCase();
+	const normalizedBranchId =
+		typeof branch_id === "string" && branch_id.trim().length > 0
+			? branch_id.trim()
+			: null;
+
+	if (normalizedBranchId) {
+		const { data: userCompany, error: userCompanyError } = await supabaseAdmin
+			.from("users")
+			.select("company_id")
+			.eq("id", id)
+			.maybeSingle();
+
+		if (userCompanyError || !userCompany?.company_id) {
+			return NextResponse.json({ error: "No se pudo validar la empresa del usuario" }, { status: 400 });
+		}
+
+		const { data: branch, error: branchError } = await supabaseAdmin
+			.from("branches")
+			.select("id,company_id")
+			.eq("id", normalizedBranchId)
+			.maybeSingle();
+
+		if (branchError) {
+			return NextResponse.json({ error: branchError.message }, { status: 400 });
+		}
+
+		if (!branch || branch.company_id !== userCompany.company_id) {
+			return NextResponse.json({ error: "La sucursal no pertenece a la empresa" }, { status: 400 });
+		}
+	}
 	// Buscar auth_id
 	const { data: userRow, error: userError } = await supabaseAdmin
 		.from("users")
@@ -103,12 +158,15 @@ export async function PUT(req: NextRequest) {
 		if (email) {
 			const { error: emailError } = await supabaseAdmin.auth.admin.updateUserById(
 				userRow.auth_id,
-				{ email }
+				{ email: normalizedEmail }
 			);
 			if (emailError) return NextResponse.json({ error: emailError.message }, { status: 400 });
 		}
 	}
-	const { error } = await supabaseAdmin.from("users").update({ email, role }).eq("id", id);
+	const { error } = await supabaseAdmin
+		.from("users")
+		.update({ email: normalizedEmail, role, branch_id: normalizedBranchId })
+		.eq("id", id);
 	if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 	return NextResponse.json({ success: true });
 }

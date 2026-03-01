@@ -23,6 +23,7 @@ interface CompanyGlobalTabProps {
       backgroundColor?: string;
       backgroundImageUrl?: string;
       displayName?: string;
+      roleNavPermissions?: Record<string, string[]>;
     } | null;
   };
   businessInfo: {

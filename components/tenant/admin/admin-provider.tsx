@@ -71,25 +71,13 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         setUserEmail(email);
 
         if (email) {
-          // Buscar primero en admin_users
-          let { data: adminUser } = await supabase
+          const normalizedEmail = email.trim().toLowerCase();
+          const { data: adminUser } = await supabase
             .from("admin_users")
             .select("role")
-            .eq("email", email)
+            .ilike("email", normalizedEmail)
             .maybeSingle();
-          let role = adminUser?.role ?? null;
-          if (!role) {
-            // Si no está en admin_users, buscar en users
-            const { data: userRow } = await supabase
-              .from("users")
-              .select("role")
-              .eq("email", email)
-              .maybeSingle();
-            if (userRow?.role) {
-              role = userRow.role;
-            }
-          }
-          setUserRole(role);
+          setUserRole(adminUser?.role ?? null);
         }
 
         const { data: branchRows } = await supabase

@@ -34,6 +34,8 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
     clients,
     branches,
     selectedBranch, setSelectedBranch,
+    assignedBranchId,
+    isBranchLocked,
     isHistoryView, setIsHistoryView,
     mobileTab, setMobileTab,
     searchQuery, setSearchQuery,
@@ -80,6 +82,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
     refreshBranches,
     userRole,
     userEmail,
+    canAccessTab,
     productToDelete,
     setProductToDelete,
     confirmDeleteProduct,
@@ -201,6 +204,8 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
         isMobile={isMobile}
         kanbanColumns={kanbanColumns}
         userRole={userRole}
+        canAccessTab={canAccessTab}
+        onDeniedAccess={() => showNotify('Necesitas un rol diferente para acceder a esta sección.', 'error')}
         userEmail={userEmail || initialEmail}
         branchName={selectedBranch?.name}
         logoUrl={logoUrl}
@@ -241,7 +246,9 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
                       setSelectedBranch(branch);
                     }
                   }}
-                  style={{ background: 'transparent', border: 'none', color: 'white', outline: 'none', cursor: 'pointer', fontWeight: 600 }}
+                  disabled={isBranchLocked}
+                  title={isBranchLocked ? 'Tu correo está bloqueado a una sucursal específica.' : undefined}
+                  style={{ background: 'transparent', border: 'none', color: 'white', outline: 'none', cursor: isBranchLocked ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: isBranchLocked ? 0.7 : 1 }}
                 >
                   {branches.map(b => <option key={b.id} value={b.id} style={{color: 'black'}}>{b.name}</option>)}
                   {activeTab === 'analytics' && (
@@ -249,6 +256,11 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
                   )}
                 </select>
               </div>
+              {isBranchLocked && selectedBranch?.name && (
+                <div style={{ marginTop: 6, fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>
+                  Local fijo para este correo: {selectedBranch.name}
+                </div>
+              )}
             </div>
 
             {activeTab === 'orders' && (

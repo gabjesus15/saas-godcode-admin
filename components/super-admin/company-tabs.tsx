@@ -21,8 +21,8 @@ export function CompanyTabs({ tabs, initialId }: CompanyTabsProps) {
   );
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap gap-2 rounded-2xl border border-zinc-200 bg-white/80 p-2 shadow-sm backdrop-blur">
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-zinc-200 bg-white/80 p-3 shadow-sm backdrop-blur">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -40,7 +40,7 @@ export function CompanyTabs({ tabs, initialId }: CompanyTabsProps) {
         ))}
       </div>
 
-      <div>
+      <div className="space-y-6">
         {tabs.map((tab) => (
           <div key={tab.id} className={activeId === tab.id ? "block" : "hidden"}>
             {tab.content}

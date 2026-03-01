@@ -22,7 +22,7 @@ export default async function SuperAdminLayout({
 	const { data: adminUser, error: adminError } = await supabase
 		.from("admin_users")
 		.select("id")
-		.eq("email", user.email)
+		.ilike("email", user.email)
 		.maybeSingle();
 
 	if (adminError || !adminUser) {
