@@ -81,10 +81,48 @@ async function applySessionRefresh(request: NextRequest, response: NextResponse)
   return response;
 }
 
+const resolveTenantSlugFromReferer = (refererHeader: string | null) => {
+  if (!refererHeader) return null;
+
+  try {
+    const refererUrl = new URL(refererHeader);
+    const segments = refererUrl.pathname.split("/").filter(Boolean);
+    if (segments.length === 0) return null;
+
+    const first = segments[0]?.toLowerCase();
+    const reserved = new Set([
+      "login",
+      "dashboard",
+      "companies",
+      "plans",
+      "checkout",
+      "api",
+      "_next",
+      "favicon.ico",
+    ]);
+
+    return reserved.has(first) ? null : segments[0];
+  } catch {
+    return null;
+  }
+};
+
 export async function proxy(req: NextRequest) {
 
   const { pathname } = req.nextUrl;
   const subdomain = extractSubdomain(req.headers.get("host"));
+
+  if (pathname === "/favicon.ico") {
+    const tenantSlug = subdomain ?? resolveTenantSlugFromReferer(req.headers.get("referer"));
+    if (tenantSlug) {
+      const rewriteUrl = new URL(`/${tenantSlug}/tenant-favicon`, req.url);
+      const response = NextResponse.rewrite(rewriteUrl);
+      return applySessionRefresh(req, response);
+    }
+
+    const response = NextResponse.next({ request: req });
+    return applySessionRefresh(req, response);
+  }
 
   if (subdomain) {
     if (

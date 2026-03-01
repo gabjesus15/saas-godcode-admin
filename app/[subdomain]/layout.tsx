@@ -5,6 +5,8 @@ import { createSupabasePublicServerClient } from "../../utils/supabase/server";
 import "./tenant.css";
 import { TenantShell } from "../../components/tenant/tenant-shell";
 
+export const dynamic = "force-dynamic";
+
 interface TenantLayoutProps {
   children: ReactNode;
   params: Promise<{ subdomain: string }>;
@@ -49,7 +51,7 @@ const fetchCompany = async (subdomain: string) => {
   const supabase = createSupabasePublicServerClient();
   const { data: company } = await supabase
     .from("companies")
-    .select("id,name,public_slug,subscription_status,theme_config")
+    .select("id,name,public_slug,subscription_status,theme_config,updated_at")
     .eq("public_slug", subdomain)
     .maybeSingle();
 
@@ -74,14 +76,16 @@ export async function generateMetadata({
   }
 
   const name = company.theme_config?.displayName ?? company.name ?? "GodCode";
-  const primaryColor = company.theme_config?.primaryColor ?? "#111827";
-  const icon = company.theme_config?.logoUrl
-    ? company.theme_config.logoUrl
-    : buildInitialsIcon(name, primaryColor);
+  const versionSeed = String(company.updated_at ?? company.id ?? name);
+  const icon = `/${resolvedParams.subdomain}/tenant-favicon?v=${encodeURIComponent(versionSeed)}`;
 
   return {
     title: name,
-    icons: { icon },
+    icons: {
+      icon,
+      shortcut: icon,
+      apple: icon,
+    },
   };
 }
 
