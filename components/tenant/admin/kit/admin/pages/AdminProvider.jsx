@@ -410,7 +410,7 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions }) => {
 				.eq('id', orderId)
 				.eq('company_id', companyId);
 			if (error) throw error;
-			if (nextStatus === 'completed' || nextStatus === 'picked_up') {
+			if (nextStatus === 'active') {
 				const targetOrder = previousOrders.find(o => o.id === orderId);
 				if (targetOrder) {
 					const ok = await cashSystem.registerSale(targetOrder);
@@ -421,7 +421,7 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions }) => {
 			}
 			if (nextStatus === 'cancelled') {
 				const targetOrder = previousOrders.find(o => o.id === orderId);
-				if (targetOrder && (targetOrder.status === 'completed' || targetOrder.status === 'picked_up')) {
+				if (targetOrder && (targetOrder.status === 'active' || targetOrder.status === 'completed' || targetOrder.status === 'picked_up')) {
 					const ok = await cashSystem.registerRefund(targetOrder);
 					if (!ok) {
 						showNotify('No se pudo registrar la devolucion en caja', 'error');

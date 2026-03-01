@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
     Unlock, Lock, Plus, Minus, History, 
     Clock, Calendar, TrendingUp, TrendingDown,
-    ArrowUpCircle, ArrowDownCircle, Eye,
+    ArrowUpCircle, ArrowDownCircle, Eye, XCircle,
     DollarSign, CreditCard, Smartphone, ChevronRight,
     MapPin
 } from 'lucide-react';
@@ -13,6 +13,7 @@ import { isValidBranchId } from '../../../shared/utils/safeIds';
 import CashShiftModal from './CashShiftModal';
 import CashMovementModal from './CashMovementModal';
 import CashShiftDetailModal from './CashShiftDetailModal';
+import CashOrderDetailPanel from './CashOrderDetailPanel';
 import { formatCurrency } from '../../../shared/utils/formatters';
 const cashIcon = '/tenant/cash.svg';
 
@@ -36,7 +37,7 @@ const ElapsedTime = ({ since }) => {
     return <span>{elapsed}</span>;
 };
 
-const CashManager = ({ showNotify, selectedBranchId }) => {
+const CashManager = ({ showNotify, selectedBranchId, orders = [] }) => {
     const { 
         activeShift, loading: loadingSystem, movements,
         openShift, closeShift, addManualMovement, 
@@ -50,6 +51,34 @@ const CashManager = ({ showNotify, selectedBranchId }) => {
     const [isMovementModalOpen, setIsMovementModalOpen] = useState(false);
     const [movementType, setMovementType] = useState('income');
     const [filterPeriod, setFilterPeriod] = useState('30');
+    const [selectedMovementOrder, setSelectedMovementOrder] = useState(null);
+
+    const getOrderForMovement = useCallback(
+        (movement, ordersList) => {
+            const list = ordersList || orders || [];
+            const fromJoin = movement?.orders;
+            if (fromJoin?.id) return fromJoin;
+            const id = movement?.order_id ?? movement?.orderId;
+            if (id != null) {
+                const found = list.find((o) => String(o.id) === String(id));
+                if (found) return found;
+            }
+            const desc = String(movement?.description || '');
+            const match = desc.match(/#(\d{1,8})/);
+            if (!match) return null;
+            const num = match[1].replace(/^0+/, '') || '0';
+            return (
+                list.find((o) => {
+                    const sid = String(o.id);
+                    return (
+                        sid.replace(/^0+/, '') === num ||
+                        sid.slice(-4).replace(/^0+/, '') === num
+                    );
+                }) ?? null
+            );
+        },
+        [orders]
+    );
 
     const loadHistory = useCallback(async () => {
         setLoadingHistory(true);
@@ -77,7 +106,36 @@ const CashManager = ({ showNotify, selectedBranchId }) => {
         return pastShifts.filter(s => new Date(s.closed_at) >= cutoff);
     }, [pastShifts, filterPeriod]);
 
-    const recentMovements = useMemo(() => movements.slice(0, 5), [movements]);
+    const cancelledOrdersInShift = useMemo(() => {
+        if (!activeShift || !selectedBranchId || selectedBranchId === 'all') return [];
+        const openedAt = activeShift.opened_at ? new Date(activeShift.opened_at).getTime() : null;
+        if (!openedAt) return [];
+        return (orders || [])
+            .filter((o) => o?.status === 'cancelled' && o?.branch_id === selectedBranchId && new Date(o.created_at).getTime() >= openedAt)
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }, [activeShift, selectedBranchId, orders]);
+
+    const recentMovements = useMemo(() => {
+        const cancelled = (cancelledOrdersInShift || []).map((order) => ({
+            id: `cancel-${order.id}`,
+            type: 'cancel',
+            orderId: order.id,
+            description: `Pedido #${String(order.id).slice(-4)} cancelado`,
+            created_at: order.created_at,
+            amount: 0,
+        }));
+        return [...(movements || []), ...cancelled]
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+            .slice(0, 8);
+    }, [movements, cancelledOrdersInShift]);
+
+    const handleMovementClick = useCallback(
+        (m) => {
+            const order = getOrderForMovement(m, orders);
+            if (order) setSelectedMovementOrder(order);
+        },
+        [getOrderForMovement, orders]
+    );
 
     if (loadingSystem) return (
         <div className="cash-loading">
@@ -199,24 +257,53 @@ const CashManager = ({ showNotify, selectedBranchId }) => {
                                 </button>
                             </div>
                             <div className="cash-recent-list">
-                                {recentMovements.map(m => (
-                                    <div key={m.id} className="cash-recent-item">
-                                        <div className={`cash-recent-icon ${m.type}`}>
-                                            {m.type === 'expense' ? <ArrowDownCircle size={16} /> : <ArrowUpCircle size={16} />}
+                                {recentMovements.map(m => {
+                                    const order = getOrderForMovement(m, orders);
+                                    const clickable = Boolean(order);
+                                    const isCancel = m.type === 'cancel';
+                                    const paymentMethod = m.payment_method ?? order?.payment_type;
+                                    const paymentSlug = isCancel ? null : (paymentMethod === 'cash' ? 'cash' : paymentMethod === 'card' || paymentMethod === 'tarjeta' ? 'card' : 'transfer');
+                                    const paymentLabel = paymentMethod === 'cash' ? 'Efectivo' : paymentMethod === 'card' || paymentMethod === 'tarjeta' ? 'Tarjeta' : 'Transf.';
+                                    const movementColor = isCancel ? '#f87171' : paymentSlug === 'cash' ? '#4ade80' : paymentSlug === 'transfer' ? '#facc15' : paymentSlug === 'card' ? '#60a5fa' : undefined;
+                                    const textStyle = movementColor ? { color: movementColor } : undefined;
+                                    return (
+                                        <div
+                                            key={m.id}
+                                            className={`cash-recent-item ${clickable ? 'cash-recent-item-clickable' : ''} ${isCancel ? 'cash-recent-item--cancelled' : ''} ${paymentSlug ? `cash-recent-item--${paymentSlug}` : ''}`}
+                                            onClick={clickable ? () => handleMovementClick(m) : undefined}
+                                            onKeyDown={
+                                                clickable
+                                                    ? (e) => {
+                                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                                e.preventDefault();
+                                                                handleMovementClick(m);
+                                                            }
+                                                        }
+                                                    : undefined
+                                            }
+                                            role={clickable ? 'button' : undefined}
+                                            tabIndex={clickable ? 0 : -1}
+                                        >
+                                            <div className={`cash-recent-icon ${m.type}`} style={isCancel ? { background: 'rgba(239, 68, 68, 0.2)', color: '#f87171' } : undefined}>
+                                                {m.type === 'expense' ? <ArrowDownCircle size={16} /> : m.type === 'cancel' ? <XCircle size={16} /> : <ArrowUpCircle size={16} />}
+                                            </div>
+                                            <div className="cash-recent-info">
+                                                <span className="cash-recent-desc" style={textStyle}>{m.description || (m.type === 'sale' ? 'Venta' : m.type === 'income' ? 'Ingreso' : m.type === 'cancel' ? 'Cancelado' : 'Egreso')}</span>
+                                                <span className="cash-recent-time" style={textStyle}>
+                                                    {new Date(m.created_at).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
+                                                    {isCancel ? ' · Cancelado' : ` · ${paymentLabel}`}
+                                                </span>
+                                            </div>
+                                            {m.type === 'cancel' ? (
+                                                <span className="cash-recent-amount cash-recent-amount-cancel" style={{ color: '#f87171', fontWeight: 700 }}>Cancelado</span>
+                                            ) : (
+                                                <span className={`cash-recent-amount ${m.type === 'expense' ? 'negative' : 'positive'}`} style={movementColor ? { color: movementColor } : undefined}>
+                                                    {m.type === 'expense' ? '-' : '+'}{fmt(m.amount)}
+                                                </span>
+                                            )}
                                         </div>
-                                        <div className="cash-recent-info">
-                                            <span className="cash-recent-desc">{m.description || (m.type === 'sale' ? 'Venta' : m.type === 'income' ? 'Ingreso' : 'Egreso')}</span>
-                                            <span className="cash-recent-time">
-                                                {new Date(m.created_at).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
-                                                {' · '}
-                                                {m.payment_method === 'cash' ? 'Efectivo' : m.payment_method === 'card' ? 'Tarjeta' : 'Transf.'}
-                                            </span>
-                                        </div>
-                                        <span className={`cash-recent-amount ${m.type === 'expense' ? 'negative' : 'positive'}`}>
-                                            {m.type === 'expense' ? '-' : '+'}{fmt(m.amount)}
-                                        </span>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
@@ -328,6 +415,11 @@ const CashManager = ({ showNotify, selectedBranchId }) => {
                 onClose={() => setViewingShift(null)}
                 shift={viewingShift}
                 getTotals={getTotals}
+            />
+
+            <CashOrderDetailPanel
+                order={selectedMovementOrder}
+                onClose={() => setSelectedMovementOrder(null)}
             />
         </div>
     );

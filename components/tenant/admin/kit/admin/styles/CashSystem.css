@@ -776,6 +776,14 @@
     background: rgba(255, 255, 255, 0.02);
 }
 
+.admin-layout .cash-recent-item-clickable {
+    cursor: pointer;
+}
+.admin-layout .cash-recent-item-clickable:focus-visible {
+    outline: 2px solid var(--c-balance);
+    outline-offset: -2px;
+}
+
 .admin-layout .cash-recent-icon {
     width: 32px;
     height: 32px;
@@ -795,6 +803,11 @@
 .admin-layout .cash-recent-icon.expense {
     background: rgba(239, 68, 68, 0.1);
     color: var(--c-expense);
+}
+.admin-layout .cash-recent-icon.cancel,
+.cash-container .cash-recent-icon.cancel {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
 }
 
 .admin-layout .cash-recent-info {
@@ -819,6 +832,10 @@
     color: var(--c-text-muted);
 }
 
+.admin-layout .cash-recent-item--cancelled .cash-recent-desc {
+    color: #f87171;
+}
+
 .admin-layout .cash-recent-amount {
     font-size: 0.9rem;
     font-weight: 800;
@@ -828,6 +845,18 @@
 
 .admin-layout .cash-recent-amount.positive { color: var(--c-income); }
 .admin-layout .cash-recent-amount.negative { color: var(--c-expense); }
+.admin-layout .cash-recent-amount-cancel { color: #f87171 !important; font-weight: 700; }
+
+/* Colores por fila (Últimos movimientos): así siempre aplican */
+.cash-recent-item--cancelled .cash-recent-desc,
+.cash-recent-item--cancelled .cash-recent-time,
+.cash-recent-item--cancelled .cash-recent-amount { color: #f87171 !important; }
+.cash-recent-item--cash .cash-recent-time,
+.cash-recent-item--cash .cash-recent-amount.positive { color: #4ade80 !important; }
+.cash-recent-item--transfer .cash-recent-time,
+.cash-recent-item--transfer .cash-recent-amount.positive { color: #facc15 !important; }
+.cash-recent-item--card .cash-recent-time,
+.cash-recent-item--card .cash-recent-amount.positive { color: #60a5fa !important; }
 
 /* --- Empty State --- */
 .admin-layout .cash-empty-state {

@@ -24,11 +24,17 @@ const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderS
 
     const getQty = (id) => manualOrder.items.find(i => i.id === id)?.quantity || 0;
 
-    // [MEJORA SEGURIDAD] Función de sanitización
-    const sanitizeInput = (text) => {
-        if (!text) return '';
-        return text.replace(/[<>]/g, '').trim(); // Elimina < y > para evitar inyección básica
-    };
+	// [MEJORA SEGURIDAD] Función de sanitización
+	const sanitizeInput = (text) => {
+		if (!text) return '';
+		return text.replace(/[<>]/g, '').trim(); // Elimina < y > para evitar inyección básica
+	};
+
+	// La nota no debe hacer trim para permitir espacios entre palabras mientras escribes.
+	const sanitizeNote = (text) => {
+		if (text == null || text === '') return '';
+		return text.replace(/[<>]/g, '');
+	};
 
     // [NUEVO] Función para imprimir ticket térmico
     const handlePrintPreCheck = () => {
@@ -355,7 +361,7 @@ const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderS
                                     placeholder="Nota opcional..."
                                     className="manual-order-input"
                                     value={manualOrder.note}
-                                    onChange={e => updateNote(sanitizeInput(e.target.value))}
+                                    onChange={e => updateNote(sanitizeNote(e.target.value))}
                                     rows={1}
                                     maxLength={500}
                                     aria-label="Nota o comentario del pedido"

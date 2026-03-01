@@ -433,7 +433,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
 
         {/* 4.5 CAJA */}
         {activeTab === 'caja' && (
-          <CashManager showNotify={showNotify} selectedBranchId={selectedBranch?.id} />
+          <CashManager showNotify={showNotify} selectedBranchId={selectedBranch?.id} orders={orders} />
         )}
 
         {/* 5. CATEGORÍAS */}

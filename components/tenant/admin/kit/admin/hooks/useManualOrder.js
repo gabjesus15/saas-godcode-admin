@@ -223,10 +223,8 @@ export const useManualOrder = (showNotify, onOrderSaved, onClose, registerSale, 
             // Aquí llamamos a tu servicio existente
             const { order } = await createManualOrder(sanitizedOrder, receiptFile);
 
-            // [FIX] Registrar venta en caja si existe la función
-            if (order && registerSale) {
-                await registerSale(order);
-            }
+			// Comentario: la venta en caja se registra al pasar a cocina
+			// (moveOrder -> active), no al crear el pedido manual.
 
             showNotify('Pedido creado con éxito', 'success');
             resetOrder();
