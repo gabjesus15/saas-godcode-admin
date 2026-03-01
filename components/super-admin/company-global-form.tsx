@@ -369,8 +369,8 @@ function UserManagement({ companyId }: { companyId: string }) {
           </tbody>
         </table>
       </div>
-      <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5 xl:items-end">
-        <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700 flex-1">
+      <div className="mt-6 flex flex-wrap items-end gap-3">
+        <label className="flex min-w-[220px] flex-1 flex-col gap-1 text-sm font-medium text-zinc-700">
           Nuevo correo
           <Input
             type="email"
@@ -380,7 +380,7 @@ function UserManagement({ companyId }: { companyId: string }) {
             disabled={adding}
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700 w-full md:w-48">
+        <label className="flex min-w-[140px] flex-1 flex-col gap-1 text-sm font-medium text-zinc-700">
           Rol
           <select
             className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 disabled:opacity-50"
@@ -393,7 +393,7 @@ function UserManagement({ companyId }: { companyId: string }) {
             <option value="cashier">Cajero</option>
           </select>
         </label>
-        <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700 w-full md:w-56">
+        <label className="flex min-w-[220px] flex-1 flex-col gap-1 text-sm font-medium text-zinc-700">
           Sucursal asignada
           <select
             className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 disabled:opacity-50"
@@ -407,7 +407,7 @@ function UserManagement({ companyId }: { companyId: string }) {
             ))}
           </select>
         </label>
-        <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700 w-full md:w-48">
+        <label className="flex min-w-[180px] flex-1 flex-col gap-1 text-sm font-medium text-zinc-700">
           Contraseña
           <Input
             type="password"
@@ -417,7 +417,7 @@ function UserManagement({ companyId }: { companyId: string }) {
             disabled={adding}
           />
         </label>
-        <div className="flex items-end">
+        <div className="flex min-w-[190px] flex-1 items-end">
           <Button
             type="button"
             onClick={handleAddUser}
