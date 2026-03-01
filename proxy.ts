@@ -5,6 +5,10 @@ const adminPaths = ["/dashboard", "/companies", "/login", "/plans"];
 const tenantBypassPaths = ["/api", "/_next", "/favicon.ico"];
 const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "");
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+const tenantBaseDomain = (process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN ?? "")
+  .replace(/^https?:\/\//, "")
+  .replace(/\/$/, "")
+  .toLowerCase();
 
 const extractSubdomain = (hostHeader: string | null) => {
   if (!hostHeader) {
@@ -13,7 +17,15 @@ const extractSubdomain = (hostHeader: string | null) => {
 
   const hostname = hostHeader.split(":")[0].toLowerCase();
 
-  if (hostname === "localhost") {
+  if (hostname === "localhost" || hostname === "www.localhost") {
+    return null;
+  }
+
+  if (hostname === "www" || hostname === "www.") {
+    return null;
+  }
+
+  if (hostname.endsWith(".vercel.app")) {
     return null;
   }
 
@@ -21,11 +33,31 @@ const extractSubdomain = (hostHeader: string | null) => {
 
   if (hostname.endsWith("localhost")) {
     // Comentario: soporta subdominio.localhost durante desarrollo.
-    return parts.length >= 2 ? parts[0] : null;
+    const candidate = parts.length >= 2 ? parts[0] : null;
+    if (!candidate || candidate === "www") return null;
+    return candidate;
+  }
+
+  if (tenantBaseDomain) {
+    if (hostname === tenantBaseDomain || hostname === `www.${tenantBaseDomain}`) {
+      return null;
+    }
+
+    if (hostname.endsWith(`.${tenantBaseDomain}`)) {
+      const candidate = hostname.slice(0, -(`.${tenantBaseDomain}`.length));
+      if (!candidate || candidate === "www" || candidate.includes(".")) {
+        return null;
+      }
+      return candidate;
+    }
+
+    return null;
   }
 
   // Comentario: para dominios reales esperamos algo como subdominio.godcode.com.
-  return parts.length >= 3 ? parts[0] : null;
+  const candidate = parts.length >= 3 ? parts[0] : null;
+  if (!candidate || candidate === "www") return null;
+  return candidate;
 };
 
 async function applySessionRefresh(request: NextRequest, response: NextResponse) {

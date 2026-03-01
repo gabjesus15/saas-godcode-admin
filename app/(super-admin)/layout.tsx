@@ -21,11 +21,14 @@ export default async function SuperAdminLayout({
 	// Comentario: validamos que el email exista en admin_users antes de mostrar el panel.
 	const { data: adminUser, error: adminError } = await supabase
 		.from("admin_users")
-		.select("id")
+		.select("id,role")
 		.ilike("email", user.email)
 		.maybeSingle();
 
-	if (adminError || !adminUser) {
+	const role = String(adminUser?.role ?? "").toLowerCase();
+	const allowedRoles = new Set(["owner", "super_admin", "admin"]);
+
+	if (adminError || !adminUser || !allowedRoles.has(role)) {
 		redirect("/login");
 	}
 
