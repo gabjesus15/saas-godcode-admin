@@ -262,11 +262,15 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions }) => {
 		try {
 			const isAllBranches = selectedBranch.id === 'all';
 			const categoriesQuery = isAllBranches
-				? supabase.from(TABLES.categories).select('*').eq('company_id', companyId).order('order')
+				? supabase
+					.from(TABLES.categories)
+					.select('*')
+					.or(`company_id.eq.${companyId},company_id.is.null`)
+					.order('order')
 				: supabase
 					.from(TABLES.categories)
 					.select('id, name, company_id, category_branch!inner(order, is_active, branch_id)')
-					.eq('company_id', companyId)
+					.or(`company_id.eq.${companyId},company_id.is.null`)
 					.eq('category_branch.branch_id', selectedBranch.id);
 			const promises = [
 				categoriesQuery,

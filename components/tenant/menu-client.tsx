@@ -520,7 +520,6 @@ export function MenuClient({
                 const categoryProducts = products.filter(
                   (product) => product.category_id === category.id
                 );
-                if (categoryProducts.length === 0) return null;
 
                 return (
                   <section
@@ -529,11 +528,17 @@ export function MenuClient({
                     className="category-section"
                   >
                     <h2 className="category-title">{category.name}</h2>
-                    <div className="product-grid">
-                      {categoryProducts.map((product) => (
-                        <ProductCard key={product.id} product={product} priority={nextPriority()} />
-                      ))}
-                    </div>
+                    {categoryProducts.length > 0 ? (
+                      <div className="product-grid">
+                        {categoryProducts.map((product) => (
+                          <ProductCard key={product.id} product={product} priority={nextPriority()} />
+                        ))}
+                      </div>
+                    ) : (
+                      <p style={{ color: "var(--text-secondary)", marginTop: 12 }}>
+                        Sin productos disponibles en esta categoria por ahora.
+                      </p>
+                    )}
                   </section>
                 );
               })

@@ -115,6 +115,9 @@ export const ordersService = {
                 if (rpcMessage.includes('invalid_item_price')) {
                     throw new Error('Hay productos del carrito que no están disponibles para esta sucursal. Actualiza el menú e intenta nuevamente.');
                 }
+                if (rpcMessage.includes('no_items_available')) {
+                    throw new Error('Ningún producto del carrito está disponible en esta sucursal en este momento.');
+                }
                 throw orderError;
             }
 

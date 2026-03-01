@@ -45,7 +45,8 @@ export function CartProvider({
 
     try {
       const storedBranchId = localStorage.getItem("tenant_cart_branch_id");
-      if (storedBranchId && storedBranchId !== selectedBranchId && cart.length > 0) {
+      const hasLegacyUnboundCart = !storedBranchId && cart.length > 0;
+      if ((storedBranchId && storedBranchId !== selectedBranchId && cart.length > 0) || hasLegacyUnboundCart) {
         setCart([]);
         setOrderNote("");
         localStorage.setItem("tenant_cart", "[]");

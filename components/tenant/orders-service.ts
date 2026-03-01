@@ -140,6 +140,11 @@ export const ordersService = {
           "Hay productos del carrito que no estan disponibles para esta sucursal. Actualiza el menu e intenta nuevamente."
         );
       }
+      if (rpcMessage.includes("no_items_available")) {
+        throw new Error(
+          "Ningun producto del carrito esta disponible en esta sucursal en este momento."
+        );
+      }
       throw orderError;
     }
 
