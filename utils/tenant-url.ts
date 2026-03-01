@@ -18,6 +18,17 @@ const normalizeBaseDomain = (value: string) => {
   }
 };
 
+const isLocalhostLike = (host: string) => {
+  const cleanHost = host.toLowerCase();
+  return (
+    cleanHost === "localhost" ||
+    cleanHost.startsWith("localhost:") ||
+    cleanHost.endsWith(".localhost") ||
+    cleanHost.includes(".localhost:") ||
+    cleanHost.startsWith("127.0.0.1")
+  );
+};
+
 const getRuntimeHostBase = () => {
   if (typeof window === "undefined") return null;
 
@@ -38,7 +49,13 @@ const getRuntimeHostBase = () => {
 export const getTenantBaseDomain = () => {
   const raw = process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN;
   if (raw && raw.trim()) {
-    return normalizeBaseDomain(raw.trim());
+    const normalizedRaw = normalizeBaseDomain(raw.trim());
+    const isProduction = process.env.NODE_ENV === "production";
+
+    // Evita URLs rotas en Vercel cuando quedó seteado localhost en variables públicas.
+    if (!(isProduction && isLocalhostLike(normalizedRaw))) {
+      return normalizedRaw;
+    }
   }
 
   const runtimeHost = getRuntimeHostBase();
@@ -49,6 +66,11 @@ export const getTenantBaseDomain = () => {
   const vercelProdHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
   if (vercelProdHost && vercelProdHost.trim()) {
     return normalizeBaseDomain(vercelProdHost);
+  }
+
+  const vercelPreviewHost = process.env.VERCEL_URL;
+  if (vercelPreviewHost && vercelPreviewHost.trim()) {
+    return normalizeBaseDomain(vercelPreviewHost);
   }
 
   if (process.env.NODE_ENV === "development") {
