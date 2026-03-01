@@ -318,57 +318,96 @@ function UserManagement({ companyId }: { companyId: string }) {
             ) : users.length === 0 ? (
               <tr><td colSpan={4} className="px-4 py-4 text-center text-zinc-400">Sin usuarios registrados</td></tr>
             ) : users.map((user) => (
-              editingId === user.id ? (
-                <tr key={user.id} className="hover:bg-zinc-50 transition-colors">
-                  <td className="px-4 py-3 text-zinc-700">
-                    <Input value={editEmail} onChange={e => setEditEmail(e.target.value)} />
-                  </td>
-                  <td className="px-4 py-3 align-top">
-                    <select value={editRole} onChange={e => setEditRole(e.target.value)} className="capitalize border rounded px-2 py-1">
-                      <option value="admin">Admin</option>
-                      <option value="ceo">CEO</option>
-                      <option value="cashier">Cajero</option>
-                    </select>
-                    <Input type="password" value={editPassword} onChange={e => setEditPassword(e.target.value)} placeholder="Nueva contraseña (opcional)" className="mt-1" />
-                  </td>
-                  <td className="px-4 py-3 align-top">
-                    <select
-                      value={editBranchId}
-                      onChange={e => setEditBranchId(e.target.value)}
-                      className="w-full capitalize border rounded px-2 py-1"
-                    >
-                      <option value="">Todos los locales</option>
-                      {branches.map((branch) => (
-                        <option key={branch.id} value={branch.id}>{branch.name ?? "Sucursal"}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-4 py-3 text-right flex gap-2">
-                    <Button size="sm" type="button" onClick={() => handleEditUser(user.id)}>Guardar</Button>
-                    <Button size="sm" type="button" variant="outline" onClick={cancelEdit}>Cancelar</Button>
-                  </td>
-                </tr>
-              ) : (
-                <tr key={user.id} className="hover:bg-zinc-50 transition-colors">
-                  <td className="px-4 py-3 text-zinc-700">{user.email}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant="neutral" className="capitalize">{user.role}</Badge>
-                  </td>
-                  <td className="px-4 py-3 text-zinc-600">{user.branch_name ?? "Todos los locales"}</td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex flex-wrap justify-end gap-2">
-                    <Button size="sm" type="button" onClick={() => startEditUser(user)}>Editar</Button>
-                    <Button size="sm" variant="destructive" type="button" onClick={() => handleRemoveUser(user.id)} disabled={removingId === user.id}>
-                      {removingId === user.id ? "Quitando..." : "Quitar"}
-                    </Button>
-                    </div>
-                  </td>
-                </tr>
-              )
+              <tr key={user.id} className="hover:bg-zinc-50 transition-colors">
+                <td className="px-4 py-3 text-zinc-700">{user.email}</td>
+                <td className="px-4 py-3">
+                  <Badge variant="neutral" className="capitalize">{user.role}</Badge>
+                </td>
+                <td className="px-4 py-3 text-zinc-600">{user.branch_name ?? "Todos los locales"}</td>
+                <td className="px-4 py-3 text-right">
+                  <div className="flex flex-wrap justify-end gap-2">
+                  <Button size="sm" type="button" onClick={() => startEditUser(user)}>
+                    {editingId === user.id ? "Editando" : "Editar"}
+                  </Button>
+                  <Button size="sm" variant="destructive" type="button" onClick={() => handleRemoveUser(user.id)} disabled={removingId === user.id}>
+                    {removingId === user.id ? "Quitando..." : "Quitar"}
+                  </Button>
+                  </div>
+                </td>
+              </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {editingId ? (
+        <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <div className="mb-4">
+            <h4 className="text-sm font-semibold text-zinc-900">Editar usuario</h4>
+            <p className="text-xs text-zinc-500">Actualiza correo, rol, sucursal y contraseña del usuario seleccionado.</p>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+              Correo
+              <Input value={editEmail} onChange={e => setEditEmail(e.target.value)} />
+            </label>
+
+            <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+              Rol
+              <select
+                value={editRole}
+                onChange={e => setEditRole(e.target.value)}
+                className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400"
+              >
+                <option value="admin">Admin</option>
+                <option value="ceo">CEO</option>
+                <option value="cashier">Cajero</option>
+              </select>
+            </label>
+
+            <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+              Sucursal asignada
+              <select
+                value={editBranchId}
+                onChange={e => setEditBranchId(e.target.value)}
+                className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400"
+              >
+                <option value="">Todos los locales</option>
+                {branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>{branch.name ?? "Sucursal"}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+              Nueva contraseña (opcional)
+              <Input
+                type="password"
+                value={editPassword}
+                onChange={e => setEditPassword(e.target.value)}
+                placeholder="Dejar vacío para mantener"
+              />
+            </label>
+          </div>
+
+          <div className="mt-4 flex flex-wrap justify-end gap-2">
+            <Button size="sm" type="button" onClick={() => handleEditUser(editingId)}>
+              Guardar cambios
+            </Button>
+            <Button
+              size="sm"
+              type="button"
+              variant="outline"
+              className="border-zinc-300 bg-zinc-100 text-zinc-800 hover:bg-zinc-200"
+              onClick={cancelEdit}
+            >
+              Cancelar
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="mt-6 flex flex-wrap items-end gap-3">
         <label className="flex min-w-[220px] flex-1 flex-col gap-1 text-sm font-medium text-zinc-700">
           Nuevo correo
