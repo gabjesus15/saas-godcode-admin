@@ -8,12 +8,12 @@ import { uploadImage, validateImageFile } from '../../shared/utils/cloudinary';
 import { useCashSystem } from '../hooks/useCashSystem';
 import { sanitizeOrder } from '../../shared/utils/orderUtils';
 
-const ALL_ADMIN_TABS = ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'settings', 'company'];
+const ALL_ADMIN_TABS = ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients'];
 
 const DEFAULT_ROLE_NAV_PERMISSIONS = {
-	owner: ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'settings', 'company'],
-	admin: ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'settings', 'company'],
-	ceo: ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'settings'],
+	owner: ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients'],
+	admin: ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients'],
+	ceo: ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients'],
 	cashier: ['orders', 'caja'],
 };
 

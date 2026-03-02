@@ -14,10 +14,7 @@ import InventoryCard from '../components/InventoryCard';
 import AdminHistoryTable from '../components/AdminHistoryTable';
 import AdminClients from '../components/AdminClients';
 import AdminInventory from '../components/AdminInventory';
-import AdminSettings from '../components/AdminSettings';
 import AdminAnalytics from '../components/AdminAnalytics';
-import AdminDangerZone from '../components/AdminDangerZone';
-import AdminCompanyData from '../components/AdminCompanyData';
 import ClientDetailsPanel from '../components/ClientDetailsPanel';
 import CashManager from '../components/caja/CashManager';
 import ScopeSelectionModal from '../components/ScopeSelectionModal';
@@ -263,8 +260,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
                 activeTab === 'analytics' ? 'Rendimiento' :
                   activeTab === 'clients' ? 'Clientes' :
                     activeTab === 'caja' ? 'Caja y Turnos' :
-                      activeTab === 'settings' ? 'Herramientas' :
-                      activeTab === 'company' ? 'Datos de la empresa' : 'Categorías'}
+                      'Categorías'}
           </h1>
 
           <div className="header-actions">
@@ -640,29 +636,6 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
           </div>
         )}
 
-        {/* 6. HERRAMIENTAS */}
-        {activeTab === 'settings' && (
-          <div className="settings-view animate-fade">
-             <AdminSettings showNotify={showNotify} isMobile={isMobile} selectedBranch={selectedBranch} onBranchUpdate={refreshBranches} />
-
-             {/* ZONA DE PELIGRO (FUNCIONES AVANZADAS) */}
-             <AdminDangerZone 
-                orders={orders} 
-                showNotify={showNotify} 
-                loadData={loadData} 
-                isMobile={isMobile}
-                selectedBranch={selectedBranch}
-               companyId={companyIdForClients}
-             />
-          </div>
-        )}
-
-        {/* 7. DATOS DE LA EMPRESA (solo rol admin) */}
-        {activeTab === 'company' && (
-          <div className="settings-view animate-fade">
-            <AdminCompanyData showNotify={showNotify} isMobile={isMobile} branches={branches} onBranchUpdate={refreshBranches} />
-          </div>
-        )}
       </main>
 
       {/* PANEL CLIENTE LATERAL (MODULARIZADO) */}
