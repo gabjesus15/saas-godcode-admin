@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
-import { createSupabasePublicServerClient } from "../../utils/supabase/server";
+import { getCachedCompany } from "../../utils/tenant-cache";
 import "./tenant.css";
 import { TenantShell } from "../../components/tenant/tenant-shell";
 
@@ -47,24 +47,13 @@ const toRgba = (hex: string, alpha: number, fallback: string) => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
-const fetchCompany = async (subdomain: string) => {
-  const supabase = createSupabasePublicServerClient();
-  const { data: company } = await supabase
-    .from("companies")
-    .select("id,name,public_slug,subscription_status,theme_config,updated_at")
-    .eq("public_slug", subdomain)
-    .maybeSingle();
-
-  return company;
-};
-
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ subdomain: string }>;
 }): Promise<Metadata> {
   const resolvedParams = await params;
-  const company = await fetchCompany(resolvedParams.subdomain);
+  const company = await getCachedCompany(resolvedParams.subdomain);
 
   if (!company) {
     return { title: "GodCode" };
@@ -94,7 +83,7 @@ export default async function TenantLayout({
   params,
 }: TenantLayoutProps) {
   const resolvedParams = await params;
-  const company = await fetchCompany(resolvedParams.subdomain);
+  const company = await getCachedCompany(resolvedParams.subdomain);
   const status = company?.subscription_status?.toLowerCase();
   const primaryColor = company?.theme_config?.primaryColor ?? "#111827";
   const secondaryColor = company?.theme_config?.secondaryColor ?? primaryColor;

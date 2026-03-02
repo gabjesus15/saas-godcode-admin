@@ -11,13 +11,16 @@ import AdminSidebar from '../components/AdminSidebar';
 import AdminKanban from '../components/AdminKanban';
 import ManualOrderModal from '../components/ManualOrderModal';
 import InventoryCard from '../components/InventoryCard';
-import AdminHistoryTable from '../components/AdminHistoryTable';
-import AdminClients from '../components/AdminClients';
-import AdminInventory from '../components/AdminInventory';
-import AdminAnalytics from '../components/AdminAnalytics';
 import ClientDetailsPanel from '../components/ClientDetailsPanel';
-import CashManager from '../components/caja/CashManager';
 import ScopeSelectionModal from '../components/ScopeSelectionModal';
+
+const AdminAnalytics = React.lazy(() => import('../components/AdminAnalytics'));
+const AdminClients = React.lazy(() => import('../components/AdminClients'));
+const AdminInventory = React.lazy(() => import('../components/AdminInventory'));
+const AdminHistoryTable = React.lazy(() => import('../components/AdminHistoryTable'));
+const CashManager = React.lazy(() => import('../components/caja/CashManager'));
+
+const TabFallback = () => <div style={{ padding: '2rem', display: 'flex', justifyContent: 'center' }}><Loader2 size={32} /></div>;
 import { supabase } from '../../lib/supabase';
 import { AdminProvider, useAdmin } from './AdminProvider';
 
@@ -354,7 +357,9 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
               clients={clients}
             />
           ) : (
-            <AdminHistoryTable orders={kanbanColumns.history} setReceiptModalOrder={setReceiptModalOrder} />
+            <React.Suspense fallback={<TabFallback />}>
+              <AdminHistoryTable orders={kanbanColumns.history} setReceiptModalOrder={setReceiptModalOrder} />
+            </React.Suspense>
           )
         )}
 
@@ -442,34 +447,42 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
 
         {/* 2.5 NUEVO INVENTARIO (INSUMOS) */}
         {activeTab === 'inventory' && (
-          <AdminInventory showNotify={showNotify} branchId={selectedBranch?.id} branches={branches} companyId={companyIdForClients} />
+          <React.Suspense fallback={<TabFallback />}>
+            <AdminInventory showNotify={showNotify} branchId={selectedBranch?.id} branches={branches} companyId={companyIdForClients} />
+          </React.Suspense>
         )}
 
         {/* 3. REPORTES */}
         {activeTab === 'analytics' && (
-          <AdminAnalytics 
-            orders={orders} 
-            products={products} 
-            clients={clients} 
-            branches={branches.filter(b => b.id !== 'all')}
-          />
+          <React.Suspense fallback={<TabFallback />}>
+            <AdminAnalytics 
+              orders={orders} 
+              products={products} 
+              clients={clients} 
+              branches={branches.filter(b => b.id !== 'all')}
+            />
+          </React.Suspense>
         )}
 
         {/* 4. CLIENTES */}
         {activeTab === 'clients' && (
-          <AdminClients 
-            clients={clients}
-            orders={orders}
-            onSelectClient={handleSelectClient}
-            onClientCreated={() => loadData(true)}
-            showNotify={showNotify}
-            companyId={companyIdForClients}
-          />
+          <React.Suspense fallback={<TabFallback />}>
+            <AdminClients 
+              clients={clients}
+              orders={orders}
+              onSelectClient={handleSelectClient}
+              onClientCreated={() => loadData(true)}
+              showNotify={showNotify}
+              companyId={companyIdForClients}
+            />
+          </React.Suspense>
         )}
 
         {/* 4.5 CAJA */}
         {activeTab === 'caja' && (
-          <CashManager showNotify={showNotify} selectedBranchId={selectedBranch?.id} orders={orders} />
+          <React.Suspense fallback={<TabFallback />}>
+            <CashManager showNotify={showNotify} selectedBranchId={selectedBranch?.id} orders={orders} />
+          </React.Suspense>
         )}
 
         {/* 5. CATEGORÍAS */}

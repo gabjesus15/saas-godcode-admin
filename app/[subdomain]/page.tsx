@@ -1,4 +1,5 @@
 import { createSupabasePublicServerClient } from "../../utils/supabase/server";
+import { getCachedCompany } from "../../utils/tenant-cache";
 import { StoreUnavailable } from "../../components/tenant/store-unavailable";
 import { HomeClient } from "../../components/tenant/home-client";
 
@@ -8,14 +9,9 @@ interface TenantPageProps {
 
 export default async function TenantPage({ params }: TenantPageProps) {
   const resolvedParams = await params;
-  const supabase = createSupabasePublicServerClient();
-  const { data: company, error } = await supabase
-    .from("companies")
-    .select("id,name,public_slug,subscription_status,theme_config")
-    .eq("public_slug", resolvedParams.subdomain)
-    .maybeSingle();
+  const company = await getCachedCompany(resolvedParams.subdomain);
 
-  if (error || !company) {
+  if (!company) {
     return <StoreUnavailable />;
   }
 
@@ -24,6 +20,7 @@ export default async function TenantPage({ params }: TenantPageProps) {
     return <StoreUnavailable />;
   }
 
+  const supabase = createSupabasePublicServerClient();
   const { data: branches } = await supabase
     .from("branches")
     .select("id,name,address,whatsapp_url,instagram_url,map_url")
