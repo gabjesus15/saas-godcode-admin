@@ -13,6 +13,12 @@ function getSupabaseAdmin() {
 
 type CeoResult = { companyId: string; userId: string } | { error: string };
 
+type UserRow = {
+	id: string;
+	company_id: string;
+	role: string;
+};
+
 /**
  * Comprueba si el usuario de la sesión es CEO en la tabla users (no admin_users).
  * Así, si el mismo correo es super_admin y CEO, puede usar Equipo en el panel del local.
@@ -32,7 +38,7 @@ async function getCeoCompanyId(supabaseAdmin: ReturnType<typeof createClient>): 
 	const { data: rows, error } = await supabaseAdmin
 		.from("users")
 		.select("id,company_id,role")
-		.ilike("email", email);
+		.ilike("email", email) as { data: UserRow[] | null; error: any };
 
 	if (error) return { error: error.message };
 	if (!rows?.length) return { error: "Usuario no encontrado en la empresa" };
@@ -54,7 +60,7 @@ export async function GET() {
 			.from("users")
 			.select("id,email,role,branch_id,created_at,branch:branches(name)")
 			.eq("company_id", ceo.companyId)
-			.order("created_at", { ascending: false });
+			.order("created_at", { ascending: false }) as { data: any[] | null; error: any };
 
 		if (error) {
 			return NextResponse.json({ error: error.message }, { status: 400 });
@@ -99,7 +105,7 @@ export async function POST(req: NextRequest) {
 				.from("branches")
 				.select("id,company_id")
 				.eq("id", branchId)
-				.maybeSingle();
+				.maybeSingle() as { data: any; error: any };
 			if (branchError || !branch || branch.company_id !== ceo.companyId) {
 				return NextResponse.json({ error: "La sucursal no pertenece a tu empresa" }, { status: 400 });
 			}
@@ -185,7 +191,7 @@ export async function PUT(req: NextRequest) {
 			.from("users")
 			.select("id,auth_id,company_id")
 			.eq("id", id)
-			.maybeSingle();
+			.maybeSingle() as { data: any; error: any };
 
 		if (userError) return NextResponse.json({ error: userError.message }, { status: 400 });
 		if (!userRow) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
@@ -198,7 +204,7 @@ export async function PUT(req: NextRequest) {
 				.from("branches")
 				.select("id,company_id")
 				.eq("id", branchId)
-				.maybeSingle();
+				.maybeSingle() as { data: any; error: any };
 			if (branchError || !branch || branch.company_id !== ceo.companyId) {
 				return NextResponse.json({ error: "La sucursal no pertenece a tu empresa" }, { status: 400 });
 			}
@@ -264,7 +270,7 @@ export async function DELETE(req: NextRequest) {
 			.from("users")
 			.select("id,auth_id,email,company_id")
 			.eq("id", id)
-			.maybeSingle();
+			.maybeSingle() as { data: any; error: any };
 
 		if (userError) return NextResponse.json({ error: userError.message }, { status: 400 });
 		if (!userRow) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
