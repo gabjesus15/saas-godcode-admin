@@ -23,7 +23,7 @@ type UserRow = {
  * Comprueba si el usuario de la sesión es CEO en la tabla users (no admin_users).
  * Así, si el mismo correo es super_admin y CEO, puede usar Equipo en el panel del local.
  */
-async function getCeoCompanyId(supabaseAdmin: ReturnType<typeof createClient>): Promise<CeoResult> {
+async function getCeoCompanyId(supabaseAdmin: any): Promise<CeoResult> {
 	const supabase = await createSupabaseServerClient();
 	const {
 		data: { user },
