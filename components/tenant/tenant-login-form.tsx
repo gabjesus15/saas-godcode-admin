@@ -27,7 +27,7 @@ export function TenantLoginForm({ subdomain }: TenantLoginFormProps) {
     try {
       const supabase = createSupabaseBrowserClient();
       const normalizedEmail = email.trim().toLowerCase();
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
         password,
       });
@@ -47,36 +47,44 @@ export function TenantLoginForm({ subdomain }: TenantLoginFormProps) {
         throw new Error("No se pudo validar la empresa del subdominio.");
       }
 
-      const { data: adminUser, error: adminError } = await supabase
-        .from("admin_users")
-        .select("id,role")
-        .ilike("email", normalizedEmail)
-        .in("role", ["owner", "super_admin", "admin", "ceo", "cashier"]);
+      const authUserId = signInData.user?.id ?? null;
+      const allowedRoles = new Set(["owner", "super_admin", "admin", "ceo", "cashier"]);
 
-      if (adminError) {
+      const userQuery = supabase
+        .from("users")
+        .select("id,role")
+        .eq("company_id", company.id);
+
+      const { data: userRowByAuthId, error: userByAuthError } = authUserId
+        ? await userQuery.eq("auth_user_id", authUserId).maybeSingle()
+        : await userQuery.eq("email", normalizedEmail).maybeSingle();
+
+      if (userByAuthError) {
         await supabase.auth.signOut();
-        throw new Error("No se pudo validar tus permisos de administrador.");
+        throw new Error("No se pudo validar tus permisos de usuario.");
       }
 
-      const adminRows = Array.isArray(adminUser) ? adminUser : [];
-      let hasAccess = adminRows.length > 0;
+      let resolvedUserRow = userRowByAuthId;
 
-      if (!hasAccess) {
-        const { data: userRow, error: userError } = await supabase
+      if (!resolvedUserRow && authUserId) {
+        const { data: userRowByEmail, error: userByEmailError } = await supabase
           .from("users")
           .select("id,role")
-          .ilike("email", normalizedEmail)
           .eq("company_id", company.id)
+          .ilike("email", normalizedEmail)
           .maybeSingle();
 
-        if (userError) {
+        if (userByEmailError) {
           await supabase.auth.signOut();
           throw new Error("No se pudo validar tus permisos de usuario.");
         }
 
-        const allowedRoles = new Set(["owner", "super_admin", "admin", "ceo", "cashier"]);
-        hasAccess = Boolean(userRow?.role && allowedRoles.has(String(userRow.role).toLowerCase()));
+        resolvedUserRow = userRowByEmail;
       }
+
+      const hasAccess = Boolean(
+        resolvedUserRow?.role && allowedRoles.has(String(resolvedUserRow.role).toLowerCase())
+      );
 
       if (!hasAccess) {
         await supabase.auth.signOut();

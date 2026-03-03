@@ -7,8 +7,12 @@ const supabaseAdmin = createClient(
 	process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+const TENANT_MANAGEABLE_ROLES = new Set(["admin", "ceo", "cashier"]);
+
+const normalizeTenantRole = (value: unknown) => String(value ?? "").trim().toLowerCase();
+
 async function validateSuperAdminAccess() {
-	const result = await validateAdminRolesOnServer(["owner", "super_admin", "admin"]);
+	const result = await validateAdminRolesOnServer(["super_admin"]);
 	if (!result.ok) {
 		return {
 			ok: false as const,
@@ -30,6 +34,11 @@ export async function POST(req: NextRequest) {
 	const { email, password, role, company_id, branch_id } = await req.json();
 	if (!email || !password || !role || !company_id) {
 		return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
+	}
+
+	const normalizedRole = normalizeTenantRole(role);
+	if (!TENANT_MANAGEABLE_ROLES.has(normalizedRole)) {
+		return NextResponse.json({ error: "Rol no permitido para gestion de tenants" }, { status: 400 });
 	}
 	const normalizedBranchId =
 		typeof branch_id === "string" && branch_id.trim().length > 0
@@ -65,7 +74,7 @@ export async function POST(req: NextRequest) {
 	// 2. Guardar en tabla users
 	const { error } = await supabaseAdmin.from("users").insert({
 		email: normalizedEmail,
-		role,
+		role: normalizedRole,
 		company_id,
 		branch_id: normalizedBranchId,
 		auth_user_id: authUser.user?.id,
@@ -75,33 +84,6 @@ export async function POST(req: NextRequest) {
 		return NextResponse.json({ error: error.message }, { status: 400 });
 	}
 
-	const { data: existingAdminUser } = await supabaseAdmin
-		.from("admin_users")
-		.select("id")
-		.ilike("email", normalizedEmail)
-		.maybeSingle();
-
-	if (existingAdminUser?.id) {
-		const { error: adminUpdateError } = await supabaseAdmin
-			.from("admin_users")
-			.update({ email: normalizedEmail, role })
-			.eq("id", existingAdminUser.id);
-
-		if (adminUpdateError) {
-			return NextResponse.json({ error: adminUpdateError.message }, { status: 400 });
-		}
-	} else {
-		const { error: adminInsertError } = await supabaseAdmin
-			.from("admin_users")
-			.insert({
-				email: normalizedEmail,
-				role,
-			});
-
-		if (adminInsertError) {
-			return NextResponse.json({ error: adminInsertError.message }, { status: 400 });
-		}
-	}
 	return NextResponse.json({ success: true });
 }
 
@@ -121,16 +103,6 @@ export async function DELETE(req: NextRequest) {
 		.maybeSingle();
 	if (userError) return NextResponse.json({ error: userError.message }, { status: 400 });
 
-	if (userRow?.email) {
-		const { error: adminDeleteError } = await supabaseAdmin
-			.from("admin_users")
-			.delete()
-			.ilike("email", String(userRow.email).trim().toLowerCase());
-		if (adminDeleteError) {
-			return NextResponse.json({ error: adminDeleteError.message }, { status: 400 });
-		}
-	}
-
 	if (userRow?.auth_id) {
 		const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userRow.auth_id);
 		if (authError) return NextResponse.json({ error: authError.message }, { status: 400 });
@@ -149,6 +121,10 @@ export async function PUT(req: NextRequest) {
 	const { id, email, role, password, branch_id } = await req.json();
 	if (!id || !email || !role) return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
 	const normalizedEmail = String(email).trim().toLowerCase();
+	const normalizedRole = normalizeTenantRole(role);
+	if (!TENANT_MANAGEABLE_ROLES.has(normalizedRole)) {
+		return NextResponse.json({ error: "Rol no permitido para gestion de tenants" }, { status: 400 });
+	}
 	const normalizedBranchId =
 		typeof branch_id === "string" && branch_id.trim().length > 0
 			? branch_id.trim()
@@ -204,38 +180,9 @@ export async function PUT(req: NextRequest) {
 	}
 	const { error } = await supabaseAdmin
 		.from("users")
-		.update({ email: normalizedEmail, role, branch_id: normalizedBranchId })
+		.update({ email: normalizedEmail, role: normalizedRole, branch_id: normalizedBranchId })
 		.eq("id", id);
 	if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-
-	if (userRow) {
-		const previousEmail = String(userRow.email ?? "").trim().toLowerCase();
-		const { data: existingAdminUser } = await supabaseAdmin
-			.from("admin_users")
-			.select("id")
-			.ilike("email", previousEmail)
-			.maybeSingle();
-
-		if (existingAdminUser?.id) {
-			const { error: adminUpdateError } = await supabaseAdmin
-				.from("admin_users")
-				.update({ email: normalizedEmail, role })
-				.eq("id", existingAdminUser.id);
-			if (adminUpdateError) {
-				return NextResponse.json({ error: adminUpdateError.message }, { status: 400 });
-			}
-		} else {
-			const { error: adminInsertError } = await supabaseAdmin
-				.from("admin_users")
-				.insert({
-					email: normalizedEmail,
-					role,
-				});
-			if (adminInsertError) {
-				return NextResponse.json({ error: adminInsertError.message }, { status: 400 });
-			}
-		}
-	}
 
 	return NextResponse.json({ success: true });
 }

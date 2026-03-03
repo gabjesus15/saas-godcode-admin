@@ -1,6 +1,18 @@
-import { createSupabaseServerClient } from "../supabase/server";
+import { createClient } from "@supabase/supabase-js";
 
-const FALLBACK_ALLOWED_ROLES = new Set(["owner", "super_admin", "admin"]);
+const FALLBACK_ALLOWED_ROLES = new Set(["super_admin"]);
+
+// Service role client para bypass RLS en validaciones server-side
+const supabaseAdmin = createClient(
+	process.env.NEXT_PUBLIC_SUPABASE_URL!,
+	process.env.SUPABASE_SERVICE_ROLE_KEY!,
+	{
+		auth: {
+			autoRefreshToken: false,
+			persistSession: false,
+		},
+	}
+);
 
 export interface ServerAdminPermissionResult {
 	ok: boolean;
@@ -14,7 +26,10 @@ export async function validateAdminRolesOnServer(
 	allowedRoles: string[] = Array.from(FALLBACK_ALLOWED_ROLES)
 ): Promise<ServerAdminPermissionResult> {
 	try {
+		// Importar dinámicamente para evitar problemas de SSR
+		const { createSupabaseServerClient } = await import("../supabase/server");
 		const supabase = await createSupabaseServerClient();
+		
 		const {
 			data: { user },
 			error: userError,
@@ -24,10 +39,11 @@ export async function validateAdminRolesOnServer(
 			return { ok: false, status: 401, error: "No autenticado" };
 		}
 
-		const email = user.email.trim();
-		let role: string | null = null;
+		const email = user.email.trim().toLowerCase();
+		const normalizedAllowedRoles = allowedRoles.map((role) => String(role).toLowerCase());
 
-		const { data: adminUser, error: adminError } = await supabase
+		// Usar service role para bypass RLS
+		const { data: adminUser, error: adminError } = await supabaseAdmin
 			.from("admin_users")
 			.select("role")
 			.ilike("email", email)
@@ -37,27 +53,13 @@ export async function validateAdminRolesOnServer(
 			return { ok: false, status: 500, error: "No se pudo validar permisos" };
 		}
 
-		role = adminUser?.role ?? null;
+		const role = String(adminUser?.role ?? "").toLowerCase() || null;
 
 		if (!role) {
-			const { data: userRow, error: roleError } = await supabase
-				.from("users")
-				.select("role")
-				.ilike("email", email)
-				.maybeSingle();
-
-			if (roleError) {
-				return { ok: false, status: 500, error: "No se pudo validar permisos" };
-			}
-
-			role = userRow?.role ?? null;
+			return { ok: false, status: 403, error: "No tienes permisos SaaS asignados." };
 		}
 
-		if (!role) {
-			return { ok: false, status: 403, error: "No tienes permisos asignados." };
-		}
-
-		if (!allowedRoles.includes(role)) {
+		if (!normalizedAllowedRoles.includes(role)) {
 			return { ok: false, status: 403, error: "No tienes permisos para esta accion." };
 		}
 

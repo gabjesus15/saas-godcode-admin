@@ -17,7 +17,7 @@ export default async function TenantAdminPage({
 	} = await supabase.auth.getUser();
 
 	if (!user?.email) {
-		redirect("/login");
+		redirect(`/${resolvedParams.subdomain}/login`);
 	}
 
 	const { data: company } = await supabase
@@ -31,19 +31,20 @@ export default async function TenantAdminPage({
 	}
 
 	const { data: adminRows, error: adminError } = await supabase
-		.from("admin_users")
+		.from("users")
 		.select("id,role")
-		.ilike("email", user.email)
-		.in("role", ["owner", "super_admin", "admin", "ceo", "cashier"]);
+		.eq("company_id", company.id)
+		.eq("auth_user_id", user.id)
+		.maybeSingle();
 
 	if (adminError) {
-		redirect("/login");
+		redirect(`/${resolvedParams.subdomain}/login`);
 	}
 
-	const adminMatches = Array.isArray(adminRows) ? adminRows : [];
-	let hasAccess = adminMatches.length > 0;
+	const allowedRoles = new Set(["owner", "super_admin", "admin", "ceo", "cashier"]);
+	let resolvedRole = String(adminRows?.role ?? "").toLowerCase() || null;
 
-	if (!hasAccess) {
+	if (!resolvedRole) {
 		const { data: userRow } = await supabase
 			.from("users")
 			.select("role")
@@ -51,12 +52,13 @@ export default async function TenantAdminPage({
 			.eq("company_id", company.id)
 			.maybeSingle();
 
-		const allowedRoles = new Set(["owner", "super_admin", "admin", "ceo", "cashier"]);
-		hasAccess = Boolean(userRow?.role && allowedRoles.has(String(userRow.role).toLowerCase()));
+		resolvedRole = String(userRow?.role ?? "").toLowerCase() || null;
 	}
 
+	const hasAccess = Boolean(resolvedRole && allowedRoles.has(resolvedRole));
+
 	if (!hasAccess) {
-		redirect("/login");
+		redirect(`/${resolvedParams.subdomain}/login`);
 	}
 
 	const name = company.theme_config?.displayName ?? company.name ?? "GodCode";

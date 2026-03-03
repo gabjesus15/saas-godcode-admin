@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback, createContext, useContext } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import { TABLES } from '../../lib/supabaseTables';
 import { uploadImage, validateImageFile } from '../../shared/utils/cloudinary';
 import { useCashSystem } from '../hooks/useCashSystem';
 import { sanitizeOrder } from '../../shared/utils/orderUtils';
+import { getTenantScopedPath } from '../../../../utils/tenant-route';
 
 const ALL_ADMIN_TABS = ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'settings', 'company'];
 
@@ -49,7 +50,8 @@ export const useAdmin = () => {
 
 export const AdminProvider = ({ children, companyId, roleNavPermissions }) => {
 	const router = useRouter();
-	const navigate = useCallback((path) => router.push(path), [router]);
+	const pathname = usePathname();
+	const navigate = useCallback((path) => router.push(getTenantScopedPath(pathname || '/', path)), [pathname, router]);
 
 	const [activeTab, setActiveTab] = useState('orders');
 	const [products, setProducts] = useState([]);
@@ -156,39 +158,48 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions }) => {
 			setUserEmail(normalizedEmail);
 			const allowedRoles = ['owner', 'super_admin', 'admin', 'ceo', 'cashier'];
 
-			const { data: adminRows, error: adminError } = await supabase
-				.from(TABLES.admin_users)
-				.select('role')
-				.ilike('email', normalizedEmail)
-				.in('role', allowedRoles);
+			const { data: userRowByAuth, error: userByAuthError } = await supabase
+				.from(TABLES.users)
+				.select('role,branch_id')
+				.eq('auth_user_id', user.id || '')
+				.eq('company_id', companyId)
+				.maybeSingle();
 
-			if (adminError) {
+			if (userByAuthError) {
 				setUserRole(null);
 				setAssignedBranchId(null);
 				await supabase.auth.signOut();
 				navigate('/login');
-				showNotify('No se pudieron validar tus permisos de administrador', 'error');
+				showNotify('No se pudieron validar tus permisos de usuario', 'error');
 				return;
 			}
 
-			const adminMatches = Array.isArray(adminRows) ? adminRows : [];
-			const adminMatch = adminMatches.find((row) => Boolean(row?.role)) || null;
+			let userRow = userRowByAuth;
 
-			let resolvedRole = String(adminMatch?.role || '').toLowerCase() || null;
+			if (!userRow) {
+				const { data: userRowByEmail, error: userByEmailError } = await supabase
+					.from(TABLES.users)
+					.select('role,branch_id')
+					.ilike('email', normalizedEmail)
+					.eq('company_id', companyId)
+					.maybeSingle();
 
-			const { data: userRow } = await supabase
-				.from(TABLES.users)
-				.select('role,branch_id')
-				.eq('auth_user_id', user.id)
-				.eq('company_id', companyId)
-				.maybeSingle();
+				if (userByEmailError) {
+					setUserRole(null);
+					setAssignedBranchId(null);
+					await supabase.auth.signOut();
+					navigate('/login');
+					showNotify('No se pudieron validar tus permisos de usuario', 'error');
+					return;
+				}
 
-			const userRole = String(userRow?.role || '').toLowerCase();
-			if (!resolvedRole && userRole && allowedRoles.includes(userRole)) {
-				resolvedRole = userRole;
+				userRow = userRowByEmail;
 			}
 
-			if (!resolvedRole) {
+			const resolvedRole = String(userRow?.role || '').toLowerCase() || null;
+			const hasAllowedRole = Boolean(resolvedRole && allowedRoles.includes(resolvedRole));
+
+			if (!hasAllowedRole) {
 				setUserRole(null);
 				setAssignedBranchId(null);
 				await supabase.auth.signOut();

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Lock } from "lucide-react";
 
 import { createSupabasePublicServerClient } from "../../../utils/supabase/server";
@@ -45,6 +46,11 @@ export default async function TenantLoginPage({
           </p>
         </header>
         <TenantLoginForm subdomain={resolvedParams.subdomain} />
+        <div style={{ marginTop: "16px", textAlign: "center" }}>
+          <Link href={`/${resolvedParams.subdomain}`} className="btn btn-secondary" style={{ width: "100%", justifyContent: "center" }}>
+            Volver al home
+          </Link>
+        </div>
       </div>
     </main>
   );
