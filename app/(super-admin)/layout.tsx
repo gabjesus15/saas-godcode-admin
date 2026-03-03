@@ -26,7 +26,7 @@ export default async function SuperAdminLayout({
 		.maybeSingle();
 
 	const role = String(adminUser?.role ?? "").toLowerCase();
-	const allowedRoles = new Set(["owner", "super_admin", "admin"]);
+	const allowedRoles = new Set(["super_admin"]);
 
 	if (adminError || !adminUser || !allowedRoles.has(role)) {
 		redirect("/login");

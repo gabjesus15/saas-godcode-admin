@@ -1,8 +1,8 @@
-export type AdminRole = "owner" | "super_admin" | "admin" | "support" | string;
+export type AdminRole = "super_admin" | "ceo" | "staff" | string;
 
 export const roleSets = {
-	billing: ["owner", "super_admin", "admin"],
-	destructive: ["owner", "super_admin"],
+	billing: ["super_admin"],
+	destructive: ["super_admin"],
 };
 
 export async function requireAdminRole(allowedRoles: string[]) {

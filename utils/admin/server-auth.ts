@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from "../supabase/server";
 
-const FALLBACK_ALLOWED_ROLES = new Set(["owner", "super_admin", "admin"]);
+const FALLBACK_ALLOWED_ROLES = new Set(["super_admin"]);
 
 export interface ServerAdminPermissionResult {
 	ok: boolean;
@@ -57,7 +57,9 @@ export async function validateAdminRolesOnServer(
 			return { ok: false, status: 403, error: "No tienes permisos asignados." };
 		}
 
-		if (!allowedRoles.includes(role)) {
+		const roleLower = (role || "").toLowerCase();
+		const allowedLower = new Set(allowedRoles.map((r) => r.toLowerCase()));
+		if (!allowedLower.has(roleLower)) {
 			return { ok: false, status: 403, error: "No tienes permisos para esta accion." };
 		}
 

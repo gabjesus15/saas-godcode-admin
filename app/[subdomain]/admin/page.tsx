@@ -30,30 +30,18 @@ export default async function TenantAdminPage({
 		redirect("/");
 	}
 
-	const { data: adminRows, error: adminError } = await supabase
-		.from("admin_users")
-		.select("id,role")
+	// Acceso al panel del local solo vía users (por empresa). CEO y staff entran solo a su local.
+	const { data: userRow, error: userError } = await supabase
+		.from("users")
+		.select("role,allowed_tabs")
 		.ilike("email", user.email)
-		.in("role", ["owner", "super_admin", "admin", "ceo", "cashier"]);
+		.eq("company_id", company.id)
+		.maybeSingle();
 
-	if (adminError) {
-		redirect("/login");
-	}
-
-	const adminMatches = Array.isArray(adminRows) ? adminRows : [];
-	let hasAccess = adminMatches.length > 0;
-
-	if (!hasAccess) {
-		const { data: userRow } = await supabase
-			.from("users")
-			.select("role")
-			.ilike("email", user.email)
-			.eq("company_id", company.id)
-			.maybeSingle();
-
-		const allowedRoles = new Set(["owner", "super_admin", "admin", "ceo", "cashier"]);
-		hasAccess = Boolean(userRow?.role && allowedRoles.has(String(userRow.role).toLowerCase()));
-	}
+	const allowedRoles = new Set(["ceo", "staff"]);
+	const hasAccess =
+		!userError &&
+		Boolean(userRow?.role && allowedRoles.has(String(userRow.role).toLowerCase()));
 
 	if (!hasAccess) {
 		redirect("/login");
@@ -64,6 +52,10 @@ export default async function TenantAdminPage({
 	const roleNavPermissions =
 		(company.theme_config as Record<string, unknown> | null)?.roleNavPermissions ?? null;
 
+	const userAllowedTabs = Array.isArray((userRow as { allowed_tabs?: string[] } | null)?.allowed_tabs)
+		? (userRow as { allowed_tabs: string[] }).allowed_tabs
+		: null;
+
 	return (
 		<AdminApp
 			companyId={company.id}
@@ -71,6 +63,7 @@ export default async function TenantAdminPage({
 			logoUrl={logoUrl}
 			userEmail={user.email ?? null}
 			roleNavPermissions={roleNavPermissions as Record<string, string[]> | null}
+			userAllowedTabs={userAllowedTabs}
 		/>
 	);
 }

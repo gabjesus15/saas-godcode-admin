@@ -12,14 +12,15 @@ interface AdminAppProps {
 	logoUrl?: string | null;
 	userEmail?: string | null;
 	roleNavPermissions?: Record<string, string[]> | null;
+	userAllowedTabs?: string[] | null;
 }
 
-export function AdminApp({ companyId, companyName, logoUrl, userEmail, roleNavPermissions }: AdminAppProps) {
+export function AdminApp({ companyId, companyName, logoUrl, userEmail, roleNavPermissions, userAllowedTabs }: AdminAppProps) {
 	return (
 		<LocationProvider>
 			<CashProvider>
 				<BusinessProvider>
-					<AdminProvider companyId={companyId} roleNavPermissions={roleNavPermissions}>
+					<AdminProvider companyId={companyId} roleNavPermissions={roleNavPermissions} userAllowedTabs={userAllowedTabs}>
 						<AdminPage companyName={companyName} logoUrl={logoUrl} userEmail={userEmail} />
 					</AdminProvider>
 				</BusinessProvider>

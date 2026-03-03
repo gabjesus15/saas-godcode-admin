@@ -47,36 +47,21 @@ export function TenantLoginForm({ subdomain }: TenantLoginFormProps) {
         throw new Error("No se pudo validar la empresa del subdominio.");
       }
 
-      const { data: adminUser, error: adminError } = await supabase
-        .from("admin_users")
+      // Acceso al panel del local solo vía users (por empresa). CEO y staff solo entran a su local.
+      const { data: userRow, error: userError } = await supabase
+        .from("users")
         .select("id,role")
         .ilike("email", normalizedEmail)
-        .in("role", ["owner", "super_admin", "admin", "ceo", "cashier"]);
+        .eq("company_id", company.id)
+        .maybeSingle();
 
-      if (adminError) {
+      if (userError) {
         await supabase.auth.signOut();
-        throw new Error("No se pudo validar tus permisos de administrador.");
+        throw new Error("No se pudo validar tus permisos de usuario.");
       }
 
-      const adminRows = Array.isArray(adminUser) ? adminUser : [];
-      let hasAccess = adminRows.length > 0;
-
-      if (!hasAccess) {
-        const { data: userRow, error: userError } = await supabase
-          .from("users")
-          .select("id,role")
-          .ilike("email", normalizedEmail)
-          .eq("company_id", company.id)
-          .maybeSingle();
-
-        if (userError) {
-          await supabase.auth.signOut();
-          throw new Error("No se pudo validar tus permisos de usuario.");
-        }
-
-        const allowedRoles = new Set(["owner", "super_admin", "admin", "ceo", "cashier"]);
-        hasAccess = Boolean(userRow?.role && allowedRoles.has(String(userRow.role).toLowerCase()));
-      }
+      const allowedRoles = new Set(["ceo", "staff"]);
+      const hasAccess = Boolean(userRow?.role && allowedRoles.has(String(userRow.role).toLowerCase()));
 
       if (!hasAccess) {
         await supabase.auth.signOut();

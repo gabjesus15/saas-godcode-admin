@@ -8,7 +8,7 @@ const supabaseAdmin = createClient(
 );
 
 async function validateSuperAdminAccess() {
-	const result = await validateAdminRolesOnServer(["owner", "super_admin", "admin"]);
+	const result = await validateAdminRolesOnServer(["super_admin"]);
 	if (!result.ok) {
 		return {
 			ok: false as const,
@@ -53,6 +53,10 @@ export async function POST(req: NextRequest) {
 	}
 
 	const normalizedEmail = String(email).trim().toLowerCase();
+	const normalizedRole = String(role).trim().toLowerCase();
+	if (!["ceo", "staff"].includes(normalizedRole)) {
+		return NextResponse.json({ error: "Rol debe ser ceo o staff" }, { status: 400 });
+	}
 	// 1. Crear usuario en Auth
 	const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
 		email: normalizedEmail,
@@ -62,10 +66,10 @@ export async function POST(req: NextRequest) {
 	if (authError) {
 		return NextResponse.json({ error: authError.message }, { status: 400 });
 	}
-	// 2. Guardar en tabla users
+	// 2. Guardar en tabla users (CEO y staff solo en users; acceso al panel por empresa).
 	const { error } = await supabaseAdmin.from("users").insert({
 		email: normalizedEmail,
-		role,
+		role: normalizedRole,
 		company_id,
 		branch_id: normalizedBranchId,
 		auth_user_id: authUser.user?.id,
@@ -75,33 +79,6 @@ export async function POST(req: NextRequest) {
 		return NextResponse.json({ error: error.message }, { status: 400 });
 	}
 
-	const { data: existingAdminUser } = await supabaseAdmin
-		.from("admin_users")
-		.select("id")
-		.ilike("email", normalizedEmail)
-		.maybeSingle();
-
-	if (existingAdminUser?.id) {
-		const { error: adminUpdateError } = await supabaseAdmin
-			.from("admin_users")
-			.update({ email: normalizedEmail, role })
-			.eq("id", existingAdminUser.id);
-
-		if (adminUpdateError) {
-			return NextResponse.json({ error: adminUpdateError.message }, { status: 400 });
-		}
-	} else {
-		const { error: adminInsertError } = await supabaseAdmin
-			.from("admin_users")
-			.insert({
-				email: normalizedEmail,
-				role,
-			});
-
-		if (adminInsertError) {
-			return NextResponse.json({ error: adminInsertError.message }, { status: 400 });
-		}
-	}
 	return NextResponse.json({ success: true });
 }
 
@@ -149,6 +126,10 @@ export async function PUT(req: NextRequest) {
 	const { id, email, role, password, branch_id } = await req.json();
 	if (!id || !email || !role) return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
 	const normalizedEmail = String(email).trim().toLowerCase();
+	const normalizedRole = String(role).trim().toLowerCase();
+	if (!["ceo", "staff"].includes(normalizedRole)) {
+		return NextResponse.json({ error: "Rol debe ser ceo o staff" }, { status: 400 });
+	}
 	const normalizedBranchId =
 		typeof branch_id === "string" && branch_id.trim().length > 0
 			? branch_id.trim()
@@ -204,38 +185,9 @@ export async function PUT(req: NextRequest) {
 	}
 	const { error } = await supabaseAdmin
 		.from("users")
-		.update({ email: normalizedEmail, role, branch_id: normalizedBranchId })
+		.update({ email: normalizedEmail, role: normalizedRole, branch_id: normalizedBranchId })
 		.eq("id", id);
 	if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-
-	if (userRow) {
-		const previousEmail = String(userRow.email ?? "").trim().toLowerCase();
-		const { data: existingAdminUser } = await supabaseAdmin
-			.from("admin_users")
-			.select("id")
-			.ilike("email", previousEmail)
-			.maybeSingle();
-
-		if (existingAdminUser?.id) {
-			const { error: adminUpdateError } = await supabaseAdmin
-				.from("admin_users")
-				.update({ email: normalizedEmail, role })
-				.eq("id", existingAdminUser.id);
-			if (adminUpdateError) {
-				return NextResponse.json({ error: adminUpdateError.message }, { status: 400 });
-			}
-		} else {
-			const { error: adminInsertError } = await supabaseAdmin
-				.from("admin_users")
-				.insert({
-					email: normalizedEmail,
-					role,
-				});
-			if (adminInsertError) {
-				return NextResponse.json({ error: adminInsertError.message }, { status: 400 });
-			}
-		}
-	}
 
 	return NextResponse.json({ success: true });
 }

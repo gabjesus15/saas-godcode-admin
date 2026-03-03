@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { ChefHat, ShoppingBag, BarChart3, Users, List, LogOut, DollarSign, Store, ChevronDown, ClipboardList } from 'lucide-react';
+import { ChefHat, ShoppingBag, BarChart3, Users, UserPlus, List, LogOut, DollarSign, Store, ChevronDown, ClipboardList } from 'lucide-react';
 const cashIcon = '/tenant/cash.svg';
 const categoryIcon = '/tenant/category.svg';
 
@@ -76,8 +76,11 @@ const AdminSidebar = ({ activeTab, setActiveTab, isMobile, kanbanColumns, userRo
             },
             { id: 'clients', label: 'Clientes', icon: Users }
         ];
+        if (userRole === 'ceo') {
+            items.push({ id: 'users', label: 'Equipo', icon: UserPlus });
+        }
         return items;
-    }, [pendingCount]);
+    }, [pendingCount, userRole]);
 
     const hasRestrictedItems = useMemo(() => (
         menuItems.some((item) => {
