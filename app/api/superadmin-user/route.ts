@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
 	if (!TENANT_MANAGEABLE_ROLES.has(normalizedRole)) {
 		return NextResponse.json({ error: "Rol no permitido para gestion de tenants" }, { status: 400 });
 	}
+
 	const normalizedBranchId =
 		typeof branch_id === "string" && branch_id.trim().length > 0
 			? branch_id.trim()
@@ -62,16 +63,19 @@ export async function POST(req: NextRequest) {
 	}
 
 	const normalizedEmail = String(email).trim().toLowerCase();
-	// 1. Crear usuario en Auth
+
+	// Crear usuario en Auth
 	const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
 		email: normalizedEmail,
 		password,
 		email_confirm: true,
 	});
+
 	if (authError) {
 		return NextResponse.json({ error: authError.message }, { status: 400 });
 	}
-	// 2. Guardar en tabla users
+
+	// Guardar en tabla users scoped por company
 	const { error } = await supabaseAdmin.from("users").insert({
 		email: normalizedEmail,
 		role: normalizedRole,
@@ -80,6 +84,7 @@ export async function POST(req: NextRequest) {
 		auth_user_id: authUser.user?.id,
 		auth_id: authUser.user?.id,
 	});
+
 	if (error) {
 		return NextResponse.json({ error: error.message }, { status: 400 });
 	}
@@ -120,11 +125,13 @@ export async function PUT(req: NextRequest) {
 
 	const { id, email, role, password, branch_id } = await req.json();
 	if (!id || !email || !role) return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
+	
 	const normalizedEmail = String(email).trim().toLowerCase();
 	const normalizedRole = normalizeTenantRole(role);
 	if (!TENANT_MANAGEABLE_ROLES.has(normalizedRole)) {
 		return NextResponse.json({ error: "Rol no permitido para gestion de tenants" }, { status: 400 });
 	}
+
 	const normalizedBranchId =
 		typeof branch_id === "string" && branch_id.trim().length > 0
 			? branch_id.trim()

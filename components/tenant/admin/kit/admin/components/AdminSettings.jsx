@@ -175,7 +175,7 @@ const AdminSettings = ({ showNotify, isMobile, selectedBranch, onBranchUpdate })
                                     placeholder="Ej. Local - Centro"
                                 />
                             </div>
-                            <p className="form-hint">Nombre de este local. El nombre de la empresa (portada Home) se edita en <strong>Datos de la empresa</strong>.</p>
+                            <p className="form-hint">Nombre de este local.</p>
                         </div>
                         <div className="form-group">
                             <label>Teléfono / WhatsApp (para botón)</label>

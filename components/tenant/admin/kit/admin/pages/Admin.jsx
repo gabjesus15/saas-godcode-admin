@@ -11,16 +11,16 @@ import AdminSidebar from '../components/AdminSidebar';
 import AdminKanban from '../components/AdminKanban';
 import ManualOrderModal from '../components/ManualOrderModal';
 import InventoryCard from '../components/InventoryCard';
-import AdminHistoryTable from '../components/AdminHistoryTable';
-import AdminClients from '../components/AdminClients';
-import AdminInventory from '../components/AdminInventory';
-import AdminSettings from '../components/AdminSettings';
-import AdminAnalytics from '../components/AdminAnalytics';
-import AdminDangerZone from '../components/AdminDangerZone';
-import AdminCompanyData from '../components/AdminCompanyData';
 import ClientDetailsPanel from '../components/ClientDetailsPanel';
-import CashManager from '../components/caja/CashManager';
 import ScopeSelectionModal from '../components/ScopeSelectionModal';
+
+const AdminAnalytics = React.lazy(() => import('../components/AdminAnalytics'));
+const AdminClients = React.lazy(() => import('../components/AdminClients'));
+const AdminInventory = React.lazy(() => import('../components/AdminInventory'));
+const AdminHistoryTable = React.lazy(() => import('../components/AdminHistoryTable'));
+const CashManager = React.lazy(() => import('../components/caja/CashManager'));
+
+const TabFallback = () => <div style={{ padding: '2rem', display: 'flex', justifyContent: 'center' }}><Loader2 size={32} /></div>;
 import { supabase } from '../../lib/supabase';
 import { AdminProvider, useAdmin } from './AdminProvider';
 
@@ -114,6 +114,136 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
   const [dragCategoryId, setDragCategoryId] = React.useState(null);
   const [dragOverCategoryId, setDragOverCategoryId] = React.useState(null);
   const dragEnabled = !isMobile;
+
+  const [teamUsers, setTeamUsers] = React.useState([]);
+  const [teamLoading, setTeamLoading] = React.useState(false);
+  const [teamModalOpen, setTeamModalOpen] = React.useState(false);
+  const [teamUserToEdit, setTeamUserToEdit] = React.useState(null);
+  const [teamForm, setTeamForm] = React.useState({ email: '', password: '', role: 'staff', branch_id: '', allowed_tabs: ['orders', 'caja'] });
+  const [teamSubmitting, setTeamSubmitting] = React.useState(false);
+  const [teamUserToDelete, setTeamUserToDelete] = React.useState(null);
+  const [teamDeleting, setTeamDeleting] = React.useState(false);
+
+  const TAB_LABELS = { orders: 'Pedidos', caja: 'Caja', analytics: 'Reportes', categories: 'Categorías', products: 'Productos', inventory: 'Inventario', clients: 'Clientes' };
+  const ALL_TABS = ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients'];
+
+  const fetchTeamUsers = React.useCallback(async () => {
+    setTeamLoading(true);
+    try {
+      const res = await fetch('/api/tenant-staff', { credentials: 'include' });
+      const data = await res.json();
+      if (res.ok) setTeamUsers(data.users || []);
+      else showNotify(data.error || 'Error al cargar equipo', 'error');
+    } catch (e) {
+      showNotify('Error al cargar equipo', 'error');
+    } finally {
+      setTeamLoading(false);
+    }
+  }, [showNotify]);
+
+  React.useEffect(() => {
+    if (activeTab === 'users') fetchTeamUsers();
+  }, [activeTab, fetchTeamUsers]);
+
+  const openTeamCreateModal = () => {
+    setTeamUserToEdit(null);
+    setTeamForm({ email: '', password: '', role: 'staff', branch_id: '', allowed_tabs: ['orders', 'caja'] });
+    setTeamModalOpen(true);
+  };
+
+  const openTeamEditModal = (u) => {
+    setTeamUserToEdit(u);
+    setTeamForm({
+      email: u.email || '',
+      password: '',
+      role: (u.role || 'staff').toLowerCase(),
+      branch_id: u.branch_id || '',
+      allowed_tabs: Array.isArray(u.allowed_tabs) && u.allowed_tabs.length ? u.allowed_tabs : ['orders', 'caja'],
+    });
+    setTeamModalOpen(true);
+  };
+
+  const handleSaveTeamUser = async (e) => {
+    e.preventDefault();
+    const isEdit = Boolean(teamUserToEdit?.id);
+    if (!isEdit && !teamForm.password) {
+      showNotify('Email y contraseña son obligatorios', 'error');
+      return;
+    }
+    if (!teamForm.email.trim()) {
+      showNotify('El correo es obligatorio', 'error');
+      return;
+    }
+    setTeamSubmitting(true);
+    try {
+      const payload = {
+        email: teamForm.email.trim(),
+        role: (teamForm.role || 'staff').toLowerCase(),
+        branch_id: teamForm.branch_id || null,
+        allowed_tabs: teamForm.allowed_tabs?.length ? teamForm.allowed_tabs : null,
+      };
+      if (isEdit) {
+        payload.id = teamUserToEdit.id;
+        if (teamForm.password) payload.password = teamForm.password;
+      } else {
+        payload.password = teamForm.password;
+      }
+      const res = await fetch('/api/tenant-staff', {
+        method: isEdit ? 'PUT' : 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showNotify(isEdit ? 'Usuario actualizado.' : 'Usuario creado. Puede iniciar sesión con su correo y contraseña.');
+        setTeamModalOpen(false);
+        setTeamUserToEdit(null);
+        setTeamForm({ email: '', password: '', role: 'staff', branch_id: '', allowed_tabs: ['orders', 'caja'] });
+        fetchTeamUsers();
+      } else {
+        showNotify(data.error || (isEdit ? 'Error al actualizar usuario' : 'Error al crear usuario'), 'error');
+      }
+    } catch (err) {
+      showNotify(isEdit ? 'Error al actualizar usuario' : 'Error al crear usuario', 'error');
+    } finally {
+      setTeamSubmitting(false);
+    }
+  };
+
+  const toggleTeamTab = (tabId) => {
+    setTeamForm(prev => ({
+      ...prev,
+      allowed_tabs: prev.allowed_tabs?.includes(tabId)
+        ? prev.allowed_tabs.filter(t => t !== tabId)
+        : [...(prev.allowed_tabs || []), tabId],
+    }));
+  };
+
+  const handleDeleteTeamUser = async () => {
+    if (!teamUserToDelete?.id) return;
+    setTeamDeleting(true);
+    try {
+      const res = await fetch('/api/tenant-staff', {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: teamUserToDelete.id }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showNotify('Usuario eliminado.');
+        setTeamUserToDelete(null);
+        fetchTeamUsers();
+      } else {
+        showNotify(data.error || 'Error al eliminar usuario', 'error');
+      }
+    } catch (err) {
+      showNotify('Error al eliminar usuario', 'error');
+    } finally {
+      setTeamDeleting(false);
+    }
+  };
 
   const handleDragStart = (categoryId) => {
     setDragCategoryId(categoryId);
@@ -263,8 +393,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
                 activeTab === 'analytics' ? 'Rendimiento' :
                   activeTab === 'clients' ? 'Clientes' :
                     activeTab === 'caja' ? 'Caja y Turnos' :
-                      activeTab === 'settings' ? 'Herramientas' :
-                      activeTab === 'company' ? 'Datos de la empresa' : 'Categorías'}
+                      activeTab === 'users' ? 'Equipo' : 'Categorías'}
           </h1>
 
           <div className="header-actions">
@@ -296,11 +425,6 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
                   )}
                 </select>
               </div>
-              {isBranchLocked && selectedBranch?.name && (
-                <div style={{ marginTop: 6, fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>
-                  Local fijo para este correo: {selectedBranch.name}
-                </div>
-              )}
             </div>
 
             {activeTab === 'orders' && (
@@ -341,6 +465,14 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
                 <Plus size={18} /> Nueva Categ.
               </button>
             )}
+            {activeTab === 'users' && (
+              <button
+                onClick={openTeamCreateModal}
+                className="btn btn-primary"
+              >
+                <Plus size={18} /> Crear usuario
+              </button>
+            )}
           </div>
         </header>
 
@@ -358,7 +490,9 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
               clients={clients}
             />
           ) : (
-            <AdminHistoryTable orders={kanbanColumns.history} setReceiptModalOrder={setReceiptModalOrder} />
+            <React.Suspense fallback={<TabFallback />}>
+              <AdminHistoryTable orders={kanbanColumns.history} setReceiptModalOrder={setReceiptModalOrder} />
+            </React.Suspense>
           )
         )}
 
@@ -446,34 +580,211 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
 
         {/* 2.5 NUEVO INVENTARIO (INSUMOS) */}
         {activeTab === 'inventory' && (
-          <AdminInventory showNotify={showNotify} branchId={selectedBranch?.id} branches={branches} companyId={companyIdForClients} />
+          <React.Suspense fallback={<TabFallback />}>
+            <AdminInventory showNotify={showNotify} branchId={selectedBranch?.id} branches={branches} companyId={companyIdForClients} />
+          </React.Suspense>
         )}
 
         {/* 3. REPORTES */}
         {activeTab === 'analytics' && (
-          <AdminAnalytics 
-            orders={orders} 
-            products={products} 
-            clients={clients} 
-            branches={branches.filter(b => b.id !== 'all')}
-          />
+          <React.Suspense fallback={<TabFallback />}>
+            <AdminAnalytics 
+              orders={orders} 
+              products={products} 
+              clients={clients} 
+              branches={branches.filter(b => b.id !== 'all')}
+            />
+          </React.Suspense>
         )}
 
         {/* 4. CLIENTES */}
         {activeTab === 'clients' && (
-          <AdminClients 
-            clients={clients}
-            orders={orders}
-            onSelectClient={handleSelectClient}
-            onClientCreated={() => loadData(true)}
-            showNotify={showNotify}
-            companyId={companyIdForClients}
-          />
+          <React.Suspense fallback={<TabFallback />}>
+            <AdminClients
+              clients={clients}
+              orders={orders}
+              onSelectClient={handleSelectClient}
+              onClientCreated={() => loadData(true)}
+              showNotify={showNotify}
+              companyId={companyIdForClients}
+            />
+          </React.Suspense>
+        )}
+
+        {/* EQUIPO (solo CEO) */}
+        {activeTab === 'users' && (
+          <div className="admin-toolbar glass" style={{ marginBottom: 20 }}>
+            <p style={{ margin: 0, opacity: 0.9 }}>Usuarios que pueden entrar al panel de este local. Crea staff y asígnales las pestañas que podrán ver.</p>
+          </div>
+        )}
+        {activeTab === 'users' && (
+          <div className="glass" style={{ padding: 20, borderRadius: 12 }}>
+            {teamLoading ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Loader2 size={32} className="animate-spin" /></div>
+            ) : teamUsers.length === 0 ? (
+              <p style={{ margin: 0, opacity: 0.8 }}>Aún no hay usuarios. Crea uno con &quot;Crear usuario&quot;.</p>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)', textAlign: 'left' }}>
+                    <th style={{ padding: '10px 12px' }}>Correo</th>
+                    <th style={{ padding: '10px 12px' }}>Rol</th>
+                    <th style={{ padding: '10px 12px' }}>Sucursal</th>
+                    <th style={{ padding: '10px 12px' }}>Permisos</th>
+                    <th style={{ padding: '10px 12px', width: 100 }}>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {teamUsers.map((u) => (
+                    <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                      <td style={{ padding: '10px 12px' }}>{u.email}</td>
+                      <td style={{ padding: '10px 12px', textTransform: 'capitalize' }}>{u.role}</td>
+                      <td style={{ padding: '10px 12px' }}>{u.branch?.name ?? '—'}</td>
+                      <td style={{ padding: '10px 12px', fontSize: 12 }}>
+                        {(u.allowed_tabs && u.allowed_tabs.length > 0)
+                          ? u.allowed_tabs.map(t => TAB_LABELS[t] || t).join(', ')
+                          : (u.role === 'staff' ? 'Por defecto (Pedidos, Caja)' : 'Todos')}
+                      </td>
+                      <td style={{ padding: '10px 12px', display: 'flex', gap: 6 }}>
+                        <button
+                          type="button"
+                          onClick={() => openTeamEditModal(u)}
+                          className="admin-btn secondary"
+                          style={{ padding: '6px 10px', fontSize: 12 }}
+                          title="Editar usuario"
+                        >
+                          <Edit size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTeamUserToDelete(u)}
+                          className="admin-btn secondary"
+                          style={{ padding: '6px 10px', fontSize: 12 }}
+                          title="Eliminar usuario"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {/* Modal confirmar eliminar usuario */}
+        {teamUserToDelete && (
+          <div className="admin-modal-overlay" onClick={() => !teamDeleting && setTeamUserToDelete(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="admin-confirm-modal" onClick={e => e.stopPropagation()} style={{ background: 'var(--card-bg)', padding: 24, borderRadius: 12, maxWidth: 360, boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
+              <p style={{ margin: '0 0 16px', fontSize: 16 }}>¿Eliminar a <strong>{teamUserToDelete.email}</strong>? Dejará de poder entrar al panel de este local.</p>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button type="button" className="admin-btn secondary" onClick={() => !teamDeleting && setTeamUserToDelete(null)} disabled={teamDeleting}>Cancelar</button>
+                <button type="button" className="admin-btn danger" onClick={handleDeleteTeamUser} disabled={teamDeleting}>
+                  {teamDeleting ? <Loader2 size={18} className="animate-spin" /> : 'Eliminar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Crear / Editar usuario */}
+        {teamModalOpen && (
+          <div className="admin-modal-overlay" onClick={() => !teamSubmitting && (setTeamModalOpen(false), setTeamUserToEdit(null))} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="admin-confirm-modal" onClick={e => e.stopPropagation()} style={{ background: 'var(--card-bg)', padding: 24, borderRadius: 12, maxWidth: 420, width: '100%', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: 18 }}>{teamUserToEdit ? 'Editar usuario' : 'Crear usuario staff'}</h3>
+              <form onSubmit={handleSaveTeamUser}>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>Correo</label>
+                  <input
+                    type="email"
+                    value={teamForm.email}
+                    onChange={e => setTeamForm(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="usuario@ejemplo.com"
+                    required
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'inherit' }}
+                  />
+                </div>
+                {!teamUserToEdit && (
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>Contraseña</label>
+                    <input
+                      type="password"
+                      value={teamForm.password}
+                      onChange={e => setTeamForm(prev => ({ ...prev, password: e.target.value }))}
+                      placeholder="Mínimo 6 caracteres"
+                      required
+                      minLength={6}
+                      style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'inherit' }}
+                    />
+                  </div>
+                )}
+                {teamUserToEdit && (
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>Nueva contraseña (opcional)</label>
+                    <input
+                      type="password"
+                      value={teamForm.password}
+                      onChange={e => setTeamForm(prev => ({ ...prev, password: e.target.value }))}
+                      placeholder="Dejar en blanco para no cambiar"
+                      minLength={6}
+                      style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'inherit' }}
+                    />
+                  </div>
+                )}
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>Rol</label>
+                  <select
+                    value={teamForm.role}
+                    onChange={e => setTeamForm(prev => ({ ...prev, role: e.target.value }))}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'inherit' }}
+                  >
+                    <option value="ceo">CEO</option>
+                    <option value="staff">Staff</option>
+                  </select>
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>Sucursal (opcional)</label>
+                  <select
+                    value={teamForm.branch_id}
+                    onChange={e => setTeamForm(prev => ({ ...prev, branch_id: e.target.value }))}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'inherit' }}
+                  >
+                    <option value="">Todas / Sin restricción</option>
+                    {branches.filter(b => b.id !== 'all').map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  </select>
+                </div>
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>Pestañas que puede ver</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {ALL_TABS.map(tabId => (
+                      <label key={tabId} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={teamForm.allowed_tabs?.includes(tabId) ?? false}
+                          onChange={() => toggleTeamTab(tabId)}
+                        />
+                        <span>{TAB_LABELS[tabId]}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button type="button" className="admin-btn secondary" onClick={() => !teamSubmitting && (setTeamModalOpen(false), setTeamUserToEdit(null))} disabled={teamSubmitting}>Cancelar</button>
+                  <button type="submit" className="admin-btn primary" disabled={teamSubmitting}>
+                    {teamSubmitting ? <Loader2 size={18} className="animate-spin" /> : (teamUserToEdit ? 'Guardar' : 'Crear')}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         )}
 
         {/* 4.5 CAJA */}
         {activeTab === 'caja' && (
-          <CashManager showNotify={showNotify} selectedBranchId={selectedBranch?.id} orders={orders} />
+          <React.Suspense fallback={<TabFallback />}>
+            <CashManager showNotify={showNotify} selectedBranchId={selectedBranch?.id} orders={orders} />
+          </React.Suspense>
         )}
 
         {/* 5. CATEGORÍAS */}
@@ -640,29 +951,6 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
           </div>
         )}
 
-        {/* 6. HERRAMIENTAS */}
-        {activeTab === 'settings' && (
-          <div className="settings-view animate-fade">
-             <AdminSettings showNotify={showNotify} isMobile={isMobile} selectedBranch={selectedBranch} onBranchUpdate={refreshBranches} />
-
-             {/* ZONA DE PELIGRO (FUNCIONES AVANZADAS) */}
-             <AdminDangerZone 
-                orders={orders} 
-                showNotify={showNotify} 
-                loadData={loadData} 
-                isMobile={isMobile}
-                selectedBranch={selectedBranch}
-               companyId={companyIdForClients}
-             />
-          </div>
-        )}
-
-        {/* 7. DATOS DE LA EMPRESA (solo rol admin) */}
-        {activeTab === 'company' && (
-          <div className="settings-view animate-fade">
-            <AdminCompanyData showNotify={showNotify} isMobile={isMobile} branches={branches} onBranchUpdate={refreshBranches} />
-          </div>
-        )}
       </main>
 
       {/* PANEL CLIENTE LATERAL (MODULARIZADO) */}

@@ -42,8 +42,8 @@ export function AdminSidebar({
 	userRole,
 	}: AdminSidebarProps & { userRole?: string | null }) {
 		const menuItems = useMemo(() => {
-			// Cashier role: only show Pedidos and Caja
-			if (userRole === "cashier") {
+			// Staff: por defecto solo Pedidos y Caja (el resto lo define roleNavPermissions)
+			if (userRole === "staff") {
 				return [
 					{
 						id: "orders",

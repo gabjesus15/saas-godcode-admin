@@ -9,13 +9,11 @@ import { useCashSystem } from '../hooks/useCashSystem';
 import { sanitizeOrder } from '../../shared/utils/orderUtils';
 import { getTenantScopedPath } from '../../../../utils/tenant-route';
 
-const ALL_ADMIN_TABS = ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'settings', 'company'];
+const ALL_ADMIN_TABS = ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'users'];
 
 const DEFAULT_ROLE_NAV_PERMISSIONS = {
-	owner: ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'settings', 'company'],
-	admin: ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'settings', 'company'],
-	ceo: ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'settings'],
-	cashier: ['orders', 'caja'],
+	ceo: ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'users'],
+	staff: ['orders', 'caja'],
 };
 
 const normalizeRoleNavPermissions = (raw) => {
@@ -48,7 +46,7 @@ export const useAdmin = () => {
 	return context;
 };
 
-export const AdminProvider = ({ children, companyId, roleNavPermissions }) => {
+export const AdminProvider = ({ children, companyId, roleNavPermissions, userAllowedTabs }) => {
 	const router = useRouter();
 	const pathname = usePathname();
 	const navigate = useCallback((path) => router.push(getTenantScopedPath(pathname || '/', path)), [pathname, router]);
@@ -98,12 +96,15 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions }) => {
 
 	const allowedTabs = useMemo(() => {
 		const roleKey = (userRole || '').toLowerCase();
+		if (roleKey === 'staff' && Array.isArray(userAllowedTabs) && userAllowedTabs.length > 0) {
+			return new Set(userAllowedTabs.filter((t) => ALL_ADMIN_TABS.includes(t)));
+		}
 		const configuredTabs = resolvedRolePermissions[roleKey];
 		if (Array.isArray(configuredTabs)) {
 			return new Set(configuredTabs);
 		}
-		return new Set(DEFAULT_ROLE_NAV_PERMISSIONS.cashier);
-	}, [resolvedRolePermissions, userRole]);
+		return new Set(DEFAULT_ROLE_NAV_PERMISSIONS.staff);
+	}, [resolvedRolePermissions, userRole, userAllowedTabs]);
 
 	const canAccessTab = useCallback((tabId) => allowedTabs.has(tabId), [allowedTabs]);
 	const isBranchLocked = Boolean(assignedBranchId);
@@ -154,10 +155,9 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions }) => {
 				navigate('/login');
 				return;
 			}
-			const normalizedEmail = user.email.trim().toLowerCase();
-			setUserEmail(normalizedEmail);
-			const allowedRoles = ['owner', 'super_admin', 'admin', 'ceo', 'cashier'];
+			setUserEmail(user.email.trim().toLowerCase());
 
+			// Validación con auth_user_id + company_id (primary)
 			const { data: userRowByAuth, error: userByAuthError } = await supabase
 				.from(TABLES.users)
 				.select('role,branch_id')
@@ -176,7 +176,9 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions }) => {
 
 			let userRow = userRowByAuth;
 
+			// Fallback: buscar por email si auth_user_id no retorna nada
 			if (!userRow) {
+				const normalizedEmail = user.email.trim().toLowerCase();
 				const { data: userRowByEmail, error: userByEmailError } = await supabase
 					.from(TABLES.users)
 					.select('role,branch_id')
@@ -196,6 +198,8 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions }) => {
 				userRow = userRowByEmail;
 			}
 
+			// Roles permitidos para tenants
+			const allowedRoles = ['admin', 'ceo', 'cashier'];
 			const resolvedRole = String(userRow?.role || '').toLowerCase() || null;
 			const hasAllowedRole = Boolean(resolvedRole && allowedRoles.includes(resolvedRole));
 
@@ -204,7 +208,7 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions }) => {
 				setAssignedBranchId(null);
 				await supabase.auth.signOut();
 				navigate('/login');
-				showNotify('No tienes permisos de administrador', 'error');
+				showNotify('No tienes permisos de administrador para este local', 'error');
 			} else {
 				setUserRole(resolvedRole);
 				setAssignedBranchId(userRow?.branch_id || null);
@@ -272,17 +276,12 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions }) => {
 		else setLoading(true);
 		try {
 			const isAllBranches = selectedBranch.id === 'all';
-			const categoriesQuery = isAllBranches
-				? supabase
-					.from(TABLES.categories)
-					.select('*')
-					.or(`company_id.eq.${companyId},company_id.is.null`)
-					.order('order')
-				: supabase
-					.from(TABLES.categories)
-					.select('id, name, company_id, category_branch!inner(order, is_active, branch_id)')
-					.or(`company_id.eq.${companyId},company_id.is.null`)
-					.eq('category_branch.branch_id', selectedBranch.id);
+			// Cargar siempre todas las categorías de la empresa (como en la tienda); luego mezclar order/is_active por sucursal
+			const categoriesQuery = supabase
+				.from(TABLES.categories)
+				.select('*')
+				.or(`company_id.eq.${companyId},company_id.is.null`)
+				.order('order');
 			const promises = [
 				categoriesQuery,
 				supabase.from(TABLES.products).select('*').eq('company_id', companyId).order('name'),
@@ -292,13 +291,15 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions }) => {
 				supabase.from(TABLES.clients).select('*').eq('company_id', companyId).order('last_order_at', { ascending: false }).limit(200)
 			];
 			if (!isAllBranches) {
+				promises.push(supabase.from(TABLES.category_branch).select('category_id, order, is_active').eq('branch_id', selectedBranch.id));
 				promises.push(supabase.from(TABLES.product_prices).select('*').eq('company_id', companyId).eq('branch_id', selectedBranch.id));
 				promises.push(supabase.from(TABLES.product_branch).select('*').eq('company_id', companyId).eq('branch_id', selectedBranch.id));
 			}
 			const results = await Promise.all(promises);
 			const [catsRes, globalProductsRes, ordsRes, cltsRes] = results;
-			const pricesRes = !isAllBranches ? results[4] : { data: [] };
-			const branchStatusRes = !isAllBranches ? results[5] : { data: [] };
+			const categoryBranchRes = !isAllBranches ? results[4] : { data: [] };
+			const pricesRes = !isAllBranches ? results[5] : { data: [] };
+			const branchStatusRes = !isAllBranches ? results[6] : { data: [] };
 			if (catsRes.error) throw catsRes.error;
 			if (globalProductsRes.error) throw globalProductsRes.error;
 			if (ordsRes.error) throw ordsRes.error;
@@ -328,15 +329,19 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions }) => {
 			const cleanOrders = (ordsRes.data || []).map(sanitizeOrder);
 			const clientIdsInOrders = new Set(cleanOrders.map(o => o.client_id).filter(Boolean));
 			const filteredClients = (cltsRes.data || []).filter(c => clientIdsInOrders.has(c.id));
+			const branchCategoryMap = (categoryBranchRes.data || []).reduce((acc, row) => {
+				acc[row.category_id] = { order: row.order, is_active: row.is_active };
+				return acc;
+			}, {});
 			const categoriesData = (catsRes.data || []).map(cat => {
-				if (isAllBranches) return cat;
-				const branchInfo = Array.isArray(cat.category_branch) ? cat.category_branch[0] : null;
+				if (isAllBranches) return { ...cat, order: cat.order ?? 0, is_active: cat.is_active ?? true };
+				const branchInfo = branchCategoryMap[cat.id];
 				return {
 					id: cat.id,
 					name: cat.name,
 					company_id: cat.company_id,
-					order: branchInfo?.order ?? 0,
-					is_active: branchInfo?.is_active ?? false
+					order: branchInfo?.order ?? cat.order ?? 0,
+					is_active: branchInfo?.is_active ?? true
 				};
 			}).sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
 			setCategories(categoriesData);

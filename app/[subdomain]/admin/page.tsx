@@ -30,9 +30,10 @@ export default async function TenantAdminPage({
 		redirect("/");
 	}
 
+	// Validar acceso por auth_user_id + company_id (tenant scoped)
 	const { data: adminRows, error: adminError } = await supabase
 		.from("users")
-		.select("id,role")
+		.select("id,role,allowed_tabs")
 		.eq("company_id", company.id)
 		.eq("auth_user_id", user.id)
 		.maybeSingle();
@@ -41,18 +42,22 @@ export default async function TenantAdminPage({
 		redirect(`/${resolvedParams.subdomain}/login`);
 	}
 
-	const allowedRoles = new Set(["owner", "super_admin", "admin", "ceo", "cashier"]);
+	const allowedRoles = new Set(["admin", "ceo", "cashier"]);
 	let resolvedRole = String(adminRows?.role ?? "").toLowerCase() || null;
 
+	// Fallback: buscar por email si auth_user_id no retorna nada
 	if (!resolvedRole) {
 		const { data: userRow } = await supabase
 			.from("users")
-			.select("role")
+			.select("role,allowed_tabs")
 			.ilike("email", user.email)
 			.eq("company_id", company.id)
 			.maybeSingle();
 
 		resolvedRole = String(userRow?.role ?? "").toLowerCase() || null;
+		if (userRow && adminRows) {
+			adminRows.allowed_tabs = userRow.allowed_tabs;
+		}
 	}
 
 	const hasAccess = Boolean(resolvedRole && allowedRoles.has(resolvedRole));
@@ -66,6 +71,10 @@ export default async function TenantAdminPage({
 	const roleNavPermissions =
 		(company.theme_config as Record<string, unknown> | null)?.roleNavPermissions ?? null;
 
+	const userAllowedTabs = Array.isArray(adminRows?.allowed_tabs)
+		? adminRows.allowed_tabs
+		: null;
+
 	return (
 		<AdminApp
 			companyId={company.id}
@@ -73,6 +82,7 @@ export default async function TenantAdminPage({
 			logoUrl={logoUrl}
 			userEmail={user.email ?? null}
 			roleNavPermissions={roleNavPermissions as Record<string, string[]> | null}
+			userAllowedTabs={userAllowedTabs}
 		/>
 	);
 }

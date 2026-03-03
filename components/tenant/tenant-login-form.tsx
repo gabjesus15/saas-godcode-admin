@@ -48,16 +48,17 @@ export function TenantLoginForm({ subdomain }: TenantLoginFormProps) {
       }
 
       const authUserId = signInData.user?.id ?? null;
-      const allowedRoles = new Set(["owner", "super_admin", "admin", "ceo", "cashier"]);
+      const allowedRoles = new Set(["admin", "ceo", "cashier"]);
 
       const userQuery = supabase
         .from("users")
         .select("id,role")
         .eq("company_id", company.id);
 
+      // Buscar primero por auth_user_id, luego por email (fallback)
       const { data: userRowByAuthId, error: userByAuthError } = authUserId
         ? await userQuery.eq("auth_user_id", authUserId).maybeSingle()
-        : await userQuery.eq("email", normalizedEmail).maybeSingle();
+        : await userQuery.ilike("email", normalizedEmail).maybeSingle();
 
       if (userByAuthError) {
         await supabase.auth.signOut();
@@ -66,6 +67,7 @@ export function TenantLoginForm({ subdomain }: TenantLoginFormProps) {
 
       let resolvedUserRow = userRowByAuthId;
 
+      // Fallback a buscar por email si auth_user_id no retorna nada
       if (!resolvedUserRow && authUserId) {
         const { data: userRowByEmail, error: userByEmailError } = await supabase
           .from("users")
@@ -80,6 +82,12 @@ export function TenantLoginForm({ subdomain }: TenantLoginFormProps) {
         }
 
         resolvedUserRow = userRowByEmail;
+      }
+
+      // Validar acceso con roles permitidos para tenants
+      if (!resolvedUserRow?.role || !allowedRoles.has(String(resolvedUserRow.role).toLowerCase())) {
+        await supabase.auth.signOut();
+        throw new Error("No tienes permisos para acceder al panel admin.");
       }
 
       const hasAccess = Boolean(

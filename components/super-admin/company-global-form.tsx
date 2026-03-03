@@ -66,21 +66,21 @@ const ADMIN_TAB_OPTIONS = [
   { id: "inventory", label: "Inventario" },
   { id: "clients", label: "Clientes" },
   { id: "settings", label: "Herramientas" },
+  { id: "users", label: "Equipo" },
   { id: "company", label: "Datos de la empresa" },
 ] as const;
 
 const ROLE_LABELS: Record<string, string> = {
-  owner: "Owner",
-  admin: "Admin",
   ceo: "CEO",
-  cashier: "Cajero",
+  staff: "Staff",
 };
 
+// Solo el CEO se configura aquí. Staff se gestiona en el panel admin del local (Equipo).
+const ROLES_EDITABLE_IN_SUPER_ADMIN: (keyof RoleNavPermissions)[] = ["ceo"];
+
 const DEFAULT_ROLE_NAV_PERMISSIONS: RoleNavPermissions = {
-  owner: ["orders", "caja", "analytics", "categories", "products", "inventory", "clients", "settings", "company"],
-  admin: ["orders", "caja", "analytics", "categories", "products", "inventory", "clients", "settings", "company"],
-  ceo: ["orders", "caja", "analytics", "categories", "products", "inventory", "clients", "settings"],
-  cashier: ["orders", "caja"],
+  ceo: ["orders", "caja", "analytics", "categories", "products", "inventory", "clients", "settings", "users", "company"],
+  staff: ["orders", "caja"],
 };
 
 function normalizeRoleNavPermissions(raw: unknown): RoleNavPermissions {
@@ -155,7 +155,7 @@ function UserManagement({ companyId }: { companyId: string }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newEmail, setNewEmail] = useState("");
-  const [newRole, setNewRole] = useState("admin");
+  const [newRole, setNewRole] = useState("staff");
   const [newBranchId, setNewBranchId] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [adding, setAdding] = useState(false);
@@ -360,9 +360,8 @@ function UserManagement({ companyId }: { companyId: string }) {
                 onChange={e => setEditRole(e.target.value)}
                 className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400"
               >
-                <option value="admin">Admin</option>
                 <option value="ceo">CEO</option>
-                <option value="cashier">Cajero</option>
+                <option value="staff">Staff</option>
               </select>
             </label>
 
@@ -427,9 +426,8 @@ function UserManagement({ companyId }: { companyId: string }) {
             onChange={e => setNewRole(e.target.value)}
             disabled={adding}
           >
-            <option value="admin">Admin</option>
             <option value="ceo">CEO</option>
-            <option value="cashier">Cajero</option>
+            <option value="staff">Staff</option>
           </select>
         </label>
         <label className="flex min-w-[220px] flex-1 flex-col gap-1 text-sm font-medium text-zinc-700">
@@ -1120,9 +1118,9 @@ export function CompanyGlobalForm({
 
         <Card className="flex flex-col gap-6">
           <div>
-            <h3 className="text-lg font-semibold text-zinc-900">Permisos de panel por rol</h3>
+            <h3 className="text-lg font-semibold text-zinc-900">Permisos de panel (CEO)</h3>
             <p className="text-sm text-zinc-500">
-              Define qué secciones del navbar puede ver cada rol en el panel admin del negocio.
+              Define qué secciones del navbar puede ver el CEO en el panel admin del negocio. Los permisos del Staff se configuran en el panel admin del local (Equipo).
             </p>
           </div>
 
@@ -1131,7 +1129,7 @@ export function CompanyGlobalForm({
               <thead>
                 <tr className="bg-zinc-50 border-b border-zinc-200">
                   <th className="px-4 py-3 text-left font-semibold text-zinc-700">Sección</th>
-                  {Object.keys(DEFAULT_ROLE_NAV_PERMISSIONS).map((role) => (
+                  {ROLES_EDITABLE_IN_SUPER_ADMIN.map((role) => (
                     <th key={role} className="px-4 py-3 text-center font-semibold text-zinc-700">
                       {ROLE_LABELS[role] ?? role}
                     </th>
@@ -1142,7 +1140,7 @@ export function CompanyGlobalForm({
                 {ADMIN_TAB_OPTIONS.map((tab) => (
                   <tr key={tab.id} className="hover:bg-zinc-50 transition-colors">
                     <td className="px-4 py-3 text-zinc-700">{tab.label}</td>
-                    {Object.keys(DEFAULT_ROLE_NAV_PERMISSIONS).map((role) => {
+                    {ROLES_EDITABLE_IN_SUPER_ADMIN.map((role) => {
                       const checked = (themeForm.roleNavPermissions[role] ?? []).includes(tab.id);
                       return (
                         <td key={`${role}-${tab.id}`} className="px-4 py-3 text-center">
