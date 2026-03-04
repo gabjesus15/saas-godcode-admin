@@ -46,7 +46,7 @@ export function BranchesCreateForm({ companyId }: BranchesCreateFormProps) {
         throw new Error(permission.error);
       }
 
-      const supabase = createSupabaseBrowserClient();
+      const supabase = createSupabaseBrowserClient("super-admin");
       const finalSlug = form.slug.trim() || slugify(form.name);
 
       if (!finalSlug) {

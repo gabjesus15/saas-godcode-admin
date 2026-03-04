@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
+import Image from "next/image";
 
 import { useCart } from "./use-cart";
 import { ordersService } from "./orders-service";
@@ -28,7 +29,7 @@ import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 
 import "../../app/[subdomain]/styles/CartModal.css";
 
-const FALLBACK_IMAGE = "/placeholder.svg";
+const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80";
 
 interface BusinessInfo {
   name?: string | null;
@@ -55,6 +56,17 @@ interface BranchInfo {
   account_rut?: string | null;
   account_email?: string | null;
   account_holder?: string | null;
+}
+
+interface CartLineItem {
+  id: string;
+  name?: string | null;
+  image_url?: string | null;
+  quantity: number;
+  price?: number | null;
+  has_discount?: boolean | null;
+  discount_price?: number | null;
+  description?: string | null;
 }
 
 const generateWSMessage = (
@@ -92,7 +104,7 @@ export function CartModal({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const supabase = useMemo(() => createSupabaseBrowserClient("tenant"), []);
   const homePath = useMemo(
     () => getTenantScopedPath(pathname ?? "/", "/"),
     [pathname]
@@ -134,61 +146,62 @@ export function CartModal({
 
   const [isShiftLoading, setIsShiftLoading] = useState(false);
   const [isShiftOpen, setIsShiftOpen] = useState(true);
-
-  const fetchShiftStatus = useCallback(async () => {
-    if (!selectedBranch?.id) {
-      setIsShiftOpen(false);
-      setIsShiftLoading(false);
-      return;
-    }
-
-    setIsShiftLoading(true);
-    const { data, error } = await supabase
-      .from("cash_shifts")
-      .select("id")
-      .eq("status", "open")
-      .eq("branch_id", selectedBranch.id)
-      .maybeSingle();
-
-    if (error) {
-      setIsShiftOpen(false);
-      setIsShiftLoading(false);
-      return;
-    }
-
-    setIsShiftOpen(Boolean(data));
-    setIsShiftLoading(false);
-  }, [selectedBranch?.id, supabase]);
+  const selectedBranchId = selectedBranch?.id ?? null;
 
   useEffect(() => {
-    let cancelled = false;
-
-    fetchShiftStatus().catch(() => {
-      if (!cancelled) {
+    if (!selectedBranchId) {
+      Promise.resolve().then(() => {
         setIsShiftOpen(false);
         setIsShiftLoading(false);
-      }
-    });
-
-    if (!selectedBranch?.id) {
-      return () => {
-        cancelled = true;
-      };
+      });
+      return;
     }
 
+    let cancelled = false;
+
+    const checkShiftStatus = async () => {
+      setIsShiftLoading(true);
+      const { data, error } = await supabase
+        .from("cash_shifts")
+        .select("id")
+        .eq("status", "open")
+        .eq("branch_id", selectedBranchId)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      if (error) {
+        setIsShiftOpen(false);
+        setIsShiftLoading(false);
+        return;
+      }
+
+      setIsShiftOpen(Boolean(data));
+      setIsShiftLoading(false);
+    };
+
+    Promise.resolve().then(() => {
+      checkShiftStatus().catch(() => {
+        if (!cancelled) {
+          setIsShiftOpen(false);
+          setIsShiftLoading(false);
+        }
+      });
+    });
+
     const channel = supabase
-      .channel(`cart-shift-realtime:${selectedBranch.id}`)
+      .channel(`cart-shift-realtime:${selectedBranchId}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "cash_shifts",
-          filter: `branch_id=eq.${selectedBranch.id}`,
+          filter: `branch_id=eq.${selectedBranchId}`,
         },
         () => {
-          fetchShiftStatus().catch(() => {
-            setIsShiftOpen(false);
+          checkShiftStatus().catch(() => {
+            if (!cancelled) setIsShiftOpen(false);
           });
         }
       )
@@ -198,7 +211,7 @@ export function CartModal({
       cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, [selectedBranch?.id, supabase, fetchShiftStatus]);
+  }, [selectedBranchId, supabase]);
 
   const canCheckout = isShiftOpen;
 
@@ -339,7 +352,7 @@ export function CartModal({
     try {
       const sanitizeInput = (text: string) => (text ? text.replace(/<[^>]*>?/gm, "").trim() : "");
 
-      const itemsForOrder = cart.map((item: any) => ({
+      const itemsForOrder = (cart as CartLineItem[]).map((item) => ({
         id: item.id,
         name: String(item.name ?? ""),
         quantity: Number(item.quantity) || 1,
@@ -384,8 +397,12 @@ export function CartModal({
         window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`, "_blank");
         clearCart();
       }, 1500);
-    } catch (error: any) {
-      const message = error?.message || error?.error_description || "Error al procesar el pedido. Intenta nuevamente.";
+    } catch (error: unknown) {
+      const errorRecord = (error ?? {}) as Record<string, unknown>;
+      const message =
+        (typeof errorRecord.message === "string" && errorRecord.message) ||
+        (typeof errorRecord.error_description === "string" && errorRecord.error_description) ||
+        "Error al procesar el pedido. Intenta nuevamente.";
       setViewState((v) => ({ ...v, isSaving: false, error: message }));
     }
   };
@@ -408,14 +425,15 @@ export function CartModal({
         ) : (
           <>
             <header className="cart-header">
-              <div className="flex-center">
-                <ShoppingBag size={22} className="text-accent" />
-                <h3>
-                  Tu Pedido {selectedBranch ? <span style={{ fontSize: "0.7em", opacity: 0.7 }}>({selectedBranch.name})</span> : null}
-                </h3>
-                <span className="cart-count-badge">{cart.reduce((a: number, c: any) => a + c.quantity, 0)}</span>
+              <div className="cart-header-main">
+                <div className="cart-header-title-row">
+                  <ShoppingBag size={20} className="text-accent" />
+                  <h3>Tu Pedido</h3>
+                  <span className="cart-count-badge">{(cart as CartLineItem[]).reduce((a, c) => a + c.quantity, 0)}</span>
+                </div>
+                {selectedBranch ? <p className="cart-branch-name">{selectedBranch.name}</p> : null}
               </div>
-              <button onClick={handleCloseCart} className="btn-close-cart">
+              <button onClick={handleCloseCart} className="btn-close-cart" aria-label="Cerrar carrito" title="Cerrar carrito">
                 <X size={24} />
               </button>
             </header>
@@ -432,7 +450,7 @@ export function CartModal({
               ) : (
                 <>
                   <div className="cart-items-list">
-                    {cart.map((item: any) => (
+                    {(cart as CartLineItem[]).map((item) => (
                       <CartItem
                         key={item.id}
                         item={item}
@@ -559,6 +577,16 @@ const PaymentFlow = ({
   const showRutError = showFieldErrors && !validation.rut;
   const showPhoneError = showFieldErrors && !validation.phone;
   const showReceiptError = showFieldErrors && paymentType === "online" && !validation.receipt;
+  const topValidationMessage = showFieldErrors
+    ? [
+        showNameError ? "nombre válido" : null,
+        showRutError ? "RUT válido" : null,
+        showPhoneError ? "teléfono completo (+56 9)" : null,
+        showReceiptError ? "comprobante de transferencia" : null,
+      ]
+        .filter(Boolean)
+        .join(", ")
+    : "";
 
   if (paymentType && showForm) {
     return (
@@ -566,6 +594,11 @@ const PaymentFlow = ({
         <h4 className="form-title">
           <MessageCircle size={18} /> Datos del Cliente
         </h4>
+        {topValidationMessage ? (
+          <div className="checkout-validation-banner">
+            Revisa los siguientes campos: {topValidationMessage}.
+          </div>
+        ) : null}
 
         <div className="form-group">
           <label>Nombre</label>
@@ -574,11 +607,9 @@ const PaymentFlow = ({
             required
             value={formData.name}
             onChange={(event) => onInputChange("name", event.target.value)}
-            className="form-input"
+            className={`form-input ${showNameError ? "input-error" : ""}`}
             placeholder="Tu nombre"
-            aria-invalid={showNameError}
           />
-          {showNameError ? <p className="field-error">Nombre invalido. Usa solo letras y espacios.</p> : null}
         </div>
 
         <div className="form-row">
@@ -591,12 +622,10 @@ const PaymentFlow = ({
               required
               value={formData.rut}
               onChange={(event) => onInputChange("rut", event.target.value)}
-              className={`form-input ${!validation.rut && formData.rut.length > 3 ? "input-error" : ""}`}
+              className={`form-input ${showRutError ? "input-error" : ""}`}
               placeholder="12.345.678-9"
               maxLength={12}
-              aria-invalid={showRutError}
             />
-            {showRutError ? <p className="field-error">RUT invalido. Revisa el formato.</p> : null}
           </div>
           <div className="form-group">
             <label>
@@ -607,10 +636,9 @@ const PaymentFlow = ({
               required
               value={formData.phone}
               onChange={(event) => onInputChange("phone", event.target.value)}
-              className="form-input"
-              aria-invalid={showPhoneError}
+              className={`form-input ${showPhoneError ? "input-error" : ""}`}
+              placeholder="+56 9 1234 5678"
             />
-            {showPhoneError ? <p className="field-error">Telefono incompleto. Usa el formato +56 9.</p> : null}
           </div>
         </div>
 
@@ -622,12 +650,12 @@ const PaymentFlow = ({
             <div
               className="upload-box"
               onClick={() => document.getElementById("receipt-upload")?.click()}
-              style={{ borderColor: formData.receiptPreview ? "#25d366" : "var(--card-border)" }}
+              data-has-preview={formData.receiptPreview ? "true" : "false"}
             >
-              <input type="file" id="receipt-upload" accept="image/*" hidden onChange={onFileChange} />
+              <input type="file" id="receipt-upload" accept="image/*" hidden onChange={onFileChange} aria-label="Subir comprobante" title="Subir comprobante" />
               {formData.receiptPreview ? (
                 <div className="file-preview-row">
-                  <img src={formData.receiptPreview} alt="Comprobante" />
+                  <Image src={formData.receiptPreview} alt="Comprobante" width={40} height={40} unoptimized />
                   <span>Imagen cargada</span>
                 </div>
               ) : (
@@ -636,9 +664,6 @@ const PaymentFlow = ({
                 </div>
               )}
             </div>
-            {showReceiptError ? (
-              <p className="field-error">Debes adjuntar el comprobante de transferencia.</p>
-            ) : null}
           </div>
         ) : null}
 
@@ -731,7 +756,7 @@ const BankInfo = ({ cartTotal, activeInfo }: { cartTotal: number; activeInfo: Bu
           {info.account_number ? (
             <li className="copy-row" onClick={() => copyToClipboard(info.account_number || "")}> 
               <span>Cuenta:</span>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <div className="copy-row-value">
                 <b>{info.account_number}</b> <Copy size={14} />
               </div>
             </li>
@@ -739,7 +764,7 @@ const BankInfo = ({ cartTotal, activeInfo }: { cartTotal: number; activeInfo: Bu
           {info.account_rut ? (
             <li className="copy-row" onClick={() => copyToClipboard(info.account_rut || "")}> 
               <span>RUT:</span>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <div className="copy-row-value">
                 <b>{info.account_rut}</b> <Copy size={14} />
               </div>
             </li>
@@ -747,7 +772,7 @@ const BankInfo = ({ cartTotal, activeInfo }: { cartTotal: number; activeInfo: Bu
           {info.account_email ? (
             <li className="copy-row" onClick={() => copyToClipboard(info.account_email || "")}> 
               <span>Email:</span>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <div className="copy-row-value">
                 <b>{info.account_email}</b> <Copy size={14} />
               </div>
             </li>
@@ -759,7 +784,7 @@ const BankInfo = ({ cartTotal, activeInfo }: { cartTotal: number; activeInfo: Bu
           ) : null}
         </ul>
       ) : (
-        <p style={{ color: "#9ca3af", fontSize: "0.9rem", textAlign: "center", padding: "20px 0" }}>
+        <p className="bank-empty-msg">
           No hay datos de transferencia configurados.
           <br />
           Contacta al administrador.
@@ -786,11 +811,11 @@ const SuccessView = ({
       <Check size={40} />
     </div>
     <h2 className="text-accent">¡Pedido Recibido!</h2>
-    <p style={{ color: "#aaa", marginBottom: "20px" }}>
+    <p className="success-description">
       Estamos validando tu pago. Te contactaremos por WhatsApp.
     </p>
     {receiptUploadFailed ? (
-      <p className="cart-receipt-fallback" style={{ color: "#f59e0b", marginBottom: "16px", fontSize: "0.9rem" }}>
+      <p className="cart-receipt-fallback cart-receipt-fallback-warning">
         No se pudo subir el comprobante. Por favor envialo por WhatsApp cuando abras el chat.
       </p>
     ) : null}
@@ -827,50 +852,72 @@ const CartItem = ({
   onAdd,
   onDecrease,
 }: {
-  item: any;
+  item: CartLineItem;
   unitPrice: number;
   onRemove: (id: string) => void;
-  onAdd: (item: any) => void;
+  onAdd: (item: CartLineItem) => void;
   onDecrease: (id: string) => void;
-}) => (
-  <div className="cart-item">
-    <img
-      src={
-        getCloudinaryOptimizedUrl(item.image_url, {
-          width: 120,
-          height: 120,
-          crop: "fill",
-          gravity: "auto",
-        }) || FALLBACK_IMAGE
-      }
-      alt={item.name}
+}) => {
+  const optimizedSrc = getCloudinaryOptimizedUrl(item.image_url ?? null, {
+    width: 120,
+    height: 120,
+    crop: "fill",
+    gravity: "auto",
+  });
+  const imageSrc =
+    typeof optimizedSrc === "string" && optimizedSrc.trim().length > 0
+      ? optimizedSrc
+      : FALLBACK_IMAGE;
+
+  return (
+    <div className="cart-item">
+      <Image
+      src={imageSrc}
+      alt={item.name ?? "Producto"}
+      width={65}
+      height={65}
+      unoptimized
       className="item-thumb"
       onError={(event) => {
-        (event.target as HTMLImageElement).src = FALLBACK_IMAGE;
+        event.currentTarget.src = FALLBACK_IMAGE;
       }}
     />
-    <div className="item-details" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+    <div className="item-details item-details-tight">
       <div className="item-top">
-        <h4 style={{ margin: 0 }}>{item.name}</h4>
-        <button onClick={() => onRemove(item.id)} className="btn-trash">
+        <h4 className="item-title">{item.name}</h4>
+        <button
+          onClick={() => onRemove(item.id)}
+          className="btn-trash"
+          aria-label="Quitar producto"
+          title="Quitar producto"
+        >
           <Trash2 size={16} />
         </button>
       </div>
 
-      <div className="item-bottom" style={{ marginTop: "auto", paddingTop: "4px" }}>
-        <span className="item-price" style={{ fontWeight: "bold" }}>
+      <div className="item-bottom item-bottom-tight">
+        <span className="item-price item-price-strong">
           ${(unitPrice * item.quantity).toLocaleString("es-CL")}
         </span>
         <div className="qty-control-sm">
-          <button onClick={() => onDecrease(item.id)}>
+          <button
+            onClick={() => onDecrease(item.id)}
+            aria-label="Disminuir cantidad"
+            title="Disminuir cantidad"
+          >
             <Minus size={12} />
           </button>
           <span>{item.quantity}</span>
-          <button onClick={() => onAdd(item)}>
+          <button
+            onClick={() => onAdd(item)}
+            aria-label="Aumentar cantidad"
+            title="Aumentar cantidad"
+          >
             <Plus size={12} />
           </button>
         </div>
       </div>
     </div>
   </div>
-);
+  );
+};

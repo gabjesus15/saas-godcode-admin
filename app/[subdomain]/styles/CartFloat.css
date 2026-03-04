@@ -92,6 +92,12 @@
     padding-right: 5px;
 }
 
+.cart-total-prefix {
+    opacity: 0.8;
+    font-weight: 400;
+    margin-right: 4px;
+}
+
 .cart-arrow {
     margin-right: 20px;
     /* Margen derecho para separar del borde final */

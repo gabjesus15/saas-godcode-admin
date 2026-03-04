@@ -9,6 +9,7 @@
     z-index: 1000;
     width: 100%;
     background: transparent;
+    transition: backdrop-filter 0.25s ease, background-color 0.25s ease;
 }
 
 /* Fila: tabs a la izquierda, buscador a la derecha */
@@ -58,9 +59,11 @@
     font-weight: 600;
     font-size: 0.84rem;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: transform 0.2s ease, background-color 0.22s ease, color 0.2s ease, border-color 0.22s ease, box-shadow 0.25s ease;
     -webkit-user-select: none;
     user-select: none;
+    transform: translateZ(0);
+    will-change: transform;
 }
 
 /* Hover */
@@ -69,6 +72,7 @@
     color: #fff;
     border-color: rgba(255, 255, 255, 0.16);
     box-shadow: 0 4px 12px var(--accent-shadow, rgba(255, 78, 80, 0.2));
+    transform: translateY(-1px);
 }
 
 /* Estado Activo */
@@ -77,8 +81,12 @@
     /* Fallback a rojo si no hay variable */
     color: white;
     border-color: var(--accent-primary, #ff4e50);
-    transform: scale(1.05);
+    transform: translateY(-1px);
     box-shadow: 0 4px 15px var(--accent-shadow, rgba(255, 78, 80, 0.3));
+}
+
+.tab-item:active {
+    transform: scale(0.98);
 }
 
 /* Iconos dentro de los tabs */
@@ -108,7 +116,7 @@
     border-radius: 50px;
     cursor: pointer;
     overflow: hidden;
-    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .search-pill-wrapper.expanded {
@@ -141,7 +149,7 @@
     font-size: 0.9rem;
     outline: none;
     opacity: 0;
-    transition: opacity 0.2s ease 0.1s;
+    transition: opacity 0.18s ease 0.08s;
     pointer-events: none;
 }
 
@@ -212,7 +220,6 @@
     .navbar-container {
         gap: 6px;
         padding: 6px 4px;
-        scroll-snap-type: x proximity;
     }
 
     .tab-item {
@@ -253,5 +260,14 @@
     .nav-fade-left,
     .nav-fade-right {
         width: 16px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tab-item,
+    .search-pill-wrapper,
+    .search-input-pill,
+    .navbar-wrapper {
+        transition: none !important;
     }
 }

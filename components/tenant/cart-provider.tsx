@@ -52,19 +52,25 @@ export function CartProvider({
   children: React.ReactNode;
   selectedBranchId?: string | null;
 }) {
-  const [cart, setCart] = useState<CartItem[]>(() => {
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [orderNote, setOrderNote] = useState("");
+  const [isCartHydrated, setIsCartHydrated] = useState(false);
+
+  useEffect(() => {
     try {
       const saved = localStorage.getItem("tenant_cart");
       const parsed = saved ? JSON.parse(saved) : [];
-      return ensureCartArray(parsed);
+      setCart(ensureCartArray(parsed));
     } catch {
-      return [];
+      setCart([]);
+    } finally {
+      setIsCartHydrated(true);
     }
-  });
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [orderNote, setOrderNote] = useState("");
+  }, []);
 
   useEffect(() => {
+    if (!isCartHydrated) return;
     if (!selectedBranchId) return;
 
     try {
@@ -82,9 +88,9 @@ export function CartProvider({
     } catch {
       return;
     }
-  }, [selectedBranchId, cart.length]);
+  }, [selectedBranchId, cart.length, isCartHydrated]);
 
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const supabase = useMemo(() => createSupabaseBrowserClient("tenant"), []);
 
   const cartProductIds = useMemo(
     () =>
@@ -184,8 +190,9 @@ export function CartProvider({
   }, [selectedBranchId, cartProductIds, supabase]);
 
   useEffect(() => {
+    if (!isCartHydrated) return;
     localStorage.setItem("tenant_cart", JSON.stringify(cart));
-  }, [cart]);
+  }, [cart, isCartHydrated]);
 
   const getPrice = useCallback((product: CartProduct) => {
     if (product.has_discount && product.discount_price != null && Number(product.discount_price) > 0) {

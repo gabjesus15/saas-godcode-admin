@@ -164,7 +164,7 @@ const AdminInventory = ({ showNotify, branchId, branches, companyId }) => {
                     <p style={{ color: '#9ca3af', fontSize: '0.9rem', marginTop: 5 }}>Gestiona tus materias primas y stock crítico.</p>
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
-                    <button className="btn btn-secondary btn-icon-text" style={{ background: 'white', color: '#333' }} onClick={handleExport}>
+                    <button className="btn btn-secondary btn-icon-text" onClick={handleExport}>
                         <Download size={18} /> Exportar
                     </button>
                     <button className="btn btn-primary btn-icon-text" onClick={handleCreate}>

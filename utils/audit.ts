@@ -10,7 +10,7 @@ interface AuditPayload {
 
 export async function logAdminAction(payload: AuditPayload) {
   try {
-    const supabase = createSupabaseBrowserClient();
+    const supabase = createSupabaseBrowserClient("super-admin");
     const { data: userData } = await supabase.auth.getUser();
 
     await supabase.from("admin_audit_logs").insert({

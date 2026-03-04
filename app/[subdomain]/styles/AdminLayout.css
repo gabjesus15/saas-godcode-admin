@@ -60,13 +60,13 @@
 }
 
 .header-actions button.btn-primary {
-    background: #e63946;
+    background: var(--accent-primary);
     color: white;
-    box-shadow: 0 4px 6px -1px rgba(230, 57, 70, 0.2);
+    box-shadow: 0 4px 6px -1px var(--accent-shadow, rgba(255, 71, 87, 0.25));
 }
 
 .header-actions button.btn-primary:hover {
-    background: #d62828;
+    background: var(--accent-hover);
     transform: translateY(-1px);
 }
 
@@ -97,6 +97,12 @@
 .btn-icon-refresh:hover {
     background: var(--bg-secondary);
     transform: rotate(180deg);
+}
+
+.btn-icon-refresh:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none;
 }
 
 .admin-migration-card {
@@ -198,7 +204,14 @@
     }
 
     .btn-icon-refresh {
+        width: 40px;
+        min-width: 40px;
+        height: 40px;
         flex: 0 0 auto;
+    }
+
+    .btn-icon-refresh:hover {
+        transform: none;
     }
 }
 
@@ -206,5 +219,13 @@
     .header-actions button {
         width: 100%;
         flex: 1 1 100%;
+    }
+
+    .header-actions .btn-icon-refresh {
+        width: 40px;
+        min-width: 40px;
+        height: 40px;
+        flex: 0 0 40px;
+        padding: 0;
     }
 }

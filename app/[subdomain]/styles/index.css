@@ -138,7 +138,7 @@ html, body, #root {
 .btn-primary {
   background-color: var(--accent-primary);
   color: white;
-  box-shadow: 0 4px 15px rgba(230, 57, 70, 0.4);
+  box-shadow: 0 4px 15px var(--accent-shadow, rgba(255, 71, 87, 0.3));
 }
 
 .btn-secondary {

@@ -10,12 +10,13 @@
     gap: 24px;
     
     /* Lógica de altura robusta: Llenar el contenedor padre */
-    height: 100%;
-    min-height: 0;
+    height: calc(100dvh - 230px);
+    min-height: 560px;
     
     /* Prevenir overflow horizontal */
     width: 100%;
     overflow-x: auto;
+    overflow-y: hidden;
     
     /* Animación de entrada */
     animation: fadeIn 0.5s ease-out;
@@ -23,29 +24,31 @@
 
 /* Columnas (Glass Effect) */
 .admin-layout .kanban-column {
-    background: rgba(20, 20, 20, 0.6); /* Un poco más oscuro para contraste con las tarjetas */
+    background: linear-gradient(180deg, rgba(8, 8, 8, 0.96) 0%, rgba(14, 14, 14, 0.94) 100%);
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
-    border: 1px solid var(--glass-border);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 16px;
     
     display: flex;
     flex-direction: column;
     overflow: hidden; /* Para que el header respete el borde */
+    height: 100%;
+    min-height: 0;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 /* Hover sutil en la columna para foco */
 .admin-layout .kanban-column:hover {
-    border-color: rgba(255, 255, 255, 0.15);
-    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.3);
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow: 0 14px 34px -16px rgba(0, 0, 0, 0.6);
 }
 
 /* Cabecera de Columna */
 .admin-layout .column-header {
     padding: 18px 20px;
-    background: rgba(255, 255, 255, 0.02);
-    border-bottom: 1px solid var(--glass-border);
+    background: rgba(0, 0, 0, 0.36);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     
     display: flex;
     align-items: center;
@@ -101,6 +104,7 @@
 .admin-layout .column-body {
     padding: 15px;
     flex: 1; /* Ocupa todo el espacio restante */
+    min-height: 0;
     overflow-y: auto; /* Scroll vertical */
     overflow-x: hidden;
     
@@ -111,17 +115,21 @@
 
 /* Scrollbar Estilizado (Chrome/Safari) */
 .admin-layout .column-body::-webkit-scrollbar {
-    width: 6px;
+    width: 8px;
 }
 .admin-layout .column-body::-webkit-scrollbar-track {
-    background: transparent;
-}
-.admin-layout .column-body::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.04);
     border-radius: 10px;
 }
+.admin-layout .column-body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
 .admin-layout .column-body::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.28);
+    background-clip: padding-box;
 }
 
 /* Estado Vacío */
@@ -166,11 +174,11 @@
     .admin-layout .kanban-board {
         display: flex;
         flex-direction: column;
-        height: auto;
-        /* En móvil dejamos que la página crezca */
-        min-height: calc(100vh - 140px); 
+        height: calc(100dvh - 190px);
+        min-height: 520px;
         gap: 0;
         overflow-x: visible;
+        overflow-y: hidden;
     }
 
     /* Pestañas estilo iOS / Segmented Control */
@@ -221,24 +229,25 @@
     .admin-layout .mobile-tabs button:nth-child(3).active::after { background: #25d366; } /* Verde */
 
     .admin-layout .kanban-column {
-        height: auto;
-        min-height: 60vh; /* Altura mínima digna en móvil */
-        border: none;
-        background: transparent; /* Quitar fondo pesado en móvil para limpieza */
-        box-shadow: none;
-        overflow: visible; /* Permitir scroll nativo */
+        height: 100%;
+        min-height: 0;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: linear-gradient(180deg, rgba(8, 8, 8, 0.96) 0%, rgba(14, 14, 14, 0.94) 100%);
+        box-shadow: 0 10px 28px -18px rgba(0, 0, 0, 0.8);
+        overflow: hidden;
     }
     
     .admin-layout .column-header {
-        background: transparent;
+        background: rgba(0, 0, 0, 0.36);
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 10px 0;
-        margin-bottom: 10px;
+        padding: 12px 14px;
+        margin-bottom: 0;
     }
 
     .admin-layout .column-body {
-        padding: 0;
-        overflow: visible; /* Usar scroll de la ventana principal */
+        padding: 12px;
+        overflow-y: auto;
+        overflow-x: hidden;
     }
 
     /* Clase utilitaria para ocultar columnas no activas */

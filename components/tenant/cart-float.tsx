@@ -54,7 +54,7 @@ export function CartFloat() {
         <span className="cart-label-text">
           {hasItems ? (
             <>
-              <span style={{ opacity: 0.8, fontWeight: 400 }}>Total:</span> ${cartTotal.toLocaleString("es-CL")}
+              <span className="cart-total-prefix">Total:</span> ${cartTotal.toLocaleString("es-CL")}
             </>
           ) : (
             "Tu Bandeja"

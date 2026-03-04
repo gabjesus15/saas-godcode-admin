@@ -238,7 +238,7 @@
 
 .admin-layout .btn-action.primary {
     background: var(--accent-primary);
-    box-shadow: 0 4px 15px rgba(255, 71, 87, 0.3);
+    box-shadow: 0 4px 15px var(--accent-shadow, rgba(255, 71, 87, 0.3));
 }
 
 .admin-layout .btn-action.success {

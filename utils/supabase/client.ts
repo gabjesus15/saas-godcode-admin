@@ -26,6 +26,27 @@ const getCookieName = (scope: SupabaseAuthScope) =>
 const getStorageKey = (scope: SupabaseAuthScope) =>
   scope === "super-admin" ? "sb-super-admin-auth-storage" : "sb-tenant-auth-storage";
 
+type SupabaseBrowserClient = ReturnType<typeof createBrowserClient>;
+type ScopedClientStore = Partial<Record<SupabaseAuthScope, SupabaseBrowserClient>>;
+
+const inMemoryClientStore: ScopedClientStore = {};
+
+const getScopedClientStore = (): ScopedClientStore => {
+  if (typeof window === "undefined") {
+    return inMemoryClientStore;
+  }
+
+  const w = window as Window & {
+    __saasGodcodeSupabaseClients?: ScopedClientStore;
+  };
+
+  if (!w.__saasGodcodeSupabaseClients) {
+    w.__saasGodcodeSupabaseClients = {};
+  }
+
+  return w.__saasGodcodeSupabaseClients;
+};
+
 export function createSupabaseBrowserClient(scope?: SupabaseAuthScope) {
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error("Missing Supabase environment variables.");
@@ -33,13 +54,24 @@ export function createSupabaseBrowserClient(scope?: SupabaseAuthScope) {
 
   const resolvedScope = resolveScope(scope);
 
-  return createBrowserClient(supabaseUrl, supabaseAnonKey, {
+  const scopedClientStore = getScopedClientStore();
+  const existingClient = scopedClientStore[resolvedScope];
+
+  if (existingClient) {
+    return existingClient;
+  }
+
+  const client = createBrowserClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       storageKey: getStorageKey(resolvedScope),
     },
     cookieOptions: {
       name: getCookieName(resolvedScope),
     },
-    isSingleton: false,
+    isSingleton: true,
   });
+
+  scopedClientStore[resolvedScope] = client;
+
+  return client;
 }

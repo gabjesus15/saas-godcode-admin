@@ -33,7 +33,7 @@ export function CompanyStatusToggle({
         throw new Error(permission.error);
       }
 
-      const supabase = createSupabaseBrowserClient();
+      const supabase = createSupabaseBrowserClient("super-admin");
       const { error: updateError } = await supabase
         .from("companies")
         .update({ subscription_status: nextStatus })

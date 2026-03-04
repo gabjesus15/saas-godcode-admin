@@ -214,7 +214,7 @@ function UserManagement({ companyId }: { companyId: string }) {
     setLoading(true);
     setError(null);
     try {
-      const supabase = createSupabaseBrowserClient();
+      const supabase = createSupabaseBrowserClient("super-admin");
       const { data, error } = await supabase
         .from("users")
         .select("id,email,role,branch_id,branch:branches(name)")
@@ -237,7 +237,7 @@ function UserManagement({ companyId }: { companyId: string }) {
 
   const fetchBranches = useCallback(async () => {
     try {
-      const supabase = createSupabaseBrowserClient();
+      const supabase = createSupabaseBrowserClient("super-admin");
       const { data, error } = await supabase
         .from("branches")
         .select("id,name")
@@ -687,7 +687,7 @@ export function CompanyGlobalForm({
       if (isDevPlan) throw new Error("El plan interno no se puede cobrar.");
       if (monthsToBill <= 0) throw new Error("Define una cantidad valida de meses.");
 
-      const supabase = createSupabaseBrowserClient();
+      const supabase = createSupabaseBrowserClient("super-admin");
       const functionName = provider === "stripe" ? "stripe-checkout" : "mercadopago-preference";
 
       const { data, error: invokeError } = await supabase.functions.invoke(
@@ -732,7 +732,7 @@ export function CompanyGlobalForm({
       const permission = await requireAdminRole(roleSets.billing);
       if (!permission.ok) throw new Error(permission.error);
 
-      const supabase = createSupabaseBrowserClient();
+      const supabase = createSupabaseBrowserClient("super-admin");
       
       // Preparar data asegurando limpieza de strings
       const companyUpdate: Record<string, unknown> = {
@@ -824,7 +824,7 @@ export function CompanyGlobalForm({
       if (isDevPlan) throw new Error("El plan interno no requiere vencimiento.");
       if (monthsToAdd <= 0) throw new Error("Define una cantidad valida de meses.");
 
-      const supabase = createSupabaseBrowserClient();
+      const supabase = createSupabaseBrowserClient("super-admin");
       const now = new Date();
       const baseDate = currentEndsAt && currentEndsAt > now ? currentEndsAt : now;
 

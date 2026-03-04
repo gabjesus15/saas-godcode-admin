@@ -73,7 +73,8 @@
 
 .nav-logo {
     height: 38px;
-    width: auto;
+    width: 38px;
+    object-fit: contain;
     border-radius: 6px;
 }
 
@@ -232,6 +233,7 @@ section {
 
     .nav-logo {
         height: 40px;
+        width: 40px;
     }
 
     .nav-back-button svg {

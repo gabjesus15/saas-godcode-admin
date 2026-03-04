@@ -51,7 +51,7 @@ export function BranchRow({ branch }: BranchRowProps) {
         throw new Error(permission.error);
       }
 
-      const supabase = createSupabaseBrowserClient();
+      const supabase = createSupabaseBrowserClient("super-admin");
       const { error: updateError } = await supabase
         .from("branches")
         .update({ is_active: !branch.is_active })
@@ -88,7 +88,7 @@ export function BranchRow({ branch }: BranchRowProps) {
         throw new Error(permission.error);
       }
 
-      const supabase = createSupabaseBrowserClient();
+      const supabase = createSupabaseBrowserClient("super-admin");
       const { error: updateError } = await supabase
         .from("branches")
         .update({
@@ -147,7 +147,7 @@ export function BranchRow({ branch }: BranchRowProps) {
         throw new Error("Ingresa tu contrasena para continuar.");
       }
 
-      const supabase = createSupabaseBrowserClient();
+      const supabase = createSupabaseBrowserClient("super-admin");
       const { data: userData, error: userError } = await supabase.auth.getUser();
 
       if (userError || !userData.user?.email) {

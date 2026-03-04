@@ -65,7 +65,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     const bootstrap = async () => {
       setLoading(true);
       try {
-        const supabase = createSupabaseBrowserClient();
+        const supabase = createSupabaseBrowserClient("tenant");
         const { data: userData } = await supabase.auth.getUser();
         const email = userData.user?.email ?? null;
         setUserEmail(email);
@@ -88,7 +88,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         const branchList = (branchRows ?? []) as BranchInfo[];
         setBranches(branchList);
         setSelectedBranch((prev) => prev ?? branchList[0] ?? null);
-      } catch (error) {
+      } catch {
         showNotify("Error de conexión", "error");
       } finally {
         setLoading(false);

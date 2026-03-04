@@ -201,6 +201,13 @@ export function HomeClient({ name, logoUrl, schedule, branches }: HomeClientProp
           </div>
 
           <aside className="ticket-stub">
+            <div className="veggie-bg" aria-hidden="true">
+              <span className="veggie veggie-1 veg-lettuce" />
+              <span className="veggie veggie-2 veg-carrot" />
+              <span className="veggie veggie-3 veg-cucumber" />
+              <span className="veggie veggie-4 veg-tomato" />
+              <span className="veggie veggie-5 veg-pepper" />
+            </div>
             <div className="stub-content">
               <div className="stub-badge">ACCESO DIGITAL</div>
               

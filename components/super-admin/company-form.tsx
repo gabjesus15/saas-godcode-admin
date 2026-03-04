@@ -104,7 +104,7 @@ export function CompanyForm({ plans }: CompanyFormProps) {
         throw new Error(permission.error);
       }
 
-      const supabase = createSupabaseBrowserClient();
+      const supabase = createSupabaseBrowserClient("super-admin");
       const { data: authData, error: authError } = await supabase.auth.getUser();
 
       if (authError || !authData.user) {

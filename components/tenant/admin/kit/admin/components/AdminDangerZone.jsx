@@ -287,7 +287,7 @@ const AdminDangerZone = ({ orders, showNotify, loadData, isMobile, selectedBranc
                   <p style={{ color: '#9ca3af', fontSize: '0.9rem', marginBottom: 20 }}>
                     Genera y descarga un Excel con todas las ventas de <b style={{ color: 'white' }}>{analyticsDate}</b>.
                   </p>
-                  <button onClick={handleExportMonthlyCsv} disabled={loading} className="btn-table-action" style={{ width: '100%', padding: 12, background: 'rgba(37, 211, 102, 0.2)', color: '#25d366', border: '1px solid #25d366', opacity: loading ? 0.7 : 1 }}>
+                  <button onClick={handleExportMonthlyCsv} disabled={loading} className="btn-table-action" style={{ width: '100%', padding: 12, background: 'var(--accent-primary)', color: 'white', border: '1px solid var(--accent-primary)', opacity: loading ? 0.7 : 1 }}>
                     {loading ? <><Loader2 size={16} className="animate-spin" style={{marginRight: 8}}/> Generando...</> : 'Descargar Reporte Mes'}
                   </button>
                 </>

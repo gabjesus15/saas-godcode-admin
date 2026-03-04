@@ -66,12 +66,13 @@
 }
 
 .admin-layout .clients-container .btn-white {
-    background: white;
-    color: #333;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--accent-primary);
+    border: 1px solid var(--card-border);
 }
 
 .admin-layout .clients-container .btn-white:hover {
-    background: #f0f0f0;
+    background: rgba(255, 255, 255, 0.14);
 }
 
 .admin-layout .clients-container .btn-icon-xs {
@@ -355,8 +356,6 @@
         padding-bottom: 10px;
         justify-content: flex-start;
         overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
     }
 
     .admin-layout .clients-filters::-webkit-scrollbar {

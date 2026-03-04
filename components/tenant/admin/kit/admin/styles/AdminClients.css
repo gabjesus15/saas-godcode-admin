@@ -355,8 +355,6 @@
         padding-bottom: 10px;
         justify-content: flex-start;
         overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
     }
 
     .admin-layout .clients-filters::-webkit-scrollbar {

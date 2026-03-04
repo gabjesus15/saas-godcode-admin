@@ -34,7 +34,7 @@ const OrderCard = ({ order, moveOrder, setReceiptModalOrder, branch, clients }) 
                     {formatTimeElapsed(order.created_at)}
                 </span>
                 <div style={{ display: 'flex', gap: 6 }}>
-                    <button onClick={handleReprint} className="btn-icon-xs" title="Imprimir Comanda" style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#ccc', cursor: 'pointer', padding: 4, borderRadius: 4 }}>
+                    <button onClick={handleReprint} className="btn-icon-xs" title="Imprimir Comanda" style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 4, borderRadius: 4 }}>
                         <Printer size={14} />
                     </button>
                 <span className={`payment-badge ${order.payment_type === 'online' ? 'online' : ''}`}>
@@ -138,7 +138,7 @@ const OrderCard = ({ order, moveOrder, setReceiptModalOrder, branch, clients }) 
                     </>
                 )}
                 {order.status === 'active' && <button onClick={() => moveOrder(order.id, 'completed')} className="btn-action success" style={{ width: '100%', margin: 0 }}>Pedido Listo</button>}
-                {order.status === 'completed' && <button onClick={() => moveOrder(order.id, 'picked_up')} className="btn-action" style={{ background: '#38bdf8', color: '#fff', width: '100%', margin: 0 }}>Entregado al Cliente</button>}
+                {order.status === 'completed' && <button onClick={() => moveOrder(order.id, 'picked_up')} className="btn-action" style={{ background: 'var(--accent-primary)', color: '#fff', width: '100%', margin: 0 }}>Entregado al Cliente</button>}
             </div>
         </div>
     );

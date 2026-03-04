@@ -101,7 +101,7 @@ export function MenuClient({
   const nextPriority = () => priorityCounter++ < 6;
   const router = useRouter();
   const pathname = usePathname();
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const supabase = useMemo(() => createSupabaseBrowserClient("tenant"), []);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const homePath = useMemo(
@@ -378,7 +378,6 @@ export function MenuClient({
             className="nav-logo"
             width={40}
             height={40}
-            style={{ width: "auto" }}
             onError={() => setLogoError(true)}
             unoptimized
           />

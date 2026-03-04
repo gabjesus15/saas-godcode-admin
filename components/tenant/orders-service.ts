@@ -27,6 +27,22 @@ interface CreateOrderPayload {
   payment_ref?: string | null;
 }
 
+interface ProductPriceRow {
+  product_id: string;
+  price: number | null;
+  has_discount: boolean | null;
+  discount_price: number | null;
+}
+
+interface ProductBranchRow {
+  product_id: string;
+}
+
+interface ProductRow {
+  id: string;
+  name: string | null;
+}
+
 async function buildOrderItemsFromBranch(
   supabase: ReturnType<typeof createSupabaseBrowserClient>,
   branchId: string,
@@ -66,9 +82,13 @@ async function buildOrderItemsFromBranch(
     throw new Error("No se pudo validar los productos de la sucursal. Intenta nuevamente.");
   }
 
-  const pricesByProduct = new Map((prices ?? []).map((row) => [String(row.product_id), row]));
-  const activeBranchProducts = new Set((branchRows ?? []).map((row) => String(row.product_id)));
-  const productNames = new Map((products ?? []).map((row) => [String(row.id), row.name]));
+  const typedPrices = (prices ?? []) as ProductPriceRow[];
+  const typedBranchRows = (branchRows ?? []) as ProductBranchRow[];
+  const typedProducts = (products ?? []) as ProductRow[];
+
+  const pricesByProduct = new Map(typedPrices.map((row) => [String(row.product_id), row]));
+  const activeBranchProducts = new Set(typedBranchRows.map((row) => String(row.product_id)));
+  const productNames = new Map(typedProducts.map((row) => [String(row.id), row.name]));
 
   const normalizedItems: OrderItem[] = [];
 
@@ -103,7 +123,7 @@ async function buildOrderItemsFromBranch(
 
 export const ordersService = {
   async createOrder(orderData: CreateOrderPayload, receiptFile: File | null = null) {
-    const supabase = createSupabaseBrowserClient();
+    const supabase = createSupabaseBrowserClient("tenant");
 
     if (!orderData.branch_id) {
       throw new Error("El ID de sucursal es obligatorio para crear un pedido.");
