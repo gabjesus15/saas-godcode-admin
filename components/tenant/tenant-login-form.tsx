@@ -25,8 +25,11 @@ export function TenantLoginForm({ subdomain }: TenantLoginFormProps) {
     setLoading(true);
 
     try {
-      const supabase = createSupabaseBrowserClient();
+      const supabase = createSupabaseBrowserClient("tenant");
       const normalizedEmail = email.trim().toLowerCase();
+
+      await supabase.auth.signOut();
+
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
         password,
@@ -90,15 +93,6 @@ export function TenantLoginForm({ subdomain }: TenantLoginFormProps) {
         throw new Error("No tienes permisos para acceder al panel admin.");
       }
 
-      const hasAccess = Boolean(
-        resolvedUserRow?.role && allowedRoles.has(String(resolvedUserRow.role).toLowerCase())
-      );
-
-      if (!hasAccess) {
-        await supabase.auth.signOut();
-        throw new Error("No tienes permisos para acceder al panel admin.");
-      }
-
       router.push(getTenantScopedPath(pathname ?? "/", "/admin"));
       router.refresh();
     } catch (err) {
@@ -111,22 +105,9 @@ export function TenantLoginForm({ subdomain }: TenantLoginFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ textAlign: "left" }}>
+    <form onSubmit={handleSubmit} className="login-form">
       {error ? (
-        <div
-          style={{
-            background: "rgba(230, 57, 70, 0.1)",
-            color: "#ff4d5a",
-            padding: "12px",
-            borderRadius: "12px",
-            fontSize: "0.9rem",
-            display: "flex",
-            gap: "10px",
-            alignItems: "center",
-            marginBottom: "20px",
-            border: "1px solid rgba(230, 57, 70, 0.2)",
-          }}
-        >
+        <div className="login-error">
           <AlertCircle size={18} />
           <span>{error}</span>
         </div>
@@ -134,11 +115,8 @@ export function TenantLoginForm({ subdomain }: TenantLoginFormProps) {
 
       <div className="form-group">
         <label>Correo Electrónico</label>
-        <div className="input-with-icon" style={{ position: "relative" }}>
-          <Mail
-            size={18}
-            style={{ position: "absolute", left: "14px", top: "14px", color: "var(--text-muted)" }}
-          />
+        <div className="input-with-icon">
+          <Mail size={18} className="input-icon" />
           <input
             className="form-input"
             type="email"
@@ -146,18 +124,14 @@ export function TenantLoginForm({ subdomain }: TenantLoginFormProps) {
             onChange={(event) => setEmail(event.target.value)}
             placeholder="admin@oishi.cl"
             required
-            style={{ paddingLeft: "44px" }}
           />
         </div>
       </div>
 
       <div className="form-group">
         <label>Contraseña</label>
-        <div className="input-with-icon" style={{ position: "relative" }}>
-          <Lock
-            size={18}
-            style={{ position: "absolute", left: "14px", top: "14px", color: "var(--text-muted)" }}
-          />
+        <div className="input-with-icon">
+          <Lock size={18} className="input-icon" />
           <input
             className="form-input"
             type="password"
@@ -165,15 +139,13 @@ export function TenantLoginForm({ subdomain }: TenantLoginFormProps) {
             onChange={(event) => setPassword(event.target.value)}
             placeholder="••••••••"
             required
-            style={{ paddingLeft: "44px" }}
           />
         </div>
       </div>
 
       <button
         type="submit"
-        className="btn btn-primary"
-        style={{ width: "100%", marginTop: "10px", justifyContent: "center" }}
+        className="btn btn-primary login-submit-button"
         disabled={loading}
       >
         {loading ? (

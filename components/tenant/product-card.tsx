@@ -2,6 +2,7 @@
 
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronDown, Minus, Plus, X } from "lucide-react";
+import Image from "next/image";
 import { useCart } from "./use-cart";
 import { getCloudinaryOptimizedUrl } from "./utils/cloudinary";
 
@@ -95,12 +96,6 @@ export const ProductCard = memo(function ProductCard({ product, priority = false
     gravity: "auto",
   });
   const initialImageUrl = resolvedImageUrl || FALLBACK_IMAGE;
-  const [imageSrc, setImageSrc] = useState(initialImageUrl);
-
-  useEffect(() => {
-    setImageSrc(initialImageUrl);
-    setImageLoaded(!resolvedImageUrl);
-  }, [initialImageUrl, resolvedImageUrl]);
 
   return (
     <div
@@ -108,28 +103,20 @@ export const ProductCard = memo(function ProductCard({ product, priority = false
         !isLongDesc ? "cursor-default" : "cursor-pointer"
       }`}
       onClick={toggleExpand}
-      role={isLongDesc ? "button" : "article"}
-      tabIndex={isLongDesc ? 0 : -1}
       onKeyDown={isLongDesc ? handleKeyDown : undefined}
-      aria-expanded={isExpanded}
-      aria-label={`Ver detalles de ${product.name}`}
     >
       <div className={`product-image ${isBumping ? "bump-active" : ""}`}>
         {!imageLoaded ? <div className="skeleton-loader absolute inset-0" /> : null}
-        <img
-          src={imageSrc}
+        <Image
+          src={initialImageUrl}
           alt={product.name ?? "Producto"}
-          loading="eager"
-          fetchPriority={priority ? "high" : "auto"}
-          decoding="async"
+          fill
+          sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+          priority={priority}
+          unoptimized
           onLoad={() => setImageLoaded(true)}
           className={!imageLoaded ? "opacity-0" : "opacity-100 transition-opacity duration-500"}
-          onError={() => {
-            if (imageSrc !== FALLBACK_IMAGE) {
-              setImageSrc(FALLBACK_IMAGE);
-            }
-            setImageLoaded(true);
-          }}
+          onError={() => setImageLoaded(true)}
         />
 
         {product.is_special ? <span className="badge-special">ESPECIAL</span> : null}

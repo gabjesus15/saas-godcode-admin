@@ -1,0 +1,138 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { validateAdminRolesOnServer } from "../../../utils/admin/server-auth";
+
+type RoleRow = {
+	id: string;
+	name: string;
+	description: string | null;
+	is_system: boolean;
+};
+
+const supabaseAdmin = createClient(
+	process.env.NEXT_PUBLIC_SUPABASE_URL!,
+	process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+async function validateSuperAdminAccess() {
+	const result = await validateAdminRolesOnServer(["super_admin"]);
+	if (!result.ok) {
+		return {
+			ok: false as const,
+			response: NextResponse.json(
+				{ error: result.error ?? "No autorizado" },
+				{ status: result.status }
+			),
+		};
+	}
+	return { ok: true as const };
+}
+
+export async function GET() {
+	const access = await validateSuperAdminAccess();
+	if (!access.ok) return access.response;
+
+	const { data, error } = await supabaseAdmin
+		.from("role_definitions")
+		.select("id,name,description,is_system")
+		.order("is_system", { ascending: false })
+		.order("name", { ascending: true });
+
+	if (error) {
+		return NextResponse.json({ error: error.message }, { status: 400 });
+	}
+
+	const roles = ((data ?? []) as RoleRow[]).map((role) => ({
+		id: role.id,
+		name: role.name,
+		description: role.description ?? "",
+		isSystem: role.is_system,
+	}));
+
+	return NextResponse.json({ roles });
+}
+
+export async function POST(req: NextRequest) {
+	const access = await validateSuperAdminAccess();
+	if (!access.ok) return access.response;
+
+	const { name, description } = await req.json();
+	if (!name) {
+		return NextResponse.json({ error: "El nombre del rol es requerido" }, { status: 400 });
+	}
+
+	const { data, error } = await supabaseAdmin.rpc("create_role_definition", {
+		p_name: String(name),
+		p_description: description ? String(description) : null,
+	});
+
+	if (error) {
+		return NextResponse.json({ error: error.message }, { status: 400 });
+	}
+
+	const role = Array.isArray(data) ? data[0] : data;
+	return NextResponse.json({
+		success: true,
+		role: role
+			? {
+					id: role.id,
+					name: role.name,
+					description: role.description ?? "",
+					isSystem: role.is_system,
+			  }
+			: null,
+	});
+}
+
+export async function PUT(req: NextRequest) {
+	const access = await validateSuperAdminAccess();
+	if (!access.ok) return access.response;
+
+	const { id, name, description } = await req.json();
+	if (!id || !name) {
+		return NextResponse.json({ error: "Faltan datos para actualizar el rol" }, { status: 400 });
+	}
+
+	const { data, error } = await supabaseAdmin.rpc("update_role_definition", {
+		p_role_id: id,
+		p_name: String(name),
+		p_description: description ? String(description) : null,
+	});
+
+	if (error) {
+		return NextResponse.json({ error: error.message }, { status: 400 });
+	}
+
+	const role = Array.isArray(data) ? data[0] : data;
+	return NextResponse.json({
+		success: true,
+		role: role
+			? {
+					id: role.id,
+					name: role.name,
+					description: role.description ?? "",
+					isSystem: role.is_system,
+			  }
+			: null,
+	});
+}
+
+export async function DELETE(req: NextRequest) {
+	const access = await validateSuperAdminAccess();
+	if (!access.ok) return access.response;
+
+	const { id } = await req.json();
+	if (!id) {
+		return NextResponse.json({ error: "Falta el id del rol" }, { status: 400 });
+	}
+
+	const { error } = await supabaseAdmin.rpc("delete_role_definition", {
+		p_role_id: id,
+	});
+
+	if (error) {
+		return NextResponse.json({ error: error.message }, { status: 400 });
+	}
+
+	return NextResponse.json({ success: true });
+}

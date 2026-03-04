@@ -1,4 +1,4 @@
-export type AdminRole = "super_admin" | "ceo" | "staff" | string;
+export type AdminRole = "super_admin" | "ceo" | "cashier" | "staff" | string;
 
 export const roleSets = {
 	billing: ["super_admin"],
@@ -10,6 +10,7 @@ export async function requireAdminRole(allowedRoles: string[]) {
 		const response = await fetch("/api/admin-permissions", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
+			cache: "no-store",
 			body: JSON.stringify({ allowedRoles }),
 		});
 

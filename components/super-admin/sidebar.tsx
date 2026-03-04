@@ -1,13 +1,35 @@
+"use client";
+
 import Link from "next/link";
-import { Building2, CreditCard, LayoutDashboard } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Building2, CreditCard, LayoutDashboard, LogOut, Wrench } from "lucide-react";
+
+import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/companies", label: "Empresas", icon: Building2 },
   { href: "/plans", label: "Planes", icon: CreditCard },
+  { href: "/herramientas", label: "Herramientas", icon: Wrench },
 ];
 
 export function Sidebar() {
+  const router = useRouter();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      setLoggingOut(true);
+      const supabase = createSupabaseBrowserClient("super-admin");
+      await supabase.auth.signOut();
+      router.push("/login");
+      router.refresh();
+    } finally {
+      setLoggingOut(false);
+    }
+  };
+
   return (
     <div className="flex h-full flex-col gap-10">
       <div className="flex items-center gap-3">
@@ -34,6 +56,17 @@ export function Sidebar() {
           );
         })}
       </nav>
+      <div className="mt-auto pt-4">
+        <button
+          type="button"
+          onClick={handleLogout}
+          disabled={loggingOut}
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <LogOut className="h-4 w-4" />
+          {loggingOut ? "Cerrando..." : "Cerrar sesión"}
+        </button>
+      </div>
     </div>
   );
 }

@@ -16,7 +16,7 @@ export function AdminShell({ children }: AdminShellProps) {
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#f8fafc_0%,_#ffffff_45%,_#eef2ff_100%)]">
       <div className="mx-auto flex min-h-screen max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:px-8">
-        <aside className="hidden w-64 rounded-3xl border border-zinc-200 bg-white/80 p-6 shadow-sm backdrop-blur md:block">
+        <aside className="hidden w-64 self-start rounded-3xl border border-zinc-200 bg-white/80 p-6 shadow-sm backdrop-blur md:sticky md:top-6 md:block">
           <Sidebar />
         </aside>
 

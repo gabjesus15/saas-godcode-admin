@@ -2,8 +2,9 @@
 
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronLeft, Loader2, MapPin, Search, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, MapPin, Search, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
+import Image from "next/image";
 
 import { BranchSelectorModal } from "./branch-selector-modal";
 import { Navbar } from "./navbar";
@@ -359,49 +360,38 @@ export function MenuClient({
   };
 
   const navbar = (
-    <header className="navbar-sticky" style={{ zIndex: 100 }}>
-      <div
-        className="container"
-        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: "10px" }}
-      >
+    <header className="navbar-sticky">
+      <div className="container nav-container-top">
         <button
           onClick={() => router.push(homePath)}
-          style={{ background: "none", border: "none", color: "white", cursor: "pointer", padding: 0 }}
+          className="nav-back-button"
+          aria-label="Volver al inicio"
         >
           <ChevronLeft size={28} />
         </button>
         <div className={`nav-brand-wrapper ${searchExpanded ? "mobile-search-active" : ""}`}>
-          <img
+          <Image
             src={
               logoError ? "/tenant/logo-placeholder.svg" : logoUrl || "/tenant/logo-placeholder.svg"
             }
             alt="Logo del local"
-            style={{ height: "38px", width: "auto", borderRadius: "6px" }}
+            className="nav-logo"
+            width={40}
+            height={40}
+            style={{ width: "auto" }}
             onError={() => setLogoError(true)}
+            unoptimized
           />
           <div className="nav-brand-info">
-            <h2 style={{ fontSize: "1.1rem", margin: 0, fontWeight: 700, color: "white", lineHeight: "1.2" }}>
+            <h2 className="nav-brand-title">
               {name}
             </h2>
             <button
               onClick={() => setIsLocationModalOpen(true)}
-              style={{
-                background: "rgba(255, 255, 255, 0.1)",
-                border: "1px solid rgba(255, 255, 255, 0.15)",
-                borderRadius: "20px",
-                padding: "4px 10px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "6px",
-                cursor: "pointer",
-                marginTop: "2px",
-                transition: "all 0.2s ease",
-                backdropFilter: "blur(4px)",
-              }}
+              className="nav-location-button"
             >
-              <MapPin size={12} color="var(--accent-primary)" style={{ filter: "drop-shadow(0 0 2px rgba(255, 71, 87, 0.5))" }} />
-              <span style={{ fontSize: "0.75rem", color: "white", fontWeight: 600, letterSpacing: "0.3px" }}>
+              <MapPin size={12} color="var(--accent-primary)" className="nav-location-icon" />
+              <span className="nav-location-text">
                 {selectedBranch ? selectedBranch.name : "Seleccionar Local"}
               </span>
               <ChevronDown size={12} color="rgba(255,255,255,0.6)" />
@@ -455,10 +445,10 @@ export function MenuClient({
                 {
                   id: "special",
                   name: (
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                      <img src={FIRE_ICON} style={{ width: "14px", height: "14px" }} alt="🔥" />
+                    <>
+                      <Image src={FIRE_ICON} className="fire-inline-icon" alt="🔥" width={20} height={20} unoptimized />
                       Solo por hoy
-                    </div>
+                    </>
                   ),
                 },
               ]
@@ -488,7 +478,7 @@ export function MenuClient({
           ? createPortal(navbar, document.getElementById("navbar-portal-root") as Element)
           : navbar}
 
-        <div style={{ height: "var(--menu-header-height)", width: "100%" }} />
+        <div className="menu-spacer" />
 
         <main className="container">
           {query ? (
@@ -501,7 +491,7 @@ export function MenuClient({
                   ))}
                 </div>
               ) : (
-                <p style={{ color: "var(--text-secondary)", marginTop: 12 }}>
+                <p className="no-results-text">
                   No hay platos con ese nombre.
                 </p>
               )}
@@ -511,7 +501,7 @@ export function MenuClient({
           {!query && specialProducts.length > 0 ? (
             <section id="section-special" className="category-section">
               <h2 className="category-title">
-                <img src={FIRE_ICON} className="category-icon" alt="🔥" />
+                <Image src={FIRE_ICON} className="category-icon" alt="🔥" width={24} height={24} unoptimized />
                 Solo por hoy
               </h2>
               <div className="product-grid">

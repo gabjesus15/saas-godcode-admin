@@ -12,8 +12,9 @@ import { getTenantScopedPath } from '../../../../utils/tenant-route';
 const ALL_ADMIN_TABS = ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'users'];
 
 const DEFAULT_ROLE_NAV_PERMISSIONS = {
+	admin: ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'users'],
 	ceo: ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'users'],
-	staff: ['orders', 'caja'],
+	cashier: ['orders', 'caja'],
 };
 
 const normalizeRoleNavPermissions = (raw) => {
@@ -22,9 +23,10 @@ const normalizeRoleNavPermissions = (raw) => {
 
 	if (!raw || typeof raw !== 'object') return normalized;
 
-	Object.keys(DEFAULT_ROLE_NAV_PERMISSIONS).forEach((role) => {
-		const tabs = raw[role];
+	Object.keys(raw).forEach((rawRole) => {
+		const tabs = raw[rawRole];
 		if (!Array.isArray(tabs)) return;
+		const role = String(rawRole).toLowerCase() === 'staff' ? 'cashier' : String(rawRole).toLowerCase();
 		const cleanTabs = [...new Set(tabs.filter((tab) => typeof tab === 'string' && allowed.has(tab)))];
 		normalized[role] = cleanTabs;
 	});
@@ -95,15 +97,16 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions, userAll
 	);
 
 	const allowedTabs = useMemo(() => {
-		const roleKey = (userRole || '').toLowerCase();
-		if (roleKey === 'staff' && Array.isArray(userAllowedTabs) && userAllowedTabs.length > 0) {
+		const rawRoleKey = (userRole || '').toLowerCase();
+		const roleKey = rawRoleKey === 'staff' ? 'cashier' : rawRoleKey;
+		if (roleKey === 'cashier' && Array.isArray(userAllowedTabs) && userAllowedTabs.length > 0) {
 			return new Set(userAllowedTabs.filter((t) => ALL_ADMIN_TABS.includes(t)));
 		}
 		const configuredTabs = resolvedRolePermissions[roleKey];
 		if (Array.isArray(configuredTabs)) {
 			return new Set(configuredTabs);
 		}
-		return new Set(DEFAULT_ROLE_NAV_PERMISSIONS.staff);
+		return new Set(DEFAULT_ROLE_NAV_PERMISSIONS.cashier);
 	}, [resolvedRolePermissions, userRole, userAllowedTabs]);
 
 	const canAccessTab = useCallback((tabId) => allowedTabs.has(tabId), [allowedTabs]);
@@ -146,76 +149,98 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions, userAll
 
 	const cashSystem = useCashSystem(showNotify, selectedBranch?.id);
 
-	useEffect(() => {
-		const verifyAdminAccess = async () => {
-			const { data: { session } } = await supabase.auth.getSession();
-			const user = session?.user;
-			if (!user?.email) {
-				setUserRole(null);
-				navigate('/login');
-				return;
-			}
-			setUserEmail(user.email.trim().toLowerCase());
+	const verifyAdminAccess = useCallback(async () => {
+		const {
+			data: { user },
+			error: userError,
+		} = await supabase.auth.getUser();
 
-			// Validación con auth_user_id + company_id (primary)
-			const { data: userRowByAuth, error: userByAuthError } = await supabase
+		if (userError || !user?.email) {
+			setUserRole(null);
+			setUserEmail(null);
+			setAssignedBranchId(null);
+			navigate('/login');
+			return;
+		}
+
+		setUserEmail(user.email.trim().toLowerCase());
+
+		// Validación con auth_user_id + company_id (primary)
+		const { data: userRowByAuth, error: userByAuthError } = await supabase
+			.from(TABLES.users)
+			.select('role,branch_id')
+			.eq('auth_user_id', user.id || '')
+			.eq('company_id', companyId)
+			.maybeSingle();
+
+		if (userByAuthError) {
+			setUserRole(null);
+			setAssignedBranchId(null);
+			showNotify('No se pudieron validar tus permisos de usuario', 'error');
+			return;
+		}
+
+		let userRow = userRowByAuth;
+
+		// Fallback: buscar por email si auth_user_id no retorna nada
+		if (!userRow) {
+			const normalizedEmail = user.email.trim().toLowerCase();
+			const { data: userRowByEmail, error: userByEmailError } = await supabase
 				.from(TABLES.users)
 				.select('role,branch_id')
-				.eq('auth_user_id', user.id || '')
+				.ilike('email', normalizedEmail)
 				.eq('company_id', companyId)
 				.maybeSingle();
 
-			if (userByAuthError) {
+			if (userByEmailError) {
 				setUserRole(null);
 				setAssignedBranchId(null);
-				await supabase.auth.signOut();
-				navigate('/login');
 				showNotify('No se pudieron validar tus permisos de usuario', 'error');
 				return;
 			}
 
-			let userRow = userRowByAuth;
+			userRow = userRowByEmail;
+		}
 
-			// Fallback: buscar por email si auth_user_id no retorna nada
-			if (!userRow) {
-				const normalizedEmail = user.email.trim().toLowerCase();
-				const { data: userRowByEmail, error: userByEmailError } = await supabase
-					.from(TABLES.users)
-					.select('role,branch_id')
-					.ilike('email', normalizedEmail)
-					.eq('company_id', companyId)
-					.maybeSingle();
+		// Roles permitidos para tenants
+		const allowedRoles = ['admin', 'ceo', 'cashier'];
+		const resolvedRole = String(userRow?.role || '').toLowerCase() || null;
+		const hasAllowedRole = Boolean(resolvedRole && allowedRoles.includes(resolvedRole));
 
-				if (userByEmailError) {
-					setUserRole(null);
-					setAssignedBranchId(null);
-					await supabase.auth.signOut();
-					navigate('/login');
-					showNotify('No se pudieron validar tus permisos de usuario', 'error');
-					return;
-				}
+		if (!hasAllowedRole) {
+			setUserRole(null);
+			setAssignedBranchId(null);
+			await supabase.auth.signOut();
+			navigate('/login');
+			showNotify('No tienes permisos de administrador para este local', 'error');
+			return;
+		}
 
-				userRow = userRowByEmail;
-			}
+		setUserRole(resolvedRole);
+		setAssignedBranchId(userRow?.branch_id || null);
+	}, [companyId, navigate, showNotify]);
 
-			// Roles permitidos para tenants
-			const allowedRoles = ['admin', 'ceo', 'cashier'];
-			const resolvedRole = String(userRow?.role || '').toLowerCase() || null;
-			const hasAllowedRole = Boolean(resolvedRole && allowedRoles.includes(resolvedRole));
-
-			if (!hasAllowedRole) {
-				setUserRole(null);
-				setAssignedBranchId(null);
-				await supabase.auth.signOut();
-				navigate('/login');
-				showNotify('No tienes permisos de administrador para este local', 'error');
-			} else {
-				setUserRole(resolvedRole);
-				setAssignedBranchId(userRow?.branch_id || null);
-			}
-		};
+	useEffect(() => {
 		verifyAdminAccess();
-	}, [navigate, showNotify, companyId]);
+
+		const {
+			data: { subscription },
+		} = supabase.auth.onAuthStateChange((event) => {
+			if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+				verifyAdminAccess();
+			}
+			if (event === 'SIGNED_OUT') {
+				setUserRole(null);
+				setUserEmail(null);
+				setAssignedBranchId(null);
+				navigate('/login');
+			}
+		});
+
+		return () => {
+			subscription.unsubscribe();
+		};
+	}, [navigate, verifyAdminAccess]);
 
 	const refreshBranches = useCallback(async () => {
 		if (!companyId) {

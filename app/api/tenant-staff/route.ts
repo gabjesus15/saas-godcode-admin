@@ -19,12 +19,20 @@ type UserRow = {
 	role: string;
 };
 
+const TENANT_ALLOWED_ROLES = new Set(["ceo", "cashier"]);
+
+function normalizeTenantRole(value: unknown): string {
+	const normalized = String(value ?? "").trim().toLowerCase();
+	if (normalized === "staff") return "cashier";
+	return normalized;
+}
+
 /**
  * Comprueba si el usuario de la sesión es CEO en la tabla users (no admin_users).
  * Así, si el mismo correo es super_admin y CEO, puede usar Equipo en el panel del local.
  */
 async function getCeoCompanyId(supabaseAdmin: any): Promise<CeoResult> {
-	const supabase = await createSupabaseServerClient();
+	const supabase = await createSupabaseServerClient("tenant");
 	const {
 		data: { user },
 		error: userError,
@@ -88,6 +96,7 @@ export async function POST(req: NextRequest) {
 		}
 		const email = typeof (body as Record<string, unknown>)?.email === "string" ? (body as { email: string }).email.trim().toLowerCase() : "";
 		const password = typeof (body as Record<string, unknown>)?.password === "string" ? (body as { password: string }).password : "";
+		const role = normalizeTenantRole((body as Record<string, unknown>)?.role);
 		const branchId =
 			typeof (body as Record<string, unknown>)?.branch_id === "string" && (body as { branch_id: string }).branch_id.trim().length > 0
 				? (body as { branch_id: string }).branch_id.trim()
@@ -122,7 +131,7 @@ export async function POST(req: NextRequest) {
 
 		const insertPayload: Record<string, unknown> = {
 			email,
-			role: "staff",
+			role: TENANT_ALLOWED_ROLES.has(role) ? role : "cashier",
 			company_id: ceo.companyId,
 			branch_id: branchId,
 			auth_user_id: authUser.user?.id,
@@ -170,7 +179,7 @@ export async function PUT(req: NextRequest) {
 		const b = body as Record<string, unknown>;
 		const id = typeof b?.id === "string" ? b.id.trim() : null;
 		const email = typeof b?.email === "string" ? (b.email as string).trim().toLowerCase() : "";
-		const role = typeof b?.role === "string" ? (b.role as string).trim().toLowerCase() : "";
+		const role = normalizeTenantRole(b?.role);
 		const password = typeof b?.password === "string" && (b.password as string).trim().length > 0 ? (b.password as string).trim() : null;
 		const branchId =
 			typeof b?.branch_id === "string" && (b.branch_id as string).trim().length > 0
@@ -183,8 +192,8 @@ export async function PUT(req: NextRequest) {
 		if (!id || !email || !role) {
 			return NextResponse.json({ error: "Faltan id, correo o rol" }, { status: 400 });
 		}
-		if (!["ceo", "staff"].includes(role)) {
-			return NextResponse.json({ error: "Rol debe ser ceo o staff" }, { status: 400 });
+		if (!TENANT_ALLOWED_ROLES.has(role)) {
+			return NextResponse.json({ error: "Rol debe ser ceo o cashier" }, { status: 400 });
 		}
 
 		const { data: userRow, error: userError } = await supabaseAdmin

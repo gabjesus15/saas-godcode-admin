@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import CartContext from "./cart-context";
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 import { filterValidProductIds, isValidBranchId } from "./utils/safe-ids";
@@ -14,6 +14,30 @@ interface CartItem {
   has_discount?: boolean | null;
   discount_price?: number | null;
   quantity: number;
+  is_active?: boolean | null;
+}
+
+interface ProductPriceRow {
+  product_id: string;
+  price: number | null;
+  has_discount: boolean | null;
+  discount_price: number | null;
+  products?: {
+    id?: string;
+    name?: string | null;
+    is_active?: boolean | null;
+    description?: string | null;
+  } | null;
+}
+
+interface CartProduct {
+  id: string;
+  name?: string | null;
+  description?: string | null;
+  image_url?: string | null;
+  price?: number | null;
+  has_discount?: boolean | null;
+  discount_price?: number | null;
   is_active?: boolean | null;
 }
 
@@ -47,15 +71,18 @@ export function CartProvider({
       const storedBranchId = localStorage.getItem("tenant_cart_branch_id");
       const hasLegacyUnboundCart = !storedBranchId && cart.length > 0;
       if ((storedBranchId && storedBranchId !== selectedBranchId && cart.length > 0) || hasLegacyUnboundCart) {
-        setCart([]);
-        setOrderNote("");
+        const resetTimer = window.setTimeout(() => {
+          setCart([]);
+          setOrderNote("");
+        }, 0);
         localStorage.setItem("tenant_cart", "[]");
+        return () => window.clearTimeout(resetTimer);
       }
       localStorage.setItem("tenant_cart_branch_id", selectedBranchId);
     } catch {
       return;
     }
-  }, [selectedBranchId]);
+  }, [selectedBranchId, cart.length]);
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
@@ -93,13 +120,13 @@ export function CartProvider({
 
         setCart((prevCart) => {
           const priceByProductId = new Map(
-            (data ?? []).map((row) => [String(row.product_id), row])
+            ((data ?? []) as ProductPriceRow[]).map((row) => [String(row.product_id), row])
           );
           const hasAnyRows = (data ?? []).length > 0;
 
           const next = prevCart.reduce<CartItem[]>((acc, cartItem) => {
               const priceRow = priceByProductId.get(String(cartItem.id)) ?? null;
-              const meta = (priceRow as any)?.products;
+              const meta = priceRow?.products;
 
               if (priceRow) {
                 acc.push({
@@ -160,16 +187,16 @@ export function CartProvider({
     localStorage.setItem("tenant_cart", JSON.stringify(cart));
   }, [cart]);
 
-  const getPrice = (product: CartItem) => {
+  const getPrice = useCallback((product: CartProduct) => {
     if (product.has_discount && product.discount_price != null && Number(product.discount_price) > 0) {
       return Number(product.discount_price);
     }
     return Number(product.price) || 0;
-  };
+  }, []);
 
   const toggleCart = () => setIsCartOpen((prev) => !prev);
 
-  const addToCart = (product: CartItem) => {
+  const addToCart = (product: CartProduct) => {
     setCart((prev) => {
       const existing = prev.find((item) => item.id === product.id);
       if (existing) {
@@ -206,7 +233,7 @@ export function CartProvider({
   const cartTotal = cart.reduce((acc, item) => acc + getPrice(item) * item.quantity, 0);
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
 
-  const generateWhatsAppMessage = () => {
+  const generateWhatsAppMessage = useCallback(() => {
     if (cart.length === 0) return "";
 
     let message = "";
@@ -233,7 +260,7 @@ export function CartProvider({
     }
 
     return encodeURIComponent(message);
-  };
+  }, [cart, cartTotal, getPrice, orderNote]);
 
   const value = useMemo(
     () => ({

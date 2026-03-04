@@ -1,11 +1,15 @@
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import type { SupabaseAuthScope } from "./auth-scope";
 
 const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "");
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
-export async function createSupabaseServerClient() {
+const getCookieName = (scope: SupabaseAuthScope) =>
+  scope === "super-admin" ? "sb-super-admin-auth-token" : "sb-tenant-auth-token";
+
+export async function createSupabaseServerClient(scope: SupabaseAuthScope = "super-admin") {
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error("Missing Supabase environment variables.");
   }
@@ -13,6 +17,9 @@ export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
 
   return createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookieOptions: {
+      name: getCookieName(scope),
+    },
     cookies: {
       get(name) {
         return cookieStore.get(name)?.value;

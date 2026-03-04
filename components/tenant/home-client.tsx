@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
 import { Instagram, MapPin, MessageCircle, Settings, Utensils, QrCode } from "lucide-react";
+import Image from "next/image";
 
 import { ContactBranchModal } from "./contact-branch-modal";
 import { getTenantScopedPath } from "./utils/tenant-route";
@@ -37,9 +38,6 @@ export function HomeClient({ name, logoUrl, schedule, branches }: HomeClientProp
     [pathname]
   );
 
-  // 1. ESTADO DE HIDRATACIÓN
-  const [isMounted, setIsMounted] = useState(false);
-
   // Estados de UI
   const [showModal, setShowModal] = useState(false);
   const [logoError, setLogoError] = useState(false);
@@ -48,38 +46,20 @@ export function HomeClient({ name, logoUrl, schedule, branches }: HomeClientProp
   type ActionType = "whatsapp" | "instagram" | "location";
   const [pendingAction, setPendingAction] = useState<ActionType | null>(null);
 
-  // Efecto de montaje
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
   // Generación de URL segura para el QR
-  const menuUrl = useMemo(() => {
-    if (!isMounted || typeof window === "undefined") return "";
-    return `${window.location.origin}${menuPath}`;
-  }, [isMounted, menuPath]);
+  const [menuUrl, setMenuUrl] = useState("");
 
-  // Manejador centralizado para botones que SÍ abren el modal (Contacto/Ubicación)
-  const handleActionClick = (action: ActionType) => {
-    // Si solo hay una sucursal, podríamos ejecutar la acción directo (Opcional, pero buena UX)
-    if (branches.length === 1) {
-      executeAction(action, branches[0]);
-      return;
-    }
-    
-    setPendingAction(action);
-    setShowModal(true);
-  };
+  useEffect(() => {
+    setMenuUrl(`${window.location.origin}${menuPath}`);
+  }, [menuPath]);
 
   // Función separada para ejecutar la acción y mantener el código limpio
-  const executeAction = (action: ActionType, branch: BranchInfo) => {
+  const executeAction = useCallback((action: ActionType, branch: BranchInfo) => {
     try {
       switch (action) {
         case "whatsapp":
           if (branch.whatsapp_url) {
             window.open(branch.whatsapp_url, "_blank", "noopener,noreferrer");
-          } else {
-            console.warn("Esta sucursal no tiene WhatsApp configurado.");
           }
           break;
         case "instagram":
@@ -93,10 +73,22 @@ export function HomeClient({ name, logoUrl, schedule, branches }: HomeClientProp
           }
           break;
       }
-    } catch (error) {
-      console.error("Error al ejecutar la acción de la sucursal:", error);
+    } catch {
+      // Error handling silently
     }
-  };
+  }, []);
+
+  // Manejador centralizado para botones que SÍ abren el modal (Contacto/Ubicación)
+  const handleActionClick = useCallback((action: ActionType) => {
+    // Si solo hay una sucursal, podríamos ejecutar la acción directo (Opcional, pero buena UX)
+    if (branches.length === 1) {
+      executeAction(action, branches[0]);
+      return;
+    }
+    
+    setPendingAction(action);
+    setShowModal(true);
+  }, [branches, executeAction]);
 
   // Manejador de selección cuando el usuario elige en el modal
   const handleBranchSelect = (branch: BranchInfo | null) => {
@@ -133,7 +125,7 @@ export function HomeClient({ name, logoUrl, schedule, branches }: HomeClientProp
       icon: <MapPin size={20} />,
       onClick: () => handleActionClick("location"),
     },
-  ], [router, branches.length, menuPath]); // Dependencias actualizadas
+  ], [handleActionClick, router, menuPath]); // Dependencias actualizadas
 
   // Generador de iniciales robusto
   const initials = useMemo(() => {
@@ -164,27 +156,19 @@ export function HomeClient({ name, logoUrl, schedule, branches }: HomeClientProp
             <header className="home-header-centered">
               <div className="brand-container-centered">
                 {logoUrl && !logoError ? (
-                  <img
+                  <Image
                     src={logoUrl}
                     alt={`Logo de ${name}`}
                     className="home-logo-centered"
+                    width={120}
+                    height={120}
                     onError={() => setLogoError(true)}
                     loading="eager"
+                    unoptimized
                   />
                 ) : (
                   <div
-                    className="home-logo-centered"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      background: "var(--accent-primary, #333)",
-                      color: "white",
-                      fontSize: "2rem",
-                      fontWeight: 800,
-                      borderRadius: "20px",
-                      letterSpacing: "1px"
-                    }}
+                    className="home-logo-centered logo-initials"
                     aria-label={`Iniciales de ${name}`}
                   >
                     {initials}
@@ -221,29 +205,17 @@ export function HomeClient({ name, logoUrl, schedule, branches }: HomeClientProp
               <div className="stub-badge">ACCESO DIGITAL</div>
               
               <div className="qr-box" aria-label="Código QR del Menú Digital">
-                {isMounted ? (
-                  menuUrl ? (
-                    <QRCodeSVG 
-                      value={menuUrl} 
-                      level="H" 
-                      includeMargin={false} 
-                      style={{ width: "100%", height: "100%" }}
-                    />
-                  ) : (
-                    <div style={{ display: 'grid', placeItems: 'center', height: '100%', opacity: 0.5 }}>
-                      <QrCode size={40} />
-                    </div>
-                  )
-                ) : (
-                  <div 
-                    style={{ 
-                      width: "100%", 
-                      height: "100%", 
-                      background: "rgba(255,255,255,0.05)", 
-                      borderRadius: "8px",
-                      animation: "pulse 1.5s infinite"
-                    }} 
+                {menuUrl ? (
+                  <QRCodeSVG 
+                    value={menuUrl} 
+                    level="H" 
+                    includeMargin={false} 
+                    className="qr-code"
                   />
+                ) : (
+                  <div className="qr-placeholder">
+                    <QrCode size={40} />
+                  </div>
                 )}
               </div>
               
@@ -257,18 +229,16 @@ export function HomeClient({ name, logoUrl, schedule, branches }: HomeClientProp
       </main>
 
       {/* MODAL DE SUCURSALES (Ahora solo se usa para WhatsApp, Instgram y Ubicación) */}
-      {isMounted && (
-        <ContactBranchModal
-          isOpen={showModal}
-          onClose={() => {
-            setShowModal(false);
-            setPendingAction(null);
-          }}
-          branches={branches}
-          isLoading={false}
-          onSelectBranch={handleBranchSelect}
-        />
-      )}
+      <ContactBranchModal
+        isOpen={showModal}
+        onClose={() => {
+          setShowModal(false);
+          setPendingAction(null);
+        }}
+        branches={branches}
+        isLoading={false}
+        onSelectBranch={handleBranchSelect}
+      />
     </div>
   );
 }

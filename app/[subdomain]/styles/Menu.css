@@ -7,7 +7,13 @@
 
 @media (max-width: 1024px) {
     :root {
-        --menu-header-height: 110px;
+        --menu-header-height: 102px;
+    }
+}
+
+@media (max-width: 600px) {
+    :root {
+        --menu-header-height: 78px;
     }
 }
 
@@ -25,22 +31,105 @@
     right: 0;
     width: 100%;
     z-index: 10000;
-    padding: 12px 0;
+    padding: 8px 0;
     pointer-events: auto;
     /* IMPORTANTE: Permitir clicks en una capa pointer-events: none */
     border-bottom: none;
 
-    /* Fondo mas oscuro para mayor contraste */
-    background: linear-gradient(180deg, rgba(8, 8, 8, 0.92) 0%, rgba(8, 8, 8, 0.75) 100%);
+    /* Fondo oscuro uniforme para TODA la navbar (no solo una franja) */
+    background: rgba(8, 8, 8, 0.82);
 
     /* El desenfoque hace el resto del trabajo */
-    backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
 
-    /* Sombra oscura debajo para separar del contenido */
-    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.6);
+    /* Sin línea inferior marcada */
+    box-shadow: none;
+    border-bottom: none;
+}
 
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+.nav-container-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 6px;
+}
+
+.nav-back-button {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease;
+}
+
+.nav-back-button:hover {
+    transform: translateX(-2px);
+}
+
+.nav-logo {
+    height: 38px;
+    width: auto;
+    border-radius: 6px;
+}
+
+.nav-brand-title {
+    font-size: 1rem;
+    margin: 0;
+    font-weight: 700;
+    color: white;
+    line-height: 1.2;
+}
+
+.nav-location-button {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 20px;
+    padding: 3px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    cursor: pointer;
+    margin-top: 1px;
+    transition: all 0.2s ease;
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+}
+
+.nav-location-button:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.nav-location-icon {
+    filter: drop-shadow(0 0 2px rgba(255, 71, 87, 0.5));
+}
+
+.nav-location-text {
+    font-size: 0.72rem;
+    color: white;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.menu-spacer {
+    height: var(--menu-header-height);
+    width: 100%;
+}
+
+.fire-inline-icon {
+    width: 14px;
+    height: 14px;
+}
+
+.no-results-text {
+    color: var(--text-secondary);
+    margin-top: 12px;
 }
 
 .category-section {
@@ -128,6 +217,58 @@ section {
         width: 24px;
         height: 24px;
     }
+
+    .navbar-sticky {
+        padding: 4px 0;
+    }
+
+    .nav-container-top {
+        padding-bottom: 2px;
+    }
+
+    .nav-brand-wrapper {
+        gap: 6px;
+    }
+
+    .nav-logo {
+        height: 40px;
+    }
+
+    .nav-back-button svg {
+        width: 22px;
+        height: 22px;
+    }
+
+    .nav-brand-info {
+        max-width: 116px;
+        margin-top: 1px;
+    }
+
+    .nav-brand-title {
+        font-size: 0.84rem;
+        line-height: 1.1;
+        max-width: 116px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .nav-location-button {
+        padding: 1px 6px;
+        border-radius: 16px;
+        gap: 4px;
+    }
+
+    .nav-location-text {
+        max-width: 70px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 0.64rem;
+    }
+
+    .category-section {
+        scroll-margin-top: 116px;
+    }
 }
 
 /* =========================================
@@ -138,6 +279,7 @@ section {
     align-items: center;
     gap: 12px;
     transition: gap 0.3s ease;
+    min-width: 0;
 }
 
 .nav-brand-info {
@@ -153,16 +295,21 @@ section {
     white-space: nowrap;
 }
 
-/* Lógica exclusiva para móviles */
+@media (min-width: 601px) {
+    .nav-logo {
+        height: 46px;
+    }
+}
+
 @media (max-width: 600px) {
     .nav-brand-wrapper.mobile-search-active {
-        gap: 0; /* Elimina el espacio entre logo y texto */
+        gap: 4px;
     }
-    
+
     .nav-brand-wrapper.mobile-search-active .nav-brand-info {
         opacity: 0;
-        max-width: 0; /* Colapsa el ancho a 0 */
-        transform: translateX(-10px); /* Pequeño desplazamiento a la izquierda */
+        max-width: 0;
+        transform: translateX(-6px);
         pointer-events: none;
     }
 }

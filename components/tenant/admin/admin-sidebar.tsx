@@ -43,7 +43,7 @@ export function AdminSidebar({
 	}: AdminSidebarProps & { userRole?: string | null }) {
 		const menuItems = useMemo(() => {
 			// Staff: por defecto solo Pedidos y Caja (el resto lo define roleNavPermissions)
-			if (userRole === "staff") {
+			if (userRole === "cashier" || userRole === "staff") {
 				return [
 					{
 						id: "orders",
@@ -217,8 +217,7 @@ export function AdminSidebar({
 
 				<button
 					onClick={() => onTabChange("store")}
-					className="nav-item"
-					style={!isMobile ? { marginTop: "auto", marginBottom: 10 } : undefined}
+					className={`nav-item ${isMobile ? "" : "store-link"}`}
 				>
 					<Store size={isMobile ? 20 : 22} />
 					{isMobile ? <span className="nav-label-mobile">Tienda</span> : <span className="nav-text">Ver Tienda</span>}

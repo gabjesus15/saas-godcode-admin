@@ -55,6 +55,13 @@ interface RawRPCStatus {
   category_id?: string | null; // Categoría opcionalmente sobrescrita por la sucursal
 }
 
+interface MenuDataResponse {
+  categories?: RawRPCCategory[];
+  products?: RawRPCProduct[];
+  product_prices?: RawRPCPrice[];
+  product_branch?: RawRPCStatus[];
+}
+
 // ==========================================
 // 3. COMPONENTE SERVIDOR PRINCIPAL
 // ==========================================
@@ -80,7 +87,7 @@ export default async function TenantMenuPage({
       return (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
           No se pudo cargar la empresa para este subdominio.
-          <pre style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
+          <pre className="debug-pre">
             {JSON.stringify(
               {
                 subdomain: resolvedParams.subdomain,
@@ -130,7 +137,7 @@ export default async function TenantMenuPage({
 			return (
 				<div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
 					No se pudo cargar la informacion base del menu.
-					<pre style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
+					<pre className="debug-pre">
 						{JSON.stringify(
 							{
 								subdomain: resolvedParams.subdomain,
@@ -174,7 +181,7 @@ export default async function TenantMenuPage({
       ? safeBranches.find((branch) => openBranchIdSet.has(String(branch.id))) ?? null
       : safeBranches[0] ?? null);
 
-  let menuData: any = null;
+  let menuData: MenuDataResponse | null = null;
 
   if (menuBranch) {
     // --- D. Obtener Menú vía RPC ---
@@ -184,12 +191,11 @@ export default async function TenantMenuPage({
     });
 
     if (menuError) {
-      console.error("Error al obtener el menú RPC:", menuError);
       if (resolvedSearchParams?.debug === "1") {
         return (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
             No se pudo cargar el menu de la sucursal seleccionada.
-            <pre style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
+            <pre className="debug-pre">
               {JSON.stringify(
                 {
                   subdomain: resolvedParams.subdomain,

@@ -1,0 +1,23 @@
+{
+  // Disable CSS validation warnings for modern properties with graceful degradation
+  "css.validate": false,
+  "less.validate": false,
+  "scss.validate": false,
+  // Disable Microsoft Edge Tools warnings
+  "html.validate.styles": false,
+  "css.lint.compatibleVendorPrefixes": "ignore",
+  "css.lint.vendorPrefix": "ignore",
+  "css.lint.unknownProperties": "ignore",
+  "css.lint.validProperties": [],
+  // Suppress inline style warnings for React components using CSS custom properties
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+  // Configure CSS custom data to recognize scrollbar-width
+  "css.customData": [],
+  // Disable problems panel for CSS files
+  "problems.decorations.enabled": true
+}

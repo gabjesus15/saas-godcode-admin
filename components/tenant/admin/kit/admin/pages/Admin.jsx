@@ -119,7 +119,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
   const [teamLoading, setTeamLoading] = React.useState(false);
   const [teamModalOpen, setTeamModalOpen] = React.useState(false);
   const [teamUserToEdit, setTeamUserToEdit] = React.useState(null);
-  const [teamForm, setTeamForm] = React.useState({ email: '', password: '', role: 'staff', branch_id: '', allowed_tabs: ['orders', 'caja'] });
+  const [teamForm, setTeamForm] = React.useState({ email: '', password: '', role: 'cashier', branch_id: '', allowed_tabs: ['orders', 'caja'] });
   const [teamSubmitting, setTeamSubmitting] = React.useState(false);
   const [teamUserToDelete, setTeamUserToDelete] = React.useState(null);
   const [teamDeleting, setTeamDeleting] = React.useState(false);
@@ -147,7 +147,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
 
   const openTeamCreateModal = () => {
     setTeamUserToEdit(null);
-    setTeamForm({ email: '', password: '', role: 'staff', branch_id: '', allowed_tabs: ['orders', 'caja'] });
+    setTeamForm({ email: '', password: '', role: 'cashier', branch_id: '', allowed_tabs: ['orders', 'caja'] });
     setTeamModalOpen(true);
   };
 
@@ -156,7 +156,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
     setTeamForm({
       email: u.email || '',
       password: '',
-      role: (u.role || 'staff').toLowerCase(),
+      role: ((u.role || 'cashier').toLowerCase() === 'staff' ? 'cashier' : (u.role || 'cashier').toLowerCase()),
       branch_id: u.branch_id || '',
       allowed_tabs: Array.isArray(u.allowed_tabs) && u.allowed_tabs.length ? u.allowed_tabs : ['orders', 'caja'],
     });
@@ -178,7 +178,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
     try {
       const payload = {
         email: teamForm.email.trim(),
-        role: (teamForm.role || 'staff').toLowerCase(),
+        role: ((teamForm.role || 'cashier').toLowerCase() === 'staff' ? 'cashier' : (teamForm.role || 'cashier').toLowerCase()),
         branch_id: teamForm.branch_id || null,
         allowed_tabs: teamForm.allowed_tabs?.length ? teamForm.allowed_tabs : null,
       };
@@ -199,7 +199,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
         showNotify(isEdit ? 'Usuario actualizado.' : 'Usuario creado. Puede iniciar sesión con su correo y contraseña.');
         setTeamModalOpen(false);
         setTeamUserToEdit(null);
-        setTeamForm({ email: '', password: '', role: 'staff', branch_id: '', allowed_tabs: ['orders', 'caja'] });
+        setTeamForm({ email: '', password: '', role: 'cashier', branch_id: '', allowed_tabs: ['orders', 'caja'] });
         fetchTeamUsers();
       } else {
         showNotify(data.error || (isEdit ? 'Error al actualizar usuario' : 'Error al crear usuario'), 'error');
@@ -643,7 +643,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
                       <td style={{ padding: '10px 12px', fontSize: 12 }}>
                         {(u.allowed_tabs && u.allowed_tabs.length > 0)
                           ? u.allowed_tabs.map(t => TAB_LABELS[t] || t).join(', ')
-                          : (u.role === 'staff' ? 'Por defecto (Pedidos, Caja)' : 'Todos')}
+                          : ((u.role === 'cashier' || u.role === 'staff') ? 'Por defecto (Pedidos, Caja)' : 'Todos')}
                       </td>
                       <td style={{ padding: '10px 12px', display: 'flex', gap: 6 }}>
                         <button
@@ -692,7 +692,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
         {teamModalOpen && (
           <div className="admin-modal-overlay" onClick={() => !teamSubmitting && (setTeamModalOpen(false), setTeamUserToEdit(null))} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div className="admin-confirm-modal" onClick={e => e.stopPropagation()} style={{ background: 'var(--card-bg)', padding: 24, borderRadius: 12, maxWidth: 420, width: '100%', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
-              <h3 style={{ margin: '0 0 16px', fontSize: 18 }}>{teamUserToEdit ? 'Editar usuario' : 'Crear usuario staff'}</h3>
+              <h3 style={{ margin: '0 0 16px', fontSize: 18 }}>{teamUserToEdit ? 'Editar usuario' : 'Crear usuario cashier'}</h3>
               <form onSubmit={handleSaveTeamUser}>
                 <div style={{ marginBottom: 12 }}>
                   <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>Correo</label>
@@ -740,7 +740,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
                     style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'inherit' }}
                   >
                     <option value="ceo">CEO</option>
-                    <option value="staff">Staff</option>
+                    <option value="cashier">Cashier</option>
                   </select>
                 </div>
                 <div style={{ marginBottom: 12 }}>

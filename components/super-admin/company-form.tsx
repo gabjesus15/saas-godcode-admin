@@ -38,8 +38,6 @@ export function CompanyForm({ plans }: CompanyFormProps) {
   const [backgroundUploadError, setBackgroundUploadError] = useState<
     string | null
   >(null);
-  const [logoUploading, setLogoUploading] = useState(false);
-  const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: "",
     public_slug: "",
@@ -72,26 +70,6 @@ export function CompanyForm({ plans }: CompanyFormProps) {
       setBackgroundUploadError(message);
     } finally {
       setBackgroundUploading(false);
-    }
-  };
-
-  const handleLogoUpload = async (file: File | null) => {
-    if (!file) return;
-    setLogoUploading(true);
-    setLogoUploadError(null);
-
-    try {
-      const url = await uploadImage(file, "tenant");
-      setForm((prev) => ({
-        ...prev,
-        logo_url: url,
-      }));
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "No se pudo subir el logo.";
-      setLogoUploadError(message);
-    } finally {
-      setLogoUploading(false);
     }
   };
 

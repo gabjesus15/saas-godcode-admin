@@ -3,6 +3,7 @@ import { Lock } from "lucide-react";
 
 import { createSupabasePublicServerClient } from "../../../utils/supabase/server";
 import { TenantLoginForm } from "../../../components/tenant/tenant-login-form";
+import "../styles/Login.css";
 
 interface TenantLoginPageProps {
   params: Promise<{ subdomain: string }>;
@@ -22,32 +23,20 @@ export default async function TenantLoginPage({
   return (
     <main className="login-container">
       <div className="login-card glass animate-fade">
-        <header style={{ marginBottom: "30px" }}>
-          <div
-            style={{
-              width: "64px",
-              height: "64px",
-              background: "rgba(230, 57, 70, 0.15)",
-              color: "var(--accent-primary)",
-              borderRadius: "50%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              margin: "0 auto 20px",
-            }}
-          >
+        <header className="login-header">
+          <div className="login-icon-circle">
             <Lock size={32} />
           </div>
-          <h2 className="section-title" style={{ marginBottom: "5px", fontSize: "1.8rem" }}>
+          <h2 className="section-title login-title">
             Acceso Admin
           </h2>
-          <p style={{ color: "var(--text-secondary)" }}>
+          <p className="login-subtitle">
             {company?.name ?? "Panel privado"}
           </p>
         </header>
         <TenantLoginForm subdomain={resolvedParams.subdomain} />
-        <div style={{ marginTop: "16px", textAlign: "center" }}>
-          <Link href={`/${resolvedParams.subdomain}`} className="btn btn-secondary" style={{ width: "100%", justifyContent: "center" }}>
+        <div className="login-footer">
+          <Link href={`/${resolvedParams.subdomain}`} className="btn btn-secondary">
             Volver al home
           </Link>
         </div>

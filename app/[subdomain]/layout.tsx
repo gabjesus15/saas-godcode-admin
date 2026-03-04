@@ -12,18 +12,6 @@ interface TenantLayoutProps {
   params: Promise<{ subdomain: string }>;
 }
 
-const getInitials = (name: string) => {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  const initials = parts.slice(0, 2).map((part) => part[0]?.toUpperCase());
-  return initials.join("") || "GC";
-};
-
-const buildInitialsIcon = (name: string, color: string) => {
-  const initials = getInitials(name);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96"><rect width="96" height="96" rx="22" fill="${color}"/><text x="50%" y="52%" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="36" font-weight="700">${initials}</text></svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-};
-
 const toRgba = (hex: string, alpha: number, fallback: string) => {
   if (!hex) return fallback;
   const normalized = hex.trim();
@@ -46,6 +34,9 @@ const toRgba = (hex: string, alpha: number, fallback: string) => {
   const b = Number.parseInt(hexValue.slice(4, 6), 16);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
+
+const sanitizeCssValue = (value: string) =>
+  value.replace(/<|>|"|'|`/g, "").trim();
 
 export async function generateMetadata({
   params,
@@ -84,7 +75,6 @@ export default async function TenantLayout({
 }: TenantLayoutProps) {
   const resolvedParams = await params;
   const company = await getCachedCompany(resolvedParams.subdomain);
-  const status = company?.subscription_status?.toLowerCase();
   const primaryColor = company?.theme_config?.primaryColor ?? "#111827";
   const secondaryColor = company?.theme_config?.secondaryColor ?? primaryColor;
   const priceColor = company?.theme_config?.priceColor ?? "#ff4757";
@@ -104,24 +94,14 @@ export default async function TenantLayout({
   const backgroundImage = backgroundImageUrl
     ? `url(${backgroundImageUrl}), url(/tenant/menu-pattern.webp)`
     : "url(/tenant/menu-pattern.webp)";
+  const tenantThemeCss = `.tenant-theme-vars{--tenant-primary:${sanitizeCssValue(primaryColor)};--accent-primary:${sanitizeCssValue(primaryColor)};--accent-secondary:${sanitizeCssValue(secondaryColor)};--price-color:${sanitizeCssValue(priceColor)};--discount-color:${sanitizeCssValue(discountColor)};--accent-hover:${sanitizeCssValue(hoverColor)};--accent-shadow:${sanitizeCssValue(accentShadow)};--accent-shadow-strong:${sanitizeCssValue(accentShadowStrong)};--card-border:${sanitizeCssValue(cardBorder)};--bg-primary:${sanitizeCssValue(backgroundColor)};--tenant-bg-image:${sanitizeCssValue(backgroundImage)};}`;
 
   return (
-    <div
-      style={{
-        "--tenant-primary": primaryColor,
-        "--accent-primary": primaryColor,
-        "--accent-secondary": secondaryColor,
-        "--price-color": priceColor,
-        "--discount-color": discountColor,
-        "--accent-hover": hoverColor,
-        "--accent-shadow": accentShadow,
-        "--accent-shadow-strong": accentShadowStrong,
-        "--card-border": cardBorder,
-        "--bg-primary": backgroundColor,
-        "--tenant-bg-image": backgroundImage,
-      } as React.CSSProperties}
-    >
-      <TenantShell>{children}</TenantShell>
-    </div>
+    <>
+      <style>{tenantThemeCss}</style>
+      <div className="tenant-theme-vars">
+        <TenantShell>{children}</TenantShell>
+      </div>
+    </>
   );
 }

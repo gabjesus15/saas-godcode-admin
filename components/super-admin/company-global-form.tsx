@@ -71,16 +71,18 @@ const ADMIN_TAB_OPTIONS = [
 ] as const;
 
 const ROLE_LABELS: Record<string, string> = {
+  admin: "Admin",
   ceo: "CEO",
-  staff: "Staff",
+  cashier: "Cashier",
+  staff: "Cashier",
 };
 
-// Solo el CEO se configura aquí. Staff se gestiona en el panel admin del local (Equipo).
-const ROLES_EDITABLE_IN_SUPER_ADMIN: (keyof RoleNavPermissions)[] = ["ceo"];
+const ROLES_EDITABLE_IN_SUPER_ADMIN = ["admin", "ceo", "cashier"] as const;
 
 const DEFAULT_ROLE_NAV_PERMISSIONS: RoleNavPermissions = {
+  admin: ["orders", "caja", "analytics", "categories", "products", "inventory", "clients", "settings", "users", "company"],
   ceo: ["orders", "caja", "analytics", "categories", "products", "inventory", "clients", "settings", "users", "company"],
-  staff: ["orders", "caja"],
+  cashier: ["orders", "caja"],
 };
 
 function normalizeRoleNavPermissions(raw: unknown): RoleNavPermissions {
@@ -91,9 +93,9 @@ function normalizeRoleNavPermissions(raw: unknown): RoleNavPermissions {
     return normalized;
   }
 
-  for (const role of Object.keys(DEFAULT_ROLE_NAV_PERMISSIONS)) {
-    const tabs = (raw as Record<string, unknown>)[role];
+  for (const [rawRole, tabs] of Object.entries(raw as Record<string, unknown>)) {
     if (!Array.isArray(tabs)) continue;
+    const role = rawRole.toLowerCase() === "staff" ? "cashier" : rawRole.toLowerCase();
     const cleanTabs = tabs
       .filter((value): value is string => typeof value === "string")
       .filter((value) => allowedTabIds.has(value));
@@ -103,6 +105,14 @@ function normalizeRoleNavPermissions(raw: unknown): RoleNavPermissions {
 
   return normalized;
 }
+
+const USER_ROLE_OPTIONS = [
+  { value: "admin", label: "Admin" },
+  { value: "ceo", label: "CEO" },
+  { value: "cashier", label: "Cashier" },
+];
+
+const RESERVED_NON_TENANT_ROLES = new Set(["super_admin", "owner"]);
 
 interface BusinessInfo {
   name: string | null;
@@ -155,7 +165,7 @@ function UserManagement({ companyId }: { companyId: string }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newEmail, setNewEmail] = useState("");
-  const [newRole, setNewRole] = useState("staff");
+  const [newRole, setNewRole] = useState("cashier");
   const [newBranchId, setNewBranchId] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [adding, setAdding] = useState(false);
@@ -165,6 +175,39 @@ function UserManagement({ companyId }: { companyId: string }) {
   const [editRole, setEditRole] = useState("");
   const [editBranchId, setEditBranchId] = useState("");
   const [editPassword, setEditPassword] = useState("");
+  const [roleOptions, setRoleOptions] = useState(USER_ROLE_OPTIONS);
+
+  const editRoleOptions = useMemo(() => {
+    if (!editRole || roleOptions.some((option) => option.value === editRole)) {
+      return roleOptions;
+    }
+
+    return [
+      ...roleOptions,
+      { value: editRole, label: editRole.toUpperCase() },
+    ];
+  }, [editRole, roleOptions]);
+
+  const fetchRoleOptions = useCallback(async () => {
+    try {
+      const res = await fetch("/api/roles", { cache: "no-store" });
+      if (!res.ok) return;
+
+      const data = (await res.json()) as {
+        roles?: Array<{ name: string; isSystem: boolean }>;
+      };
+
+      const options = (data.roles ?? [])
+        .filter((role) => !RESERVED_NON_TENANT_ROLES.has(role.name))
+        .map((role) => ({ value: role.name, label: ROLE_LABELS[role.name] ?? role.name.toUpperCase() }));
+
+      if (options.length > 0) {
+        setRoleOptions(options);
+      }
+    } catch {
+      setRoleOptions(USER_ROLE_OPTIONS);
+    }
+  }, []);
 
 
   const fetchUsers = useCallback(async () => {
@@ -215,6 +258,10 @@ function UserManagement({ companyId }: { companyId: string }) {
     fetchBranches();
   }, [fetchBranches]);
 
+  useEffect(() => {
+    fetchRoleOptions();
+  }, [fetchRoleOptions]);
+
   async function handleAddUser() {
     const emailToSave = newEmail.trim();
     const passwordToSave = newPassword.trim();
@@ -231,7 +278,7 @@ function UserManagement({ companyId }: { companyId: string }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error al agregar usuario");
       setNewEmail("");
-      setNewRole("admin");
+      setNewRole("cashier");
       setNewBranchId("");
       setNewPassword("");
       await fetchUsers();
@@ -265,7 +312,8 @@ function UserManagement({ companyId }: { companyId: string }) {
   function startEditUser(user: CompanyUser) {
     setEditingId(user.id);
     setEditEmail(user.email);
-    setEditRole(user.role);
+    const normalizedRole = user.role.trim().toLowerCase() === "staff" ? "cashier" : user.role.trim().toLowerCase();
+    setEditRole(normalizedRole);
     setEditBranchId(user.branch_id ?? "");
     setEditPassword("");
   }
@@ -299,7 +347,7 @@ function UserManagement({ companyId }: { companyId: string }) {
   return (
     <>
       <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-xs text-zinc-600">
-        Puedes dejar la sucursal en "Todos los locales" para acceso global, o asignar una sucursal fija por correo.
+        Puedes dejar la sucursal en &quot;Todos los locales&quot; para acceso global, o asignar una sucursal fija por correo.
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-zinc-200">
@@ -360,8 +408,9 @@ function UserManagement({ companyId }: { companyId: string }) {
                 onChange={e => setEditRole(e.target.value)}
                 className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400"
               >
-                <option value="ceo">CEO</option>
-                <option value="staff">Staff</option>
+                {editRoleOptions.map((roleOption) => (
+                  <option key={roleOption.value} value={roleOption.value}>{roleOption.label}</option>
+                ))}
               </select>
             </label>
 
@@ -426,8 +475,9 @@ function UserManagement({ companyId }: { companyId: string }) {
             onChange={e => setNewRole(e.target.value)}
             disabled={adding}
           >
-            <option value="ceo">CEO</option>
-            <option value="staff">Staff</option>
+            {roleOptions.map((roleOption) => (
+              <option key={roleOption.value} value={roleOption.value}>{roleOption.label}</option>
+            ))}
           </select>
         </label>
         <label className="flex min-w-[220px] flex-1 flex-col gap-1 text-sm font-medium text-zinc-700">
@@ -1118,9 +1168,9 @@ export function CompanyGlobalForm({
 
         <Card className="flex flex-col gap-6">
           <div>
-            <h3 className="text-lg font-semibold text-zinc-900">Permisos de panel (CEO)</h3>
+            <h3 className="text-lg font-semibold text-zinc-900">Permisos de panel por rol</h3>
             <p className="text-sm text-zinc-500">
-              Define qué secciones del navbar puede ver el CEO en el panel admin del negocio. Los permisos del Staff se configuran en el panel admin del local (Equipo).
+              Define qué secciones del navbar puede ver cada rol en el panel admin del negocio.
             </p>
           </div>
 
@@ -1150,6 +1200,7 @@ export function CompanyGlobalForm({
                             onChange={(e) =>
                               toggleRoleTabPermission(role, tab.id, e.target.checked)
                             }
+                            aria-label={`Permitir ${tab.label} para ${ROLE_LABELS[role] ?? role}`}
                             className="h-4 w-4 accent-zinc-900"
                           />
                         </td>

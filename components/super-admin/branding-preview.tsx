@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 
 import { getTenantHost } from "../../utils/tenant-url";
 
@@ -24,6 +25,23 @@ const getInitials = (value: string) => {
   return initials.join("") || "GC";
 };
 
+const PREVIEW_TABS = [
+  "PROMOCIONES",
+  "ENTRADAS CALIENTES",
+  "SASHIMI",
+  "HOT ROLLS",
+  "ROLLS CALIFORNIA",
+  "ROLLS TRADICIONALES",
+  "Ramen",
+];
+
+const PREVIEW_PRODUCTS = [
+  { name: "20 Piezas", price: "$9.500" },
+  { name: "2 Hand Roll", price: "$7.500" },
+  { name: "Hand roll vegetariano", price: "$4.000" },
+  { name: "3 Hand Roll", price: "$10.500" },
+];
+
 export function BrandingPreview({
   displayName,
   name,
@@ -45,32 +63,28 @@ export function BrandingPreview({
       <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-zinc-500">
         Vista previa del tenant
       </summary>
+
       <div className="mt-4 grid gap-4">
         <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
-            Cabecera
-          </p>
-          <div
-            className="mt-3 flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3"
-            style={{ borderLeft: `4px solid ${primaryColor}` }}
-          >
-            <div
-              className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-zinc-200"
-              style={{ backgroundColor: primaryColor }}
-            >
+          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Cabecera</p>
+
+          <div className="mt-3 flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3">
+            <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-zinc-200 bg-zinc-900">
               {logoUrl && !logoError ? (
-                <img
+                <Image
                   src={logoUrl}
                   alt="Logo"
-                  className="h-full w-full object-contain"
+                  fill
+                  sizes="40px"
+                  className="object-contain"
                   onError={() => setLogoError(true)}
+                  unoptimized
                 />
               ) : (
-                <span className="text-xs font-semibold text-white">
-                  {getInitials(safeName)}
-                </span>
+                <span className="text-xs font-semibold text-white">{getInitials(safeName)}</span>
               )}
             </div>
+
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-zinc-900">{safeName}</span>
               <span className="text-xs text-zinc-500">
@@ -81,367 +95,135 @@ export function BrandingPreview({
         </div>
 
         <div className="rounded-2xl border border-dashed border-zinc-200 bg-white p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
-            Menu maqueta
-          </p>
-          <div
-            className="mt-3 overflow-hidden rounded-[28px] border border-zinc-200"
-            style={{
-              backgroundColor,
-              backgroundImage: backgroundImageUrl
-                ? `url(${backgroundImageUrl})`
-                : "none",
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }}
-          >
-            <div
-              style={{
-                position: "relative",
-                padding: 20,
-                background: "rgba(6, 6, 6, 0.82)",
-                backdropFilter: "blur(12px)",
-              }}
-            >
-              <div
-                style={{
-                  borderRadius: 24,
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
-                  background: "rgba(8, 8, 8, 0.88)",
-                  padding: 18,
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 14,
-                    marginBottom: 14,
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div
-                      style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: 12,
-                        background: "rgba(20, 20, 20, 0.9)",
-                        color: "#fff",
-                        fontSize: 14,
-                        fontWeight: 700,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        border: "1px solid rgba(255,255,255,0.12)",
-                      }}
-                    >
-                      {"<"}
+          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Menu maqueta</p>
+
+          <div className="mt-3 overflow-hidden rounded-[28px] border border-zinc-200 bg-zinc-950">
+            <div className="border-b border-white/10 px-4 py-2 text-[11px] text-zinc-300">
+              <span className="font-semibold text-zinc-100">Paleta:</span> Primario {primaryColor} ·
+              Secundario {secondaryColor} · Precio {priceColor} · Descuento {discountColor} · Hover {hoverColor}
+            </div>
+
+            <div className="border-b border-white/10 px-4 py-2 text-[11px] text-zinc-300">
+              <span className="font-semibold text-zinc-100">Fondo:</span> Color {backgroundColor}
+              {backgroundImageUrl ? " · Imagen configurada" : " · Sin imagen"}
+            </div>
+
+            <div className="relative bg-[url('/tenant/menu-pattern.webp')] bg-cover bg-center">
+              <div className="bg-black/75 p-4">
+                <header className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-zinc-950/90 px-3 py-2 backdrop-blur">
+                  <button
+                    type="button"
+                    className="grid h-8 w-8 place-items-center rounded-lg border border-white/15 bg-zinc-900 text-sm font-bold text-white"
+                  >
+                    {"<"}
+                  </button>
+
+                  <div className="flex min-w-0 flex-col items-center gap-1">
+                    <div className="flex items-center gap-2">
+                      <div className="relative h-7 w-7 overflow-hidden rounded-md border border-white/15 bg-zinc-900">
+                        {logoUrl && !logoError ? (
+                          <Image
+                            src={logoUrl}
+                            alt="Logo"
+                            fill
+                            sizes="28px"
+                            className="object-contain"
+                            onError={() => setLogoError(true)}
+                            unoptimized
+                          />
+                        ) : (
+                          <span className="grid h-full w-full place-items-center text-[10px] font-bold text-white">
+                            {getInitials(safeName)}
+                          </span>
+                        )}
+                      </div>
+                      <span className="max-w-[180px] truncate text-sm font-semibold text-white">{safeName}</span>
                     </div>
-                    <div
-                      style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 12,
-                        background: primaryColor,
-                        color: "#fff",
-                        fontSize: 12,
-                        fontWeight: 800,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      {getInitials(safeName)}
-                    </div>
-                    <div
-                      style={{
-                        padding: "6px 12px",
-                        borderRadius: 999,
-                        background: "rgba(255,255,255,0.08)",
-                        color: "#fff",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        border: "1px solid rgba(255,255,255,0.12)",
-                      }}
-                    >
+
+                    <div className="rounded-full border border-white/15 bg-zinc-900 px-2 py-0.5 text-[10px] font-semibold text-zinc-200">
                       Ciudad de los Valles
                     </div>
                   </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                    }}
+
+                  <button
+                    type="button"
+                    className="grid h-8 w-8 place-items-center rounded-full border border-white/15 bg-zinc-900 text-xs font-bold text-white"
                   >
-                    <div style={{ color: "#fff", fontWeight: 700, fontSize: 13 }}>
-                      {safeName}
-                    </div>
-                    <div
-                      style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: 999,
-                        border: "1px solid rgba(255,255,255,0.12)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "#fff",
-                        fontSize: 12,
-                        background: "rgba(20, 20, 20, 0.9)",
-                      }}
+                    Q
+                  </button>
+                </header>
+
+                <div className="mb-4 overflow-x-auto">
+                  <div className="flex min-w-max gap-2 pb-1">
+                    {PREVIEW_TABS.map((tab, index) => (
+                      <span
+                        key={tab}
+                        className={`rounded-full border px-3 py-2 text-[11px] font-bold whitespace-nowrap ${
+                          index === 0
+                            ? "border-orange-500/60 bg-orange-600 text-white"
+                            : "border-white/15 bg-zinc-900/80 text-zinc-300"
+                        }`}
+                      >
+                        {tab}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mb-3 text-2xl font-extrabold tracking-wide text-white/95">PROMOCIONES</div>
+
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  {PREVIEW_PRODUCTS.map((product, index) => (
+                    <article
+                      key={product.name}
+                      className="flex min-h-[300px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-zinc-950/95 shadow-2xl"
                     >
-                      Q
-                    </div>
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 12,
-                    padding: "12px 12px",
-                    borderRadius: 22,
-                    background: "rgba(255, 255, 255, 0.04)",
-                    border: "1px solid rgba(255, 255, 255, 0.08)",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 10,
-                      overflow: "hidden",
-                    }}
-                  >
-                    {
-                      [
-                        "PROMOCIONES",
-                        "Ramen",
-                        "ENTRADAS CALIENTES",
-                        "SASHIMI",
-                        "HOT ROLLS",
-                        "ROLLS TRADICIONALES",
-                      ].map((tab, index) => {
-                      const isActive = index === 0;
-                      return (
-                        <span
-                          key={tab}
-                          style={{
-                            padding: "9px 14px",
-                            borderRadius: 999,
-                            fontSize: 11,
-                            fontWeight: 700,
-                            letterSpacing: 0.2,
-                            color: isActive
-                              ? "#fff"
-                              : "rgba(255,255,255,0.7)",
-                            background: isActive
-                              ? primaryColor
-                              : "rgba(255,255,255,0.06)",
-                            border: "1px solid rgba(255,255,255,0.1)",
-                          }}
-                        >
-                          {tab}
-                        </span>
-                      );
-                    })}
-                  </div>
-                  <div
-                    style={{
-                      height: 40,
-                      padding: "0 14px",
-                      borderRadius: 999,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "#fff",
-                      fontSize: 12,
-                      fontWeight: 700,
-                      background: "rgba(20, 20, 20, 0.9)",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                    }}
-                  >
-                    Buscar
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    marginTop: 16,
-                    color: "#fff",
-                    fontWeight: 800,
-                    letterSpacing: 0.6,
-                  }}
-                >
-                  PROMOCIONES
-                </div>
-
-                <div
-                  style={{
-                    marginTop: 14,
-                    display: "grid",
-                    gridTemplateColumns: "repeat(2, minmax(240px, 1fr))",
-                    gap: 18,
-                  }}
-                >
-                  {["Roll tempura", "Nigiri mix"].map((title, index) => (
-                    <div
-                      key={title}
-                      style={{
-                        minHeight: 460,
-                        borderRadius: 26,
-                        overflow: "hidden",
-                        border: "1px solid rgba(255, 255, 255, 0.1)",
-                        background:
-                          "linear-gradient(145deg, rgba(34, 34, 34, 0.95) 0%, rgba(14, 14, 14, 0.95) 100%)",
-                        boxShadow: "0 16px 32px rgba(0, 0, 0, 0.45)",
-                        display: "flex",
-                        flexDirection: "column",
-                      }}
-                    >
-                      <div style={{ position: "relative", height: 230 }}>
-                        <div
-                          style={{
-                            position: "absolute",
-                            inset: 0,
-                            background:
-                              "linear-gradient(135deg, rgba(255,255,255,0.14), rgba(255,255,255,0))",
-                          }}
+                      <div className="relative h-32 w-full bg-zinc-900">
+                        <Image
+                          src="/tenant/menu-pattern.webp"
+                          alt="Producto de ejemplo"
+                          fill
+                          sizes="(max-width: 1280px) 50vw, 25vw"
+                          className="object-cover opacity-55"
                         />
+
                         {index === 0 ? (
-                          <span
-                            style={{
-                              position: "absolute",
-                              top: 10,
-                              left: 10,
-                              padding: "4px 10px",
-                              borderRadius: 999,
-                              background: "rgba(20, 20, 20, 0.85)",
-                              color: "#fff",
-                              fontSize: 10,
-                              fontWeight: 800,
-                              border: "1px solid rgba(255,255,255,0.08)",
-                            }}
-                          >
+                          <span className="absolute right-2 top-2 rounded-full border border-white/20 bg-zinc-900/85 px-2 py-1 text-[10px] font-extrabold text-zinc-100">
                             OFERTA
                           </span>
                         ) : null}
-                        <div
-                          style={{
-                            position: "absolute",
-                            top: 10,
-                            right: 10,
-                            width: 26,
-                            height: 26,
-                            borderRadius: "50%",
-                            background: primaryColor,
-                            color: "#fff",
-                            fontSize: 12,
-                            fontWeight: 800,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            border: "2px solid #fff",
-                            boxShadow: "0 4px 10px rgba(0, 0, 0, 0.4)",
-                          }}
-                        >
-                          2
-                        </div>
                       </div>
 
-                      <div style={{ padding: "16px 18px", color: "#fff", flex: 1 }}>
-                        <div style={{ fontSize: 15, fontWeight: 700 }}>{title}</div>
-                        <div style={{ fontSize: 12, opacity: 0.72, marginTop: 6 }}>
-                          10 piezas + salsa especial.
-                        </div>
+                      <div className="flex flex-1 flex-col space-y-2 p-3 text-white">
+                        <h4 className="text-[18px] font-extrabold leading-tight">{product.name}</h4>
+                        <p className="text-sm text-zinc-300">10 piezas de pollo en sésamo o ciboulette.</p>
+                        <p className="text-[11px] font-bold uppercase tracking-wide text-orange-400">
+                          Ver detalles
+                        </p>
 
-                        <div
-                          style={{
-                            marginTop: 10,
-                            color: "rgba(255,255,255,0.55)",
-                            fontSize: 10,
-                            fontWeight: 700,
-                            letterSpacing: 0.4,
-                          }}
-                        >
-                          VER DETALLES
-                        </div>
-
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            marginTop: 14,
-                          }}
-                        >
-                          <div style={{ fontSize: 14, fontWeight: 700, color: priceColor }}>
-                            $7.900
-                          </div>
+                        <div className="mt-auto flex items-end justify-between gap-2 pt-2">
+                          <span className="text-[28px] font-black leading-none text-zinc-100">
+                            {product.price}
+                          </span>
                           <button
                             type="button"
-                            style={{
-                              border: "none",
-                              borderRadius: 999,
-                              padding: "8px 14px",
-                              fontSize: 12,
-                              fontWeight: 700,
-                              color: "#fff",
-                              background: primaryColor,
-                              cursor: "default",
-                            }}
+                            className="shrink-0 rounded-full bg-orange-600 px-3 py-1.5 text-[11px] font-extrabold text-white"
                           >
-                            Agregar
+                            + Agregar
                           </button>
                         </div>
                       </div>
-                    </div>
+                    </article>
                   ))}
                 </div>
 
-                <div
-                  style={{
-                    position: "absolute",
-                    right: 20,
-                    bottom: 18,
-                    width: 60,
-                    height: 60,
-                    borderRadius: 20,
-                    background: primaryColor,
-                    color: "#fff",
-                    fontSize: 12,
-                    fontWeight: 800,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    boxShadow: "0 16px 32px rgba(0, 0, 0, 0.45)",
-                  }}
-                >
-                  Cart
-                  <span
-                    style={{
-                      position: "absolute",
-                      top: -8,
-                      right: -8,
-                      width: 22,
-                      height: 22,
-                      borderRadius: 999,
-                      background: "#fff",
-                      color: "#111",
-                      fontSize: 11,
-                      fontWeight: 800,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      border: "2px solid #fff",
-                    }}
-                  >
-                    2
-                  </span>
+                <div className="pointer-events-none absolute bottom-5 right-5">
+                  <div className="relative grid h-14 w-14 place-items-center rounded-2xl border border-orange-400/40 bg-orange-600 text-sm font-extrabold text-white shadow-lg shadow-orange-900/30">
+                    Cart
+                    <span className="absolute -right-2 -top-2 grid h-5 w-5 place-items-center rounded-full border-2 border-white bg-zinc-900 text-[10px] font-bold text-white">
+                      2
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

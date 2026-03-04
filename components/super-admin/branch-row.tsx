@@ -262,7 +262,7 @@ export function BranchRow({ branch }: BranchRowProps) {
           <div>
             <p className="text-sm font-semibold text-red-700">Eliminar sucursal</p>
             <p className="text-xs text-red-600">
-              Para continuar, escribe "{deleteToken}" y confirma con tu contrasena.
+              Para continuar, escribe &quot;{deleteToken}&quot; y confirma con tu contrasena.
             </p>
           </div>
 
@@ -283,6 +283,8 @@ export function BranchRow({ branch }: BranchRowProps) {
                 type="checkbox"
                 checked={confirmChecked}
                 onChange={(event) => setConfirmChecked(event.target.checked)}
+                aria-label="Confirmar eliminación permanente"
+                title="Confirmar eliminación permanente"
               />
               Entiendo que esta accion es permanente.
             </div>

@@ -20,7 +20,10 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      const supabase = createSupabaseBrowserClient();
+      const supabase = createSupabaseBrowserClient("super-admin");
+
+      await supabase.auth.signOut();
+
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,

@@ -8,8 +8,28 @@ const supabaseAdmin = createClient(
 );
 
 const TENANT_MANAGEABLE_ROLES = new Set(["admin", "ceo", "cashier"]);
+const RESERVED_NON_TENANT_ROLES = new Set(["super_admin", "owner"]);
 
 const normalizeTenantRole = (value: unknown) => String(value ?? "").trim().toLowerCase();
+
+async function isAllowedTenantRole(role: string) {
+	const normalizedRole = normalizeTenantRole(role);
+	if (!normalizedRole || RESERVED_NON_TENANT_ROLES.has(normalizedRole)) {
+		return false;
+	}
+
+	const { data, error } = await supabaseAdmin
+		.from("role_definitions")
+		.select("name")
+		.eq("name", normalizedRole)
+		.maybeSingle();
+
+	if (error) {
+		return TENANT_MANAGEABLE_ROLES.has(normalizedRole);
+	}
+
+	return Boolean(data?.name);
+}
 
 async function validateSuperAdminAccess() {
 	const result = await validateAdminRolesOnServer(["super_admin"]);
@@ -37,7 +57,7 @@ export async function POST(req: NextRequest) {
 	}
 
 	const normalizedRole = normalizeTenantRole(role);
-	if (!TENANT_MANAGEABLE_ROLES.has(normalizedRole)) {
+	if (!(await isAllowedTenantRole(normalizedRole))) {
 		return NextResponse.json({ error: "Rol no permitido para gestion de tenants" }, { status: 400 });
 	}
 
@@ -128,7 +148,7 @@ export async function PUT(req: NextRequest) {
 	
 	const normalizedEmail = String(email).trim().toLowerCase();
 	const normalizedRole = normalizeTenantRole(role);
-	if (!TENANT_MANAGEABLE_ROLES.has(normalizedRole)) {
+	if (!(await isAllowedTenantRole(normalizedRole))) {
 		return NextResponse.json({ error: "Rol no permitido para gestion de tenants" }, { status: 400 });
 	}
 

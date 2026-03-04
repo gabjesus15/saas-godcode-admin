@@ -13,6 +13,14 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      // Allow inline styles for CSS custom properties (CSS variables)
+      "@next/next/no-css-tags": "off",
+      // Disable inline styles warning - required for dynamic CSS custom properties
+      "react/no-unknown-property": ["error", { "ignore": ["style"] }],
+    },
+  },
 ]);
 
 export default eslintConfig;

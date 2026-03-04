@@ -9,9 +9,9 @@ export default function CompaniesLoading() {
         <Skeleton className="mt-2 h-4 w-64" />
       </div>
       <Card className="p-0">
-        {[0, 1, 2].map((index) => (
+        {["company-1", "company-2", "company-3"].map((id) => (
           <div
-            key={index}
+            key={id}
             className="grid grid-cols-12 gap-4 border-b border-zinc-200 px-6 py-4"
           >
             <Skeleton className="col-span-4 h-4" />

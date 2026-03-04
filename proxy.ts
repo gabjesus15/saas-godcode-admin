@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import type { SupabaseAuthScope } from "./utils/supabase/auth-scope";
 
 const adminPaths = ["/dashboard", "/companies", "/login", "/plans"];
 const tenantBypassPaths = ["/api", "/_next", "/favicon.ico"];
@@ -60,12 +61,20 @@ const extractSubdomain = (hostHeader: string | null) => {
   return candidate;
 };
 
-async function applySessionRefresh(request: NextRequest, response: NextResponse) {
+async function applySessionRefresh(
+  request: NextRequest,
+  response: NextResponse,
+  scope: SupabaseAuthScope
+) {
+
   if (!supabaseUrl || !supabaseAnonKey) {
     return response;
   }
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookieOptions: {
+      name: scope === "super-admin" ? "sb-super-admin-auth-token" : "sb-tenant-auth-token",
+    },
     cookies: {
       getAll() {
         return request.cookies.getAll();
@@ -117,11 +126,11 @@ export async function proxy(req: NextRequest) {
     if (tenantSlug) {
       const rewriteUrl = new URL(`/${tenantSlug}/tenant-favicon`, req.url);
       const response = NextResponse.rewrite(rewriteUrl);
-      return applySessionRefresh(req, response);
+      return applySessionRefresh(req, response, "tenant");
     }
 
     const response = NextResponse.next({ request: req });
-    return applySessionRefresh(req, response);
+    return applySessionRefresh(req, response, "super-admin");
   }
 
   if (subdomain) {
@@ -130,22 +139,22 @@ export async function proxy(req: NextRequest) {
       pathname.includes(".")
     ) {
       const response = NextResponse.next({ request: req });
-      return applySessionRefresh(req, response);
+      return applySessionRefresh(req, response, "tenant");
     }
 
     const rewriteUrl = new URL(`/${subdomain}${pathname}`, req.url);
     rewriteUrl.search = req.nextUrl.search;
     const response = NextResponse.rewrite(rewriteUrl);
-    return applySessionRefresh(req, response);
+    return applySessionRefresh(req, response, "tenant");
   }
 
   if (adminPaths.some((path) => pathname.startsWith(path))) {
     const response = NextResponse.next({ request: req });
-    return applySessionRefresh(req, response);
+    return applySessionRefresh(req, response, "super-admin");
   }
 
   const response = NextResponse.next({ request: req });
-  return applySessionRefresh(req, response);
+  return applySessionRefresh(req, response, "super-admin");
 }
 
 export const config = {

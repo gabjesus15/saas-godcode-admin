@@ -11,7 +11,7 @@ export default async function TenantAdminPage({
 	params,
 }: TenantAdminPageProps) {
 	const resolvedParams = await params;
-	const supabase = await createSupabaseServerClient();
+	const supabase = await createSupabaseServerClient("tenant");
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
