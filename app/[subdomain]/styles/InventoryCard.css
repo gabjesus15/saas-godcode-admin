@@ -16,8 +16,8 @@
 .admin-layout .inventory-card {
     /* Glassmorphism Base */
     background: rgba(30, 30, 30, 0.6);
-    backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 16px;
     
@@ -27,6 +27,7 @@
     cursor: pointer;
     
     /* UX: Evitar selección de texto accidental al hacer click rápido */
+    -webkit-user-select: none;
     user-select: none;
     display: flex;
     flex-direction: column;
@@ -88,6 +89,7 @@
     
     /* Glass Button */
     background: rgba(0, 0, 0, 0.5);
+    -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
     border: 1px solid rgba(255,255,255,0.1);
     color: white;
@@ -145,8 +147,8 @@
     
     /* Truncar texto si es muy largo (2 líneas máx) */
     display: -webkit-box;
-    line-clamp: 2;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }

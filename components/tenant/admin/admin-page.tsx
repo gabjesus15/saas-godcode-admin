@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 
 import { AdminSidebar } from "./admin-sidebar";
 import { useAdmin } from "./admin-provider";
@@ -25,48 +25,7 @@ export function AdminPage({ companyName, logoUrl }: AdminPageProps) {
   } = useAdmin();
 
   if (loading) {
-    return (
-      <div
-        className="admin-layout flex-center"
-        style={{ minHeight: "100vh", padding: "24px", background: "var(--bg-primary)" }}
-      >
-        <div
-          className="glass animate-fade"
-          style={{
-            width: "100%",
-            maxWidth: 420,
-            borderRadius: 20,
-            padding: "28px 24px",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 14,
-            textAlign: "center",
-          }}
-        >
-          <div
-            style={{
-              width: 66,
-              height: 66,
-              borderRadius: "50%",
-              display: "grid",
-              placeItems: "center",
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid var(--card-border)",
-            }}
-          >
-            <Loader2 className="animate-spin" size={30} color="var(--accent-primary)" />
-          </div>
-
-          <h3 style={{ margin: 0, color: "var(--text-primary)", fontSize: "1.1rem", fontWeight: 700 }}>
-            Cargando panel admin
-          </h3>
-          <p style={{ margin: 0, color: "var(--text-secondary)", fontSize: "0.92rem" }}>
-            Estamos preparando pedidos, productos y caja.
-          </p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -104,13 +63,13 @@ export function AdminPage({ companyName, logoUrl }: AdminPageProps) {
           </div>
         </header>
 
-        <section className="glass" style={{ padding: 24, borderRadius: 16 }}>
-          <h2 style={{ marginTop: 0 }}>{activeTab}</h2>
-          <p style={{ color: "var(--text-secondary)" }}>
+        <section className="glass admin-migration-card">
+          <h2 className="admin-migration-title">{activeTab}</h2>
+          <p className="admin-migration-text">
             Seccion en migracion. Voy a ir portando cada modulo de OishiPrueba en este orden: pedidos,
             productos/categorias, clientes, caja, reportes, herramientas, empresa.
           </p>
-          <div style={{ marginTop: 16, color: "var(--text-secondary)" }}>
+          <div className="admin-migration-meta">
             Sucursales cargadas: {branches.length}
           </div>
         </section>

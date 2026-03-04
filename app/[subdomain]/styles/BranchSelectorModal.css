@@ -9,8 +9,8 @@
   display: grid;
   place-items: center;
   background-color: rgba(0, 0, 0, 0.75); /* Menos opaco para no asfixiar el fondo */
-  backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
   z-index: 9999;
   padding: 1rem;
 }
@@ -157,11 +157,11 @@
 
 /* HOVER ADAPTATIVO AL COLOR GLOBAL */
 .branch-button:not(:disabled):hover {
-  background: color-mix(in srgb, var(--accent-primary, #ff4757) 8%, rgba(35, 35, 35, 0.8)); 
-  border-color: color-mix(in srgb, var(--accent-primary, #ff4757) 50%, transparent); 
+  background: rgba(45, 45, 45, 0.88);
+  border-color: rgba(255, 71, 87, 0.45);
   transform: translateY(-4px);
   box-shadow: 0 10px 20px -8px rgba(0, 0, 0, 0.6),
-              0 0 20px color-mix(in srgb, var(--accent-primary, #ff4757) 12%, transparent); 
+              0 0 20px rgba(255, 71, 87, 0.2);
 }
 
 .branch-button:not(:disabled):hover::after {
@@ -345,12 +345,12 @@
   margin-bottom: 1.2rem;
   
   /* Toma el color de tu marca para el fondo y el borde */
-  background: color-mix(in srgb, var(--accent-primary, #ff4757) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent-primary, #ff4757) 25%, transparent);
+  background: rgba(255, 71, 87, 0.1);
+  border: 1px solid rgba(255, 71, 87, 0.25);
   color: var(--accent-primary, #ff4757);
   
   /* Sombra difuminada para efecto "Luz de Neón" */
-  box-shadow: 0 0 25px color-mix(in srgb, var(--accent-primary, #ff4757) 15%, transparent);
+  box-shadow: 0 0 25px rgba(255, 71, 87, 0.15);
   
   /* Efecto flotante suave */
   animation: floatEmpty 3s ease-in-out infinite;

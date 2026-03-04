@@ -64,7 +64,6 @@ html, body, #root {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 20px;
-  container-type: inline-size;
 }
 
 .page-wrapper {
@@ -81,8 +80,8 @@ html, body, #root {
 
 .glass {
   background: var(--card-bg);
-  backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   border: 1px solid var(--card-border);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }

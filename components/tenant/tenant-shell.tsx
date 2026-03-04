@@ -11,6 +11,8 @@ interface TenantShellProps {
 export function TenantShell({ children }: TenantShellProps) {
   const pathname = usePathname();
   const [scrollY, setScrollY] = useState(0);
+  const normalizedPath = String(pathname || "").toLowerCase();
+  const hideMenuPatternLayer = normalizedPath.endsWith("/login") || normalizedPath.endsWith("/admin");
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
@@ -114,10 +116,12 @@ export function TenantShell({ children }: TenantShellProps) {
           position: "fixed",
           inset: "-200% -50%",
           zIndex: 0,
-          backgroundImage: "var(--tenant-bg-image, url(/tenant/menu-pattern.webp))",
+          backgroundImage: hideMenuPatternLayer
+            ? "none"
+            : "var(--tenant-bg-image, url(/tenant/menu-pattern.webp))",
           backgroundRepeat: "repeat",
           backgroundSize: "1200px",
-          opacity: 0.5,
+          opacity: hideMenuPatternLayer ? 0 : 0.5,
           filter: "brightness(0.18) blur(3px)",
           transform: `translateY(${-scrollY * 0.1}px)`,
           transition: "transform 0.1s ease-out",

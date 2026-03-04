@@ -5,6 +5,7 @@
 .admin-layout .admin-sidebar {
   width: 72px;
   height: 100vh;
+  height: 100dvh;
   position: fixed;
   top: 0;
   left: 0;
@@ -15,7 +16,7 @@
 
   display: flex;
   flex-direction: column;
-  padding: 16px 10px;
+  padding: calc(16px + env(safe-area-inset-top)) 10px calc(16px + env(safe-area-inset-bottom));
   overflow-x: hidden;
   overflow-y: auto;
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -315,6 +316,8 @@
     justify-content: center;
 
     padding: 6px 8px;
+    padding-left: max(8px, env(safe-area-inset-left));
+    padding-right: max(8px, env(safe-area-inset-right));
     padding-bottom: max(6px, env(safe-area-inset-bottom));
 
     background: rgba(15, 15, 15, 0.97) !important;

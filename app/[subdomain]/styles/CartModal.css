@@ -9,6 +9,7 @@
     position: fixed;
     inset: 0; /* Top, Right, Bottom, Left: 0 */
     background: rgba(0, 0, 0, 0.7);
+    -webkit-backdrop-filter: blur(5px);
     backdrop-filter: blur(5px);
     /* [FIX] Z-Index extremo para ganar a cualquier navbar */
     z-index: 999998; 
@@ -22,6 +23,9 @@
     right: 0;
     bottom: 0;
     height: 100%; /* Fallback */
+    height: 100vh;
+    height: 100svh;
+    height: 100dvh;
     width: 100%;
     max-width: 450px;
     
@@ -48,7 +52,7 @@
 
 .cart-header {
     flex-shrink: 0;
-    padding: 20px;
+    padding: calc(20px + env(safe-area-inset-top)) 20px 20px;
     background: rgba(20, 20, 20, 0.98);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
@@ -74,7 +78,7 @@
 
 .cart-footer {
     flex-shrink: 0;
-    padding: 20px;
+    padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
     background: #1a1a1a;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     /* Aseguramos que el footer esté encima del contenido al scrollear */
@@ -549,7 +553,7 @@
 .cart-panel .mt-20 { margin-top: 20px; }
 .cart-panel .mb-15 { margin-bottom: 15px; }
 .cart-panel .mr-5 { margin-right: 5px; }
-.cart-panel .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(8px); }
+.cart-panel .glass { background: rgba(255, 255, 255, 0.03); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 .cart-panel .animate-fade { animation: fadeIn 0.3s ease forwards; }
 .cart-panel .form-actions-col { display: flex; flex-direction: column; gap: 8px; }
 .cart-panel .btn-lg { padding: 14px; font-size: 1.05rem; }

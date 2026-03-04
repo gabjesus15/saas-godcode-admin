@@ -149,6 +149,7 @@
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.85);
+    -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
     z-index: 2000;
     display: flex;
@@ -388,8 +389,6 @@
     border: 1px solid var(--cash-border);
     overflow: hidden;
     overflow-x: auto;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255,255,255,0.1) transparent;
 }
 
 .admin-layout .cash-table {
@@ -509,6 +508,7 @@
 
 .admin-layout .cash-kpi-card {
     background: var(--cash-surface);
+    -webkit-backdrop-filter: var(--glass-blur);
     backdrop-filter: var(--glass-blur);
     padding: 1.5rem;
     border-radius: 18px;

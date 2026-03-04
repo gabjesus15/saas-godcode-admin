@@ -2,25 +2,33 @@
 
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { AlertCircle, Loader2, Lock, Mail } from "lucide-react";
+import { AlertCircle, Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
 
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 import { getTenantScopedPath } from "./utils/tenant-route";
 
 interface TenantLoginFormProps {
   subdomain: string;
+  onAuthSuccessStart?: () => void | Promise<void>;
+  showInlineLoading?: boolean;
 }
 
-export function TenantLoginForm({ subdomain }: TenantLoginFormProps) {
+export function TenantLoginForm({
+  subdomain,
+  onAuthSuccessStart,
+  showInlineLoading = true,
+}: TenantLoginFormProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (loading) return;
     setError(null);
     setLoading(true);
 
@@ -93,11 +101,20 @@ export function TenantLoginForm({ subdomain }: TenantLoginFormProps) {
         throw new Error("No tienes permisos para acceder al panel admin.");
       }
 
+      await onAuthSuccessStart?.();
       router.push(getTenantScopedPath(pathname ?? "/", "/admin"));
       router.refresh();
     } catch (err) {
-      const message =
+      const rawMessage =
         err instanceof Error ? err.message : "No se pudo iniciar sesion.";
+
+      const message =
+        rawMessage.toLowerCase().includes("invalid login credentials")
+          ? "Correo o contraseña incorrectos."
+          : rawMessage.toLowerCase().includes("email not confirmed")
+            ? "Tu correo aun no ha sido confirmado."
+            : rawMessage;
+
       setError(message);
     } finally {
       setLoading(false);
@@ -105,7 +122,17 @@ export function TenantLoginForm({ subdomain }: TenantLoginFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="login-form">
+    <form
+      onSubmit={handleSubmit}
+      className={`login-form ${loading && showInlineLoading ? "is-loading" : ""}`}
+    >
+      {loading && showInlineLoading ? (
+        <div className="login-form-loading">
+          <Loader2 size={20} className="animate-spin" />
+          <span>Ingresando al panel...</span>
+        </div>
+      ) : null}
+
       {error ? (
         <div className="login-error">
           <AlertCircle size={18} />
@@ -120,6 +147,11 @@ export function TenantLoginForm({ subdomain }: TenantLoginFormProps) {
           <input
             className="form-input"
             type="email"
+            autoComplete="username"
+            autoCapitalize="none"
+            spellCheck={false}
+            inputMode="email"
+            disabled={loading}
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             placeholder="admin@oishi.cl"
@@ -134,12 +166,23 @@ export function TenantLoginForm({ subdomain }: TenantLoginFormProps) {
           <Lock size={18} className="input-icon" />
           <input
             className="form-input"
-            type="password"
+            type={showPassword ? "text" : "password"}
+            autoComplete="current-password"
+            disabled={loading}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             placeholder="••••••••"
             required
           />
+          <button
+            type="button"
+            className="login-password-toggle"
+            onClick={() => setShowPassword((value) => !value)}
+            disabled={loading}
+            aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+          >
+            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
         </div>
       </div>
 

@@ -18,6 +18,7 @@
   flex-direction: column;
   /* Fondo más oscuro y elegante para contraste */
   background: linear-gradient(145deg, rgba(30, 30, 30, 0.95) 0%, rgba(15, 15, 15, 0.9) 100%);
+  -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
   border-radius: 24px;
@@ -61,6 +62,7 @@
   top: 12px;
   left: 12px;
   background: rgba(20, 20, 20, 0.85);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   color: white;
   padding: 6px 12px;
@@ -161,6 +163,7 @@
   display: flex;
   flex-direction: column;
   background: rgba(20, 20, 20, 0.98); /* Casi sólido */
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   z-index: 20;
   border-radius: 8px;
@@ -438,7 +441,7 @@
   
   .is-viewing-info .product-info {
     height: 100%; /* Ocupar toda la altura de la tarjeta */
-    min-height: auto; 
+    min-height: 0; 
     padding: 8px; /* Menos padding para aprovechar espacio */
     display: flex;
     flex-direction: column;
@@ -600,7 +603,7 @@
   }
 
   .product-info {
-    min-height: auto !important; 
+    min-height: 0 !important; 
     padding: 8px 4px 0px 4px !important; /* Mínimo padding lateral */
   }
 

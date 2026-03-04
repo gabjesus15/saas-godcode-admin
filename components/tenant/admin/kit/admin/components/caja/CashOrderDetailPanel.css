@@ -7,6 +7,7 @@
 	justify-content: flex-end;
 	align-items: stretch;
 	background: rgba(0, 0, 0, 0.5);
+	-webkit-backdrop-filter: blur(4px);
 	backdrop-filter: blur(4px);
 }
 
@@ -14,6 +15,8 @@
 	width: 100%;
 	max-width: 420px;
 	height: 100vh;
+	height: 100svh;
+	height: 100dvh;
 	overflow-y: auto;
 	background: #0f0f0f;
 	border-left: 1px solid rgba(255, 255, 255, 0.1);
@@ -30,9 +33,10 @@
 	display: flex;
 	align-items: flex-start;
 	justify-content: space-between;
-	padding: 18px 20px;
+	padding: calc(18px + env(safe-area-inset-top)) 20px 18px;
 	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 	background: #0d0d0d;
+	position: -webkit-sticky;
 	position: sticky;
 	top: 0;
 	z-index: 1;
@@ -71,7 +75,7 @@
 }
 
 .cash-order-detail-panel-body {
-	padding: 16px 20px;
+	padding: 16px 20px calc(16px + env(safe-area-inset-bottom));
 	display: flex;
 	flex-direction: column;
 	gap: 14px;

@@ -10,6 +10,8 @@
   width: 100%;
   max-width: 520px;
   max-height: 90vh;
+  max-height: 90svh;
+  max-height: 90dvh;
   padding: 0;
   background: #121212;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -53,9 +55,6 @@
   overflow-x: hidden;
   flex: 0 1 auto;
   min-height: 0;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
 .modal-form-scroll::-webkit-scrollbar {
@@ -170,6 +169,7 @@
   position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   
   display: flex;
@@ -318,6 +318,7 @@
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
+  -webkit-user-select: none;
   user-select: none;
   position: relative;
 }
@@ -435,7 +436,11 @@
 
   .modal-content {
     max-height: 100vh;
+    max-height: 100svh;
+    max-height: 100dvh;
     height: 100vh;
+    height: 100svh;
+    height: 100dvh;
     min-height: 0;
     border-radius: 0;
     border: none;
@@ -448,11 +453,10 @@
 
   .modal-content .modal-form-scroll {
     flex: 1 1 0;
-    -webkit-overflow-scrolling: touch;
   }
 
   .modal-header {
-    padding: 16px 20px;
+    padding: calc(16px + env(safe-area-inset-top)) 20px 16px;
   }
 
   .modal-form-scroll {
@@ -460,7 +464,7 @@
   }
 
   .modal-footer {
-    padding: 12px 20px;
+    padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
   }
 
   .form-row.two-col {

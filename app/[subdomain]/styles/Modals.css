@@ -8,14 +8,14 @@
     inset: 0;
     /* Fondo más oscuro y con más blur para enfoque total */
     background: rgba(0, 0, 0, 0.75);
-    backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
     
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 2000; /* Capa segura superior */
-    padding: 20px; /* Margen de seguridad para móviles */
+    padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); /* Margen + safe area */
     
     animation: fadeInOverlay 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
@@ -92,7 +92,6 @@
     flex: 1; /* Ocupa el espacio sobrante */
     overflow-y: auto; /* Scroll aquí, no en la ventana */
     min-height: 0;
-    overscroll-behavior: contain;
     
     display: flex;
     flex-direction: column;
@@ -213,15 +212,22 @@
 @media (max-width: 600px) {
     .modal-overlay {
         padding: 0;
+        padding-bottom: env(safe-area-inset-bottom);
         align-items: flex-end; /* Sheet Style (sale de abajo) */
     }
 
     .modal-content {
+        max-height: 95vh;
+        max-height: 95svh;
         max-height: 95dvh;
         height: auto; /* O height: 95dvh si quieres panel completo */
         border-radius: 20px 20px 0 0;
         border-bottom: none;
         animation: slideUpMobile 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .modal-footer {
+        padding-bottom: calc(16px + env(safe-area-inset-bottom));
     }
 
     .form-row {
