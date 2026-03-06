@@ -1,0 +1,58 @@
+import { NextResponse } from "next/server";
+import { getCachedCompany } from "../../../../utils/tenant-cache";
+
+type RouteContext = {
+	params: Promise<{ subdomain: string }>;
+};
+
+export async function GET(_req: Request, context: RouteContext) {
+	const { subdomain } = await context.params;
+	const company = await getCachedCompany(subdomain);
+
+	const status = company?.subscription_status?.toLowerCase();
+	const isUnavailable = status === "suspended" || status === "cancelled";
+
+	const name =
+		isUnavailable
+			? "GodCode Menu"
+			: (company?.theme_config?.displayName as string) ??
+				company?.name ??
+				"GodCode Menu";
+
+	const iconVersion = encodeURIComponent(
+		String(company?.updated_at ?? company?.id ?? name)
+	);
+	const tenantIcon = `/${subdomain}/tenant-favicon?v=${iconVersion}`;
+	const startUrl = `/${subdomain}/menu`;
+
+	const manifest = {
+		id: startUrl,
+		name,
+		short_name: name.slice(0, 24),
+		description: `Menu digital de ${name}`,
+		start_url: startUrl,
+		scope: `/${subdomain}/menu/`,
+		display: "standalone",
+		background_color:
+			(company?.theme_config?.backgroundColor as string) ?? "#0a0a0a",
+		theme_color: (company?.theme_config?.primaryColor as string) ?? "#111827",
+		icons: [
+			{
+				src: tenantIcon,
+				sizes: "192x192",
+				purpose: "any maskable",
+			},
+			{
+				src: tenantIcon,
+				sizes: "512x512",
+				purpose: "any maskable",
+			},
+		],
+	};
+
+	return NextResponse.json(manifest, {
+		headers: {
+			"Cache-Control": "public, max-age=300",
+		},
+	});
+}
