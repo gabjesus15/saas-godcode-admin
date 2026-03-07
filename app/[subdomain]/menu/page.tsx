@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabasePublicServerClient } from "../../../utils/supabase/server";
 import { StoreUnavailable } from "../../../components/tenant/store-unavailable";
 import { MenuClient } from "../../../components/tenant/menu-client";
@@ -9,6 +10,23 @@ import { MenuClient } from "../../../components/tenant/menu-client";
 interface TenantMenuPageProps {
   params: Promise<{ subdomain: string }>;
   searchParams?: Promise<{ branch?: string; debug?: string }>;
+}
+
+export async function generateMetadata({
+	params,
+}: {
+	params: Promise<{ subdomain: string }>;
+}): Promise<Metadata> {
+	const resolvedParams = await params;
+
+	return {
+		manifest: `/${resolvedParams.subdomain}/menu/manifest.webmanifest`,
+		appleWebApp: {
+			capable: true,
+			statusBarStyle: "default",
+			title: "Menu",
+		},
+	};
 }
 
 interface MenuProduct {

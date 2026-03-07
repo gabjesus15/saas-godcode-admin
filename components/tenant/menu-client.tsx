@@ -113,6 +113,32 @@ export function MenuClient({
     () => getTenantScopedPath(pathname ?? "/", "/menu"),
     [pathname]
   );
+  const menuScopePath = useMemo(
+    () => getTenantScopedPath(pathname ?? "/", "/menu/"),
+    [pathname]
+  );
+  const menuServiceWorkerPath = useMemo(
+    () => getTenantScopedPath(pathname ?? "/", "/menu/sw.js"),
+    [pathname]
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+      return;
+    }
+
+    const registerServiceWorker = async () => {
+      try {
+        await navigator.serviceWorker.register(menuServiceWorkerPath, {
+          scope: menuScopePath,
+        });
+      } catch {
+        // Comentario: no interrumpir UX si SW falla.
+      }
+    };
+
+    registerServiceWorker();
+  }, [menuScopePath, menuServiceWorkerPath]);
 
   const visibleCategories = useMemo(
     () => categories.filter((category) => products.some((product) => product.category_id === category.id)),
