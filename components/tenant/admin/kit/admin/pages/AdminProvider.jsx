@@ -38,7 +38,7 @@ let notificationAudio;
 try {
 	notificationAudio = new Audio('/sounds/notification.mp3');
 	notificationAudio.preload = 'auto';
-} catch (_) {}
+} catch {}
 
 export const AdminContext = createContext(null);
 
@@ -373,7 +373,7 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions, userAll
 			setProducts(mergedProducts);
 			setOrders(cleanOrders);
 			setClients(filteredClients);
-		} catch (error) {
+		} catch {
 			showNotify("Error de conexión", 'error');
 		} finally {
 			setLoading(false);
@@ -416,7 +416,7 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions, userAll
 					notificationAudio.currentTime = 0;
 					notificationAudio.play().catch(() => {});
 				}
-			} catch (_) {}
+			} catch {}
 		} else if (payload.eventType === 'UPDATE') {
 			setOrders(prev => prev.map(o => o.id === payload.new?.id ? sanitizeOrder(payload.new) : o));
 		} else if (payload.eventType === 'DELETE') {
@@ -478,7 +478,7 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions, userAll
 			setOrders(previousOrders);
 			showNotify("Error al actualizar", "error");
 		}
-	}, [orders, activeTab, cashSystem, showNotify, companyId]);
+	}, [orders, cashSystem, showNotify, companyId]);
 
 	const uploadReceiptToOrder = useCallback(async (orderId, file) => {
 		if (!file) return;

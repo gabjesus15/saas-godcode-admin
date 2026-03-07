@@ -23,7 +23,7 @@ export const useCashSystem = (showNotify, branchId) => {
 
             if (error) throw error;
             setMovements(data || []);
-        } catch (error) {
+        } catch {
             setMovements([]);
         } finally {
             setLoadingMovements(false);
@@ -66,7 +66,7 @@ export const useCashSystem = (showNotify, branchId) => {
             } else {
                 setMovements([]);
             }
-        } catch (error) {
+        } catch {
             if (showNotify) showNotify('Error al cargar datos de caja', 'error');
         } finally {
             setLoading(false);
@@ -112,7 +112,7 @@ export const useCashSystem = (showNotify, branchId) => {
         return () => {
             channel.unsubscribe();
         };
-    }, [activeShift?.id, loadMovements]);
+    }, [activeShift, loadMovements]);
 
     /**
      * Abre un nuevo turno
@@ -170,48 +170,11 @@ export const useCashSystem = (showNotify, branchId) => {
             setMovements([]);
             if (showNotify) showNotify('Caja cerrada correctamente');
             return true;
-        } catch (error) {
+        } catch {
             if (showNotify) showNotify('Error al cerrar caja', 'error');
             return false;
         }
     }, [activeShift, showNotify]);
-
-    /**
-     * Helper interno para actualizar el balance esperado de forma segura
-     * Intenta usar RPC (base de datos) y hace fallback manual si falla.
-     */
-    const updateShiftBalance = useCallback(async (shiftId, amountDelta) => {
-        // 1. Intentar vía RPC (Atómico y seguro contra condiciones de carrera)
-        const { error: rpcError } = await supabase.rpc('increment_expected_balance', { 
-            shift_id: shiftId, 
-            amount: amountDelta 
-        });
-
-        if (!rpcError) return true;
-
-        // 2. Fallback Manual (Lectura -> Escritura) si no existe la función RPC
-        // Si el error es 404 (función no encontrada), usamos el fallback silenciosamente
-        if (rpcError.code !== 'PGRST202' && !rpcError.message?.includes('Could not find the function')) {
-            // Sin logging: fallback silencioso
-        }
-        
-        const { data: current, error: fetchError } = await supabase
-            .from(TABLES.cash_shifts)
-            .select('expected_balance')
-            .eq('id', shiftId)
-            .single();
-            
-        if (fetchError || !current) return false;
-
-        const newBalance = Math.round(((Number(current.expected_balance) || 0) + amountDelta) * 100) / 100;
-        
-        const { error: updateError } = await supabase
-            .from(TABLES.cash_shifts)
-            .update({ expected_balance: newBalance })
-            .eq('id', shiftId);
-
-        return !updateError;
-    }, []);
 
     /**
      * [MEJORA MULTI-NEGOCIO]
@@ -274,7 +237,7 @@ export const useCashSystem = (showNotify, branchId) => {
             }
             return false;
         }
-    }, [activeShift, showNotify, loadActiveShift, updateShiftBalance]);
+    }, [activeShift, showNotify, loadActiveShift]);
 
     /**
      * Registra una venta automáticamente
@@ -328,11 +291,11 @@ export const useCashSystem = (showNotify, branchId) => {
                 await loadActiveShift();
             }
             return true;
-        } catch (error) {
+        } catch {
             if (showNotify) showNotify('Error registrando venta en caja', 'error');
             return false;
         }
-    }, [activeShift, loadActiveShift, updateShiftBalance, getTargetShift]);
+    }, [activeShift, loadActiveShift, getTargetShift, showNotify]);
 
     /**
      * Registra una devolución
@@ -385,11 +348,11 @@ export const useCashSystem = (showNotify, branchId) => {
             }
             if (showNotify) showNotify('Devolución registrada en caja', 'success');
             return true;
-        } catch (error) {
+        } catch {
             if (showNotify) showNotify('Error registrando devolución', 'error');
             return false;
         }
-    }, [activeShift, showNotify, loadActiveShift, updateShiftBalance, getTargetShift]);
+    }, [activeShift, showNotify, loadActiveShift, getTargetShift]);
 
     const getPastShifts = useCallback(async (limit = 20) => {
         if (!branchId || !isValidBranchId(branchId)) return [];

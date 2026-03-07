@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { X, Save, AlertCircle, MapPin } from 'lucide-react';
+import { X, Save, MapPin } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { TABLES } from '../../lib/supabaseTables';
 
@@ -123,7 +123,7 @@ const InventoryItemModal = ({ isOpen, onClose, onItemSaved, itemToEdit = null, s
             showNotify(itemToEdit ? 'Insumo actualizado' : 'Insumo creado', 'success');
             onItemSaved();
             onClose();
-        } catch (error) {
+        } catch {
             showNotify('Error al guardar insumo', 'error');
         } finally {
             setLoading(false);

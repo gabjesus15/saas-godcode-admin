@@ -132,7 +132,7 @@ export const ordersService = {
             if (orderData.payment_type === 'online' && receiptFile) {
                 try {
                     receiptUrl = await uploadImage(receiptFile, 'receipts');
-                } catch (uploadErr) {
+                } catch {
                     receiptUploadFailed = true;
                 }
             }

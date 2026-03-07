@@ -19,7 +19,7 @@ export default async function CompanyCreatePage() {
         <CompanyForm plans={data ?? []} />
       </div>
     );
-  } catch (error) {
+  } catch {
     return (
       <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
         No se pudo cargar el formulario de empresas.

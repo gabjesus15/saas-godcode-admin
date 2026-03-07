@@ -1,7 +1,6 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { useEffect, useState } from "react";
 import { AlertCircle, Loader2, MapPin, Phone, Store, X } from "lucide-react";
 
 interface BranchData {
@@ -33,13 +32,9 @@ export function BranchSelectorModal({
   allowClose = true,
   schedule,
 }: BranchSelectorModalProps) {
-  const [isMounted, setIsMounted] = useState(false);
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
-  if (!isMounted || !isOpen) return null;
+  if (!isOpen || typeof document === "undefined") return null;
 
   const handleBranchSelect = (branch: BranchData) => {
     onSelectBranch(branch);
@@ -97,11 +92,11 @@ export function BranchSelectorModal({
               </div>
             ) : !hasBranchesWithCaja ? (
               <div className="branch-empty-state">
-                <AlertCircle size={40} style={{ color: "#ff4b63", margin: "0 auto 12px" }} />
-                <p style={{ fontWeight: 600, color: "#222", marginBottom: 8, textShadow: "0 1px 2px #fff8" }}>
+                <AlertCircle size={40} className="branch-empty-icon-alert" />
+                <p className="branch-empty-title">
                   No hay sucursales recibiendo pedidos
                 </p>
-                <p style={{ color: "#444", fontWeight: 400, textShadow: "0 1px 2px #fff6" }}>
+                <p className="branch-empty-description">
                   {schedule
                     ? `Horario de atención: ${schedule}`
                     : hasOtherBranches

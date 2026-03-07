@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, History, TrendingUp, TrendingDown, DollarSign, Clock, User } from 'lucide-react';
+import { X, History, Clock, User } from 'lucide-react';
 import { cashService } from '../../services/cashService';
 
 const CashShiftDetailModal = ({ isOpen, onClose, shift, getTotals }) => {
@@ -14,7 +14,7 @@ const CashShiftDetailModal = ({ isOpen, onClose, shift, getTotals }) => {
         try {
             const data = await cashService.getShiftMovements(shift.id);
             setMovements(data || []);
-        } catch (error) {
+        } catch {
             setMovements([]);
         } finally {
             setLoading(false);

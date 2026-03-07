@@ -67,6 +67,12 @@ const ProtectedRoute = ({ children }) => {
 		};
 	}, []);
 
+	useEffect(() => {
+		if (!loading && (!session || !isAdmin)) {
+			router.push('/login');
+		}
+	}, [loading, session, isAdmin, router]);
+
 	if (loading) {
 		return (
 			<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#050505' }}>
@@ -74,12 +80,6 @@ const ProtectedRoute = ({ children }) => {
 			</div>
 		);
 	}
-
-	useEffect(() => {
-		if (!loading && (!session || !isAdmin)) {
-			router.push('/login');
-		}
-	}, [loading, session, isAdmin, router]);
 
 	if (!session || !isAdmin) {
 		return null;

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import { Search, Plus, Download, Filter, MoreVertical, User, ShoppingBag, FileText, ArrowUpDown, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
+import { Search, Plus, Download, Filter, MoreVertical, ArrowUpDown, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
 import ClientFormModal from './ClientFormModal';
 import { downloadExcel } from '../../shared/utils/exportUtils';
 

@@ -15,11 +15,12 @@ import {
 	Users,
 	ChevronDown,
 	List,
+	type LucideIcon,
 } from "lucide-react";
 
 interface AdminSidebarProps {
 	activeTab: string;
-	onTabChange: (id: string) => void;
+	onTabChange(tabId: string): void;
 	isMobile: boolean;
 	pendingCount?: number;
 	userEmail?: string | null;
@@ -27,7 +28,23 @@ interface AdminSidebarProps {
 	onLogout: () => void;
 	logoUrl?: string | null;
 	showCompanyTab?: boolean;
+	userRole?: string | null;
 }
+
+type MenuChild = {
+	id: string;
+	label: string;
+	icon: LucideIcon;
+};
+
+type MenuItem = {
+	id: string;
+	label: string;
+	icon: LucideIcon;
+	badge?: number | null;
+	isGroup?: boolean;
+	children?: MenuChild[];
+};
 
 export function AdminSidebar({
 	activeTab,
@@ -40,8 +57,8 @@ export function AdminSidebar({
 	logoUrl,
 	showCompanyTab = true,
 	userRole,
-	}: AdminSidebarProps & { userRole?: string | null }) {
-		const menuItems = useMemo(() => {
+	}: AdminSidebarProps) {
+		const menuItems = useMemo<MenuItem[]>(() => {
 			// Staff: por defecto solo Pedidos y Caja (el resto lo define roleNavPermissions)
 			if (userRole === "cashier" || userRole === "staff") {
 				return [
@@ -100,8 +117,8 @@ export function AdminSidebar({
 
 	useEffect(() => {
 		const activeGroup = menuItems.find(
-			(item: any) => item.isGroup && item.children?.some((child: any) => child.id === activeTab)
-		) as any;
+			(item) => item.isGroup && item.children?.some((child) => child.id === activeTab)
+		);
 
 		if (activeGroup) {
 			const timer = window.setTimeout(() => {
@@ -123,6 +140,7 @@ export function AdminSidebar({
 			<div className="sidebar-top">
 				{!isMobile ? (
 					<div className="logo-circle">
+						{/* eslint-disable-next-line @next/next/no-img-element */}
 						<img
 							src={logoUrl || "/tenant/logo-placeholder.svg"}
 							alt="Logo"
@@ -143,10 +161,11 @@ export function AdminSidebar({
 			</div>
 
 			<nav className="sidebar-menu">
-				{menuItems.map((item: any) => {
+				{menuItems.map((item) => {
 					if (item.isGroup) {
+						const groupChildren = item.children ?? [];
 						if (isMobile) {
-							return item.children.map((child: any) => {
+							return groupChildren.map((child) => {
 								const ChildIcon = child.icon;
 								return (
 									<button
@@ -162,7 +181,7 @@ export function AdminSidebar({
 						}
 
 						const isExpanded = expandedGroups[item.id];
-						const isActiveGroup = item.children.some((child: any) => child.id === activeTab);
+						const isActiveGroup = groupChildren.some((child) => child.id === activeTab);
 						const GroupIcon = item.icon;
 
 						return (
@@ -179,7 +198,7 @@ export function AdminSidebar({
 								</button>
 
 								<div className={`nav-sub-menu ${isExpanded ? "expanded" : ""}`}>
-									{item.children.map((child: any) => {
+									{groupChildren.map((child) => {
 										const ChildIcon = child.icon;
 										return (
 											<button

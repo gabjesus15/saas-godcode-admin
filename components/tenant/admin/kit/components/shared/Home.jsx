@@ -106,6 +106,7 @@ const Home = () => {
           <div className="ticket-main">
             <header className="home-header-centered">
               <div className="brand-container-centered">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={logoPlaceholder} alt="Logo del local" className="home-logo-centered" />
                 <div className="brand-text-centered">
                   <h1 className="text-gradient">{businessInfo?.name || 'Nombre del local'}</h1>

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import Image from 'next/image';
 import Navbar from '../../components/shared/Navbar';
 import ProductCard from '../components/ProductCard';
 import { Search, ChevronLeft, Loader2, X, MapPin, ChevronDown } from 'lucide-react';
@@ -114,7 +115,7 @@ const Menu = () => {
         const hasSpecial = processedProducts.some(p => p.is_special);
         setActiveCategory(hasSpecial ? 'special' : categoriesData[0]?.id || null);
 
-      } catch (error) {
+      } catch {
       } finally {
         setLoading(false);
       }
@@ -204,7 +205,7 @@ const Menu = () => {
               <ChevronLeft size={28} />
             </button>
             <div className={`nav-brand-wrapper ${searchExpanded ? 'mobile-search-active' : ''}`}>
-              <img src={logoPlaceholder} alt="Logo del local" style={{ height: '38px', width: 'auto', borderRadius: '6px' }} />
+              <Image src={logoPlaceholder} alt="Logo del local" width={38} height={38} style={{ height: '38px', width: 'auto', borderRadius: '6px' }} />
               <div className="nav-brand-info">
                 <h2 style={{ fontSize: '1.1rem', margin: 0, fontWeight: 700, color: 'white', lineHeight: '1.2' }}>{brandName}</h2>
                 <button 
@@ -273,7 +274,7 @@ const Menu = () => {
                 id: 'special',
                 name: (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <img src={FIRE_ICON} style={{ width: '14px', height: '14px' }} alt="🔥" />
+                    <Image src={FIRE_ICON} width={14} height={14} unoptimized style={{ width: '14px', height: '14px' }} alt="🔥" />
                     Solo por hoy
                   </div>
                 )
@@ -308,7 +309,7 @@ const Menu = () => {
         {!query && specialProducts.length > 0 && (
           <section id="section-special" className="category-section">
             <h2 className="category-title">
-              <img src={FIRE_ICON} className="category-icon" alt="🔥" />
+              <Image src={FIRE_ICON} className="category-icon" width={20} height={20} unoptimized alt="🔥" />
               Solo por hoy
             </h2>
             <div className="product-grid">

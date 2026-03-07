@@ -47,6 +47,7 @@ const InventoryCard = memo(({ product, toggleProductActive, setEditingProduct, s
         >
             {/* --- IMAGEN --- */}
             <div className="inv-img-wrapper">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img 
                     src={product.image_url || logo} 
                     alt={product.name} 
@@ -129,5 +130,7 @@ const InventoryCard = memo(({ product, toggleProductActive, setEditingProduct, s
         </div>
     );
 });
+
+InventoryCard.displayName = 'InventoryCard';
 
 export default InventoryCard;

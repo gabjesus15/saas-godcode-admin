@@ -30,8 +30,8 @@ export async function CompanyHealth({ companyId }: CompanyHealthProps) {
     return (
       <Card className="flex flex-col gap-5">
         <div>
-          <h3 className="text-lg font-semibold text-zinc-900">Salud del negocio</h3>
-          <p className="text-sm text-zinc-500">
+          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Salud del negocio</h3>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
             Indicadores clave para detectar riesgos.
           </p>
         </div>
@@ -65,7 +65,7 @@ export async function CompanyHealth({ companyId }: CompanyHealthProps) {
     );
   } catch {
     return (
-      <Card className="border-red-200 bg-red-50 text-sm text-red-700">
+      <Card className="border-red-200 bg-red-50 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300">
         No se pudo cargar la salud del negocio.
       </Card>
     );

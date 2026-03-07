@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Debug utility classes */
 .debug-pre {
   margin-top: 12px;
@@ -11,6 +13,11 @@
   --foreground: #171717;
 }
 
+.dark {
+  --background: #09090b;
+  --foreground: #f4f4f5;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -18,15 +25,58 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans);
+}
+
+.dark .bg-white {
+  background-color: #18181b;
+}
+
+.dark .bg-white\/80,
+.dark .bg-white\/90 {
+  background-color: rgb(24 24 27 / 0.85);
+}
+
+.dark .bg-zinc-50,
+.dark .bg-zinc-50\/80 {
+  background-color: #27272a;
+}
+
+.dark .bg-zinc-100 {
+  background-color: #3f3f46;
+}
+
+.dark .text-zinc-900 {
+  color: #f4f4f5;
+}
+
+.dark .text-zinc-700,
+.dark .text-zinc-600 {
+  color: #d4d4d8;
+}
+
+.dark .text-zinc-500 {
+  color: #a1a1aa;
+}
+
+.dark .border-zinc-200,
+.dark .border-zinc-200\/80,
+.dark .border-zinc-300 {
+  border-color: #3f3f46;
+}
+
+.dark .divide-zinc-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #3f3f46;
+}
+
+.dark .hover\:bg-zinc-50:hover,
+.dark .hover\:bg-zinc-100:hover {
+  background-color: #3f3f46;
+}
+
+.dark .hover\:text-zinc-900:hover {
+  color: #f4f4f5;
 }

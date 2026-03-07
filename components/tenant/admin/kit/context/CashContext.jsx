@@ -22,7 +22,7 @@ export const CashProvider = ({ children }) => {
             ]);
             setActiveShift(shift);
             setBranchesWithOpenCaja((branchIds || []).map(normId).filter(Boolean));
-        } catch (_) {
+        } catch {
             setActiveShift(null);
             setBranchesWithOpenCaja([]);
         } finally {

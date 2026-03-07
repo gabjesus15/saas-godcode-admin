@@ -16,7 +16,7 @@ export default async function CompaniesPage() {
     }
 
     return <CompaniesView companies={data ?? []} />;
-  } catch (error) {
+  } catch {
     return (
       <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
         No se pudo cargar el listado de empresas.

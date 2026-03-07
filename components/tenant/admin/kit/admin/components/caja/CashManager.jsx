@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
-    Unlock, Lock, Plus, Minus, History, 
+    Unlock, Lock, History, 
     Clock, Calendar, TrendingUp, TrendingDown,
     ArrowUpCircle, ArrowDownCircle, Eye, XCircle,
     DollarSign, CreditCard, Smartphone, ChevronRight,
@@ -85,7 +85,7 @@ const CashManager = ({ showNotify, selectedBranchId, orders = [] }) => {
         try {
             const data = await getPastShifts();
             setPastShifts(data || []);
-        } catch (err) {
+        } catch {
             showNotify('Error al cargar historial', 'error');
         } finally {
             setLoadingHistory(false);
@@ -159,6 +159,7 @@ const CashManager = ({ showNotify, selectedBranchId, orders = [] }) => {
             {/* HEADER */}
             <header className="cash-header">
                 <div className="cash-header-left">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={cashIcon} alt="Cajas" className="cash-header-icon" />
                     <div>
                         <h1>Caja</h1>

@@ -49,7 +49,7 @@ const Login = () => {
       if (error) throw error;
       setFailedAttempts(0);
       navigate('/admin');
-    } catch (err) {
+    } catch {
       const nextAttempts = failedAttempts + 1;
       setFailedAttempts(nextAttempts);
       setError('Credenciales incorrectas. Verifica tu email y contraseña.');

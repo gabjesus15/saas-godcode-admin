@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { X, Loader2, User, Phone, Mail, FileText } from 'lucide-react';
+import { X, Loader2, User, Phone, FileText } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { TABLES } from '../../lib/supabaseTables';
 import { formatRut, validateRut } from '../../shared/utils/formatters';

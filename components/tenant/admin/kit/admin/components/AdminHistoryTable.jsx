@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, Calendar, DollarSign, Package, ChevronDown, ChevronUp, Clock, CreditCard, Receipt, Upload, Eye } from 'lucide-react';
+import { Search, Filter, Calendar, DollarSign, Package, ChevronDown, ChevronUp, CreditCard, Receipt, Upload, Eye } from 'lucide-react';
 
 const AdminHistoryTable = ({ orders, setReceiptModalOrder }) => {
     const [searchTerm, setSearchTerm] = useState('');

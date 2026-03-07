@@ -11,7 +11,7 @@ const logo = '/tenant/logo-placeholder.svg';
 import { useManualOrder } from '../hooks/useManualOrder';
 import { printOrderTicket } from '../utils/receiptPrinting';
 
-const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderSaved, showNotify, registerSale, branch, isMobile }) => {
+const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderSaved, showNotify, registerSale, branch }) => {
     const {
         manualOrder, loading, rutValid, phoneValid,
         receiptFile, receiptPreview,
@@ -144,6 +144,7 @@ const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderS
                     </div>
                 )}
                 <div className="manual-order-image-wrapper">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                         src={p.image_url || logo} alt={p.name}
                         className={!p.image_url ? 'is-logo' : ''}
@@ -475,6 +476,7 @@ const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderS
                                                     background: 'var(--accent-red)'
                                                 }} />
 
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img
                                                     src={item.image_url || logo}
                                                     alt={item.name}
@@ -756,6 +758,7 @@ const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderS
                                             border: '1px solid rgba(255, 255, 255, 0.1)',
                                             position: 'relative'
                                         }}>
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img
                                                 src={receiptPreview}
                                                 alt="Preview"

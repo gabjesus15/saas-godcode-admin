@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import Image from 'next/image';
 import { Plus, Minus, ChevronDown, X } from 'lucide-react';
 import { useCart } from '../../cart/hooks/useCart';
 
@@ -21,12 +22,17 @@ const ProductCard = React.memo(({ product }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [isBumping, setIsBumping] = useState(false);
+  const [failedSrc, setFailedSrc] = useState(null);
 
   // Optimización: Memoizar la búsqueda en el carrito
   const cartItem = useMemo(() => cart.find(item => item.id === product.id), [cart, product.id]);
   const quantity = cartItem ? cartItem.quantity : 0;
 
   const isLongDesc = product.description?.length > 60;
+  const productImageSrc =
+    failedSrc && failedSrc === product.image_url
+      ? FALLBACK_IMAGE
+      : product.image_url || FALLBACK_IMAGE;
 
   // Auto-collapse (Opcional: aumentado a 15s para lectura lenta)
   useEffect(() => {
@@ -76,14 +82,15 @@ const ProductCard = React.memo(({ product }) => {
       {/* IMAGEN CON SKELETON */}
       <div className={`product-image ${isBumping ? 'bump-active' : ''}`}>
         {!imageLoaded && <div className="skeleton-loader absolute inset-0" />}
-        <img
-          src={product.image_url || FALLBACK_IMAGE}
+        <Image
+          src={productImageSrc}
           alt={product.name}
-          loading="lazy"
+          width={400}
+          height={400}
+          unoptimized
           onLoad={() => setImageLoaded(true)}
           className={!imageLoaded ? 'opacity-0' : 'opacity-100 transition-opacity duration-500'}
-          // Evitar que la imagen rota rompa el layout visualmente
-          onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_IMAGE; }}
+          onError={() => setFailedSrc(product.image_url || FALLBACK_IMAGE)}
         />
 
         {product.is_special && <span className="badge-special">ESPECIAL</span>}
@@ -163,5 +170,7 @@ const ProductCard = React.memo(({ product }) => {
     </div>
   );
 });
+
+ProductCard.displayName = 'ProductCard';
 
 export default ProductCard;

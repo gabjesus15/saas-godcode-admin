@@ -22,7 +22,7 @@ export function CompanyTabs({ tabs, initialId }: CompanyTabsProps) {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-wrap gap-2 rounded-2xl border border-zinc-200 bg-white/80 p-3 shadow-sm backdrop-blur">
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-zinc-200 bg-white/80 p-3 shadow-sm backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/80">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -31,8 +31,8 @@ export function CompanyTabs({ tabs, initialId }: CompanyTabsProps) {
             className={cn(
               "rounded-xl px-4 py-2 text-sm font-semibold transition",
               activeId === tab.id
-                ? "bg-zinc-900 text-white"
-                : "text-zinc-600 hover:bg-zinc-100"
+                ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
             )}
           >
             {tab.label}

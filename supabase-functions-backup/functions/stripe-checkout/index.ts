@@ -147,7 +147,7 @@ Deno.serve(async (req) => {
       JSON.stringify({ id: session.id, url: session.url }),
       { status: 200, headers: jsonHeaders }
     );
-  } catch (error) {
+  } catch {
     return new Response(JSON.stringify({ error: "Internal error" }), {
       status: 500,
       headers: jsonHeaders,

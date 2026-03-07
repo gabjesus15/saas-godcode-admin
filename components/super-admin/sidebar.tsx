@@ -33,12 +33,12 @@ export function Sidebar() {
   return (
     <div className="flex h-full flex-col gap-10">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-zinc-900 text-white">
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900">
           SG
         </div>
         <div>
-          <p className="text-sm font-semibold text-zinc-900">Super Admin</p>
-          <p className="text-xs text-zinc-500">Multi-Tenant SaaS</p>
+          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Super Admin</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">Multi-Tenant SaaS</p>
         </div>
       </div>
       <nav className="flex flex-col gap-2">
@@ -48,7 +48,7 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 hover:text-zinc-900"
+              className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
             >
               <Icon className="h-4 w-4" />
               {item.label}
@@ -61,7 +61,7 @@ export function Sidebar() {
           type="button"
           onClick={handleLogout}
           disabled={loggingOut}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:text-red-400 dark:hover:bg-red-950/40"
         >
           <LogOut className="h-4 w-4" />
           {loggingOut ? "Cerrando..." : "Cerrar sesión"}

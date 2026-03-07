@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Save, Upload, Image as ImageIcon, AlertCircle, Loader2, Trash2, DollarSign } from 'lucide-react';
+import Image from 'next/image';
+import { X, Save, Image as ImageIcon, Loader2, Trash2, DollarSign } from 'lucide-react';
 
 const INITIAL_STATE = {
   name: '',
@@ -169,7 +170,7 @@ const ProductModal = React.memo(({ onClose, onSave, product, categories, saving 
               
               {previewUrl ? (
                 <div className="image-preview-container">
-                  <img src={previewUrl} alt="Preview" className="image-preview" />
+                  <Image src={previewUrl} alt="Preview" className="image-preview" width={400} height={300} unoptimized />
                   <div className="image-overlay">
                     <button type="button" className="btn-icon-overlay" onClick={clearImage} title="Eliminar imagen">
                       <Trash2 size={18} />
@@ -314,5 +315,7 @@ const ProductModal = React.memo(({ onClose, onSave, product, categories, saving 
     </div>
   );
 });
+
+ProductModal.displayName = 'ProductModal';
 
 export default ProductModal;

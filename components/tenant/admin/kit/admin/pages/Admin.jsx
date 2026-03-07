@@ -25,6 +25,7 @@ import { supabase } from '../../lib/supabase';
 import { AdminProvider, useAdmin } from './AdminProvider';
 
 export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => {
+  void companyName;
   const {
     navigate,
     activeTab, setActiveTab,
@@ -34,7 +35,6 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
     clients,
     branches,
     selectedBranch, setSelectedBranch,
-    assignedBranchId,
     isBranchLocked,
     isHistoryView, setIsHistoryView,
     mobileTab, setMobileTab,
@@ -43,7 +43,6 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
     filterStatus, setFilterStatus,
     viewMode, setViewMode,
     sortOrder, setSortOrder,
-    loading,
     refreshing,
     isMobile,
     isModalOpen, setIsModalOpen,
@@ -79,7 +78,6 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
     kanbanColumns,
     processedProducts,
     productStats,
-    refreshBranches,
     userRole,
     userEmail,
     canAccessTab,
@@ -134,7 +132,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
       const data = await res.json();
       if (res.ok) setTeamUsers(data.users || []);
       else showNotify(data.error || 'Error al cargar equipo', 'error');
-    } catch (e) {
+    } catch {
       showNotify('Error al cargar equipo', 'error');
     } finally {
       setTeamLoading(false);
@@ -204,7 +202,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
       } else {
         showNotify(data.error || (isEdit ? 'Error al actualizar usuario' : 'Error al crear usuario'), 'error');
       }
-    } catch (err) {
+    } catch {
       showNotify(isEdit ? 'Error al actualizar usuario' : 'Error al crear usuario', 'error');
     } finally {
       setTeamSubmitting(false);
@@ -238,7 +236,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
       } else {
         showNotify(data.error || 'Error al eliminar usuario', 'error');
       }
-    } catch (err) {
+    } catch {
       showNotify('Error al eliminar usuario', 'error');
     } finally {
       setTeamDeleting(false);
@@ -628,13 +626,115 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
 
         {/* Modal confirmar eliminar usuario */}
         {teamUserToDelete && (
-          <div className="admin-modal-overlay" onClick={() => !teamDeleting && setTeamUserToDelete(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div className="admin-confirm-modal" onClick={e => e.stopPropagation()} style={{ background: 'var(--card-bg)', padding: 24, borderRadius: 12, maxWidth: 360, boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
-              <p style={{ margin: '0 0 16px', fontSize: 16 }}>¿Eliminar a <strong>{teamUserToDelete.email}</strong>? Dejará de poder entrar al panel de este local.</p>
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                <button type="button" className="admin-btn secondary" onClick={() => !teamDeleting && setTeamUserToDelete(null)} disabled={teamDeleting}>Cancelar</button>
+          <div
+            className="admin-modal-overlay"
+            onClick={() => !teamDeleting && setTeamUserToDelete(null)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(4, 10, 22, 0.72)',
+              zIndex: 9999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 16,
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            <div
+              className="admin-confirm-modal"
+              onClick={e => e.stopPropagation()}
+              style={{
+                width: '100%',
+                maxWidth: 520,
+                borderRadius: 16,
+                border: '1px solid rgba(255, 92, 92, 0.28)',
+                background: 'linear-gradient(165deg, rgba(28,9,9,0.97) 0%, rgba(18,8,10,0.98) 100%)',
+                boxShadow: '0 28px 70px rgba(0,0,0,0.55)',
+                overflow: 'hidden',
+              }}
+            >
+              <div style={{
+                padding: '16px 18px',
+                borderBottom: '1px solid rgba(255,255,255,0.1)',
+                background: 'rgba(255, 68, 68, 0.09)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 10,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid rgba(255, 68, 68, 0.45)',
+                    background: 'rgba(255, 68, 68, 0.18)',
+                    color: '#ff9d9d',
+                  }}>
+                    <Trash2 size={16} />
+                  </div>
+                  <div>
+                    <p style={{ margin: 0, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.62)', fontWeight: 700 }}>
+                      Acción destructiva
+                    </p>
+                    <h3 style={{ margin: '3px 0 0', fontSize: 18, fontWeight: 800, color: '#fff' }}>
+                      Eliminar usuario del equipo
+                    </h3>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => !teamDeleting && setTeamUserToDelete(null)}
+                  disabled={teamDeleting}
+                  style={{
+                    border: '1px solid rgba(255,255,255,0.18)',
+                    background: 'rgba(255,255,255,0.03)',
+                    color: '#f3f4f6',
+                    width: 34,
+                    height: 34,
+                    borderRadius: 999,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: teamDeleting ? 'not-allowed' : 'pointer',
+                  }}
+                  aria-label="Cerrar"
+                  title="Cerrar"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div style={{ padding: 18 }}>
+                <p style={{ margin: 0, color: 'rgba(255,255,255,0.85)', lineHeight: 1.55 }}>
+                  Vas a eliminar el acceso de <strong style={{ color: '#fff' }}>{teamUserToDelete.email}</strong>.
+                </p>
+                <p style={{ margin: '8px 0 0', color: 'rgba(255,255,255,0.66)', fontSize: 13 }}>
+                  Esta acción revoca el ingreso al panel del local y no se puede deshacer automáticamente.
+                </p>
+              </div>
+
+              <div style={{
+                padding: '14px 18px',
+                borderTop: '1px solid rgba(255,255,255,0.1)',
+                background: 'rgba(0,0,0,0.25)',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: 8,
+              }}>
+                <button
+                  type="button"
+                  className="admin-btn secondary"
+                  onClick={() => !teamDeleting && setTeamUserToDelete(null)}
+                  disabled={teamDeleting}
+                >
+                  Cancelar
+                </button>
                 <button type="button" className="admin-btn danger" onClick={handleDeleteTeamUser} disabled={teamDeleting}>
-                  {teamDeleting ? <Loader2 size={18} className="animate-spin" /> : 'Eliminar'}
+                  {teamDeleting ? <Loader2 size={18} className="animate-spin" /> : 'Eliminar usuario'}
                 </button>
               </div>
             </div>
@@ -643,90 +743,262 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
 
         {/* Modal Crear / Editar usuario */}
         {teamModalOpen && (
-          <div className="admin-modal-overlay" onClick={() => !teamSubmitting && (setTeamModalOpen(false), setTeamUserToEdit(null))} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div className="admin-confirm-modal" onClick={e => e.stopPropagation()} style={{ background: 'var(--card-bg)', padding: 24, borderRadius: 12, maxWidth: 420, width: '100%', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
-              <h3 style={{ margin: '0 0 16px', fontSize: 18 }}>{teamUserToEdit ? 'Editar usuario' : 'Crear usuario cashier'}</h3>
-              <form onSubmit={handleSaveTeamUser}>
-                <div style={{ marginBottom: 12 }}>
-                  <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>Correo</label>
-                  <input
-                    type="email"
-                    value={teamForm.email}
-                    onChange={e => setTeamForm(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="usuario@ejemplo.com"
-                    required
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'inherit' }}
-                  />
+          <div
+            className="admin-modal-overlay"
+            onClick={() => !teamSubmitting && (setTeamModalOpen(false), setTeamUserToEdit(null))}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(4, 10, 22, 0.72)',
+              zIndex: 9999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 16,
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            <div
+              className="admin-confirm-modal"
+              onClick={e => e.stopPropagation()}
+              style={{
+                background: 'linear-gradient(165deg, rgba(17,24,39,0.96) 0%, rgba(10,10,18,0.98) 100%)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 18,
+                maxWidth: 640,
+                width: '100%',
+                maxHeight: '88vh',
+                display: 'flex',
+                flexDirection: 'column',
+                boxShadow: '0 24px 70px rgba(0,0,0,0.55)',
+                overflow: 'hidden',
+              }}
+            >
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                padding: '18px 20px 14px',
+                borderBottom: '1px solid rgba(255,255,255,0.1)',
+                background: 'rgba(255,255,255,0.02)',
+              }}>
+                <div>
+                  <p style={{
+                    margin: '0 0 6px',
+                    fontSize: 11,
+                    letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                    color: 'rgba(255,255,255,0.6)',
+                    fontWeight: 700,
+                  }}>
+                    Gestión de equipo
+                  </p>
+                  <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#fff' }}>
+                    {teamUserToEdit ? 'Editar miembro' : 'Crear miembro del equipo'}
+                  </h3>
+                  <p style={{ margin: '6px 0 0', color: 'rgba(255,255,255,0.72)', fontSize: 13 }}>
+                    Define acceso por rol, sucursal y pestañas permitidas.
+                  </p>
                 </div>
-                {!teamUserToEdit && (
-                  <div style={{ marginBottom: 12 }}>
-                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>Contraseña</label>
-                    <input
-                      type="password"
-                      value={teamForm.password}
-                      onChange={e => setTeamForm(prev => ({ ...prev, password: e.target.value }))}
-                      placeholder="Mínimo 6 caracteres"
-                      required
-                      minLength={6}
-                      style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'inherit' }}
-                    />
-                  </div>
-                )}
-                {teamUserToEdit && (
-                  <div style={{ marginBottom: 12 }}>
-                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>Nueva contraseña (opcional)</label>
-                    <input
-                      type="password"
-                      value={teamForm.password}
-                      onChange={e => setTeamForm(prev => ({ ...prev, password: e.target.value }))}
-                      placeholder="Dejar en blanco para no cambiar"
-                      minLength={6}
-                      style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'inherit' }}
-                    />
-                  </div>
-                )}
-                <div style={{ marginBottom: 12 }}>
-                  <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>Rol</label>
-                  <select
-                    value={teamForm.role}
-                    onChange={e => setTeamForm(prev => ({ ...prev, role: e.target.value }))}
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'inherit' }}
-                  >
-                    <option value="ceo">CEO</option>
-                    <option value="cashier">Cashier</option>
-                  </select>
-                </div>
-                <div style={{ marginBottom: 12 }}>
-                  <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>Sucursal (opcional)</label>
-                  <select
-                    value={teamForm.branch_id}
-                    onChange={e => setTeamForm(prev => ({ ...prev, branch_id: e.target.value }))}
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'inherit' }}
-                  >
-                    <option value="">Todas / Sin restricción</option>
-                    {branches.filter(b => b.id !== 'all').map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                  </select>
-                </div>
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>Pestañas que puede ver</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                    {ALL_TABS.map(tabId => (
-                      <label key={tabId} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                <button
+                  type="button"
+                  onClick={() => !teamSubmitting && (setTeamModalOpen(false), setTeamUserToEdit(null))}
+                  disabled={teamSubmitting}
+                  style={{
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    background: 'rgba(255,255,255,0.04)',
+                    color: '#e5e7eb',
+                    width: 34,
+                    height: 34,
+                    borderRadius: 999,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: teamSubmitting ? 'not-allowed' : 'pointer',
+                  }}
+                  aria-label="Cerrar"
+                  title="Cerrar"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveTeamUser} style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}>
+                <div style={{ padding: 20, overflowY: 'auto', display: 'grid', gap: 16 }}>
+                  <div style={{ display: 'grid', gap: 12 }}>
+                    <label style={{ display: 'grid', gap: 6 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#e5e7eb' }}>Correo</span>
+                      <input
+                        type="email"
+                        value={teamForm.email}
+                        onChange={e => setTeamForm(prev => ({ ...prev, email: e.target.value }))}
+                        placeholder="usuario@ejemplo.com"
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '11px 12px',
+                          borderRadius: 10,
+                          border: '1px solid rgba(255,255,255,0.18)',
+                          background: 'rgba(8, 14, 28, 0.82)',
+                          color: '#f8fafc',
+                          outline: 'none',
+                        }}
+                      />
+                    </label>
+
+                    {!teamUserToEdit && (
+                      <label style={{ display: 'grid', gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#e5e7eb' }}>Contraseña</span>
                         <input
-                          type="checkbox"
-                          checked={teamForm.allowed_tabs?.includes(tabId) ?? false}
-                          onChange={() => toggleTeamTab(tabId)}
+                          type="password"
+                          value={teamForm.password}
+                          onChange={e => setTeamForm(prev => ({ ...prev, password: e.target.value }))}
+                          placeholder="Mínimo 6 caracteres"
+                          required
+                          minLength={6}
+                          style={{
+                            width: '100%',
+                            padding: '11px 12px',
+                            borderRadius: 10,
+                            border: '1px solid rgba(255,255,255,0.18)',
+                            background: 'rgba(8, 14, 28, 0.82)',
+                            color: '#f8fafc',
+                            outline: 'none',
+                          }}
                         />
-                        <span>{TAB_LABELS[tabId]}</span>
                       </label>
-                    ))}
+                    )}
+
+                    {teamUserToEdit && (
+                      <label style={{ display: 'grid', gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#e5e7eb' }}>Nueva contraseña (opcional)</span>
+                        <input
+                          type="password"
+                          value={teamForm.password}
+                          onChange={e => setTeamForm(prev => ({ ...prev, password: e.target.value }))}
+                          placeholder="Dejar en blanco para no cambiar"
+                          minLength={6}
+                          style={{
+                            width: '100%',
+                            padding: '11px 12px',
+                            borderRadius: 10,
+                            border: '1px solid rgba(255,255,255,0.18)',
+                            background: 'rgba(8, 14, 28, 0.82)',
+                            color: '#f8fafc',
+                            outline: 'none',
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <label style={{ display: 'grid', gap: 6 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#e5e7eb' }}>Rol</span>
+                      <select
+                        value={teamForm.role}
+                        onChange={e => setTeamForm(prev => ({ ...prev, role: e.target.value }))}
+                        style={{
+                          width: '100%',
+                          padding: '11px 12px',
+                          borderRadius: 10,
+                          border: '1px solid rgba(255,255,255,0.18)',
+                          background: 'rgba(8, 14, 28, 0.82)',
+                          color: '#f8fafc',
+                          outline: 'none',
+                        }}
+                      >
+                        <option value="ceo">CEO</option>
+                        <option value="cashier">Cashier</option>
+                      </select>
+                    </label>
+
+                    <label style={{ display: 'grid', gap: 6 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#e5e7eb' }}>Sucursal (opcional)</span>
+                      <select
+                        value={teamForm.branch_id}
+                        onChange={e => setTeamForm(prev => ({ ...prev, branch_id: e.target.value }))}
+                        style={{
+                          width: '100%',
+                          padding: '11px 12px',
+                          borderRadius: 10,
+                          border: '1px solid rgba(255,255,255,0.18)',
+                          background: 'rgba(8, 14, 28, 0.82)',
+                          color: '#f8fafc',
+                          outline: 'none',
+                        }}
+                      >
+                        <option value="">Todas / Sin restricción</option>
+                        {branches.filter(b => b.id !== 'all').map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                      </select>
+                    </label>
+                  </div>
+
+                  <div style={{
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    borderRadius: 12,
+                    background: 'rgba(255,255,255,0.03)',
+                    padding: 14,
+                  }}>
+                    <div style={{ marginBottom: 10 }}>
+                      <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#e5e7eb' }}>Pestañas habilitadas</p>
+                      <p style={{ margin: '4px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.65)' }}>
+                        Selecciona qué secciones puede ver este usuario.
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {ALL_TABS.map(tabId => {
+                        const active = teamForm.allowed_tabs?.includes(tabId) ?? false;
+                        return (
+                          <button
+                            key={tabId}
+                            type="button"
+                            onClick={() => toggleTeamTab(tabId)}
+                            style={{
+                              border: active ? '1px solid rgba(37, 211, 102, 0.6)' : '1px solid rgba(255,255,255,0.2)',
+                              background: active ? 'rgba(37, 211, 102, 0.16)' : 'rgba(255,255,255,0.04)',
+                              color: active ? '#d9ffe9' : '#e5e7eb',
+                              borderRadius: 999,
+                              padding: '6px 11px',
+                              fontSize: 12,
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              transition: 'all .18s ease',
+                            }}
+                          >
+                            {TAB_LABELS[tabId]}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                  <button type="button" className="admin-btn secondary" onClick={() => !teamSubmitting && (setTeamModalOpen(false), setTeamUserToEdit(null))} disabled={teamSubmitting}>Cancelar</button>
-                  <button type="submit" className="admin-btn primary" disabled={teamSubmitting}>
-                    {teamSubmitting ? <Loader2 size={18} className="animate-spin" /> : (teamUserToEdit ? 'Guardar' : 'Crear')}
-                  </button>
+
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '14px 20px',
+                  borderTop: '1px solid rgba(255,255,255,0.1)',
+                  background: 'rgba(0,0,0,0.28)',
+                }}>
+                  <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.62)' }}>
+                    {teamForm.allowed_tabs?.length || 0} pestañas seleccionadas
+                  </p>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      type="button"
+                      className="admin-btn secondary"
+                      onClick={() => !teamSubmitting && (setTeamModalOpen(false), setTeamUserToEdit(null))}
+                      disabled={teamSubmitting}
+                    >
+                      Cancelar
+                    </button>
+                    <button type="submit" className="admin-btn primary" disabled={teamSubmitting}>
+                      {teamSubmitting ? <Loader2 size={18} className="animate-spin" /> : (teamUserToEdit ? 'Guardar cambios' : 'Crear usuario')}
+                    </button>
+                  </div>
                 </div>
               </form>
             </div>
@@ -930,6 +1202,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
                 <div style={{ marginBottom: 20 }}>
                   <p style={{ marginBottom: 10, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Comprobante actual:</p>
                   <a href={receiptModalOrder.payment_ref} target="_blank" rel="noreferrer" style={{ display: 'block', marginBottom: 15 }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={receiptModalOrder.payment_ref} alt="Comprobante" style={{ width: '100%', borderRadius: 8, border: '1px solid var(--card-border)' }} />
                   </a>
                 </div>
@@ -941,6 +1214,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
                   <input type="file" id="receipt-upload-modal" accept="image/*" hidden onChange={handleReceiptFileChange} />
                   {receiptPreview ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 15, justifyContent: 'center', position: 'relative' }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={receiptPreview} alt="Preview" style={{ width: 80, height: 80, borderRadius: 8, objectFit: 'cover', border: '1px solid white' }} />
                       <div style={{ textAlign: 'left' }}>
                         <span style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', color: 'white' }}>Imagen Seleccionada</span>

@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 
 import { AdminShell } from "../../components/super-admin/admin-shell";
+import { SaasThemeScope } from "../../components/theme/saas-theme-scope";
+import { ThemeToggle } from "../../components/theme/theme-toggle";
 import { createSupabaseServerClient } from "../../utils/supabase/server";
 
 export default async function SuperAdminLayout({
@@ -32,5 +34,11 @@ export default async function SuperAdminLayout({
 		redirect("/login");
 	}
 
-	return <AdminShell>{children}</AdminShell>;
+	return (
+		<>
+			<SaasThemeScope />
+			<ThemeToggle />
+			<AdminShell>{children}</AdminShell>
+		</>
+	);
 }

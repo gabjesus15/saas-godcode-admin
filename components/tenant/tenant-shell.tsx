@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAntiZoom } from "./use-anti-zoom";
 
@@ -11,6 +11,7 @@ interface TenantShellProps {
 export function TenantShell({ children }: TenantShellProps) {
   const pathname = usePathname();
   const [scrollY, setScrollY] = useState(0);
+  const bgLayerRef = useRef<HTMLDivElement | null>(null);
   const normalizedPath = String(pathname || "").toLowerCase();
   const hideMenuPatternLayer = normalizedPath.endsWith("/login") || normalizedPath.endsWith("/admin");
 
@@ -21,6 +22,11 @@ export function TenantShell({ children }: TenantShellProps) {
   }, []);
 
   useAntiZoom();
+
+  useEffect(() => {
+    if (!bgLayerRef.current) return;
+    bgLayerRef.current.style.transform = `translateY(${-scrollY * 0.1}px)`;
+  }, [scrollY]);
 
   useEffect(() => {
     const handleVisualLock = () => {
@@ -36,9 +42,20 @@ export function TenantShell({ children }: TenantShellProps) {
         const dpr = window.devicePixelRatio || 1;
         const inverseScale = 1 / dpr;
 
-        (document.body.style as any).zoom = String(inverseScale);
+        const supportsZoom = "zoom" in document.body.style;
 
-        if (!document.body.style.zoom) {
+        if (supportsZoom) {
+          document.body.style.setProperty("zoom", String(inverseScale));
+
+          contentLayer.style.transform = "";
+          contentLayer.style.width = "100%";
+          contentLayer.style.height = "";
+          contentLayer.style.overflowY = "";
+
+          uiLayer.style.transform = "";
+          uiLayer.style.width = "100%";
+          uiLayer.style.height = "100%";
+        } else {
           const transformProps = `scale(${inverseScale})`;
           const originProps = "top left";
           const widthProps = `${dpr * 100}vw`;
@@ -53,15 +70,6 @@ export function TenantShell({ children }: TenantShellProps) {
           uiLayer.style.transformOrigin = originProps;
           uiLayer.style.width = widthProps;
           uiLayer.style.height = heightProps;
-        } else {
-          contentLayer.style.transform = "";
-          contentLayer.style.width = "100%";
-          contentLayer.style.height = "";
-          contentLayer.style.overflowY = "";
-
-          uiLayer.style.transform = "";
-          uiLayer.style.width = "100%";
-          uiLayer.style.height = "100%";
         }
 
         uiLayer.style.position = "fixed";
@@ -72,7 +80,7 @@ export function TenantShell({ children }: TenantShellProps) {
 
         document.body.style.overflowX = "hidden";
       } else {
-        document.body.style.zoom = "";
+        document.body.style.removeProperty("zoom");
         document.body.style.overflowX = "";
 
         contentLayer.style.transform = "";
@@ -101,47 +109,23 @@ export function TenantShell({ children }: TenantShellProps) {
   }, [pathname]);
 
   return (
-    <div
-      style={{
-        position: "relative",
-        width: "100%",
-        minHeight: "100dvh",
-        background: "var(--bg-primary, #0a0a0a)",
-        touchAction: "pan-x pan-y",
-      }}
-    >
+    <div className="tenant-shell-root">
       <div
-        className="app-bg-layer"
-        style={{
-          position: "fixed",
-          inset: "-200% -50%",
-          zIndex: 0,
-          backgroundImage: hideMenuPatternLayer
-            ? "none"
-            : "var(--tenant-bg-image, url(/tenant/menu-pattern.webp))",
-          backgroundRepeat: "repeat",
-          backgroundSize: "1200px",
-          opacity: hideMenuPatternLayer ? 0 : 0.5,
-          filter: "brightness(0.18) blur(3px)",
-          transform: `translateY(${-scrollY * 0.1}px)`,
-          transition: "transform 0.1s ease-out",
-          pointerEvents: "none",
-          willChange: "transform",
-        }}
+        ref={bgLayerRef}
+        className={`app-bg-layer tenant-shell-bg-layer ${hideMenuPatternLayer ? "is-hidden" : ""}`}
       />
 
       <div
         id="app-content-layer"
-        className="app-wrapper"
-        style={{ position: "relative", zIndex: 1, background: "transparent" }}
+        className="app-wrapper tenant-content-layer"
       >
         {children}
       </div>
 
-      <div id="app-ui-layer" style={{ position: "fixed", inset: 0, zIndex: 100, pointerEvents: "none" }}>
-        <div id="navbar-portal-root" style={{ pointerEvents: "auto", width: "100%" }} />
-        <div id="cart-portal-root" style={{ pointerEvents: "auto" }} />
-        <div id="modal-root" style={{ pointerEvents: "auto" }} />
+      <div id="app-ui-layer" className="tenant-ui-layer">
+        <div id="navbar-portal-root" className="tenant-portal-navbar" />
+        <div id="cart-portal-root" className="tenant-portal-cart" />
+        <div id="modal-root" className="tenant-portal-modal" />
       </div>
     </div>
   );

@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
       }),
       { status: 200, headers: jsonHeaders }
     );
-  } catch (error) {
+  } catch {
     return new Response(JSON.stringify({ error: "Internal error" }), {
       status: 500,
       headers: jsonHeaders,

@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { ChefHat, ShoppingBag, BarChart3, Users, UserPlus, List, LogOut, DollarSign, Store, ChevronDown, ClipboardList } from 'lucide-react';
 const cashIcon = '/tenant/cash.svg';
 const categoryIcon = '/tenant/category.svg';
 
 const CashIcon = ({ size }) => (
+    // eslint-disable-next-line @next/next/no-img-element
     <img 
         src={cashIcon} 
         alt="Caja" 
@@ -20,6 +21,7 @@ const CashIcon = ({ size }) => (
 );
 
 const CategoryIcon = ({ size }) => (
+    // eslint-disable-next-line @next/next/no-img-element
     <img 
         src={categoryIcon} 
         alt="Categorías" 
@@ -36,7 +38,7 @@ const AdminSidebar = ({ activeTab, setActiveTab, isMobile, kanbanColumns, userRo
     const router = useRouter();
     const pathname = usePathname();
     const pendingCount = kanbanColumns?.pending?.length || 0;
-    const isTabAllowed = (tabId) => (typeof canAccessTab === 'function' ? canAccessTab(tabId) : true);
+    const isTabAllowed = useCallback((tabId) => (typeof canAccessTab === 'function' ? canAccessTab(tabId) : true), [canAccessTab]);
 
     const storeHomePath = useMemo(() => {
         const currentPath = String(pathname || '/');
@@ -89,7 +91,7 @@ const AdminSidebar = ({ activeTab, setActiveTab, isMobile, kanbanColumns, userRo
             }
             return !isTabAllowed(item.id);
         })
-    ), [menuItems, canAccessTab]);
+    ), [menuItems, isTabAllowed]);
 
     const [expandedGroups, setExpandedGroups] = useState(() => {
         const activeGroup = menuItems.find(item => item.isGroup && item.children?.some(child => child.id === activeTab));
@@ -116,7 +118,12 @@ const AdminSidebar = ({ activeTab, setActiveTab, isMobile, kanbanColumns, userRo
     return (
         <aside className="admin-sidebar glass">
             <div className="sidebar-top">
-                {!isMobile && <div className="logo-circle"><img src={logoUrl || '/tenant/logo-placeholder.svg'} alt="Logo" /></div>}
+                {!isMobile && (
+                    <div className="logo-circle">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={logoUrl || '/tenant/logo-placeholder.svg'} alt="Logo" />
+                    </div>
+                )}
                 {!isMobile && (
                     <div className="brand-info">
                         <h3 className="brand-title">Admin del local</h3>

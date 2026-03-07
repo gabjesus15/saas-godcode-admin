@@ -59,7 +59,7 @@ const AdminSettings = ({ showNotify, isMobile, selectedBranch, onBranchUpdate })
         } finally {
             setLoading(false);
         }
-    }, [showNotify, selectedBranch?.id]);
+    }, [showNotify, selectedBranch]);
 
     useEffect(() => {
         loadSettings();
@@ -290,7 +290,7 @@ const AdminSettings = ({ showNotify, isMobile, selectedBranch, onBranchUpdate })
                     {(!isMobile || expandedSection === 'bank') && (
                     <>
                     <p style={{ color: '#9ca3af', fontSize: '0.85rem', marginBottom: 20 }}>
-                        Estos datos se mostrarán cuando el cliente elija "Pagar con Transferencia" en este local.
+                        Estos datos se mostrarán cuando el cliente elija &quot;Pagar con Transferencia&quot; en este local.
                     </p>
                     <div className="form-grid">
                         <div className="form-group">

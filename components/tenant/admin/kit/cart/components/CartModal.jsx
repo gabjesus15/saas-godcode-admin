@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   X, Trash2, Plus, Minus, MessageCircle, ShoppingBag,
   CreditCard, Store, Check, Upload, ArrowLeft,
-  CheckCircle2, Copy, AlertCircle, Image as ImageIcon
+  CheckCircle2, Copy, AlertCircle
 } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import { ordersService } from '../../orders/services/orders';
@@ -17,7 +18,6 @@ import { validateImageFile } from '../../../shared/utils/cloudinary';
 
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1553621042-f6e147245754?auto=format&fit=crop&q=80&w=400';
-const WHATSAPP_NUMBER = "56976645547";
 
 const generateWSMessage = (formData, cart, total, paymentType, note, businessName) => {
   let msg = `*NUEVO PEDIDO WEB - ${businessName || 'RESTAURANTE'}*\n`;
@@ -375,8 +375,6 @@ const PaymentFlow = ({
   formData, onInputChange, onFileChange, onSubmit,
   isSaving, validation, showFieldErrors, cartTotal, onBack, activeInfo
 }) => {
-
-  const phoneDigits = (formData.phone || '').replace(/\D/g, '').length;
   const showNameError = showFieldErrors && !validation.name;
   const showRutError = showFieldErrors && !validation.rut;
   const showPhoneError = showFieldErrors && !validation.phone;
@@ -444,7 +442,7 @@ const PaymentFlow = ({
               <input type="file" id="receipt-upload" accept="image/*" hidden onChange={onFileChange} />
               {formData.receiptPreview ? (
                 <div className="file-preview-row">
-                  <img src={formData.receiptPreview} alt="Comprobante" />
+                  <Image src={formData.receiptPreview} alt="Comprobante" width={80} height={80} unoptimized />
                   <span>Imagen cargada</span>
                 </div>
               ) : (
@@ -614,11 +612,13 @@ const EmptyState = ({ onMenu }) => (
 
 const CartItem = ({ item, unitPrice, onRemove, onAdd, onDecrease }) => (
   <div className="cart-item">
-    <img
+    <Image
       src={item.image_url || FALLBACK_IMAGE}
       alt={item.name}
       className="item-thumb"
-      onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_IMAGE; }}
+      width={72}
+      height={72}
+      unoptimized
     />
     <div className="item-details" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
       <div className="item-top">
@@ -637,5 +637,7 @@ const CartItem = ({ item, unitPrice, onRemove, onAdd, onDecrease }) => (
     </div>
   </div>
 );
+
+CartModal.displayName = 'CartModal';
 
 export default CartModal;

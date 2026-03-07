@@ -141,4 +141,6 @@ const CategoryModal = React.memo(({ isOpen, onClose, onSave, category, defaultOr
   );
 });
 
+CategoryModal.displayName = 'CategoryModal';
+
 export default CategoryModal;

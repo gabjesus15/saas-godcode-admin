@@ -221,7 +221,7 @@ export const useManualOrder = (showNotify, onOrderSaved, onClose, registerSale, 
             sanitizedOrder.total = totalForOrder;
 
             // Aquí llamamos a tu servicio existente
-            const { order } = await createManualOrder(sanitizedOrder, receiptFile);
+            await createManualOrder(sanitizedOrder, receiptFile);
 
 			// Comentario: la venta en caja se registra al pasar a cocina
 			// (moveOrder -> active), no al crear el pedido manual.

@@ -191,13 +191,13 @@ export function BranchRow({ branch }: BranchRowProps) {
   };
 
   return (
-    <div className="grid gap-4 rounded-2xl border border-zinc-200 bg-white/80 p-4 shadow-sm">
+    <div className="grid gap-4 rounded-2xl border border-zinc-200 bg-white/80 p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/70">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-zinc-900">
+          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
             {branch.name ?? "Sucursal"}
           </p>
-          <p className="text-xs text-zinc-500">Slug: {branch.slug ?? "--"}</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">Slug: {branch.slug ?? "--"}</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant={branch.is_active ? "success" : "warning"}>
@@ -258,10 +258,10 @@ export function BranchRow({ branch }: BranchRowProps) {
       ) : null}
 
       {showDelete ? (
-        <div className="grid gap-3 rounded-2xl border border-red-200 bg-red-50/60 p-4">
+        <div className="grid gap-3 rounded-2xl border border-red-200 bg-red-50/60 p-4 dark:border-red-900/70 dark:bg-red-950/30">
           <div>
-            <p className="text-sm font-semibold text-red-700">Eliminar sucursal</p>
-            <p className="text-xs text-red-600">
+            <p className="text-sm font-semibold text-red-700 dark:text-red-300">Eliminar sucursal</p>
+            <p className="text-xs text-red-600 dark:text-red-400">
               Para continuar, escribe &quot;{deleteToken}&quot; y confirma con tu contrasena.
             </p>
           </div>
@@ -278,7 +278,7 @@ export function BranchRow({ branch }: BranchRowProps) {
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Contrasena"
             />
-            <div className="flex items-center gap-2 text-xs font-medium text-red-700">
+            <div className="flex items-center gap-2 text-xs font-medium text-red-700 dark:text-red-300">
               <input
                 type="checkbox"
                 checked={confirmChecked}
@@ -291,7 +291,7 @@ export function BranchRow({ branch }: BranchRowProps) {
           </div>
 
           {deleteError ? (
-            <div className="rounded-xl border border-red-200 bg-white px-3 py-2 text-xs text-red-700">
+            <div className="rounded-xl border border-red-200 bg-white px-3 py-2 text-xs text-red-700 dark:border-red-900/70 dark:bg-zinc-900 dark:text-red-300">
               {deleteError}
             </div>
           ) : null}
@@ -310,7 +310,7 @@ export function BranchRow({ branch }: BranchRowProps) {
       ) : null}
 
       {error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+        <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/70 dark:bg-red-950/30 dark:text-red-300">
           {error}
         </div>
       ) : null}

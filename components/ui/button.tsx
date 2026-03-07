@@ -15,13 +15,13 @@ export interface ButtonProps
 
 const variantClasses: Record<ButtonVariant, string> = {
   default:
-    "bg-zinc-900 text-white hover:bg-zinc-800 focus-visible:ring-zinc-900",
+    "bg-zinc-900 text-white hover:bg-zinc-800 focus-visible:ring-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 dark:focus-visible:ring-zinc-300",
   outline:
-    "border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50 focus-visible:ring-zinc-300",
+    "border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50 focus-visible:ring-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800 dark:focus-visible:ring-zinc-600",
   destructive:
     "bg-red-600 text-white hover:bg-red-500 focus-visible:ring-red-500",
   ghost:
-    "bg-transparent text-zinc-700 hover:bg-zinc-100 focus-visible:ring-zinc-300",
+    "bg-transparent text-zinc-700 hover:bg-zinc-100 focus-visible:ring-zinc-300 dark:text-zinc-200 dark:hover:bg-zinc-800 dark:focus-visible:ring-zinc-600",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {

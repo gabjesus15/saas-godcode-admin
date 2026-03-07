@@ -7,7 +7,7 @@ import { TABLES } from '../../lib/supabaseTables';
 import { Loader2, AlertCircle, XCircle, FileText, Trash2, Users, ChevronDown } from 'lucide-react';
 import { downloadExcel } from '../../shared/utils/exportUtils';
 
-const AdminDangerZone = ({ orders, showNotify, loadData, isMobile, selectedBranch, companyId }) => {
+const AdminDangerZone = ({ showNotify, loadData, isMobile, selectedBranch, companyId }) => {
   const [analyticsDate, setAnalyticsDate] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;

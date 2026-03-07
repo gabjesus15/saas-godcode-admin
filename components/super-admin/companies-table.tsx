@@ -63,14 +63,14 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
 
   return (
     <Card className="overflow-hidden p-0">
-      <div className="grid grid-cols-12 gap-4 border-b border-zinc-200 bg-zinc-50/80 px-6 py-4 text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+      <div className="grid grid-cols-12 gap-4 border-b border-zinc-200 bg-zinc-50/80 px-6 py-4 text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900/70 dark:text-zinc-400">
         <span className="col-span-4">Empresa</span>
         <span className="col-span-3">Plan</span>
         <span className="col-span-2">Estado</span>
         <span className="col-span-3">Acciones</span>
       </div>
 
-      <div className="divide-y divide-zinc-200">
+      <div className="divide-y divide-zinc-200 dark:divide-zinc-700">
         {companies.map((company) => {
           const plan = Array.isArray(company.plans)
             ? company.plans[0]
@@ -88,20 +88,20 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
           return (
             <div
               key={company.id}
-              className="grid grid-cols-12 items-center gap-4 px-6 py-4 text-sm text-zinc-700"
+              className="grid grid-cols-12 items-center gap-4 px-6 py-4 text-sm text-zinc-700 dark:text-zinc-300"
             >
               <div className="col-span-4">
                 <Link
                   href={`/companies/${company.id}`}
-                  className="font-semibold text-zinc-900 hover:underline"
+                  className="font-semibold text-zinc-900 hover:underline dark:text-zinc-100"
                 >
                   {company.name ?? "Sin nombre"}
                 </Link>
-                <p className="text-xs text-zinc-500">ID: {company.id}</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">ID: {company.id}</p>
                 {company.public_slug ? (
                   <Link
                     href={buildTenantUrl(company.public_slug)}
-                    className="mt-2 inline-flex items-center rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-semibold text-zinc-600"
+                    className="mt-2 inline-flex items-center rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-semibold text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -110,10 +110,10 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
                 ) : null}
               </div>
               <div className="col-span-3">
-                <p className="font-medium text-zinc-900">
+                <p className="font-medium text-zinc-900 dark:text-zinc-100">
                   {plan?.name ?? "Sin plan"}
                 </p>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
                   {plan?.price ? `$${plan.price}` : "--"} · {plan?.max_branches ?? 0}
                   {" "}
                   sucursales
@@ -134,7 +134,7 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
                 />
                 <Link
                   href={`/companies/${company.id}`}
-                  className="inline-flex h-9 items-center rounded-xl border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                  className="inline-flex h-9 items-center rounded-xl border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
                 >
                   Gestionar
                 </Link>

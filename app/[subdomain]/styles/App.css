@@ -40,3 +40,53 @@
 .read-the-docs {
   color: #888;
 }
+
+.tenant-shell-root {
+  position: relative;
+  width: 100%;
+  min-height: 100dvh;
+  background: var(--bg-primary, #0a0a0a);
+  touch-action: pan-x pan-y;
+}
+
+.tenant-shell-bg-layer {
+  position: fixed;
+  inset: -200% -50%;
+  z-index: 0;
+  background-image: var(--tenant-bg-image, url(/tenant/menu-pattern.webp));
+  background-repeat: repeat;
+  background-size: 1200px;
+  opacity: 0.5;
+  filter: brightness(0.18) blur(3px);
+  transition: transform 0.1s ease-out, opacity 0.2s ease-out;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.tenant-shell-bg-layer.is-hidden {
+  background-image: none;
+  opacity: 0;
+}
+
+.tenant-content-layer {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+}
+
+.tenant-ui-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.tenant-portal-navbar {
+  pointer-events: auto;
+  width: 100%;
+}
+
+.tenant-portal-cart,
+.tenant-portal-modal {
+  pointer-events: auto;
+}

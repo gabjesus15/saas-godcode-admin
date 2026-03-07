@@ -19,7 +19,7 @@ function getInitialBranch() {
         const parsed = JSON.parse(saved);
         const hasValid = !!(parsed && parsed.id && String(parsed.id).length > 0);
         return { branch: hasValid ? parsed : null, hasValidBranch: hasValid };
-    } catch (_) {
+    } catch {
         return { branch: null, hasValidBranch: false };
     }
 }
@@ -60,12 +60,12 @@ export const LocationProvider = ({ children }) => {
                     if (!prev?.id) return prev;
                     const valid = mappedBranches.some((b) => b.id === prev.id);
                     if (!valid) {
-                        try { window.localStorage.removeItem('selectedBranch'); } catch (_) {}
+                        try { window.localStorage.removeItem('selectedBranch'); } catch {}
                         return null;
                     }
                     return prev;
                 });
-            } catch (_) {
+            } catch {
             } finally {
                 setLoadingBranches(false);
             }
@@ -82,13 +82,13 @@ export const LocationProvider = ({ children }) => {
 
     const selectBranch = (branch) => {
         setSelectedBranch(branch);
-        try { window.localStorage.setItem('selectedBranch', JSON.stringify(branch)); } catch (_) {}
+        try { window.localStorage.setItem('selectedBranch', JSON.stringify(branch)); } catch {}
         setIsLocationModalOpen(false);
     };
 
     const clearBranch = () => {
         setSelectedBranch(null);
-        try { window.localStorage.removeItem('selectedBranch'); } catch (_) {}
+        try { window.localStorage.removeItem('selectedBranch'); } catch {}
         setIsLocationModalOpen(true);
     };
 
