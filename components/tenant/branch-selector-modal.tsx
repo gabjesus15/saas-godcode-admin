@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { AlertCircle, Loader2, MapPin, Phone, Store, X } from "lucide-react";
 
@@ -32,9 +33,14 @@ export function BranchSelectorModal({
   allowClose = true,
   schedule,
 }: BranchSelectorModalProps) {
+  const [isMounted, setIsMounted] = useState(false);
 
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
-  if (!isOpen || typeof document === "undefined") return null;
+  if (!isMounted || !isOpen) return null;
+  if (typeof document === "undefined") return null;
 
   const handleBranchSelect = (branch: BranchData) => {
     onSelectBranch(branch);

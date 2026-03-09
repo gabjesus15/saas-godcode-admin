@@ -231,7 +231,8 @@ export default async function TenantMenuPage({
       return <StoreUnavailable />;
     }
 
-    menuData = data;
+    // PostgREST puede devolver un array de una fila para RETURNS TABLE
+    menuData = Array.isArray(data) && data.length > 0 ? data[0] : data;
   }
 
   // --- E. Asignación de tipos fuertes (¡Adiós 'any'!) ---

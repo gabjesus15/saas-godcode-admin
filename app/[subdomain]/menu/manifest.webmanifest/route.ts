@@ -5,9 +5,17 @@ type RouteContext = {
 	params: Promise<{ subdomain: string }>;
 };
 
-export async function GET(_req: Request, context: RouteContext) {
+export async function GET(req: Request, context: RouteContext) {
 	const { subdomain } = await context.params;
 	const company = await getCachedCompany(subdomain);
+
+	let baseUrl = "";
+	try {
+		baseUrl = new URL(req.url).origin;
+	} catch {
+		baseUrl = "";
+	}
+	const pathPrefix = baseUrl ? `${baseUrl}/${subdomain}` : `/${subdomain}`;
 
 	const status = company?.subscription_status?.toLowerCase();
 	const isUnavailable = status === "suspended" || status === "cancelled";
@@ -22,8 +30,9 @@ export async function GET(_req: Request, context: RouteContext) {
 	const iconVersion = encodeURIComponent(
 		String(company?.updated_at ?? company?.id ?? name)
 	);
-	const tenantIcon = `/${subdomain}/tenant-favicon?v=${iconVersion}`;
-	const startUrl = `/${subdomain}/menu`;
+	const tenantIcon = baseUrl ? `${baseUrl}/${subdomain}/tenant-favicon?v=${iconVersion}` : `/${subdomain}/tenant-favicon?v=${iconVersion}`;
+	const startUrl = baseUrl ? `${pathPrefix}/menu` : `/${subdomain}/menu`;
+	const scope = pathPrefix;
 
 	const manifest = {
 		id: startUrl,
@@ -31,7 +40,7 @@ export async function GET(_req: Request, context: RouteContext) {
 		short_name: name.slice(0, 24),
 		description: `Menu digital de ${name}`,
 		start_url: startUrl,
-		scope: `/${subdomain}/menu/`,
+		scope,
 		display: "standalone",
 		background_color:
 			(company?.theme_config?.backgroundColor as string) ?? "#0a0a0a",

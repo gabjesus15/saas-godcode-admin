@@ -140,10 +140,9 @@ export function MenuClient({
     registerServiceWorker();
   }, [menuScopePath, menuServiceWorkerPath]);
 
-  const visibleCategories = useMemo(
-    () => categories.filter((category) => products.some((product) => product.category_id === category.id)),
-    [categories, products]
-  );
+  // Mostrar todas las categorías de la empresa (misma lista en todas las sucursales).
+  // Las secciones con 0 productos se muestran vacías o con mensaje.
+  const visibleCategories = useMemo(() => [...categories], [categories]);
   
   const [activeCategory, setActiveCategory] = useState<string | null>(
     visibleCategories[0]?.id ?? null
@@ -551,9 +550,13 @@ export function MenuClient({
                   >
                     <h2 className="category-title">{category.name}</h2>
                     <div className="product-grid">
-                      {categoryProducts.map((product) => (
-                        <ProductCard key={product.id} product={product} priority={nextPriority()} />
-                      ))}
+                      {categoryProducts.length > 0
+                        ? categoryProducts.map((product) => (
+                            <ProductCard key={product.id} product={product} priority={nextPriority()} />
+                          ))
+                        : (
+                            <p className="no-results-text">No hay productos en esta categoría.</p>
+                          )}
                     </div>
                   </section>
                 );
