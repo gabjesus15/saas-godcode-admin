@@ -79,8 +79,7 @@ export const getTenantBaseDomain = () => {
   }
 
   if (process.env.NODE_ENV === "development") {
-    const port = process.env.NEXT_PUBLIC_DEV_PORT?.trim() || "3000";
-    return `localhost:${port}`;
+    return "localhost:3000";
   }
 
   return process.env.NEXT_PUBLIC_APP_DOMAIN?.trim() || "tuapp.com";
