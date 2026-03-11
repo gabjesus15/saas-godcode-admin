@@ -62,7 +62,7 @@ const toDatetimeLocal = (iso: string | null) => {
   return local.toISOString().slice(0, 16);
 };
 
-export function BroadcastsManager() {
+export default function BroadcastsManager() {
   const [items, setItems] = useState<BroadcastItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

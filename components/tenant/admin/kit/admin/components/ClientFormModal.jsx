@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { X, Loader2, User, Phone, FileText } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { TABLES } from '../../lib/supabaseTables';
 import { formatRut, validateRut } from '../../shared/utils/formatters';
@@ -107,16 +107,16 @@ const ClientFormModal = ({ isOpen, onClose, onClientCreated, showNotify, company
     };
 
     return (
-        <div className="modal-overlay animate-fade">
-            <div className="modal-content glass admin-modal" style={{ maxWidth: '500px' }}>
+        <div className="modal-overlay animate-fade" onClick={onClose}>
+            <div className="modal-content glass admin-modal" style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h2>Nuevo Cliente</h2>
+                    <h3>Nuevo Cliente</h3>
                     <button onClick={onClose} className="btn-close"><X size={24} /></button>
                 </div>
                 
-                <form onSubmit={handleSubmit} className="modal-body">
+                <form id="client-form" onSubmit={handleSubmit} className="modal-body">
                     <div className="form-group">
-                        <label><User size={16} /> Nombre Completo *</label>
+                        <label>Nombre Completo *</label>
                         <input 
                             required
                             type="text" 
@@ -125,11 +125,12 @@ const ClientFormModal = ({ isOpen, onClose, onClientCreated, showNotify, company
                             placeholder="Ej: Juan Pérez"
                             value={formData.name}
                             onChange={handleChange}
+                            autoFocus
                         />
                     </div>
 
                     <div className="form-group">
-                        <label><Phone size={16} /> Teléfono *</label>
+                        <label>Teléfono *</label>
                         <div className="input-with-prefix">
                             <span className="prefix">+56</span>
                             <input 
@@ -145,7 +146,7 @@ const ClientFormModal = ({ isOpen, onClose, onClientCreated, showNotify, company
                     </div>
 
 <div className="form-group">
-                        <label><FileText size={16} /> RUT (Opcional)</label>
+                        <label>RUT (Opcional)</label>
                         <input 
                             type="text" 
                             name="rut"
@@ -155,18 +156,18 @@ const ClientFormModal = ({ isOpen, onClose, onClientCreated, showNotify, company
                             onChange={handleChange}
                         />
                     </div>
-
-                    <div className="modal-actions">
-                        <button type="button" onClick={onClose} className="btn btn-secondary">Cancelar</button>
-                        <button 
-                            type="submit" 
-                            className="btn btn-primary"
-                            disabled={loading || sanitizeText(formData.name).length < 2 || formData.phone.replace(/\D/g, '').length < MIN_PHONE_DIGITS}
-                        >
-                            {loading ? <Loader2 className="animate-spin" size={18} /> : 'Guardar Cliente'}
-                        </button>
-                    </div>
                 </form>
+                <div className="modal-footer">
+                    <button type="button" onClick={onClose} className="btn btn-secondary">Cancelar</button>
+                    <button 
+                        type="submit" 
+                        form="client-form"
+                        className="btn btn-primary"
+                        disabled={loading || sanitizeText(formData.name).length < 2 || formData.phone.replace(/\D/g, '').length < MIN_PHONE_DIGITS}
+                    >
+                        {loading ? <Loader2 className="animate-spin" size={18} /> : 'Guardar Cliente'}
+                    </button>
+                </div>
             </div>
         </div>
     );

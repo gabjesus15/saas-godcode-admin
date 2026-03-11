@@ -39,7 +39,7 @@ const emptyForm = {
   isActive: true,
 };
 
-export function AdminModulesManager() {
+export default function AdminModulesManager() {
   const [modules, setModules] = useState<AdminModule[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

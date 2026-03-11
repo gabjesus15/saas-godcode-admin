@@ -13,7 +13,7 @@ interface Role {
 	isSystem: boolean;
 }
 
-export function RolesManager() {
+export default function RolesManager() {
 	const [roles, setRoles] = useState<Role[]>([]);
 	const [newRole, setNewRole] = useState("");
 	const [newDescription, setNewDescription] = useState("");

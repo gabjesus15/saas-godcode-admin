@@ -42,6 +42,13 @@ const AdminSidebar = ({ activeTab, setActiveTab, isMobile, kanbanColumns, userRo
     const pendingCount = kanbanColumns?.pending?.length || 0;
     const isTabAllowed = useCallback((tabId) => (typeof canAccessTab === 'function' ? canAccessTab(tabId) : true), [canAccessTab]);
 
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    const renderMobile = mounted ? isMobile : false;
+
     // [FIX] Aislamiento: Asegurar que el modo oscuro del SaaS NO afecte al Panel Admin
     // Se ejecuta cada vez que cambia la ruta dentro del admin para reforzar el modo claro
     useEffect(() => {
@@ -185,29 +192,25 @@ const AdminSidebar = ({ activeTab, setActiveTab, isMobile, kanbanColumns, userRo
     return (
         <aside className="admin-sidebar glass">
             <div className="sidebar-top">
-                {!isMobile && (
-                    <div className="logo-circle">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={logoUrl || '/tenant/logo-placeholder.svg'} alt="Logo" />
-                    </div>
-                )}
-                {!isMobile && (
-                    <div className="brand-info">
-                        <h3 className="brand-title">Admin del local</h3>
-                        {userEmail && <span className="user-email">{userEmail}</span>}
-                        {branchName && <span className="branch-name-badge">{branchName}</span>}
-                    </div>
-                )}
+                <div className="logo-circle">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={logoUrl || '/tenant/logo-placeholder.svg'} alt="Logo" />
+                </div>
+                <div className="brand-info">
+                    <h3 className="brand-title">Admin del local</h3>
+                    {userEmail && <span className="user-email">{userEmail}</span>}
+                    {branchName && <span className="branch-name-badge">{branchName}</span>}
+                </div>
             </div>
             
             <nav className="sidebar-menu">
-                {menuItems.map(item => {
-                    if (item.isGroup) {
-                        if (isMobile) {
+                {renderMobile
+                    ? menuItems.flatMap(item => {
+                        if (item.isGroup) {
                             return item.children.map(child => {
                                 const disabled = !isTabAllowed(child.id);
                                 return (
-                                    <button 
+                                    <button
                                         key={child.id}
                                         onClick={() => {
                                             if (disabled) {
@@ -220,93 +223,112 @@ const AdminSidebar = ({ activeTab, setActiveTab, isMobile, kanbanColumns, userRo
                                         title={disabled ? 'Necesitas un rol diferente para acceder.' : child.description || undefined}
                                         style={disabled ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
                                     >
-                                        {React.createElement(child.icon, { size: 20 })}
+                                        <child.icon size={20} />
                                         <span className="nav-label-mobile">{child.label}</span>
                                     </button>
                                 );
                             });
-                        }
-
-                        const isExpanded = expandedGroups[item.id];
-                        const isActiveGroup = item.children.some(child => child.id === activeTab);
-                        return (
-                            <div key={item.id} className="nav-group-wrapper">
-                                <button 
-                                    onClick={() => toggleGroup(item.id)} 
-                                    className={`nav-item nav-group-header ${isActiveGroup ? 'active-group' : ''}`}
+                        } else {
+                            const disabled = !isTabAllowed(item.id);
+                            return (
+                                <button
+                                    key={item.id}
+                                    onClick={() => {
+                                        if (disabled) {
+                                            onDeniedAccess?.();
+                                            return;
+                                        }
+                                        setActiveTab(item.id);
+                                    }}
+                                    className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
+                                    title={disabled ? 'Necesitas un rol diferente para acceder.' : item.description || undefined}
+                                    style={disabled ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
                                 >
-                                    <div className="nav-item-inner">
-                                        {React.createElement(item.icon, { size: 22 })}
-                                        <span className="nav-text">{item.label}</span>
-                                    </div>
-                                    <ChevronDown 
-                                        size={16} 
-                                        className={`nav-chevron ${isExpanded ? 'expanded' : ''}`} 
-                                    />
-                                </button>
-                                <div className={`nav-sub-menu ${isExpanded ? 'expanded' : ''}`}>
-                                    {item.children.map(child => {
-                                        const disabled = !isTabAllowed(child.id);
-                                        return (
-                                            <button 
-                                                key={child.id}
-                                                onClick={() => {
-                                                    if (disabled) {
-                                                        onDeniedAccess?.();
-                                                        return;
-                                                    }
-                                                    setActiveTab(child.id);
-                                                }}
-                                                className={`nav-item ${activeTab === child.id ? 'active' : ''}`}
-                                                title={disabled ? 'Necesitas un rol diferente para acceder.' : child.description || undefined}
-                                                style={disabled ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
-                                            >
-                                                {React.createElement(child.icon, { size: 18 })}
-                                                <span className="nav-text">{child.label}</span>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        );
-                    } else {
-                        const disabled = !isTabAllowed(item.id);
-                        return (
-                            <button 
-                                key={item.id}
-                                onClick={() => {
-                                    if (disabled) {
-                                        onDeniedAccess?.();
-                                        return;
-                                    }
-                                    setActiveTab(item.id);
-                                }} 
-                                className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
-                                title={disabled ? 'Necesitas un rol diferente para acceder.' : item.description || undefined}
-                                style={disabled ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
-                            >
-                                {React.createElement(item.icon, { size: isMobile ? 20 : 22 })}
-                                {isMobile ? (
+                                    <item.icon size={20} />
                                     <span className="nav-label-mobile">{item.label}</span>
-                                ) : (
+                                    {item.badge && <span className="badge-count">{item.badge}</span>}
+                                </button>
+                            );
+                        }
+                    })
+                    : menuItems.map(item => {
+                        if (item.isGroup) {
+                            const isExpanded = expandedGroups[item.id];
+                            const isActiveGroup = item.children.some(child => child.id === activeTab);
+                            return (
+                                <div key={item.id} className="nav-group-wrapper">
+                                    <button 
+                                        onClick={() => toggleGroup(item.id)} 
+                                        className={`nav-item nav-group-header ${isActiveGroup ? 'active-group' : ''}`}
+                                    >
+                                        <div className="nav-item-inner">
+                                            <item.icon size={22} />
+                                            <span className="nav-text">{item.label}</span>
+                                        </div>
+                                        <ChevronDown 
+                                            size={16} 
+                                            className={`nav-chevron ${isExpanded ? 'expanded' : ''}`} 
+                                        />
+                                    </button>
+                                    <div className={`nav-sub-menu ${isExpanded ? 'expanded' : ''}`}>
+                                        {item.children.map(child => {
+                                            const disabled = !isTabAllowed(child.id);
+                                            return (
+                                                <button 
+                                                    key={child.id}
+                                                    onClick={() => {
+                                                        if (disabled) {
+                                                            onDeniedAccess?.();
+                                                            return;
+                                                        }
+                                                        setActiveTab(child.id);
+                                                    }}
+                                                    className={`nav-item ${activeTab === child.id ? 'active' : ''}`}
+                                                    title={disabled ? 'Necesitas un rol diferente para acceder.' : child.description || undefined}
+                                                    style={disabled ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
+                                                >
+                                                    <child.icon size={18} />
+                                                    <span className="nav-text">{child.label}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        } else {
+                            const disabled = !isTabAllowed(item.id);
+                            return (
+                                <button 
+                                    key={item.id}
+                                    onClick={() => {
+                                        if (disabled) {
+                                            onDeniedAccess?.();
+                                            return;
+                                        }
+                                        setActiveTab(item.id);
+                                    }} 
+                                    className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
+                                    title={disabled ? 'Necesitas un rol diferente para acceder.' : item.description || undefined}
+                                    style={disabled ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
+                                >
+                                    <item.icon size={22} />
                                     <span className="nav-text">{item.label}</span>
-                                )}
-                                {item.badge && <span className="badge-count">{item.badge}</span>}
-                            </button>
-                        );
-                    }
-                })}
+                                    {item.badge && <span className="badge-count">{item.badge}</span>}
+                                </button>
+                            );
+                        }
+                    })}
 
-                <button onClick={() => router.push(storeHomePath)} className="nav-item" style={!isMobile ? { marginTop: 'auto', marginBottom: 10 } : {}}>
-                    <Store size={isMobile ? 20 : 22} />
-                    {isMobile ? <span className="nav-label-mobile">Tienda</span> : <span className="nav-text">Ver Tienda</span>}
+                <button onClick={() => router.push(storeHomePath)} className="nav-item" style={!renderMobile ? { marginTop: 'auto', marginBottom: 10 } : {}}>
+                    <Store size={renderMobile ? 20 : 22} />
+                    {renderMobile ? <span className="nav-label-mobile">Tienda</span> : <span className="nav-text">Ver Tienda</span>}
                 </button>
                 <button onClick={onLogout} className="nav-item logout">
-                    <LogOut size={isMobile ? 20 : 22} />
-                    {isMobile ? <span className="nav-label-mobile">Salir</span> : <span className="nav-text">Cerrar Sesión</span>}
+                    <LogOut size={renderMobile ? 20 : 22} />
+                    {renderMobile ? <span className="nav-label-mobile">Salir</span> : <span className="nav-text">Cerrar Sesión</span>}
                 </button>
 
-                {hasRestrictedItems && !isMobile && (
+                {hasRestrictedItems && !renderMobile && (
                     <p style={{ marginTop: 8, fontSize: 12, opacity: 0.7 }}>
                         Las opciones en gris requieren un rol diferente.
                     </p>

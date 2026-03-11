@@ -233,7 +233,7 @@
     width: 100%;
     padding: 12px;
     background: #252525; /* Fondo sólido */
-    border: 1px solid #444;
+    border: 2px solid #444;
     border-radius: 8px;
     color: white;
     font-size: 1rem;
@@ -294,6 +294,7 @@
 
 .input-error {
     border-color: #ff4444;
+    border-width: 2px;
 }
 
 .cart-panel .form-title {

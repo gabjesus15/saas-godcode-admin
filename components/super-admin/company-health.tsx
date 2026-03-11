@@ -1,5 +1,5 @@
 import { Card } from "../ui/card";
-import { MetricCard } from "./metric-card";
+import MetricCard from "./metric-card";
 import { createSupabaseServerClient } from "../../utils/supabase/server";
 
 interface CompanyHealthProps {

@@ -278,12 +278,14 @@ const CartModal = React.memo(() => {
               <button onClick={handleCloseCart} className="btn-close-cart"><X size={24} /></button>
             </header>
 
-            {/* ERROR GLOBAL */}
-            {viewState.error && (
-              <div className="cart-error-banner animate-fade">
-                <AlertCircle size={16} /> {viewState.error}
-              </div>
-            )}
+            {/* ERROR GLOBAL (espacio reservado) */}
+            <div style={{minHeight:'32px',display:'flex',alignItems:'center'}}>
+              {viewState.error && (
+                <div className="cart-error-banner animate-fade">
+                  <AlertCircle size={16} /> {viewState.error}
+                </div>
+              )}
+            </div>
 
             <div className="cart-body">
               {cart.length === 0 ? (
@@ -395,14 +397,17 @@ const PaymentFlow = ({
             className="form-input" placeholder="Tu nombre"
             aria-invalid={showNameError}
           />
-          {showNameError && (
-            <p className="field-error">Nombre invalido. Usa solo letras y espacios.</p>
-          )}
+          // Mensaje de error eliminado
         </div>
 
         <div className="form-row">
           <div className="form-group">
-            <label>RUT {validation.rut && <CheckCircle2 size={14} color="#25d366" />}</label>
+            <label style={{display:'flex',alignItems:'center',gap:'6px'}}>
+              RUT
+              <span style={{minWidth:'18px',height:'18px',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>
+                {validation.rut ? <CheckCircle2 size={14} color="#25d366" /> : null}
+              </span>
+            </label>
             <input
               type="text" required
               value={formData.rut}
@@ -412,12 +417,15 @@ const PaymentFlow = ({
               maxLength={12}
               aria-invalid={showRutError}
             />
-            {showRutError && (
-              <p className="field-error">RUT invalido. Revisa el formato.</p>
-            )}
+            // Mensaje de error eliminado
           </div>
           <div className="form-group">
-            <label>Teléfono {validation.phone && <CheckCircle2 size={14} color="#25d366" />}</label>
+            <label style={{display:'flex',alignItems:'center',gap:'6px'}}>
+              Teléfono
+              <span style={{minWidth:'18px',height:'18px',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>
+                {validation.phone ? <CheckCircle2 size={14} color="#25d366" /> : null}
+              </span>
+            </label>
             <input
               type="tel" required
               value={formData.phone}
@@ -425,9 +433,7 @@ const PaymentFlow = ({
               className="form-input"
               aria-invalid={showPhoneError}
             />
-            {showPhoneError && (
-              <p className="field-error">Telefono incompleto. Usa el formato +56 9.</p>
-            )}
+            // Mensaje de error eliminado
           </div>
         </div>
 

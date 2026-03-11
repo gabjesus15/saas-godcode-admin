@@ -1,9 +1,14 @@
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import OrderCard from './OrderCard';
 
 const AdminKanban = ({ columns, isMobile, mobileTab, setMobileTab, moveOrder, setReceiptModalOrder, branch, clients }) => {
+
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     // 1. CONFIGURACIÓN CENTRALIZADA
     // Aquí defines tus columnas. Si quieres agregar una, solo la pones aquí y listo.
@@ -50,7 +55,7 @@ const AdminKanban = ({ columns, isMobile, mobileTab, setMobileTab, moveOrder, se
             <div className="kanban-board">
                 {columnConfig.map((col) => {
                     const ordersInColumn = columns[col.id] || [];
-                    const isHiddenOnMobile = isMobile && mobileTab !== col.id;
+                    const isHiddenOnMobile = mounted && isMobile && mobileTab !== col.id;
 
                     return (
                         <div 

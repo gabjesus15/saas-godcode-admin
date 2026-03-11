@@ -6,7 +6,7 @@ interface MetricCardProps {
   helper?: string;
 }
 
-export function MetricCard({ label, value, helper }: MetricCardProps) {
+export default function MetricCard({ label, value, helper }: MetricCardProps) {
   return (
     <Card className="flex flex-col gap-3">
       <p className="text-xs uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">

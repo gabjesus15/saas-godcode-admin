@@ -51,7 +51,7 @@ const STATUS_OPTIONS: TicketStatus[] = ["open", "in_progress", "waiting_customer
 const PRIORITY_OPTIONS: TicketPriority[] = ["low", "medium", "high", "critical"];
 const CATEGORY_OPTIONS: TicketCategory[] = ["general", "billing", "technical", "product", "account"];
 
-export function TicketsManager() {
+export default function TicketsManager() {
   const [tickets, setTickets] = useState<TicketItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

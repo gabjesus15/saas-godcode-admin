@@ -1,4 +1,4 @@
-import { MetricCard } from "../../../components/super-admin/metric-card";
+import { MetricCardClient } from "./MetricCardClient";
 import { createSupabaseServerClient } from "../../../utils/supabase/server";
 
 export default async function DashboardPage() {
@@ -23,17 +23,17 @@ export default async function DashboardPage() {
 
     return (
       <div className="grid gap-6 lg:grid-cols-3">
-        <MetricCard
+        <MetricCardClient
           label="Empresas activas"
           value={`${activeCount ?? 0}`}
           helper="Contratos en curso"
         />
-        <MetricCard
+        <MetricCardClient
           label="Empresas suspendidas"
           value={`${suspendedCount ?? 0}`}
           helper="Clientes con acceso limitado"
         />
-        <MetricCard
+        <MetricCardClient
           label="MRR"
           value="$0"
           helper="Placeholder hasta integrar facturacion"
