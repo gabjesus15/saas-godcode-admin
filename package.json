@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "cross-env NEXT_DISABLE_TURBOPACK=1 next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "next start --hostname 0.0.0.0",
     "lint": "eslint",
     "lint:strict": "eslint app components utils --max-warnings=0",
     "lint:phase:core": "eslint app components/super-admin components/ui utils --max-warnings=0",
