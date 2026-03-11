@@ -13,15 +13,31 @@ interface AdminAppProps {
 	userEmail?: string | null;
 	roleNavPermissions?: Record<string, string[]> | null;
 	userAllowedTabs?: string[] | null;
+	dynamicModules?: {
+		id: string;
+		tabId: string;
+		label: string;
+		description: string;
+		navGroup: "root" | "sales" | "menu";
+		navOrder: number;
+		allowedRoles: string[];
+		isActive: boolean;
+	}[];
+	primaryColor?: string;
 }
 
-export function AdminApp({ companyId, companyName, logoUrl, userEmail, roleNavPermissions, userAllowedTabs }: AdminAppProps) {
+export function AdminApp({ companyId, companyName, logoUrl, userEmail, roleNavPermissions, userAllowedTabs, dynamicModules = [], primaryColor }: AdminAppProps) {
 	return (
 		<LocationProvider>
 			<CashProvider>
 				<BusinessProvider>
-					<AdminProvider companyId={companyId} roleNavPermissions={roleNavPermissions} userAllowedTabs={userAllowedTabs}>
-						<AdminPage companyName={companyName} logoUrl={logoUrl} userEmail={userEmail} />
+					<AdminProvider
+						companyId={companyId}
+						roleNavPermissions={roleNavPermissions}
+						userAllowedTabs={userAllowedTabs}
+						dynamicModules={dynamicModules}
+					>
+						<AdminPage companyName={companyName} logoUrl={logoUrl} userEmail={userEmail} primaryColor={primaryColor} />
 					</AdminProvider>
 				</BusinessProvider>
 			</CashProvider>

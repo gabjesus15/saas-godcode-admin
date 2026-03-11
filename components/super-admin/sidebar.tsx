@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Building2, CreditCard, LayoutDashboard, LogOut, Wrench } from "lucide-react";
+import { Building2, CreditCard, LayoutDashboard, LifeBuoy, LogOut, Wrench } from "lucide-react";
 
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 
@@ -11,6 +11,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/companies", label: "Empresas", icon: Building2 },
   { href: "/plans", label: "Planes", icon: CreditCard },
+  { href: "/tickets", label: "Tickets", icon: LifeBuoy },
   { href: "/herramientas", label: "Herramientas", icon: Wrench },
 ];
 

@@ -7,6 +7,17 @@ interface TenantAdminPageProps {
   params: Promise<{ subdomain: string }>;
 }
 
+interface DynamicAdminModule {
+	id: string;
+	tab_id: string;
+	label: string;
+	description: string | null;
+	nav_group: "root" | "sales" | "menu";
+	nav_order: number;
+	allowed_roles: string[] | null;
+	is_active: boolean;
+}
+
 export default async function TenantAdminPage({
 	params,
 }: TenantAdminPageProps) {
@@ -75,6 +86,39 @@ export default async function TenantAdminPage({
 		? adminRows.allowed_tabs
 		: null;
 
+	const { data: dynamicModulesData } = await supabase
+		.from("saas_admin_modules")
+		.select("id,tab_id,label,description,nav_group,nav_order,allowed_roles,is_active")
+		.eq("is_active", true)
+		.order("nav_group", { ascending: true })
+		.order("nav_order", { ascending: true })
+		.order("label", { ascending: true });
+
+	const dynamicModules = ((dynamicModulesData ?? []) as DynamicAdminModule[]).map((module) => ({
+		id: module.id,
+		tabId: module.tab_id,
+		label: module.label,
+		description: module.description ?? "",
+		navGroup: module.nav_group,
+		navOrder: module.nav_order,
+		allowedRoles: Array.isArray(module.allowed_roles) ? module.allowed_roles : ["admin", "ceo"],
+		isActive: module.is_active,
+	}));
+
+	const hasTicketsModule = dynamicModules.some((module) => module.tabId === "module:tickets");
+	if (!hasTicketsModule) {
+		dynamicModules.push({
+			id: "system-module-tickets",
+			tabId: "module:tickets",
+			label: "Soporte",
+			description: "Crea y da seguimiento a tickets de soporte.",
+			navGroup: "root",
+			navOrder: 85,
+			allowedRoles: ["admin", "ceo", "cashier"],
+			isActive: true,
+		});
+	}
+
 	return (
 		<AdminApp
 			companyId={company.id}
@@ -83,6 +127,7 @@ export default async function TenantAdminPage({
 			userEmail={user.email ?? null}
 			roleNavPermissions={roleNavPermissions as Record<string, string[]> | null}
 			userAllowedTabs={userAllowedTabs}
+			dynamicModules={dynamicModules}
 		/>
 	);
 }

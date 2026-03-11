@@ -48,7 +48,7 @@ export const useAdmin = () => {
 	return context;
 };
 
-export const AdminProvider = ({ children, companyId, roleNavPermissions, userAllowedTabs }) => {
+export const AdminProvider = ({ children, companyId, roleNavPermissions, userAllowedTabs, dynamicModules = /** @type {any[]} */ ([]) }) => {
 	const router = useRouter();
 	const pathname = usePathname();
 	const navigate = useCallback((path) => router.push(getTenantScopedPath(pathname || '/', path)), [pathname, router]);
@@ -96,6 +96,23 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions, userAll
 		[roleNavPermissions]
 	);
 
+	const normalizedDynamicModules = useMemo(() => (
+		Array.isArray(dynamicModules)
+			? dynamicModules
+				.filter((module) => module && typeof module.tabId === 'string' && module.tabId.startsWith('module:'))
+				.map((module) => ({
+					id: module.id,
+					tabId: module.tabId,
+					label: module.label,
+					description: module.description || '',
+					navGroup: module.navGroup || 'root',
+					navOrder: Number.isFinite(Number(module.navOrder)) ? Number(module.navOrder) : 100,
+					allowedRoles: Array.isArray(module.allowedRoles) ? module.allowedRoles : ['admin', 'ceo'],
+					isActive: Boolean(module.isActive),
+				}))
+			: []
+	), [dynamicModules]);
+
 	const allowedTabs = useMemo(() => {
 		const rawRoleKey = (userRole || '').toLowerCase();
 		const roleKey = rawRoleKey === 'staff' ? 'cashier' : rawRoleKey;
@@ -109,7 +126,26 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions, userAll
 		return new Set(DEFAULT_ROLE_NAV_PERMISSIONS.cashier);
 	}, [resolvedRolePermissions, userRole, userAllowedTabs]);
 
-	const canAccessTab = useCallback((tabId) => allowedTabs.has(tabId), [allowedTabs]);
+	const dynamicModuleTabs = useMemo(() => {
+		const roleKey = String(userRole || '').toLowerCase() === 'staff'
+			? 'cashier'
+			: String(userRole || '').toLowerCase();
+
+		return new Set(
+			normalizedDynamicModules
+				.filter((module) => module.isActive)
+				.filter((module) => {
+					if (!roleKey) return false;
+					if (!Array.isArray(module.allowedRoles) || module.allowedRoles.length === 0) return true;
+					return module.allowedRoles.map((role) => String(role).toLowerCase()).includes(roleKey);
+				})
+				.map((module) => module.tabId)
+		);
+	}, [normalizedDynamicModules, userRole]);
+
+	const canAccessTab = useCallback((tabId) => (
+		allowedTabs.has(tabId) || dynamicModuleTabs.has(tabId)
+	), [allowedTabs, dynamicModuleTabs]);
 	const isBranchLocked = Boolean(assignedBranchId);
 
 	useEffect(() => {
@@ -290,9 +326,9 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions, userAll
 		if (!userRole) return;
 		if (canAccessTab(activeTab)) return;
 
-		const [firstAllowedTab] = Array.from(allowedTabs);
+		const [firstAllowedTab] = Array.from(new Set([...allowedTabs, ...dynamicModuleTabs]));
 		setActiveTab(firstAllowedTab || 'orders');
-	}, [activeTab, allowedTabs, canAccessTab, userRole]);
+	}, [activeTab, allowedTabs, canAccessTab, dynamicModuleTabs, userRole]);
 
 	const loadData = useCallback(async (isRefresh = false) => {
 		if (!selectedBranch) return;
@@ -814,6 +850,7 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions, userAll
 		kanbanColumns,
 		processedProducts,
 		productStats,
+		dynamicModules: normalizedDynamicModules,
 		userEmail,
 		productToDelete,
 		setProductToDelete,
@@ -827,7 +864,7 @@ export const AdminProvider = ({ children, companyId, roleNavPermissions, userAll
 		loadData, refreshBranches, handleSelectClient, moveOrder, uploadReceiptToOrder, handleReceiptFileChange,
 		handleSaveProduct, deleteProduct, toggleProductActive, scopeModal, handleScopeConfirm, handleSaveCategory,
 		deleteCategory, categoryToDelete, confirmDeleteCategory, toggleCategoryActive, reorderCategories,
-		assignedBranchId, isBranchLocked, setSelectedBranchWithGuard, canAccessTab, resolvedRolePermissions, kanbanColumns, processedProducts, productStats, userEmail, productToDelete, confirmDeleteProduct,
+		assignedBranchId, isBranchLocked, setSelectedBranchWithGuard, canAccessTab, resolvedRolePermissions, kanbanColumns, processedProducts, productStats, normalizedDynamicModules, userEmail, productToDelete, confirmDeleteProduct,
 	]);
 
 	return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>;

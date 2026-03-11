@@ -1,4 +1,6 @@
 import { RolesManager } from "@/components/super-admin/roles-manager";
+import { AdminModulesManager } from "@/components/super-admin/admin-modules-manager";
+import { BroadcastsManager } from "@/components/super-admin/broadcasts-manager";
 
 export default function HerramientasPage() {
 	return (
@@ -11,6 +13,8 @@ export default function HerramientasPage() {
 			</div>
 
 			<RolesManager />
+			<AdminModulesManager />
+			<BroadcastsManager />
 		</div>
 	);
 }

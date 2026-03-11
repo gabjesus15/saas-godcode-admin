@@ -25,6 +25,17 @@ interface HomeClientProps {
 }
 
 export function HomeClient({ name, logoUrl, schedule, branches }: HomeClientProps) {
+    // Estado para detectar mobile
+    const [showQR, setShowQR] = useState(true);
+
+    useEffect(() => {
+      const handleResize = () => {
+        setShowQR(window.innerWidth >= 850);
+      };
+      handleResize(); // Inicial
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }, []);
   const router = useRouter();
   const pathname = usePathname();
   
@@ -201,36 +212,39 @@ export function HomeClient({ name, logoUrl, schedule, branches }: HomeClientProp
           </div>
 
           <aside className="ticket-stub">
-            <div className="veggie-bg" aria-hidden="true">
-              <span className="veggie veggie-1 veg-lettuce" />
-              <span className="veggie veggie-2 veg-carrot" />
-              <span className="veggie veggie-3 veg-cucumber" />
-              <span className="veggie veggie-4 veg-tomato" />
-              <span className="veggie veggie-5 veg-pepper" />
-            </div>
-            <div className="stub-content">
-              <div className="stub-badge">ACCESO DIGITAL</div>
-              
-              <div className="qr-box" aria-label="Código QR del Menú Digital">
-                {menuUrl ? (
-                  <QRCodeSVG 
-                    value={menuUrl} 
-                    level="H" 
-                    includeMargin={false} 
-                    className="qr-code"
-                  />
-                ) : (
-                  <div className="qr-placeholder">
-                    <QrCode size={40} />
+            {/* Ocultar QR en mobile usando estado para evitar SSR mismatch */}
+            {showQR && (
+              <>
+                <div className="veggie-bg" aria-hidden="true">
+                  <span className="veggie veggie-1 veg-lettuce" />
+                  <span className="veggie veggie-2 veg-carrot" />
+                  <span className="veggie veggie-3 veg-cucumber" />
+                  <span className="veggie veggie-4 veg-tomato" />
+                  <span className="veggie veggie-5 veg-pepper" />
+                </div>
+                <div className="stub-content">
+                  <div className="stub-badge">ACCESO DIGITAL</div>
+                  <div className="qr-box" aria-label="Código QR del Menú Digital">
+                    {menuUrl ? (
+                      <QRCodeSVG 
+                        value={menuUrl} 
+                        level="H" 
+                        includeMargin={false} 
+                        className="qr-code"
+                      />
+                    ) : (
+                      <div className="qr-placeholder">
+                        <QrCode size={40} />
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-              
-              <div className="stub-footer">
-                <p className="stub-scan-text">ESCANÉAME</p>
-                <span className="stub-info">PASAPORTE AL SABOR</span>
-              </div>
-            </div>
+                  <div className="stub-footer">
+                    <p className="stub-scan-text">ESCANÉAME</p>
+                    <span className="stub-info">PASAPORTE AL SABOR</span>
+                  </div>
+                </div>
+              </>
+            )}
           </aside>
         </div>
       </main>

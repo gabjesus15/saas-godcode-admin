@@ -13,6 +13,7 @@ import ManualOrderModal from '../components/ManualOrderModal';
 import InventoryCard from '../components/InventoryCard';
 import ClientDetailsPanel from '../components/ClientDetailsPanel';
 import ScopeSelectionModal from '../components/ScopeSelectionModal';
+import TenantTicketsPanel from '../components/TenantTicketsPanel';
 
 const AdminAnalytics = React.lazy(() => import('../components/AdminAnalytics'));
 const AdminClients = React.lazy(() => import('../components/AdminClients'));
@@ -24,7 +25,7 @@ const TabFallback = () => <div style={{ padding: '2rem', display: 'flex', justif
 import { supabase } from '../../lib/supabase';
 import { AdminProvider, useAdmin } from './AdminProvider';
 
-export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => {
+export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, primaryColor }) => {
   void companyName;
   const {
     navigate,
@@ -80,6 +81,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
     productStats,
     userRole,
     userEmail,
+    dynamicModules,
     canAccessTab,
     productToDelete,
     setProductToDelete,
@@ -121,9 +123,74 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
   const [teamSubmitting, setTeamSubmitting] = React.useState(false);
   const [teamUserToDelete, setTeamUserToDelete] = React.useState(null);
   const [teamDeleting, setTeamDeleting] = React.useState(false);
+  const [broadcasts, setBroadcasts] = React.useState([]);
+  const [broadcastsLoading, setBroadcastsLoading] = React.useState(false);
+  const [ackingId, setAckingId] = React.useState(null);
+
+  const dynamicModuleByTab = React.useMemo(() => {
+    const map = new Map();
+    (dynamicModules || []).forEach((module) => {
+      if (module?.tabId) {
+        map.set(module.tabId, module);
+      }
+    });
+    return map;
+  }, [dynamicModules]);
+
+  const activeDynamicModule = dynamicModuleByTab.get(activeTab) || null;
 
   const TAB_LABELS = { orders: 'Pedidos', caja: 'Caja', analytics: 'Reportes', categories: 'Categorías', products: 'Productos', inventory: 'Inventario', clients: 'Clientes' };
   const ALL_TABS = ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients'];
+
+  const loadBroadcasts = React.useCallback(async () => {
+    setBroadcastsLoading(true);
+    try {
+      const res = await fetch('/api/tenant-broadcasts', { cache: 'no-store', credentials: 'include' });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Error al cargar comunicados');
+      }
+      setBroadcasts(data.broadcasts || []);
+    } catch {
+      setBroadcasts([]);
+    } finally {
+      setBroadcastsLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void loadBroadcasts();
+  }, [loadBroadcasts]);
+
+  const acknowledgeBroadcast = async (broadcastId) => {
+    if (!broadcastId) return;
+
+    setAckingId(broadcastId);
+    try {
+      const res = await fetch('/api/tenant-broadcasts', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ broadcastId }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'No se pudo registrar el acuse');
+      }
+
+      setBroadcasts((prev) => prev.map((item) => (
+        item.id === broadcastId
+          ? { ...item, readAt: new Date().toISOString() }
+          : item
+      )));
+      showNotify('Comunicado marcado como leído.');
+    } catch (err) {
+      showNotify(err instanceof Error ? err.message : 'No se pudo registrar el acuse', 'error');
+    } finally {
+      setAckingId(null);
+    }
+  };
 
   const fetchTeamUsers = React.useCallback(async () => {
     setTeamLoading(true);
@@ -330,6 +397,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
         userEmail={userEmail || initialEmail}
         branchName={selectedBranch?.name}
         logoUrl={logoUrl}
+        dynamicModules={dynamicModules}
         onLogout={async () => {
           await supabase.auth.signOut();
           navigate('/login');
@@ -337,6 +405,66 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
       />
 
       <main className="admin-content">
+        {broadcasts.length > 0 ? (
+          <div className="glass" style={{ marginBottom: 18, padding: 12, borderRadius: 12, display: 'grid', gap: 10 }}>
+            {broadcasts.map((item) => {
+              const isCritical = item.priority === 'critical' || item.priority === 'high';
+              const isRead = Boolean(item.readAt);
+              return (
+                <div
+                  key={item.id}
+                  style={{
+                    border: isCritical ? '1px solid rgba(239,68,68,0.55)' : '1px solid rgba(255,255,255,0.12)',
+                    background: isCritical ? 'rgba(127,29,29,0.22)' : 'rgba(255,255,255,0.03)',
+                    borderRadius: 10,
+                    padding: '10px 12px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                    alignItems: 'flex-start',
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.09em', opacity: 0.75 }}>
+                      {item.broadcastType} · prioridad {item.priority}
+                    </p>
+                    <h3 style={{ margin: '5px 0 0', fontSize: 16, fontWeight: 800 }}>{item.title}</h3>
+                    <p style={{ margin: '6px 0 0', opacity: 0.9 }}>{item.message}</p>
+                    <p style={{ margin: '7px 0 0', fontSize: 12, opacity: 0.65 }}>
+                      Desde {new Date(item.startsAt).toLocaleString('es-CL')}
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
+                    {isRead ? (
+                      <span style={{ fontSize: 12, color: '#86efac', fontWeight: 700 }}>Leído</span>
+                    ) : (
+                      <span style={{ fontSize: 12, color: '#facc15', fontWeight: 700 }}>Pendiente</span>
+                    )}
+                    {!isRead ? (
+                      <button
+                        type="button"
+                        className="admin-btn secondary"
+                        onClick={() => acknowledgeBroadcast(item.id)}
+                        disabled={ackingId === item.id}
+                        style={{ fontSize: 12, padding: '6px 10px' }}
+                      >
+                        {ackingId === item.id ? 'Guardando...' : 'Marcar leído'}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+
+        {broadcastsLoading ? (
+          <div className="glass" style={{ marginBottom: 18, padding: 10, borderRadius: 10, opacity: 0.8 }}>
+            Cargando comunicados...
+          </div>
+        ) : null}
+
         <header className="content-header">
           <h1>
             {activeTab === 'orders' ? (isHistoryView ? 'Historial' : 'Cocina en Vivo') :
@@ -344,7 +472,8 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
                 activeTab === 'analytics' ? 'Rendimiento' :
                   activeTab === 'clients' ? 'Clientes' :
                     activeTab === 'caja' ? 'Caja y Turnos' :
-                      activeTab === 'users' ? 'Equipo' : 'Categorías'}
+                      activeTab === 'users' ? 'Equipo' :
+                        activeDynamicModule ? activeDynamicModule.label : 'Categorías'}
           </h1>
 
           <div className="header-actions">
@@ -1001,6 +1130,36 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail }) => 
                   </div>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {activeDynamicModule && activeDynamicModule.tabId === 'module:tickets' && (
+          <TenantTicketsPanel showNotify={showNotify} primaryColor={primaryColor} />
+        )}
+
+        {activeDynamicModule && activeDynamicModule.tabId !== 'module:tickets' && (
+          <div className="glass" style={{ padding: 24, borderRadius: 14, display: 'grid', gap: 12 }}>
+            <div>
+              <p style={{ margin: 0, fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7 }}>
+                Nuevo módulo
+              </p>
+              <h3 style={{ margin: '6px 0 0', fontSize: 24, fontWeight: 800 }}>
+                {activeDynamicModule.label}
+              </h3>
+              <p style={{ margin: '10px 0 0', opacity: 0.85 }}>
+                {activeDynamicModule.description || 'Módulo agregado desde SaaS. Aquí vivirá la nueva funcionalidad del panel admin.'}
+              </p>
+            </div>
+            <div style={{
+              border: '1px dashed rgba(255,255,255,0.22)',
+              borderRadius: 12,
+              padding: 14,
+              background: 'rgba(255,255,255,0.03)'
+            }}>
+              <p style={{ margin: 0, fontSize: 14, opacity: 0.9 }}>
+                Este espacio está listo para implementar la lógica del módulo <strong>{activeDynamicModule.label}</strong>.
+              </p>
             </div>
           </div>
         )}

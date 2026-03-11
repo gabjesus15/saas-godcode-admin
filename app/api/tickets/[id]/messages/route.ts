@@ -1,0 +1,108 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+
+import { validateAdminRolesOnServer } from "../../../../../utils/admin/server-auth";
+
+type MessageRow = {
+  id: string;
+  ticket_id: string;
+  author_type: "tenant" | "super_admin" | "system";
+  author_email: string | null;
+  is_internal: boolean;
+  message: string;
+  created_at: string;
+};
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+async function validateSuperAdminAccess() {
+  const result = await validateAdminRolesOnServer(["super_admin"]);
+  if (!result.ok) {
+    return {
+      ok: false as const,
+      response: NextResponse.json({ error: result.error ?? "No autorizado" }, { status: result.status }),
+    };
+  }
+
+  return { ok: true as const, email: result.email ?? null };
+}
+
+export async function GET(_: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const access = await validateSuperAdminAccess();
+  if (!access.ok) return access.response;
+
+  const params = await context.params;
+  const ticketId = String(params.id ?? "").trim();
+  if (!ticketId) return NextResponse.json({ error: "Falta id" }, { status: 400 });
+
+  const { data, error } = await supabaseAdmin
+    .from("saas_ticket_messages")
+    .select("id,ticket_id,author_type,author_email,is_internal,message,created_at")
+    .eq("ticket_id", ticketId)
+    .order("created_at", { ascending: true });
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  return NextResponse.json({ messages: (data ?? []) as MessageRow[] });
+}
+
+export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const access = await validateSuperAdminAccess();
+  if (!access.ok) return access.response;
+
+  const params = await context.params;
+  const ticketId = String(params.id ?? "").trim();
+  if (!ticketId) return NextResponse.json({ error: "Falta id" }, { status: 400 });
+
+  const body = await req.json();
+  const message = String(body.message ?? "").trim();
+  const isInternal = Boolean(body.isInternal ?? false);
+
+  if (!message) return NextResponse.json({ error: "El mensaje es obligatorio" }, { status: 400 });
+
+  const nowIso = new Date().toISOString();
+
+  const { data: ticket, error: ticketError } = await supabaseAdmin
+    .from("saas_tickets")
+    .select("id,status,first_response_at")
+    .eq("id", ticketId)
+    .maybeSingle();
+
+  if (ticketError || !ticket) {
+    return NextResponse.json({ error: ticketError?.message || "Ticket no encontrado" }, { status: 404 });
+  }
+
+  const { error } = await supabaseAdmin.from("saas_ticket_messages").insert({
+    ticket_id: ticketId,
+    author_type: "super_admin",
+    author_email: access.email,
+    is_internal: isInternal,
+    message,
+  });
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  const patch: Record<string, unknown> = {
+    last_message_at: nowIso,
+    updated_at: nowIso,
+  };
+
+  if (!ticket.first_response_at) {
+    patch.first_response_at = nowIso;
+  }
+
+  if (!isInternal) {
+    patch.status = "waiting_customer";
+    patch.resolved_at = null;
+  }
+
+  await supabaseAdmin
+    .from("saas_tickets")
+    .update(patch)
+    .eq("id", ticketId);
+
+  return NextResponse.json({ success: true });
+}

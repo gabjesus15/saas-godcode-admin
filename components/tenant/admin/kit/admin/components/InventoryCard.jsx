@@ -31,7 +31,11 @@ const InventoryCard = memo(({ product, toggleProductActive, setEditingProduct, s
 
     // Manejo de teclado para accesibilidad (Enter para editar)
     const handleKeyDown = (e) => {
+        // Evitar que se dispare si el evento viene de un botón hijo (ej. eliminar/toggle)
+        if (e.target !== e.currentTarget) return;
+
         if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
             handleEditClick();
         }
     };
