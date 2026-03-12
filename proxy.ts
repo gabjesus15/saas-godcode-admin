@@ -143,6 +143,14 @@ export async function proxy(req: NextRequest) {
       return applySessionRefresh(req, response, "tenant");
     }
 
+    // Si la ruta es '/', reescribe a '/[subdomain]'
+    if (pathname === "/") {
+      const rewriteUrl = new URL(`/${subdomain}`, req.url);
+      rewriteUrl.search = req.nextUrl.search;
+      const response = NextResponse.rewrite(rewriteUrl);
+      return applySessionRefresh(req, response, "tenant");
+    }
+
     const rewriteUrl = new URL(`/${subdomain}${pathname}`, req.url);
     rewriteUrl.search = req.nextUrl.search;
     const response = NextResponse.rewrite(rewriteUrl);
