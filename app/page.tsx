@@ -1,17 +1,17 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 
 export default function Home() {
-  // Detectar subdominio desde el host
-  if (typeof window !== "undefined") {
-    const host = window.location.host;
-    // Extraer el subdominio
-    const match = host.match(/^([^.]+)\.godcode\.me$/);
-    if (match && match[1]) {
-      // Redirigir al home del negocio
-      redirect(`/${match[1]}`);
-      return null;
-    }
+  // Detectar host en SSR
+  const host = headers().get("host") || "";
+  if (host === "godcode.me" || host === "www.godcode.me") {
+    redirect("/login");
+    return null;
   }
-  // Si no hay subdominio, puedes mostrar el home global o dejar en blanco
+  const match = host.match(/^([^.]+)\.godcode\.me$/);
+  if (match && match[1]) {
+    redirect(`/${match[1]}`);
+    return null;
+  }
   return null;
 }
