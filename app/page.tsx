@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 
-export default function Home() {
+export default async function Home() {
   // Detectar host en SSR
-  const host = headers().get("host") || "";
+  const hdrs = await headers();
+  const host = hdrs.get("host") || "";
   if (host === "godcode.me" || host === "www.godcode.me") {
     redirect("/login");
     return null;
