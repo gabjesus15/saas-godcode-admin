@@ -102,7 +102,7 @@ export function TenantLoginForm({
       }
 
       await onAuthSuccessStart?.();
-      router.push(getTenantScopedPath(pathname ?? "/", "/admin"));
+      router.push(`/${subdomain}/admin`);
       router.refresh();
     } catch (err) {
       const rawMessage =
