@@ -344,8 +344,11 @@
 @media (max-width: 768px) {
     .admin-layout .clients-container {
         padding: 15px;
+        max-width: 100%;
+        min-width: 0;
+        overflow-x: hidden;
     }
-    
+
     .admin-layout .filter-btn-trigger,
     .admin-layout .clients-total-count {
         display: none;
@@ -356,6 +359,8 @@
         padding-bottom: 10px;
         justify-content: flex-start;
         overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
     }
 
     .admin-layout .clients-filters::-webkit-scrollbar {
@@ -378,24 +383,32 @@
     }
 
     /* --- MOBILE CARD VIEW --- */
-    
+
     .admin-layout .clients-table-container {
         background: transparent;
         border: none;
         overflow: visible;
         padding: 0;
+        max-width: 100%;
+        min-width: 0;
     }
 
     .admin-layout .clients-table thead {
         display: none;
     }
 
-    .admin-layout .clients-table, 
-    .admin-layout .clients-table tbody, 
-    .admin-layout .clients-table tr, 
+    .admin-layout .clients-table,
+    .admin-layout .clients-table tbody,
+    .admin-layout .clients-table tr,
     .admin-layout .clients-table td {
         display: block;
         width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+
+    .admin-layout .clients-table {
+        min-width: 0;
     }
 
     .admin-layout .clients-table tr {
@@ -436,11 +449,20 @@
         color: #9ca3af;
         margin-right: 15px;
         text-align: left;
+        flex-shrink: 0;
     }
 
     .admin-layout .clients-table td:first-child::before,
     .admin-layout .actions-cell::before {
         display: none;
+    }
+
+    /* Asegurar que los valores (Puntos, Pedidos, Gasto, etc.) se vean en la tarjeta móvil */
+    .admin-layout .clients-table td > div:not(.client-info-cell),
+    .admin-layout .clients-table td > span {
+        flex-shrink: 0;
+        min-width: min-content;
+        text-align: right;
     }
 
     .admin-layout .clients-table td.hide-mobile {

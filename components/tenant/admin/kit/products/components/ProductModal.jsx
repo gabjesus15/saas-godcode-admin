@@ -135,7 +135,7 @@ const ProductModal = React.memo(({ onClose, onSave, product, categories, saving 
 
   return (
     <div className="modal-overlay" onClick={handleSafeClose} role="dialog" aria-modal="true">
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
+      <div className="modal-content product-modal-content" onClick={e => e.stopPropagation()}>
         
         {/* HEADER */}
         <header className="modal-header">

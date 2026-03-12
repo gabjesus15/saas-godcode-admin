@@ -429,12 +429,13 @@
 
 /* --- RESPONSIVE MÓVIL --- */
 @media (max-width: 600px) {
-  .modal-overlay {
+  /* Solo el modal de producto: overlay y contenido a pantalla completa para que no quede "entecho" */
+  .modal-overlay:has(.product-modal-content) {
     padding: 0;
     align-items: stretch;
   }
 
-  .modal-content {
+  .modal-content.product-modal-content {
     max-height: 100vh;
     max-height: 100svh;
     max-height: 100dvh;
@@ -447,23 +448,25 @@
   }
 
   /* En móvil: form y cuerpo ocupan todo el alto para que el scroll sea interno */
-  .modal-content form {
+  .modal-content.product-modal-content form {
     flex: 1 1 0;
+    min-height: 0;
   }
 
-  .modal-content .modal-form-scroll {
+  .modal-content.product-modal-content .modal-form-scroll {
     flex: 1 1 0;
+    min-height: 0;
   }
 
-  .modal-header {
+  .modal-content.product-modal-content .modal-header {
     padding: calc(16px + env(safe-area-inset-top)) 20px 16px;
   }
 
-  .modal-form-scroll {
+  .modal-content.product-modal-content .modal-form-scroll {
     padding: 16px 20px;
   }
 
-  .modal-footer {
+  .modal-content.product-modal-content .modal-footer {
     padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
   }
 

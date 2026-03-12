@@ -623,7 +623,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: 8, borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: 10 }}>
+              <div className="admin-toolbar-actions" style={{ display: 'flex', gap: 8, borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: 10 }}>
                  <div className="filter-box" style={{ minWidth: 'auto' }}>
                     <ArrowUpDown size={18} />
                     <select value={sortOrder} onChange={e => setSortOrder(e.target.value)}>
@@ -698,22 +698,23 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
           </div>
         )}
         {activeTab === 'users' && (
-          <div className="glass" style={{ padding: 20, borderRadius: 12 }}>
+          <div className="glass staff-table-glass" style={{ padding: 20, borderRadius: 12 }}>
             {teamLoading ? (
               <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Loader2 size={32} className="animate-spin" /></div>
             ) : teamUsers.length === 0 ? (
               <p style={{ margin: 0, opacity: 0.8 }}>Aún no hay usuarios. Crea uno con &quot;Crear usuario&quot;.</p>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)', textAlign: 'left' }}>
-                    <th style={{ padding: '10px 12px' }}>Correo</th>
-                    <th style={{ padding: '10px 12px' }}>Rol</th>
-                    <th style={{ padding: '10px 12px' }}>Sucursal</th>
-                    <th style={{ padding: '10px 12px' }}>Permisos</th>
-                    <th style={{ padding: '10px 12px', width: 100 }}>Acciones</th>
-                  </tr>
-                </thead>
+              <div className="staff-table-wrapper" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                <table className="staff-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 320 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)', textAlign: 'left' }}>
+                      <th style={{ padding: '10px 12px' }}>Correo</th>
+                      <th style={{ padding: '10px 12px' }}>Rol</th>
+                      <th style={{ padding: '10px 12px' }}>Sucursal</th>
+                      <th style={{ padding: '10px 12px' }}>Permisos</th>
+                      <th className="staff-table-actions-th" style={{ padding: '10px 12px', minWidth: 90, whiteSpace: 'nowrap' }}>Acciones</th>
+                    </tr>
+                  </thead>
                 <tbody>
                   {teamUsers.map((u) => (
                     <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
@@ -749,6 +750,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         )}

@@ -47,6 +47,49 @@
     background: #111;
 }
 
+/* Toolbar y filter-box en móvil: que no se salgan ni se trunque el texto */
+@media (max-width: 768px) {
+    .admin-layout .admin-toolbar {
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 12px;
+    }
+
+    .admin-layout .admin-toolbar > div:first-of-type {
+        flex: 1 1 100%;
+        min-width: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .admin-layout .admin-toolbar .search-box {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+
+    .admin-layout .admin-toolbar .filter-box {
+        min-width: 0;
+        flex: 1 1 calc(50% - 10px);
+        max-width: 100%;
+    }
+
+    .admin-layout .admin-toolbar .filter-box select {
+        min-width: 0;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .admin-layout .admin-toolbar .admin-toolbar-actions {
+        border-left: none !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding-left: 0 !important;
+        padding-top: 10px;
+        margin-top: 4px;
+        width: 100%;
+    }
+}
+
 /* Tooltips or Mini Stats in Toolbars */
 .admin-layout .stats-mini {
     margin-left: auto;
@@ -241,4 +284,33 @@
     background: rgba(255, 255, 255, 0.06);
     color: rgba(255, 255, 255, 0.75);
     border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Staff table (usuarios): evitar truncado "Acciones" y scroll en móvil */
+.staff-table-glass .staff-table-wrapper {
+    margin: 0 -4px;
+}
+.staff-table-glass .staff-table {
+    table-layout: auto;
+}
+.staff-table-glass .staff-table-actions-th {
+    min-width: 90px;
+    white-space: nowrap;
+}
+@media (max-width: 768px) {
+    .staff-table-glass .staff-table-wrapper {
+        margin-left: -12px;
+        margin-right: -12px;
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+    .staff-table-glass .staff-table td,
+    .staff-table-glass .staff-table th {
+        white-space: nowrap;
+    }
+    .staff-table-glass .staff-table td:nth-child(3) {
+        white-space: normal;
+        max-width: 120px;
+        overflow-wrap: break-word;
+    }
 }

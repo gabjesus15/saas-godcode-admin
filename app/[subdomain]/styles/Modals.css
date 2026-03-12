@@ -43,6 +43,15 @@
     animation: popInModal 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* Form dentro del modal: ocupa el espacio entre header y footer para que .modal-form haga scroll */
+.modal-content > form {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
 /* --- 3. HEADER (FIJO) --- */
 .modal-header {
     flex-shrink: 0; /* No encoger */
@@ -211,19 +220,25 @@
 /* --- RESPONSIVE MOBILE --- */
 @media (max-width: 600px) {
     .modal-overlay {
-        padding: 0;
-        padding-bottom: env(safe-area-inset-bottom);
-        align-items: flex-end; /* Sheet Style (sale de abajo) */
+        padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)) 12px;
+        align-items: flex-start; /* Modal arriba para que el header "Editar Categoría" se vea */
+        overflow-y: auto;
     }
 
     .modal-content {
-        max-height: 95vh;
-        max-height: 95svh;
-        max-height: 95dvh;
-        height: auto; /* O height: 95dvh si quieres panel completo */
-        border-radius: 20px 20px 0 0;
-        border-bottom: none;
-        animation: slideUpMobile 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        max-height: calc(100dvh - 24px);
+        max-height: calc(100svh - 24px);
+        height: auto;
+        margin-top: 0;
+        border-radius: 16px;
+        animation: popInModal 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .modal-header {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: #121212;
     }
 
     .modal-footer {
