@@ -130,9 +130,9 @@ export function TenantLoginShell({ subdomain, displayName, logoUrl }: TenantLogi
               />
 
               <div className="login-footer">
-                <Link href={`/${subdomain}`} className="btn btn-secondary">
+                <a href={`/${subdomain}`} className="btn btn-secondary">
                   Volver al home
-                </Link>
+                </a>
               </div>
             </div>
 

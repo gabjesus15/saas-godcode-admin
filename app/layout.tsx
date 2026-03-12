@@ -34,10 +34,13 @@ export default function RootLayout({
         <link rel="preload" href="/fonts/outfit.css" as="style" />
         <link rel="preload" href="/fonts/Outfit-Regular.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
         <link rel="preload" href="/fonts/Outfit-Bold.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+        <link rel="stylesheet" href="/fonts/nevis.ttf" />
+        <link rel="stylesheet" href="/fonts/Aleo-Light.otf" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} bg-background text-foreground antialiased transition-colors duration-200`}
       >
+        {/* Logo y slogan eliminados del layout global por petición del usuario */}
         {children}
       </body>
     </html>

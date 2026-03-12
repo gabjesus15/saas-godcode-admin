@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import type { SupabaseAuthScope } from "./utils/supabase/auth-scope";
 
-const adminPaths = ["/dashboard", "/companies", "/login", "/plans"];
+const adminPaths = ["/dashboard", "/companies", "/login", "/plans", "/onboarding/solicitudes"];
 const tenantBypassPaths = ["/api", "/_next", "/favicon.ico"];
 const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "");
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -105,6 +105,7 @@ const resolveTenantSlugFromReferer = (refererHeader: string | null) => {
       "companies",
       "plans",
       "checkout",
+      "onboarding",
       "api",
       "_next",
       "favicon.ico",

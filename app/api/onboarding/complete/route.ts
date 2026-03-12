@@ -1,0 +1,93 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+const VALID_STATUSES = new Set(["email_verified"]);
+
+type CompleteBody = {
+  token: string;
+  legal_name?: string;
+  logo_url?: string;
+  fiscal_address?: string;
+  billing_address?: string;
+  billing_rut?: string;
+  social_instagram?: string;
+  social_facebook?: string;
+  social_twitter?: string;
+  description?: string;
+  plan_id?: string;
+};
+
+function sanitize(str: string | undefined, maxLen: number): string | null {
+  if (str == null) return null;
+  const t = String(str).trim();
+  return t.length === 0 ? null : t.slice(0, maxLen);
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = (await req.json().catch(() => ({}))) as CompleteBody;
+    const token = sanitize(body.token, 100);
+    if (!token) {
+      return NextResponse.json({ error: "Token faltante" }, { status: 400 });
+    }
+
+    const { data: app, error: fetchError } = await supabaseAdmin
+      .from("onboarding_applications")
+      .select("id, status, business_name, email, responsible_name")
+      .eq("verification_token", token)
+      .maybeSingle();
+
+    if (fetchError || !app) {
+      return NextResponse.json({ error: "Solicitud no encontrada" }, { status: 404 });
+    }
+    if (!VALID_STATUSES.has(app.status)) {
+      return NextResponse.json(
+        { error: "Esta solicitud no está en estado válido para completar" },
+        { status: 400 }
+      );
+    }
+
+    const logoUrl = sanitize(body.logo_url, 500);
+
+    const updates: Record<string, unknown> = {
+      legal_name: sanitize(body.legal_name, 300),
+      logo_url: logoUrl,
+      fiscal_address: sanitize(body.fiscal_address, 500),
+      billing_address: sanitize(body.billing_address, 500),
+      billing_rut: sanitize(body.billing_rut, 100),
+      social_instagram: sanitize(body.social_instagram, 200),
+      social_facebook: sanitize(body.social_facebook, 200),
+      social_twitter: sanitize(body.social_twitter, 200),
+      description: sanitize(body.description, 2000),
+      plan_id: body.plan_id && String(body.plan_id).trim() ? body.plan_id : null,
+      status: "form_completed",
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error: updateError } = await supabaseAdmin
+      .from("onboarding_applications")
+      .update(updates)
+      .eq("id", app.id);
+
+    if (updateError) {
+      return NextResponse.json({ error: "Error al guardar" }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      token,
+      message: "Datos guardados. Puedes continuar al pago.",
+    });
+  } catch (err) {
+    console.error("onboarding complete error:", err);
+    return NextResponse.json(
+      { error: "Error interno. Intenta más tarde." },
+      { status: 500 }
+    );
+  }
+}

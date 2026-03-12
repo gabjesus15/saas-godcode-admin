@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
-import { Instagram, MapPin, MessageCircle, Settings, Utensils, QrCode } from "lucide-react";
+import { Building2, Instagram, MapPin, MessageCircle, Settings, Utensils, QrCode } from "lucide-react";
 import Image from "next/image";
 
 import { ContactBranchModal } from "./contact-branch-modal";
@@ -135,6 +135,11 @@ export function HomeClient({ name, logoUrl, schedule, branches }: HomeClientProp
       label: "Ubicación",
       icon: <MapPin size={20} />,
       onClick: () => handleActionClick("location"),
+    },
+    {
+      label: "Registrar mi negocio",
+      icon: <Building2 size={20} />,
+      onClick: () => { window.location.href = "/onboarding"; },
     },
   ], [handleActionClick, router, menuPath]); // Dependencias actualizadas
 

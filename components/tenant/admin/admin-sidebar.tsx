@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import styles from "./admin-sidebar.module.css";
+import { AnimatedLogo } from "./AnimatedLogo";
 import {
 	BarChart3,
 	Building2,
@@ -54,7 +56,6 @@ export function AdminSidebar({
 	userEmail,
 	branchName,
 	onLogout,
-	logoUrl,
 	showCompanyTab = true,
 	userRole,
 	}: AdminSidebarProps) {
@@ -140,24 +141,13 @@ export function AdminSidebar({
 			<div className="sidebar-top">
 				{!isMobile ? (
 					<div className="logo-circle">
-						{/* eslint-disable-next-line @next/next/no-img-element */}
-						<img
-							src={logoUrl || "/tenant/logo-placeholder.svg"}
-							alt="Logo"
-							onError={(event) => {
-								(event.currentTarget as HTMLImageElement).src =
-									"/tenant/logo-placeholder.svg";
-							}}
-						/>
+						<div className={styles.logoCenter}>
+							<AnimatedLogo />
+							<div className={styles.logoSlogan}>Tu visión, nuestro código.</div>
+						</div>
 					</div>
 				) : null}
-				{!isMobile ? (
-					<div className="brand-info">
-						<h3 className="brand-title">Admin del local</h3>
-						{userEmail ? <span className="user-email">{userEmail}</span> : null}
-						{branchName ? <span className="branch-name-badge">{branchName}</span> : null}
-					</div>
-				) : null}
+				{/* Eliminado avatar SG y textos Super Admin/Multi-Tenant SaaS por petición del usuario */}
 			</div>
 
 			<nav className="sidebar-menu">

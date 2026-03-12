@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, CheckCircle } from "lucide-react";
 
 import { Badge } from "../../../components/ui/badge";
+import { CheckoutSuccessFinalize } from "../../../components/onboarding/CheckoutSuccessFinalize";
 import { createSupabaseServerClient } from "../../../utils/supabase/server";
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -63,6 +64,7 @@ export default async function CheckoutSuccessPage({
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_#eef2ff_0%,_#ffffff_45%,_#f8fafc_100%)]">
+      <CheckoutSuccessFinalize refParam={ref} />
       <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-emerald-200/40 blur-3xl" />
       <div className="pointer-events-none absolute -right-32 top-24 h-96 w-96 rounded-full bg-sky-200/40 blur-3xl" />
 

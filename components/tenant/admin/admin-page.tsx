@@ -1,17 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 
 import { AdminSidebar } from "./admin-sidebar";
 import { useAdmin } from "./admin-provider";
 
 interface AdminPageProps {
-  companyName: string;
   logoUrl?: string | null;
 }
 
-export function AdminPage({ companyName, logoUrl }: AdminPageProps) {
+export function AdminPage({ logoUrl }: AdminPageProps) {
   const {
     activeTab,
     setActiveTab,
@@ -53,13 +51,14 @@ export function AdminPage({ companyName, logoUrl }: AdminPageProps) {
       <main className="admin-content">
         <header className="content-header">
           <div>
-            <h1>{companyName}</h1>
-            <p className="subtitle">Panel del local</p>
+            <div className="admin-logo">Gcode</div>
+            <div className="admin-slogan">Tu visión, nuestro código.</div>
           </div>
           <div className="header-actions">
-            <Link href="/menu" className="btn btn-secondary">
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+            <a href="/menu" className="btn btn-secondary">
               Ver menú
-            </Link>
+            </a>
           </div>
         </header>
 

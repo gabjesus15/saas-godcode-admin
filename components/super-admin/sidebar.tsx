@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Building2, CreditCard, LayoutDashboard, LifeBuoy, LogOut, Wrench } from "lucide-react";
+import { Building2, ClipboardList, CreditCard, LayoutDashboard, LifeBuoy, LogOut, Wrench } from "lucide-react";
+import { AnimatedLogo } from "./AnimatedLogo";
 
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/companies", label: "Empresas", icon: Building2 },
+  { href: "/onboarding/solicitudes", label: "Solicitudes", icon: ClipboardList },
   { href: "/plans", label: "Planes", icon: CreditCard },
   { href: "/tickets", label: "Tickets", icon: LifeBuoy },
   { href: "/herramientas", label: "Herramientas", icon: Wrench },
@@ -33,14 +35,8 @@ export function Sidebar() {
 
   return (
     <div className="flex h-full flex-col gap-10">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900">
-          SG
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Super Admin</p>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">Multi-Tenant SaaS</p>
-        </div>
+      <div className="flex flex-col items-center gap-1 mt-2 mb-2">
+        <AnimatedLogo />
       </div>
       <nav className="flex flex-col gap-2">
         {navItems.map((item) => {
