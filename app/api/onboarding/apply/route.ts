@@ -136,13 +136,15 @@ export async function POST(req: NextRequest) {
     if (TEAM_EMAIL && TEAM_EMAIL !== emailRaw) {
       const dashboardUrl = `${APP_URL.replace(/\/$/, "")}/onboarding/solicitudes`;
       await sendOnboardingEmail({
-        type: "admin_notify",
+        type: "team_notification",
         to: TEAM_EMAIL,
         from: RESEND_FROM,
         apiKey: RESEND_API_KEY,
-        responsibleName,
         businessName,
-        html: `<b>Nueva solicitud de onboarding</b><br><ul><li><strong>Negocio:</strong> ${businessName}</li><li><strong>Responsable:</strong> ${responsibleName}</li><li><strong>Email:</strong> ${emailRaw}</li>${sector ? `<li><strong>Rubro:</strong> ${sector}</li>` : ""}</ul><a href='${dashboardUrl}'>Ver en el panel</a>`
+        responsibleName,
+        email: emailRaw,
+        sector,
+        dashboardUrl,
       });
     }
 
