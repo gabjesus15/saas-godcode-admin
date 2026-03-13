@@ -60,16 +60,25 @@ const useCartStore = create<CartState>()(
       toggleCart: () => set((state) => ({ isCartOpen: !state.isCartOpen })),
 
       addToCart: (product) => set((state) => {
+        console.log('addToCart called with:', product);
+        console.log('Current cart:', state.cart);
         const existing = state.cart.find((item) => item.id === product.id);
         if (existing) {
-          if (existing.quantity >= 20) return {}; // Límite de cantidad (retornar objeto vacío para no cambiar estado)
-          return {
+          if (existing.quantity >= 20) {
+            console.log('Quantity limit reached');
+            return {}; // Límite de cantidad (retornar objeto vacío para no cambiar estado)
+          }
+          const newCart = {
             cart: state.cart.map((item) =>
               item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
             ),
           };
+          console.log('New cart (existing):', newCart.cart);
+          return newCart;
         }
-        return { cart: [...state.cart, { ...product, quantity: 1 } as CartItem] };
+        const newCart = { cart: [...state.cart, { ...product, quantity: 1 } as CartItem] };
+        console.log('New cart (new):', newCart.cart);
+        return newCart;
       }),
 
       decreaseQuantity: (productId) => set((state) => ({
