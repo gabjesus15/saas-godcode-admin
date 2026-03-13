@@ -60,25 +60,28 @@ const useCartStore = create<CartState>()(
       toggleCart: () => set((state) => ({ isCartOpen: !state.isCartOpen })),
 
       addToCart: (product) => set((state) => {
-        console.log('addToCart called with:', product);
-        console.log('Current cart:', state.cart);
+        if (!product?.id) return {};
         const existing = state.cart.find((item) => item.id === product.id);
         if (existing) {
-          if (existing.quantity >= 20) {
-            console.log('Quantity limit reached');
-            return {}; // Límite de cantidad (retornar objeto vacío para no cambiar estado)
-          }
-          const newCart = {
+          if (existing.quantity >= 20) return {};
+          return {
             cart: state.cart.map((item) =>
               item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
             ),
           };
-          console.log('New cart (existing):', newCart.cart);
-          return newCart;
         }
-        const newCart = { cart: [...state.cart, { ...product, quantity: 1 } as CartItem] };
-        console.log('New cart (new):', newCart.cart);
-        return newCart;
+        const newItem: CartItem = {
+          id: product.id,
+          name: product.name ?? null,
+          description: product.description ?? null,
+          image_url: product.image_url ?? null,
+          price: product.price ?? null,
+          has_discount: product.has_discount ?? null,
+          discount_price: product.discount_price ?? null,
+          is_active: product.is_active ?? null,
+          quantity: 1,
+        };
+        return { cart: [...state.cart, newItem] };
       }),
 
       decreaseQuantity: (productId) => set((state) => ({
@@ -131,15 +134,21 @@ export function CartProvider({
     const [isHydrated, setIsHydrated] = useState(false);
     const supabase = useMemo(() => createSupabaseBrowserClient("tenant"), []);
 
-    // Manejo de Hidratación (Evita errores de SSR en Next.js)
+    // Hidratación: esperar cliente Y rehidratación del store persist para no perder adds ni mostrar estado inconsistente
     useEffect(() => {
-      if (typeof window !== "undefined") {
-        console.log('Starting hydration...');
-        window.requestAnimationFrame(() => {
-          console.log('Setting isHydrated to true');
-          setIsHydrated(true);
-        });
+      if (typeof window === "undefined") return;
+      const persistApi = useCartStore.persist;
+      const setHydrated = () => setIsHydrated(true);
+      if (persistApi?.hasHydrated?.()) {
+        setHydrated();
+        return;
       }
+      const unsub = persistApi?.onFinishHydration?.(setHydrated);
+      if (!unsub) {
+        window.requestAnimationFrame(() => window.requestAnimationFrame(setHydrated));
+        return () => {};
+      }
+      return () => { unsub(); };
     }, []);
 
     // Sincronizar branch guardado con branch actual al hidratar
