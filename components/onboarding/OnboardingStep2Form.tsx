@@ -23,11 +23,18 @@ export function OnboardingStep2Form({
     fiscal_address?: string | null;
     billing_address?: string | null;
     billing_rut?: string | null;
+    billing_document?: string | null;
     social_instagram?: string | null;
     social_facebook?: string | null;
     social_twitter?: string | null;
     description?: string | null;
     plan_id?: string | null;
+    country?: string | null;
+    payment_methods?: string[] | null;
+    currency?: string | null;
+    custom_plan_name?: string | null;
+    custom_plan_price?: string | null;
+    custom_domain?: string | null;
     business_name?: string | null;
   };
   plans: Plan[];
@@ -41,6 +48,7 @@ export function OnboardingStep2Form({
     fiscal_address: initialData.fiscal_address ?? "",
     billing_address: initialData.billing_address ?? "",
     billing_document: initialData.billing_document ?? "",
+    billing_rut: initialData.billing_rut ?? "",
     social_instagram: initialData.social_instagram ?? "",
     social_facebook: initialData.social_facebook ?? "",
     social_twitter: initialData.social_twitter ?? "",

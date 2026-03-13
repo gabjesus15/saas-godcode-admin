@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 function VerifyContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const token = searchParams.get("token");
+    const token = searchParams?.get ? searchParams.get("token") : null;
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
   const [message, setMessage] = useState("");
 

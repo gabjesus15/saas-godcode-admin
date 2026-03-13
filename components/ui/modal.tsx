@@ -53,7 +53,7 @@ export function Modal({
           </div>
           <Button
             variant="ghost"
-            size="icon"
+            size="sm"
             onClick={onClose}
             aria-label="Close modal"
             className="rounded-full"
