@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, alreadySent: true });
     }
 
-    const { data: company } = await supabaseAdmin
+    await supabaseAdmin
       .from("companies")
       .select("id,public_slug")
       .eq("id", payment.company_id)

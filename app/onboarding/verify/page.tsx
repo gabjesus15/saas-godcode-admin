@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 
 function VerifyContent() {
@@ -12,8 +13,10 @@ function VerifyContent() {
 
   useEffect(() => {
     if (!token) {
-      setStatus("error");
-      setMessage("Enlace inválido. Falta el token de verificación.");
+      queueMicrotask(() => {
+        setStatus("error");
+        setMessage("Enlace inválido. Falta el token de verificación.");
+      });
       return;
     }
 
@@ -61,12 +64,12 @@ function VerifyContent() {
               </svg>
             </div>
             <p className="text-red-700">{message}</p>
-            <a
+            <Link
               href="/onboarding"
               className="mt-4 inline-block text-sm font-medium text-zinc-900 underline hover:no-underline"
             >
               Volver al inicio
-            </a>
+            </Link>
           </>
         )}
       </div>

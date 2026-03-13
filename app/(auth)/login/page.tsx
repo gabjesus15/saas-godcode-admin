@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useEffect } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
 
@@ -12,11 +10,6 @@ import { createSupabaseBrowserClient } from "../../../utils/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
-  const saasName = process.env.NEXT_PUBLIC_SAAS_NAME?.trim() || "SaaS GodCode";
-  const configuredLogo =
-    process.env.NEXT_PUBLIC_SAAS_LOGO_URL?.trim() || "/tenant/logo-placeholder.svg";
-
-  const [logoSrc, setLogoSrc] = useState(configuredLogo);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);

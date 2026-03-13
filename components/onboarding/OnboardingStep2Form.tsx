@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import rut from 'rut.js';
 import validator from 'validator';
-import { useSearchParams } from "next/navigation";
 
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -220,6 +219,7 @@ export function OnboardingStep2Form({
           Logo
           <div className="flex items-center gap-4">
             {form.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element -- logo URL is dynamic (user upload)
               <img
                 src={form.logo_url}
                 alt="Logo"

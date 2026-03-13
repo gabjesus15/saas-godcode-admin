@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { SaasThemeScope } from "@/components/theme/saas-theme-scope";
-import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 import "./globals.css";
 

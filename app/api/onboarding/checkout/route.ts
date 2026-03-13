@@ -163,8 +163,6 @@ export async function POST(req: NextRequest) {
       console.error("onboarding checkout branch insert:", branchError);
     }
 
-    const branchId = branch?.id ?? null;
-
     await supabaseAdmin.from("business_info").insert({
       company_id: company.id,
       name: app.business_name,

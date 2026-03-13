@@ -226,8 +226,6 @@ export function CartProvider({
               return [typedRow.product_id, typedRow];
             })
         );
-        const hasAnyRows = (data || []).length > 0;
-
         const currentCart = useCartStore.getState().cart;
         const nextCart = currentCart.reduce<CartItem[]>((acc, cartItem) => {
           const priceRow = priceByProductId.get(String(cartItem.id)) as PriceRow | undefined;

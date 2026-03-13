@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
 import { Button } from "../../../components/ui/button";
@@ -20,7 +21,7 @@ function PagoContent() {
 
   const [paymentOptions, setPaymentOptions] = useState<string[]>(["Stripe"]);
   const [selectedPayment, setSelectedPayment] = useState<string>("Stripe");
-  const [country, setCountry] = useState<string>("");
+  const [, setCountry] = useState<string>("");
   const [currency, setCurrency] = useState<string>("USD");
 
   const handlePay = async () => {
@@ -81,9 +82,9 @@ function PagoContent() {
       <div className="flex min-h-[60vh] items-center justify-center px-6 py-16">
         <div className="onboarding-card max-w-md p-8 text-center">
           <p className="text-red-600">{error}</p>
-          <a href="/onboarding" className="mt-4 inline-block text-sm font-medium text-zinc-900 underline hover:no-underline">
+          <Link href="/onboarding" className="mt-4 inline-block text-sm font-medium text-zinc-900 underline hover:no-underline">
             Volver al inicio
-          </a>
+          </Link>
         </div>
       </div>
     );

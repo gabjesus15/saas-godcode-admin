@@ -36,7 +36,8 @@ export function BranchSelectorModal({
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    setIsMounted(true);
+    const t = setTimeout(() => setIsMounted(true), 0);
+    return () => clearTimeout(t);
   }, []);
 
   if (!isMounted || !isOpen) return null;

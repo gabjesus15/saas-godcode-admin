@@ -28,8 +28,28 @@ const supabase = createClient(
 
 import { useEffect, useState } from "react";
 
+interface OnboardingAppRow {
+  id: string;
+  business_name: string | null;
+  responsible_name: string | null;
+  email: string | null;
+  sector: string | null;
+  status: string | null;
+  created_at: string | null;
+  company_id: string | null;
+  country: string | null;
+  currency: string | null;
+  document_type: string | null;
+  document_number: string | null;
+  phone: string | null;
+  address: string | null;
+  plan_id: string | null;
+  notes: string | null;
+  updated_at: string | null;
+}
+
 export default function OnboardingSolicitudesPage() {
-  const [apps, setApps] = useState<any[]>([]);
+  const [apps, setApps] = useState<OnboardingAppRow[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {

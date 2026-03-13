@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -165,7 +166,7 @@ export function OnboardingStep1Form() {
               className="mt-1 h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-400"
             />
             <span className="text-sm text-zinc-600">
-              Acepto los <a href="/terminos" className="underline hover:text-zinc-900">términos de servicio</a> *
+              Acepto los <Link href="/terminos" className="underline hover:text-zinc-900">términos de servicio</Link> *
             </span>
           </label>
           <label className="flex cursor-pointer items-start gap-3">
@@ -176,7 +177,7 @@ export function OnboardingStep1Form() {
               className="mt-1 h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-400"
             />
             <span className="text-sm text-zinc-600">
-              Acepto la <a href="/privacidad" className="underline hover:text-zinc-900">política de privacidad</a> *
+              Acepto la <Link href="/privacidad" className="underline hover:text-zinc-900">política de privacidad</Link> *
             </span>
           </label>
         </div>

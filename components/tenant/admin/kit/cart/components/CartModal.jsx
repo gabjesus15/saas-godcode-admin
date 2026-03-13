@@ -40,6 +40,35 @@ const generateWSMessage = (formData, cart, total, paymentType, note, businessNam
   return msg;
 };
 
+// Componente para mostrar el total en bolívares con tasa BCV traída de API
+const BCVRow = ({ cartTotal, paymentType }) => {
+  const [bcvRate, setBcvRate] = React.useState(null);
+  const [error, setError] = React.useState(false);
+  React.useEffect(() => {
+    fetch('https://api.bcv.org.ve/rates/usd')
+      .then(res => res.json())
+      .then(data => {
+        const rate = data?.rate || data?.usd;
+        if (rate) setBcvRate(Number(rate));
+        else setError(true);
+      })
+      .catch(() => setError(true));
+  }, []);
+  if (paymentType === 'paypal' || paymentType === 'stripe') {
+    return null;
+  }
+  return (
+    <div className="total-row">
+      <span>Total en bolívares</span>
+      <span className="total-price">
+        {bcvRate && !error
+          ? `Bs ${(cartTotal * bcvRate).toLocaleString('es-VE')}`
+          : <span style={{ color: '#888' }}>A la tasa oficial del BCV</span>}
+      </span>
+    </div>
+  );
+};
+
 // --- COMPONENTE PRINCIPAL ---
 const CartModal = React.memo(() => {
   const router = useRouter();
@@ -347,36 +376,6 @@ const CartModal = React.memo(() => {
                       <BCVRow cartTotal={cartTotal} paymentType={paymentType} />
                     )}
 
-// Componente para mostrar el total en bolívares con tasa BCV traída de API
-const BCVRow = ({ cartTotal, paymentType }) => {
-  const [bcvRate, setBcvRate] = React.useState<number | null>(null);
-  const [error, setError] = React.useState(false);
-  React.useEffect(() => {
-    fetch('https://api.bcv.org.ve/rates/usd')
-      .then(res => res.json())
-      .then(data => {
-        const rate = data?.rate || data?.usd;
-        if (rate) setBcvRate(Number(rate));
-        else setError(true);
-      })
-      .catch(() => setError(true));
-  }, []);
-  // Si el pago es PayPal o Stripe, mostrar solo USD
-  if (paymentType === 'paypal' || paymentType === 'stripe') {
-    return null;
-  }
-  return (
-    <div className="total-row">
-      <span>Total en bolívares</span>
-      <span className="total-price">
-        {bcvRate && !error
-          ? `Bs ${(cartTotal * bcvRate).toLocaleString('es-VE')}`
-          : <span style={{color:'#888'}}>A la tasa oficial del BCV</span>}
-      </span>
-    </div>
-  );
-};
-                    
                     {isShiftLoading ? (
                       <button className="btn btn-primary btn-block btn-lg" disabled>Cargando...</button>
                     ) : canCheckout ? (
@@ -449,7 +448,6 @@ const PaymentFlow = ({
             className="form-input" placeholder="Tu nombre"
             aria-invalid={showNameError}
           />
-          // Mensaje de error eliminado
         </div>
 
         <div className="form-row">

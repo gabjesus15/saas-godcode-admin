@@ -16,7 +16,7 @@ export const formatRut = (rut: string) => {
   return value;
 };
 
-export const validateRut = (rut: string, debug = false) => {
+export const validateRut = (rut: string) => {
   if (!rut || rut.trim().length < 3) return false;
   // Remove dots and hyphens, keep only numbers and K/k
   const cleanRut = rut.replace(/[^0-9kK]/g, "");

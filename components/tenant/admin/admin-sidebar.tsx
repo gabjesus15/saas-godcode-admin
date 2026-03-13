@@ -59,6 +59,8 @@ export function AdminSidebar({
 	showCompanyTab = true,
 	userRole,
 	}: AdminSidebarProps) {
+		void userEmail;
+		void branchName;
 		const menuItems = useMemo<MenuItem[]>(() => {
 			// Staff: por defecto solo Pedidos y Caja (el resto lo define roleNavPermissions)
 			if (userRole === "cashier" || userRole === "staff") {
