@@ -132,22 +132,22 @@ export function CartProvider({
     // Sincronizar branch guardado con branch actual al hidratar
     useEffect(() => {
       if (!isHydrated) return;
-      const { setStoredBranchId, clearCart, storedBranchId } = useCartStore.getState();
+      const { setStoredBranchId, storedBranchId } = useCartStore.getState();
       if (!selectedBranchId) {
         if (storedBranchId !== null) {
           if (typeof setStoredBranchId === "function") setStoredBranchId(null);
-          if (typeof clearCart === "function") clearCart();
         }
         return;
       }
+      // Solo actualizamos el branch_id almacenado, NO limpiamos el carrito
+      // Los precios se actualizarán automáticamente en el useEffect de validación
       if (storedBranchId !== selectedBranchId) {
         if (typeof setStoredBranchId === "function") setStoredBranchId(selectedBranchId);
-        if (typeof clearCart === "function") clearCart();
       }
     }, [isHydrated, selectedBranchId]);
 
   // Lógica de Validación de Precios en tiempo real (Base de datos)
-  // Se mantiene similar pero actualiza el store directamente
+  // Se ejecuta cuando cambian los productos del carrito O cuando cambia la sucursal
   const cartProductIds = useMemo(
     () => isHydrated ? store.cart.map((item) => item.id).join(",") : "",
     [store.cart, isHydrated]
@@ -206,10 +206,10 @@ export function CartProvider({
         );
         const hasAnyRows = (data || []).length > 0;
 
-                  const {} = useCartStore.getState(); // Eliminar variables no usadas
         const currentCart = useCartStore.getState().cart;
         const nextCart = currentCart.reduce<CartItem[]>((acc, cartItem) => {
           const priceRow = priceByProductId.get(String(cartItem.id)) as PriceRow | undefined;
+          // Solo mantener productos que existen en la sucursal con precio válido
           if (priceRow) {
             const meta = priceRow.products;
             acc.push({
@@ -221,9 +221,8 @@ export function CartProvider({
               is_active: meta?.is_active ?? cartItem.is_active,
               description: meta?.description ?? cartItem.description,
             });
-          } else if (!hasAnyRows) {
-            acc.push(cartItem);
           }
+          // Si no hay precio para este producto en la sucursal, se omite (se elimina del carrito)
           return acc;
         }, []).filter(item => item.is_active !== false);
 
