@@ -134,7 +134,11 @@ export function CartProvider({
     // Manejo de Hidratación (Evita errores de SSR en Next.js)
     useEffect(() => {
       if (typeof window !== "undefined") {
-        window.requestAnimationFrame(() => setIsHydrated(true));
+        console.log('Starting hydration...');
+        window.requestAnimationFrame(() => {
+          console.log('Setting isHydrated to true');
+          setIsHydrated(true);
+        });
       }
     }, []);
 
