@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import rut from 'rut.js';
+// import validator from 'validator';
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 
@@ -29,6 +31,8 @@ interface CompanyFormProps {
 }
 
 export function CompanyForm({ plans }: CompanyFormProps) {
+  // Importar validator solo en cliente
+  // Validación manual para CI y rut.js para Chile
   const router = useRouter();
   const baseDomain = useMemo(() => getTenantBaseDomain(), []);
   const [loading, setLoading] = useState(false);
@@ -51,6 +55,9 @@ export function CompanyForm({ plans }: CompanyFormProps) {
     background_color: "#0a0a0a",
     background_image_url: "",
     logo_url: "",
+    country: "",
+    currency: "",
+    document: "",
   });
 
   const handleBackgroundUpload = async (file: File | null) => {
@@ -214,6 +221,64 @@ export function CompanyForm({ plans }: CompanyFormProps) {
               placeholder="Oishi Sushi"
               required
             />
+          </label>
+          <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
+            País
+            <select
+              value={form.country}
+              onChange={e => setForm(prev => ({ ...prev, country: e.target.value }))}
+              className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400"
+              required
+            >
+              <option value="">Selecciona un país</option>
+              <option value="Chile">Chile</option>
+              <option value="Venezuela">Venezuela</option>
+              <option value="Argentina">Argentina</option>
+              <option value="Colombia">Colombia</option>
+              <option value="México">México</option>
+              <option value="Perú">Perú</option>
+              <option value="España">España</option>
+              <option value="Estados Unidos">Estados Unidos</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
+            Moneda
+            <select
+              value={form.currency}
+              onChange={e => setForm(prev => ({ ...prev, currency: e.target.value }))}
+              className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400"
+              required
+            >
+              <option value="">Selecciona una moneda</option>
+              <option value="VES">Bolívar (VES)</option>
+              <option value="USD">Dólar (USD)</option>
+              <option value="COP">Peso Colombiano (COP)</option>
+              <option value="ARS">Peso Argentino (ARS)</option>
+              <option value="CLP">Peso Chileno (CLP)</option>
+              <option value="MXN">Peso Mexicano (MXN)</option>
+              <option value="EUR">Euro (EUR)</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
+            {form.country === 'Chile' ? 'RUT' : form.country === 'Venezuela' ? 'Cédula de Identidad (CI)' : 'Documento'}
+            <Input
+              value={form.document}
+              onChange={e => setForm(prev => ({ ...prev, document: e.target.value }))}
+              placeholder={form.country === 'Chile' ? '12.345.678-9' : form.country === 'Venezuela' ? 'Ej: 12345678' : 'Documento'}
+              type={form.country === 'Venezuela' ? 'number' : 'text'}
+              maxLength={form.country === 'Chile' ? 12 : 20}
+              required
+            />
+            {/* Validación visual */}
+            {form.document.length > 3 && !(
+              (form.country === 'Chile' && rut.validate(form.document)) ||
+              (form.country === 'Venezuela' && /^[0-9]+$/.test(form.document) && form.document.length >= 6 && form.document.length <= 9) ||
+              (form.country !== 'Chile' && form.country !== 'Venezuela' && form.document.length > 4)
+            ) && (
+              <span className="error">Documento inválido</span>
+            )}
           </label>
 
           <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">

@@ -42,12 +42,8 @@ const AdminSidebar = ({ activeTab, setActiveTab, isMobile, kanbanColumns, userRo
     const pendingCount = kanbanColumns?.pending?.length || 0;
     const isTabAllowed = useCallback((tabId) => (typeof canAccessTab === 'function' ? canAccessTab(tabId) : true), [canAccessTab]);
 
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-
-    const renderMobile = mounted ? isMobile : false;
+    // Estado mounted eliminado, usar isMobile directamente
+    const renderMobile = isMobile;
 
     // [FIX] Aislamiento: Asegurar que el modo oscuro del SaaS NO afecte al Panel Admin
     // Se ejecuta cada vez que cambia la ruta dentro del admin para reforzar el modo claro
@@ -57,21 +53,6 @@ const AdminSidebar = ({ activeTab, setActiveTab, isMobile, kanbanColumns, userRo
         document.body.classList.remove(...classes);
         document.documentElement.style.colorScheme = 'light';
     }, [pathname]);
-
-    // [FIX] Restauración: Devolver el tema original al Home/Menú al salir del Panel Admin
-    useEffect(() => {
-        return () => {
-            try {
-                const storedTheme = localStorage.getItem('theme');
-                const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                // Si el usuario tenía modo oscuro, lo restauramos al salir
-                if (storedTheme === 'dark' || (!storedTheme && systemDark)) {
-                    document.documentElement.classList.add('dark');
-                }
-                document.documentElement.style.colorScheme = ''; // Limpiar forzado
-            } catch {}
-        };
-    }, []);
 
     const storeHomePath = useMemo(() => {
         const currentPath = String(pathname || '/');

@@ -10,7 +10,6 @@ export default function AuthLayout({
   return (
     <>
       <SaasThemeScope />
-      <ThemeToggle />
       {children}
     </>
   );

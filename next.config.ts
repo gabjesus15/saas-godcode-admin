@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   turbopack: {},
+  images: {
+    domains: ["res.cloudinary.com", "images.unsplash.com"],
+  },
   webpack: (config, { dev }) => {
     if (dev) {
       const currentIgnored = config.watchOptions?.ignored;

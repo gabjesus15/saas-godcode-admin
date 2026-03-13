@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import rut from 'rut.js';
+import validator from 'validator';
 import { useSearchParams } from "next/navigation";
 
 import { Button } from "../ui/button";
@@ -38,12 +40,18 @@ export function OnboardingStep2Form({
     logo_url: initialData.logo_url ?? "",
     fiscal_address: initialData.fiscal_address ?? "",
     billing_address: initialData.billing_address ?? "",
-    billing_rut: initialData.billing_rut ?? "",
+    billing_document: initialData.billing_document ?? "",
     social_instagram: initialData.social_instagram ?? "",
     social_facebook: initialData.social_facebook ?? "",
     social_twitter: initialData.social_twitter ?? "",
     description: initialData.description ?? "",
     plan_id: initialData.plan_id ?? "",
+    country: initialData.country ?? "",
+    payment_methods: initialData.payment_methods ?? [],
+    currency: initialData.currency ?? "",
+    custom_plan_name: initialData.custom_plan_name ?? "",
+    custom_plan_price: initialData.custom_plan_price ?? "",
+    custom_domain: initialData.custom_domain ?? "",
   });
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -81,6 +89,12 @@ export function OnboardingStep2Form({
           social_twitter: form.social_twitter || undefined,
           description: form.description || undefined,
           plan_id: form.plan_id || undefined,
+          country: form.country || undefined,
+          payment_methods: form.payment_methods,
+          currency: form.currency || undefined,
+          custom_plan_name: form.custom_plan_name || undefined,
+          custom_plan_price: form.custom_plan_price || undefined,
+          custom_domain: form.custom_domain || undefined,
         }),
       });
 
@@ -110,6 +124,79 @@ export function OnboardingStep2Form({
             Completa la información para activar tu empresa.
           </p>
         </div>
+        <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
+          Moneda principal *
+          <select
+            className="onboarding-input h-12 rounded-xl border border-zinc-200 bg-zinc-50/50 px-4 text-sm text-zinc-900 outline-none focus:bg-white"
+            value={form.currency}
+            onChange={(e) => setForm((p) => ({ ...p, currency: e.target.value }))}
+            required
+          >
+            <option value="">Selecciona una moneda</option>
+            <option value="VES">Bolívar (VES)</option>
+            <option value="USD">Dólar (USD)</option>
+            <option value="COP">Peso Colombiano (COP)</option>
+            <option value="ARS">Peso Argentino (ARS)</option>
+            <option value="CLP">Peso Chileno (CLP)</option>
+            <option value="MXN">Peso Mexicano (MXN)</option>
+            <option value="EUR">Euro (EUR)</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </label>
+        <div className="flex flex-col gap-2 text-sm font-medium text-zinc-700 mt-4">
+          Métodos de pago disponibles *
+          <div className="flex flex-wrap gap-3">
+            {[
+              "Pago Móvil",
+              "Zelle",
+              "Transferencia bancaria",
+              "Stripe",
+              "MercadoPago",
+              "Efectivo",
+              "Tarjeta",
+              "PayPal",
+            ].map((method) => (
+              <label key={method} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={form.payment_methods.includes(method)}
+                  onChange={(e) => {
+                    setForm((prev) => {
+                      const arr = prev.payment_methods;
+                      return {
+                        ...prev,
+                        payment_methods: e.target.checked
+                          ? [...arr, method]
+                          : arr.filter((m) => m !== method),
+                      };
+                    });
+                  }}
+                />
+                {method}
+              </label>
+            ))}
+          </div>
+        </div>
+        <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
+          País de la empresa *
+          <select
+            className="onboarding-input h-12 rounded-xl border border-zinc-200 bg-zinc-50/50 px-4 text-sm text-zinc-900 outline-none focus:bg-white"
+            value={form.country}
+            onChange={(e) => setForm((p) => ({ ...p, country: e.target.value }))}
+            required
+          >
+            <option value="">Selecciona un país</option>
+            <option value="Chile">Chile</option>
+            <option value="Venezuela">Venezuela</option>
+            <option value="Argentina">Argentina</option>
+            <option value="Colombia">Colombia</option>
+            <option value="México">México</option>
+            <option value="Perú">Perú</option>
+            <option value="España">España</option>
+            <option value="Estados Unidos">Estados Unidos</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </label>
 
         <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
           Nombre legal del negocio
@@ -163,10 +250,21 @@ export function OnboardingStep2Form({
             />
             <Input
               className="onboarding-input bg-white"
-              value={form.billing_rut}
-              onChange={(e) => setForm((p) => ({ ...p, billing_rut: e.target.value }))}
-              placeholder="RUT o documento tributario"
+              value={form.billing_document}
+              onChange={(e) => setForm((p) => ({ ...p, billing_document: e.target.value }))}
+              placeholder={form.country === 'Chile' ? 'RUT (Ej: 12.345.678-9)' : form.country === 'Venezuela' ? 'CI (Ej: 12345678)' : 'Documento tributario'}
+              type={form.country === 'Venezuela' ? 'number' : 'text'}
+              maxLength={form.country === 'Chile' ? 12 : 20}
+              required
             />
+            {/* Validación visual */}
+            {form.billing_document.length > 3 && !(
+              (form.country === 'Chile' && rut.validate(form.billing_document)) ||
+              (form.country === 'Venezuela' && validator.isNumeric(form.billing_document) && form.billing_document.length >= 6 && form.billing_document.length <= 9) ||
+              (form.country !== 'Chile' && form.country !== 'Venezuela' && form.billing_document.length > 4)
+            ) && (
+              <span className="error">Documento inválido</span>
+            )}
           </div>
         </div>
 
@@ -222,7 +320,7 @@ export function OnboardingStep2Form({
                     name="plan_id"
                     value={plan.id}
                     checked={form.plan_id === plan.id}
-                    onChange={(e) => setForm((p) => ({ ...p, plan_id: e.target.value }))}
+                    onChange={(e) => setForm((p) => ({ ...p, plan_id: e.target.value, custom_plan_name: "", custom_plan_price: "" }))}
                     className="sr-only"
                   />
                   <div>
@@ -236,8 +334,63 @@ export function OnboardingStep2Form({
                   </span>
                 </label>
               ))}
+            {/* Custom plan option */}
+            <label className={`onboarding-plan-option flex flex-col cursor-pointer rounded-xl border-2 p-4 ${form.plan_id === "custom" ? "selected" : "border-zinc-200 bg-white"}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <input
+                  type="radio"
+                  name="plan_id"
+                  value="custom"
+                  checked={form.plan_id === "custom"}
+                  onChange={() => setForm((p) => ({ ...p, plan_id: "custom" }))}
+                  className="sr-only"
+                />
+                <span className="font-medium text-zinc-900">Plan personalizado</span>
+              </div>
+              {form.plan_id === "custom" && (
+                <div className="flex flex-col gap-2">
+                  <Input
+                    className="onboarding-input"
+                    value={form.custom_plan_name}
+                    onChange={(e) => setForm((p) => ({ ...p, custom_plan_name: e.target.value }))}
+                    placeholder="Nombre del plan personalizado"
+                  />
+                  <Input
+                    className="onboarding-input"
+                    type="number"
+                    min="0"
+                    value={form.custom_plan_price}
+                    onChange={(e) => setForm((p) => ({ ...p, custom_plan_price: e.target.value }))}
+                    placeholder="Precio mensual (ej: 10000)"
+                  />
+                </div>
+              )}
+            </label>
           </div>
         </div>
+                <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700 mt-6">
+                  Dominio propio (opcional)
+                  <Input
+                    className="onboarding-input"
+                    value={form.custom_domain}
+                    onChange={(e) => setForm((p) => ({ ...p, custom_domain: e.target.value }))}
+                    placeholder="Ejemplo: midominio.com"
+                  />
+                  <span className="text-xs text-zinc-500">Puedes conectar un dominio personalizado para tu empresa.</span>
+                </label>
+        {/* Mostrar métodos de pago según país seleccionado */}
+        {form.country === "Venezuela" && (
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50/30 p-5 mt-6">
+            <h3 className="text-sm font-medium text-zinc-700 mb-2">Métodos de pago disponibles en Venezuela</h3>
+            <ul className="text-sm text-zinc-600 list-disc pl-5">
+              <li>Pago Móvil</li>
+              <li>Zelle</li>
+              <li>Transferencia bancaria nacional</li>
+              <li>Stripe (tarjeta internacional)</li>
+            </ul>
+            <p className="mt-2 text-xs text-zinc-500">Podrás elegir el método de pago en el siguiente paso.</p>
+          </div>
+        )}
       </div>
 
       {error && (

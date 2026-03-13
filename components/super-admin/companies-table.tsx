@@ -14,9 +14,19 @@ type PlanInfo = {
 type CompanyRow = {
   id: string;
   name: string | null;
+  legal_rut?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
   public_slug?: string | null;
+  plan_id?: string | null;
   subscription_status: string | null;
   subscription_ends_at?: string | null;
+  country?: string | null;
+  currency?: string | null;
+  created_by?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
   plans: PlanInfo | PlanInfo[] | null;
 };
 

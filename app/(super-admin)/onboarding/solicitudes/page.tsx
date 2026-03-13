@@ -35,7 +35,7 @@ export default function OnboardingSolicitudesPage() {
   useEffect(() => {
     supabase
       .from("onboarding_applications")
-      .select("id,business_name,responsible_name,email,sector,status,created_at,company_id")
+      .select("id,business_name,responsible_name,email,sector,status,created_at,company_id,country,currency,document_type,document_number,phone,address,plan_id,notes,updated_at")
       .order("created_at", { ascending: false })
       .limit(100)
       .then(({ data, error }) => {

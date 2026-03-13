@@ -5,7 +5,7 @@ export const getCachedCompany = cache(async (subdomain: string) => {
 	const supabase = createSupabasePublicServerClient();
 	const { data: company } = await supabase
 		.from("companies")
-		.select("id,name,public_slug,subscription_status,theme_config,updated_at")
+		.select("id,name,legal_rut,email,phone,address,public_slug,plan_id,subscription_status,subscription_ends_at,theme_config,country,currency,created_by,created_at,updated_at")
 		.eq("public_slug", subdomain)
 		.maybeSingle();
 

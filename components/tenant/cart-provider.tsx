@@ -1,10 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import CartContext from "./cart-context";
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 import { filterValidProductIds, isValidBranchId } from "./utils/safe-ids";
 
+// --- TIPOS ---
 interface CartItem {
   id: string;
   name?: string | null;
@@ -15,19 +18,6 @@ interface CartItem {
   discount_price?: number | null;
   quantity: number;
   is_active?: boolean | null;
-}
-
-interface ProductPriceRow {
-  product_id: string;
-  price: number | null;
-  has_discount: boolean | null;
-  discount_price: number | null;
-  products?: {
-    id?: string;
-    name?: string | null;
-    is_active?: boolean | null;
-    description?: string | null;
-  } | null;
 }
 
 interface CartProduct {
@@ -41,10 +31,85 @@ interface CartProduct {
   is_active?: boolean | null;
 }
 
-function ensureCartArray(value: unknown): CartItem[] {
-  return Array.isArray(value) ? (value as CartItem[]) : [];
+// --- ZUSTAND STORE DEFINITION ---
+// Definimos el estado y las acciones en un store atómico
+interface CartState {
+  cart: CartItem[];
+  isCartOpen: boolean;
+  orderNote: string;
+  storedBranchId?: string | null; // Guardamos el branchId en el store para validar persistencia
+  // Acciones
+  toggleCart?: () => void;
+  addToCart?: (product: CartProduct) => void;
+  decreaseQuantity?: (productId: string) => void;
+  removeFromCart?: (id: string) => void;
+  clearCart?: () => void;
+  setOrderNote?: (note: string) => void;
+  setCart?: (cart: CartItem[]) => void;
+  setStoredBranchId?: (id: string | null) => void;
 }
 
+const useCartStore = create<CartState>()(
+  persist(
+    (set) => ({
+      cart: [],
+      isCartOpen: false,
+      orderNote: "",
+      storedBranchId: null,
+
+      toggleCart: () => set((state) => ({ isCartOpen: !state.isCartOpen })),
+
+      addToCart: (product) => set((state) => {
+        const existing = state.cart.find((item) => item.id === product.id);
+        if (existing) {
+          if (existing.quantity >= 20) return {}; // Límite de cantidad (retornar objeto vacío para no cambiar estado)
+          return {
+            cart: state.cart.map((item) =>
+              item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+            ),
+          };
+        }
+        return { cart: [...state.cart, { ...product, quantity: 1 } as CartItem] };
+      }),
+
+      decreaseQuantity: (productId) => set((state) => ({
+        cart: state.cart
+          .map((item) =>
+            item.id === productId
+              ? { ...item, quantity: Math.max(0, item.quantity - 1) }
+              : item
+          )
+          .filter((item) => item.quantity > 0),
+      })),
+
+      removeFromCart: (id) => set((state) => ({
+        cart: state.cart.filter((item) => item.id !== id),
+      })),
+
+      clearCart: () => set({ cart: [], orderNote: "" }),
+
+      setOrderNote: (note) => set({ orderNote: note }),
+
+      setCart: (newCart) => set({ cart: newCart }),
+      
+      setStoredBranchId: (id) => set({ storedBranchId: id }),
+    }),
+    {
+      name: "tenant_cart_storage", // Nombre único para localStorage
+      storage: createJSONStorage(() => localStorage),
+      // Solo persistimos lo necesario
+      partialize: (state) => ({ 
+        cart: state.cart, 
+        orderNote: state.orderNote, 
+        storedBranchId: state.storedBranchId 
+      }),
+    }
+  )
+);
+
+// --- PROVIDER COMPONENT ---
+// Mantenemos el Provider para compatibilidad con el resto de la app y para manejar
+// la lógica de validación de precios (side-effects) que requiere props del servidor.
 export function CartProvider({
   children,
   selectedBranchId,
@@ -52,59 +117,60 @@ export function CartProvider({
   children: React.ReactNode;
   selectedBranchId?: string | null;
 }) {
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [orderNote, setOrderNote] = useState("");
-  const [isCartHydrated, setIsCartHydrated] = useState(false);
+    // Conectamos con el store
+    const store = useCartStore();
+    const [isHydrated, setIsHydrated] = useState(false);
+    const supabase = useMemo(() => createSupabaseBrowserClient("tenant"), []);
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("tenant_cart");
-      const parsed = saved ? JSON.parse(saved) : [];
-      setCart(ensureCartArray(parsed));
-    } catch {
-      setCart([]);
-    } finally {
-      setIsCartHydrated(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!isCartHydrated) return;
-    if (!selectedBranchId) return;
-
-    try {
-      const storedBranchId = localStorage.getItem("tenant_cart_branch_id");
-      const hasLegacyUnboundCart = !storedBranchId && cart.length > 0;
-      if ((storedBranchId && storedBranchId !== selectedBranchId && cart.length > 0) || hasLegacyUnboundCart) {
-        const resetTimer = window.setTimeout(() => {
-          setCart([]);
-          setOrderNote("");
-        }, 0);
-        localStorage.setItem("tenant_cart", "[]");
-        return () => window.clearTimeout(resetTimer);
+    // Manejo de Hidratación (Evita errores de SSR en Next.js)
+    useEffect(() => {
+      if (typeof window !== "undefined") {
+        window.requestAnimationFrame(() => setIsHydrated(true));
       }
-      localStorage.setItem("tenant_cart_branch_id", selectedBranchId);
-    } catch {
-      return;
-    }
-  }, [selectedBranchId, cart.length, isCartHydrated]);
+    }, []);
 
-  const supabase = useMemo(() => createSupabaseBrowserClient("tenant"), []);
+    // Sincronizar branch guardado con branch actual al hidratar
+    useEffect(() => {
+      if (!isHydrated) return;
+      const { setStoredBranchId, clearCart, storedBranchId } = useCartStore.getState();
+      if (!selectedBranchId) {
+        if (storedBranchId !== null) {
+          if (typeof setStoredBranchId === "function") setStoredBranchId(null);
+          if (typeof clearCart === "function") clearCart();
+        }
+        return;
+      }
+      if (storedBranchId !== selectedBranchId) {
+        if (typeof setStoredBranchId === "function") setStoredBranchId(selectedBranchId);
+        if (typeof clearCart === "function") clearCart();
+      }
+    }, [isHydrated, selectedBranchId]);
 
+  // Lógica de Validación de Precios en tiempo real (Base de datos)
+  // Se mantiene similar pero actualiza el store directamente
   const cartProductIds = useMemo(
-    () =>
-      Array.isArray(cart)
-        ? Array.from(new Set(cart.map((item) => String(item.id || "")).filter(Boolean))).join(",")
-        : "",
-    [cart]
+    () => isHydrated ? store.cart.map((item) => item.id).join(",") : "",
+    [store.cart, isHydrated]
   );
 
   useEffect(() => {
-    if (!cartProductIds || !selectedBranchId) return;
+    if (!isHydrated || !cartProductIds || !selectedBranchId) return;
     if (!isValidBranchId(selectedBranchId)) return;
 
     let cancelled = false;
+
+    type PriceRow = {
+      product_id: string;
+      price: number;
+      has_discount: boolean;
+      discount_price: number;
+      products?: {
+        id: string;
+        name?: string | null;
+        is_active?: boolean | null;
+        description?: string | null;
+      };
+    };
 
     const validatePrices = async () => {
       const ids = filterValidProductIds(cartProductIds.split(","));
@@ -119,139 +185,104 @@ export function CartProvider({
           .in("product_id", ids)
           .eq("branch_id", selectedBranchId);
 
-        if (cancelled) return;
-        if (error) {
-          return;
-        }
+        if (cancelled || error) return;
 
-        setCart((prevCart) => {
-          const priceByProductId = new Map(
-            ((data ?? []) as ProductPriceRow[]).map((row) => [String(row.product_id), row])
-          );
-          const hasAnyRows = (data ?? []).length > 0;
+        const priceByProductId = new Map(
+            (data || []).map((row: PriceRow) => {
+              const typedRow: PriceRow = {
+                product_id: String(row.product_id),
+                price: Number(row.price),
+                has_discount: Boolean(row.has_discount),
+                discount_price: Number(row.discount_price),
+                products: row.products ? {
+                  id: String(row.products.id),
+                  name: row.products.name ?? null,
+                  is_active: row.products.is_active ?? null,
+                  description: row.products.description ?? null,
+                } : undefined
+              };
+              return [typedRow.product_id, typedRow];
+            })
+        );
+        const hasAnyRows = (data || []).length > 0;
 
-          const next = prevCart.reduce<CartItem[]>((acc, cartItem) => {
-              const priceRow = priceByProductId.get(String(cartItem.id)) ?? null;
-              const meta = priceRow?.products;
-
-              if (priceRow) {
-                acc.push({
-                  ...cartItem,
-                  price: priceRow.price,
-                  has_discount: priceRow.has_discount,
-                  discount_price: priceRow.discount_price,
-                  name: meta?.name ?? cartItem.name,
-                  is_active: meta?.is_active ?? cartItem.is_active,
-                  description: meta?.description ?? cartItem.description,
-                });
-                return acc;
-              }
-
-              if (!hasAnyRows) {
-                acc.push(cartItem);
-              }
-
-              return acc;
-            }, [])
-            .filter((item) => item.is_active !== false);
-
-          const sameLength = prevCart.length === next.length;
-          const isSame =
-            sameLength &&
-            prevCart.every((prevItem, index) => {
-              const nextItem = next[index];
-              return (
-                nextItem &&
-                prevItem.id === nextItem.id &&
-                prevItem.quantity === nextItem.quantity &&
-                Number(prevItem.price ?? 0) === Number(nextItem.price ?? 0) &&
-                Boolean(prevItem.has_discount) === Boolean(nextItem.has_discount) &&
-                Number(prevItem.discount_price ?? 0) === Number(nextItem.discount_price ?? 0) &&
-                prevItem.is_active === nextItem.is_active &&
-                (prevItem.name ?? "") === (nextItem.name ?? "") &&
-                (prevItem.description ?? "") === (nextItem.description ?? "")
-              );
+                  const {} = useCartStore.getState(); // Eliminar variables no usadas
+        const currentCart = useCartStore.getState().cart;
+        const nextCart = currentCart.reduce<CartItem[]>((acc, cartItem) => {
+          const priceRow = priceByProductId.get(String(cartItem.id)) as PriceRow | undefined;
+          if (priceRow) {
+            const meta = priceRow.products;
+            acc.push({
+              ...cartItem,
+              price: priceRow.price,
+              has_discount: priceRow.has_discount,
+              discount_price: priceRow.discount_price,
+              name: meta?.name ?? cartItem.name,
+              is_active: meta?.is_active ?? cartItem.is_active,
+              description: meta?.description ?? cartItem.description,
             });
+          } else if (!hasAnyRows) {
+            acc.push(cartItem);
+          }
+          return acc;
+        }, []).filter(item => item.is_active !== false);
 
-          if (isSame) return prevCart;
-          return next;
-        });
-      } catch {
-        if (!cancelled) {
-          return;
+        const isSame = JSON.stringify(currentCart) === JSON.stringify(nextCart);
+        if (!isSame) {
+            if (typeof store.setCart === "function") store.setCart(nextCart);
         }
+
+      } catch (err) {
+        console.error("Error validando precios:", err);
       }
     };
 
     validatePrices();
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedBranchId, cartProductIds, supabase]);
+    return () => { cancelled = true; };
+  }, [selectedBranchId, cartProductIds, supabase, isHydrated, store]);
 
-  useEffect(() => {
-    if (!isCartHydrated) return;
-    localStorage.setItem("tenant_cart", JSON.stringify(cart));
-  }, [cart, isCartHydrated]);
-
-  const getPrice = useCallback((product: CartProduct) => {
-    if (product.has_discount && product.discount_price != null && Number(product.discount_price) > 0) {
-      return Number(product.discount_price);
+  // Helper de precio
+  const getPrice = useCallback((product: CartProduct | CartItem) => {
+    // Validación robusta de tipos y valores
+    if (typeof product !== "object" || product == null) return 0;
+    if (product.has_discount && typeof product.discount_price === "number" && product.discount_price > 0) {
+      return product.discount_price;
     }
-    return Number(product.price) || 0;
+    if (typeof product.price === "number") return product.price;
+    return 0;
   }, []);
 
-  const toggleCart = () => setIsCartOpen((prev) => !prev);
+  // Helper de WhatsApp
+  const cartTotal = useMemo(() => {
+    if (!Array.isArray(store.cart)) return 0;
+    return store.cart.reduce((acc, item) => {
+      const price = getPrice(item);
+      if (typeof item.quantity !== "number" || item.quantity < 1) return acc;
+      return acc + price * item.quantity;
+    }, 0);
+  }, [store.cart, getPrice]);
 
-  const addToCart = (product: CartProduct) => {
-    setCart((prev) => {
-      const existing = prev.find((item) => item.id === product.id);
-      if (existing) {
-        if (existing.quantity >= 20) return prev;
-        return prev.map((item) =>
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
-        );
-      }
-      return [...prev, { ...product, quantity: 1 }];
-    });
-  };
-
-  const decreaseQuantity = (productId: string) => {
-    setCart((prev) =>
-      prev
-        .map((item) =>
-          item.id === productId
-            ? { ...item, quantity: Math.max(0, item.quantity - 1) }
-            : item
-        )
-        .filter((item) => item.quantity > 0)
-    );
-  };
-
-  const removeFromCart = (id: string) => {
-    setCart((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const clearCart = () => {
-    setCart([]);
-    setOrderNote("");
-  };
-
-  const cartTotal = cart.reduce((acc, item) => acc + getPrice(item) * item.quantity, 0);
-  const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
+  const totalItems = useMemo(() => {
+    if (!Array.isArray(store.cart)) return 0;
+    return store.cart.reduce((acc, item) => {
+      if (typeof item.quantity !== "number" || item.quantity < 1) return acc;
+      return acc + item.quantity;
+    }, 0);
+  }, [store.cart]);
 
   const generateWhatsAppMessage = useCallback(() => {
-    if (cart.length === 0) return "";
+    if (!Array.isArray(store.cart) || store.cart.length === 0) return "";
 
-    let message = "";
-    message += "*NUEVO PEDIDO WEB - CLIENTE*\n";
+    let message = "*NUEVO PEDIDO WEB - CLIENTE*\n";
     message += "================================\n\n";
 
-    cart.forEach((item) => {
+    store.cart.forEach((item) => {
       const price = getPrice(item);
-      const subtotal = price * item.quantity;
-      message += `+ ${item.quantity} x ${(item.name ?? "").toUpperCase()}\n`;
-      if (item.description) {
+      const qty = typeof item.quantity === "number" && item.quantity > 0 ? item.quantity : 1;
+      const name = typeof item.name === "string" ? item.name : "Producto";
+      const subtotal = price * qty;
+      message += `+ ${qty} x ${name.toUpperCase()}\n`;
+      if (typeof item.description === "string" && item.description.trim()) {
         message += `   (Hacer: ${item.description})\n`;
       }
       message += `   Subtotal: $${subtotal.toLocaleString("es-CL")}\n`;
@@ -261,40 +292,34 @@ export function CartProvider({
     message += `\n*TOTAL A PAGAR: $${cartTotal.toLocaleString("es-CL")}*\n`;
     message += "================================\n";
 
-    if (orderNote.trim()) {
+    if (typeof store.orderNote === "string" && store.orderNote.trim()) {
       message += "\nNOTA DE COCINA:\n";
-      message += `${orderNote}\n`;
+      message += `${store.orderNote}\n`;
     }
 
     return encodeURIComponent(message);
-  }, [cart, cartTotal, getPrice, orderNote]);
+  }, [store.cart, store.orderNote, cartTotal, getPrice]);
 
-  const value = useMemo(
-    () => ({
-      cart,
-      isCartOpen,
-      toggleCart,
-      addToCart,
-      decreaseQuantity,
-      removeFromCart,
-      clearCart,
-      cartTotal,
-      totalItems,
-      getPrice,
-      orderNote,
-      setOrderNote,
-      generateWhatsAppMessage,
-    }),
-    [
-      cart,
-      isCartOpen,
-      cartTotal,
-      totalItems,
-      orderNote,
-      getPrice,
-      generateWhatsAppMessage,
-    ]
+  // Adaptador de Contexto para mantener compatibilidad
+  const contextValue = useMemo(() => ({
+    cart: isHydrated && Array.isArray(store.cart) ? store.cart : [],
+    isCartOpen: !!store.isCartOpen,
+    toggleCart: typeof store.toggleCart === "function" ? store.toggleCart : () => {},
+    addToCart: typeof store.addToCart === "function" ? store.addToCart : () => {},
+    decreaseQuantity: typeof store.decreaseQuantity === "function" ? store.decreaseQuantity : () => {},
+    removeFromCart: typeof store.removeFromCart === "function" ? store.removeFromCart : () => {},
+    clearCart: typeof store.clearCart === "function" ? store.clearCart : () => {},
+    orderNote: typeof store.orderNote === "string" ? store.orderNote : "",
+    setOrderNote: typeof store.setOrderNote === "function" ? store.setOrderNote : () => {},
+    cartTotal: isHydrated ? cartTotal : 0,
+    totalItems: isHydrated ? totalItems : 0,
+    getPrice,
+    generateWhatsAppMessage,
+  }), [store, isHydrated, cartTotal, totalItems, getPrice, generateWhatsAppMessage]);
+
+  return (
+    <CartContext.Provider value={contextValue}>
+      {children}
+    </CartContext.Provider>
   );
-
-  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

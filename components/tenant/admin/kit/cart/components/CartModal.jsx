@@ -13,7 +13,9 @@ import { ordersService } from '../../orders/services/orders';
 import { useBusiness } from '../../../context/useBusiness';
 import { useLocation } from '../../../context/useLocation';
 import { useCash } from '../../../context/useCash';
-import { formatRut, validateRut } from '../../../shared/utils/formatters';
+import { formatRut } from '../../../shared/utils/formatters';
+import rut from 'rut.js';
+import validator from 'validator';
 import { validateImageFile } from '../../../shared/utils/cloudinary';
 
 
@@ -92,7 +94,7 @@ const CartModal = React.memo(() => {
   const [formData, setFormData] = useState({
     name: "",
     phone: "+56 9 ",
-    rut: "",
+    document: "",
     receiptFile: null,
     receiptPreview: null
   });
@@ -107,27 +109,37 @@ const CartModal = React.memo(() => {
   // Validación Memoizada
   const validation = useMemo(() => {
     const phoneDigits = formData.phone.replace(/\D/g, '').length;
-    const isRutValid = validateRut(formData.rut);
     const nameValue = formData.name.trim();
     const namePattern = /^[\p{L} .'-]+$/u;
     const isNameValid = nameValue.length > 2 && namePattern.test(nameValue);
     // Comprobante requerido solo si es online
     const isReceiptValid = paymentType === 'online' ? !!formData.receiptFile : true;
 
+    // Detectar país
+    const country = activeInfo.country || 'CL';
+    let isDocumentValid = false;
+    if (country === 'CL') {
+      isDocumentValid = rut.validate(formData.document);
+    } else if (country === 'VE') {
+      isDocumentValid = validator.isNumeric(formData.document) && formData.document.length >= 6 && formData.document.length <= 9;
+    } else {
+      isDocumentValid = formData.document.length > 4;
+    }
+
     return {
-      rut: isRutValid,
+      document: isDocumentValid,
       phone: phoneDigits >= 11,
       name: isNameValid,
       receipt: isReceiptValid,
-      isReady: isNameValid && phoneDigits >= 11 && isRutValid && isReceiptValid
+      isReady: isNameValid && phoneDigits >= 11 && isDocumentValid && isReceiptValid
     };
-  }, [formData, paymentType]);
+  }, [formData, paymentType, activeInfo]);
 
   // Handlers
   const handleInputChange = useCallback((field, value) => {
     setFormData(prev => {
       let finalValue = value;
-      if (field === 'rut') finalValue = formatRut(value);
+      if (field === 'document' && activeInfo.country === 'CL') finalValue = formatRut(value);
       if (field === 'phone') {
         if (!value.startsWith("+56 9")) {
            if (value.length < 6) return { ...prev, [field]: "+56 9 " };
@@ -137,7 +149,7 @@ const CartModal = React.memo(() => {
       return { ...prev, [field]: finalValue };
     });
     setViewState(prev => ({ ...prev, error: null }));
-  }, []);
+  }, [activeInfo.country]);
 
   const handleFileChange = useCallback((e) => {
     const file = e.target.files[0];
@@ -160,7 +172,7 @@ const CartModal = React.memo(() => {
   const resetFlow = useCallback(() => {
     setViewState({ showPaymentInfo: false, showForm: false, showSuccess: false, isSaving: false, error: null, receiptUploadFailed: false });
     setPaymentType(null);
-    setFormData({ name: "", phone: "+56 9 ", rut: "", receiptFile: null, receiptPreview: null });
+    setFormData({ name: "", phone: "+56 9 ", document: "", receiptFile: null, receiptPreview: null });
     setShowFieldErrors(false);
   }, []);
 
@@ -217,7 +229,7 @@ const CartModal = React.memo(() => {
       const orderPayload = {
         client_name: sanitizeInput(formData.name),
         client_phone: String(formData.phone ?? '').trim(),
-        client_rut: String(formData.rut ?? '').trim(),
+        client_document: String(formData.document ?? '').trim(),
         payment_type: paymentType,
         total: Number(cartTotal) || 0,
         items: itemsForOrder,
@@ -323,7 +335,47 @@ const CartModal = React.memo(() => {
               <footer className="cart-footer">
                 {!viewState.showPaymentInfo ? (
                   <>
-                    <div className="total-row"><span>Total</span><span className="total-price">${cartTotal.toLocaleString('es-CL')}</span></div>
+                    <div className="total-row">
+                      <span>Total</span>
+                      <span className="total-price">
+                        {activeInfo.country === 'VE'
+                          ? `$${cartTotal.toLocaleString('en-US')} USD`
+                          : `$${cartTotal.toLocaleString('es-CL')}`}
+                      </span>
+                    </div>
+                    {activeInfo.country === 'VE' && (
+                      <BCVRow cartTotal={cartTotal} paymentType={paymentType} />
+                    )}
+
+// Componente para mostrar el total en bolívares con tasa BCV traída de API
+const BCVRow = ({ cartTotal, paymentType }) => {
+  const [bcvRate, setBcvRate] = React.useState<number | null>(null);
+  const [error, setError] = React.useState(false);
+  React.useEffect(() => {
+    fetch('https://api.bcv.org.ve/rates/usd')
+      .then(res => res.json())
+      .then(data => {
+        const rate = data?.rate || data?.usd;
+        if (rate) setBcvRate(Number(rate));
+        else setError(true);
+      })
+      .catch(() => setError(true));
+  }, []);
+  // Si el pago es PayPal o Stripe, mostrar solo USD
+  if (paymentType === 'paypal' || paymentType === 'stripe') {
+    return null;
+  }
+  return (
+    <div className="total-row">
+      <span>Total en bolívares</span>
+      <span className="total-price">
+        {bcvRate && !error
+          ? `Bs ${(cartTotal * bcvRate).toLocaleString('es-VE')}`
+          : <span style={{color:'#888'}}>A la tasa oficial del BCV</span>}
+      </span>
+    </div>
+  );
+};
                     
                     {isShiftLoading ? (
                       <button className="btn btn-primary btn-block btn-lg" disabled>Cargando...</button>
@@ -378,7 +430,7 @@ const PaymentFlow = ({
   isSaving, validation, showFieldErrors, cartTotal, onBack, activeInfo
 }) => {
   const showNameError = showFieldErrors && !validation.name;
-  const showRutError = showFieldErrors && !validation.rut;
+  const showDocumentError = showFieldErrors && !validation.document;
   const showPhoneError = showFieldErrors && !validation.phone;
   const showReceiptError = showFieldErrors && paymentType === 'online' && !validation.receipt;
   
@@ -403,21 +455,21 @@ const PaymentFlow = ({
         <div className="form-row">
           <div className="form-group">
             <label style={{display:'flex',alignItems:'center',gap:'6px'}}>
-              RUT
+              {activeInfo.country === 'CL' ? 'RUT' : activeInfo.country === 'VE' ? 'Cédula de Identidad (CI)' : 'Documento'}
               <span style={{minWidth:'18px',height:'18px',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>
-                {validation.rut ? <CheckCircle2 size={14} color="#25d366" /> : null}
+                {validation.document ? <CheckCircle2 size={14} color="#25d366" /> : null}
               </span>
             </label>
             <input
-              type="text" required
-              value={formData.rut}
-              onChange={e => onInputChange('rut', e.target.value)}
-              className={`form-input ${!validation.rut && formData.rut.length > 3 ? 'input-error' : ''}`}
-              placeholder="12.345.678-9"
-              maxLength={12}
-              aria-invalid={showRutError}
+              type={activeInfo.country === 'VE' ? 'number' : 'text'} required
+              value={formData.document}
+              onChange={e => onInputChange('document', e.target.value)}
+              className={`form-input ${!validation.document && formData.document.length > 3 ? 'input-error' : ''}`}
+              placeholder={activeInfo.country === 'CL' ? '12.345.678-9' : activeInfo.country === 'VE' ? 'Ej: 12345678' : 'Documento'}
+              maxLength={activeInfo.country === 'CL' ? 12 : 20}
+              aria-invalid={showDocumentError}
             />
-            // Mensaje de error eliminado
+            {/* Mensaje de error eliminado */}
           </div>
           <div className="form-group">
             <label style={{display:'flex',alignItems:'center',gap:'6px'}}>
@@ -433,7 +485,7 @@ const PaymentFlow = ({
               className="form-input"
               aria-invalid={showPhoneError}
             />
-            // Mensaje de error eliminado
+            {/* Mensaje de error eliminado */}
           </div>
         </div>
 

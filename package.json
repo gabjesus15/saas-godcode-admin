@@ -14,10 +14,12 @@
     "lint:phase:backup": "eslint supabase-functions-backup --max-warnings=0"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.98.0",
     "chart.js": "^4.5.1",
     "clsx": "^2.1.1",
+    "dompurify": "^3.3.3",
     "framer-motion": "^12.34.3",
     "lightningcss": "^1.31.1",
     "lucide-react": "^0.575.0",
@@ -28,7 +30,12 @@
     "react": "19.2.3",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "19.2.3",
-    "tailwind-merge": "^3.5.0"
+    "react-hook-form": "^7.71.2",
+    "rut.js": "^2.1.0",
+    "tailwind-merge": "^3.5.0",
+    "validator.js": "^2.0.4",
+    "zod": "^4.3.6",
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

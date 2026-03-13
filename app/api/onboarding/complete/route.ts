@@ -20,6 +20,12 @@ type CompleteBody = {
   social_twitter?: string;
   description?: string;
   plan_id?: string;
+  country?: string;
+  payment_methods?: string[];
+  currency?: string;
+  custom_plan_name?: string;
+  custom_plan_price?: string;
+  custom_domain?: string;
 };
 
 function sanitize(str: string | undefined, maxLen: number): string | null {
@@ -65,6 +71,12 @@ export async function POST(req: NextRequest) {
       social_twitter: sanitize(body.social_twitter, 200),
       description: sanitize(body.description, 2000),
       plan_id: body.plan_id && String(body.plan_id).trim() ? body.plan_id : null,
+      country: sanitize(body.country, 100),
+      payment_methods: Array.isArray(body.payment_methods) ? body.payment_methods : [],
+      currency: sanitize(body.currency, 10),
+      custom_plan_name: sanitize(body.custom_plan_name, 100),
+      custom_plan_price: sanitize(body.custom_plan_price, 20),
+      custom_domain: sanitize(body.custom_domain, 100),
       status: "form_completed",
       updated_at: new Date().toISOString(),
     };

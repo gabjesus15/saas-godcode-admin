@@ -1,35 +1,20 @@
-"use client";
-
-import { useEffect } from "react";
-
 const STORAGE_KEY = "saas-theme";
 
-export function SaasThemeScope() {
-  useEffect(() => {
-    const root = document.documentElement;
-
+const themeScript = `
+  (function() {
     try {
-      const stored = window.localStorage.getItem(STORAGE_KEY);
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      const theme =
-        stored === "dark" || stored === "light"
-          ? stored
-          : prefersDark
-            ? "dark"
-            : "light";
+      const theme = localStorage.getItem('${STORAGE_KEY}');
+      if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+        document.documentElement.setAttribute('data-theme', 'dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch (_) {}
+  })();
+`;
 
-      root.classList.toggle("dark", theme === "dark");
-      root.setAttribute("data-theme", theme);
-    } catch {
-      root.classList.remove("dark");
-      root.setAttribute("data-theme", "light");
-    }
-
-    return () => {
-      root.classList.remove("dark");
-      root.setAttribute("data-theme", "light");
-    };
-  }, []);
-
-  return null;
+export function SaasThemeScope() {
+  return <script dangerouslySetInnerHTML={{ __html: themeScript }} />;
 }

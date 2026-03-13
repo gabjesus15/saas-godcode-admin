@@ -40,6 +40,8 @@ interface CompanyData {
   public_slug: string | null;
   plan_id: string | null;
   subscription_status: string | null;
+  country?: string | null;
+  currency?: string | null;
   subscription_ends_at?: string | null;
   theme_config?: {
     primaryColor?: string;
@@ -120,6 +122,8 @@ interface BusinessInfo {
   address: string | null;
   instagram: string | null;
   schedule: string | null;
+  country?: string | null;
+  currency?: string | null;
 }
 
 interface PaymentHistory {
@@ -555,6 +559,8 @@ export function CompanyGlobalForm({
     public_slug: company.public_slug ?? "",
     plan_id: company.plan_id ?? "",
     subscription_status: company.subscription_status ?? "active",
+    country: company.country ?? "",
+    currency: company.currency ?? "",
   });
 
   const [themeForm, setThemeForm] = useState({
@@ -570,12 +576,14 @@ export function CompanyGlobalForm({
     roleNavPermissions: normalizeRoleNavPermissions(company.theme_config?.roleNavPermissions),
   });
 
-  const [businessForm, setBusinessForm] = useState({
+  const [businessForm] = useState({
     name: businessInfo?.name ?? "",
     phone: businessInfo?.phone ?? "",
     address: businessInfo?.address ?? "",
     instagram: businessInfo?.instagram ?? "",
     schedule: businessInfo?.schedule ?? "",
+    country: businessInfo?.country ?? "",
+    currency: businessInfo?.currency ?? "",
   });
 
   const [monthsToAdd, setMonthsToAdd] = useState(1);
@@ -744,6 +752,8 @@ export function CompanyGlobalForm({
         public_slug: companyForm.public_slug.trim(),
         plan_id: companyForm.plan_id || null,
         subscription_status: companyForm.subscription_status,
+        country: companyForm.country || null,
+        currency: companyForm.currency || null,
         updated_at: new Date().toISOString(),
       };
 
@@ -786,6 +796,8 @@ export function CompanyGlobalForm({
             address: businessForm.address.trim(),
             instagram: businessForm.instagram.trim(),
             schedule: businessForm.schedule.trim(),
+            country: businessForm.country || null,
+            currency: businessForm.currency || null,
             updated_at: new Date().toISOString(),
           },
           { onConflict: "company_id" }
@@ -886,6 +898,48 @@ export function CompanyGlobalForm({
 
           <div className="grid gap-4 md:grid-cols-2">
             <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
+              País
+              <select
+                value={companyForm.country || ""}
+                onChange={(e) => setCompanyForm((prev) => ({ ...prev, country: e.target.value }))}
+                className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400"
+              >
+                <option value="">Selecciona país</option>
+                <option value="CL">Chile</option>
+                <option value="VE">Venezuela</option>
+                <option value="US">Estados Unidos</option>
+                <option value="MX">México</option>
+                <option value="CO">Colombia</option>
+                <option value="AR">Argentina</option>
+                <option value="PE">Perú</option>
+                <option value="EC">Ecuador</option>
+                <option value="BR">Brasil</option>
+                <option value="ES">España</option>
+                <option value="PA">Panamá</option>
+                <option value="OTRO">Otro</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
+              Moneda
+              <select
+                value={companyForm.currency || ""}
+                onChange={(e) => setCompanyForm((prev) => ({ ...prev, currency: e.target.value }))}
+                className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400"
+              >
+                <option value="">Selecciona moneda</option>
+                <option value="CLP">Peso chileno (CLP)</option>
+                <option value="VES">Bolívar (VES)</option>
+                <option value="USD">Dólar estadounidense (USD)</option>
+                <option value="MXN">Peso mexicano (MXN)</option>
+                <option value="COP">Peso colombiano (COP)</option>
+                <option value="ARS">Peso argentino (ARS)</option>
+                <option value="PEN">Sol peruano (PEN)</option>
+                <option value="BRL">Real brasileño (BRL)</option>
+                <option value="EUR">Euro (EUR)</option>
+                <option value="OTRO">Otro</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
               Nombre
               <Input
                 value={companyForm.name}
@@ -975,62 +1029,8 @@ export function CompanyGlobalForm({
             </label>
           </div>
         </Card>
-
-        <Card className="flex flex-col gap-6">
-          <div>
-            <h3 className="text-lg font-semibold text-zinc-900">Información de negocio</h3>
-            <p className="text-sm text-zinc-500">Datos visibles para clientes finales en la tienda.</p>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
-              Nombre público
-              <Input
-                value={businessForm.name}
-                onChange={(e) => setBusinessForm((prev) => ({ ...prev, name: e.target.value }))}
-                placeholder="Marca en la tienda"
-              />
-            </label>
-
-            <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
-              Teléfono público
-              <Input
-                value={businessForm.phone}
-                onChange={(e) => setBusinessForm((prev) => ({ ...prev, phone: e.target.value }))}
-                placeholder="+56 9 1234 5678"
-              />
-            </label>
-
-            <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
-              Dirección
-              <Input
-                value={businessForm.address}
-                onChange={(e) => setBusinessForm((prev) => ({ ...prev, address: e.target.value }))}
-                placeholder="Dirección de la tienda"
-              />
-            </label>
-
-            <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
-              Instagram
-              <Input
-                value={businessForm.instagram}
-                onChange={(e) => setBusinessForm((prev) => ({ ...prev, instagram: e.target.value }))}
-                placeholder="@miempresa"
-              />
-            </label>
-
-            <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700 md:col-span-2">
-              Horarios
-              <Input
-                value={businessForm.schedule}
-                onChange={(e) => setBusinessForm((prev) => ({ ...prev, schedule: e.target.value }))}
-                placeholder="Lunes a viernes 9:00 - 18:00"
-              />
-            </label>
-          </div>
-        </Card>
-
-        <Card className="flex flex-col gap-6">
+  {/* ...existing code... */}
+  <Card className="flex flex-col gap-6">
           <div>
             <h3 className="text-lg font-semibold text-zinc-900">Branding</h3>
             <p className="text-sm text-zinc-500">Configura color y logo para el tenant.</p>

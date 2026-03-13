@@ -25,18 +25,18 @@ export default async function CompanyDetailPage({
       supabase
         .from("companies")
         .select(
-          "id,name,legal_rut,email,phone,address,public_slug,plan_id,subscription_status,subscription_ends_at,theme_config"
+          "id,name,legal_rut,email,phone,address,public_slug,plan_id,subscription_status,subscription_ends_at,theme_config,country,currency"
         )
         .eq("id", resolvedParams.id)
         .maybeSingle(),
       supabase
         .from("business_info")
-        .select("name,phone,address,instagram,schedule")
+        .select("name,phone,address,instagram,schedule,country,currency")
         .eq("company_id", resolvedParams.id)
         .maybeSingle(),
       supabase
         .from("branches")
-        .select("id,name,slug,address,phone,is_active")
+          .select("id,name,slug,address,phone,is_active,country,currency,instagram,schedule,payment_methods,pago_movil,zelle,transferencia_bancaria,stripe,mercadopago,efectivo,tarjeta,paypal,company_id")
         .eq("company_id", resolvedParams.id)
         .order("created_at", { ascending: false }),
       supabase

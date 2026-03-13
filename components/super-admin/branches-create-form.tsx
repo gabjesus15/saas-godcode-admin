@@ -11,6 +11,10 @@ import { requireAdminRole, roleSets } from "../../utils/admin";
 
 interface BranchesCreateFormProps {
   companyId: string;
+  businessInfo?: {
+    country?: string | null;
+    currency?: string | null;
+  };
 }
 
 const slugify = (value: string) => {
@@ -23,7 +27,7 @@ const slugify = (value: string) => {
     .replace(/-+/g, "-");
 };
 
-export function BranchesCreateForm({ companyId }: BranchesCreateFormProps) {
+export function BranchesCreateForm({ companyId, businessInfo }: BranchesCreateFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +37,8 @@ export function BranchesCreateForm({ companyId }: BranchesCreateFormProps) {
     address: "",
     phone: "",
     is_active: true,
+    country: businessInfo?.country ?? "",
+    currency: businessInfo?.currency ?? "",
   });
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -62,6 +68,8 @@ export function BranchesCreateForm({ companyId }: BranchesCreateFormProps) {
           phone: form.phone,
           is_active: form.is_active,
           company_id: companyId,
+          country: form.country || null,
+          currency: form.currency || null,
         })
         .select("id")
         .single();
@@ -78,7 +86,7 @@ export function BranchesCreateForm({ companyId }: BranchesCreateFormProps) {
         metadata: { name: form.name, slug: finalSlug },
       });
 
-      setForm({ name: "", slug: "", address: "", phone: "", is_active: true });
+      setForm({ name: "", slug: "", address: "", phone: "", is_active: true, country: businessInfo?.country ?? "", currency: businessInfo?.currency ?? "" });
       router.refresh();
     } catch (err) {
       const message =
@@ -92,7 +100,7 @@ export function BranchesCreateForm({ companyId }: BranchesCreateFormProps) {
   };
 
   return (
-    <form className="grid gap-3 md:grid-cols-5" onSubmit={handleSubmit}>
+    <form className="grid gap-3 md:grid-cols-7" onSubmit={handleSubmit}>
       <div className="md:col-span-2">
         <Input
           value={form.name}
@@ -130,7 +138,47 @@ export function BranchesCreateForm({ companyId }: BranchesCreateFormProps) {
           placeholder="Telefono"
         />
       </div>
-      <div className="md:col-span-5 flex items-center justify-between gap-3">
+      <div className="md:col-span-1">
+          <select title="Selecciona país"
+          value={form.country}
+          onChange={(event) => setForm((prev) => ({ ...prev, country: event.target.value }))}
+          className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400"
+        >
+          <option value="">Selecciona país</option>
+          <option value="CL">Chile</option>
+          <option value="VE">Venezuela</option>
+          <option value="US">Estados Unidos</option>
+          <option value="MX">México</option>
+          <option value="CO">Colombia</option>
+          <option value="AR">Argentina</option>
+          <option value="PE">Perú</option>
+          <option value="EC">Ecuador</option>
+          <option value="BR">Brasil</option>
+          <option value="ES">España</option>
+          <option value="PA">Panamá</option>
+          <option value="OTRO">Otro</option>
+        </select>
+      </div>
+      <div className="md:col-span-1">
+          <select title="Selecciona moneda"
+          value={form.currency}
+          onChange={(event) => setForm((prev) => ({ ...prev, currency: event.target.value }))}
+          className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400"
+        >
+          <option value="">Selecciona moneda</option>
+          <option value="CLP">Peso chileno (CLP)</option>
+          <option value="VES">Bolívar (VES)</option>
+          <option value="USD">Dólar estadounidense (USD)</option>
+          <option value="MXN">Peso mexicano (MXN)</option>
+          <option value="COP">Peso colombiano (COP)</option>
+          <option value="ARS">Peso argentino (ARS)</option>
+          <option value="PEN">Sol peruano (PEN)</option>
+          <option value="BRL">Real brasileño (BRL)</option>
+          <option value="EUR">Euro (EUR)</option>
+          <option value="OTRO">Otro</option>
+        </select>
+      </div>
+      <div className="md:col-span-1 flex items-center justify-between gap-3">
         <label className="flex items-center gap-2 text-xs font-medium text-zinc-600 dark:text-zinc-300">
           <input
             type="checkbox"
@@ -146,7 +194,7 @@ export function BranchesCreateForm({ companyId }: BranchesCreateFormProps) {
         </Button>
       </div>
       {error ? (
-        <div className="md:col-span-5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300">
+        <div className="md:col-span-7 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300">
           {error}
         </div>
       ) : null}

@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     const { data: app, error: appError } = await supabaseAdmin
       .from("onboarding_applications")
       .select(
-        "id,business_name,responsible_name,email,legal_name,logo_url,fiscal_address,billing_address,billing_rut,social_instagram,social_facebook,social_twitter,description,plan_id"
+        "id,business_name,responsible_name,email,legal_name,logo_url,fiscal_address,billing_address,billing_rut,social_instagram,social_facebook,social_twitter,description,plan_id,country,payment_methods,currency,custom_plan_name,custom_plan_price,custom_domain"
       )
       .eq("verification_token", token)
       .eq("status", "form_completed")
@@ -62,21 +62,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!app.plan_id) {
-      return NextResponse.json(
-        { error: "Debes seleccionar un plan antes de pagar" },
-        { status: 400 }
-      );
-    }
-
-    const { data: plan, error: planError } = await supabaseAdmin
-      .from("plans")
-      .select("id,name,price")
-      .eq("id", app.plan_id)
-      .maybeSingle();
-
-    if (planError || !plan) {
-      return NextResponse.json({ error: "Plan no encontrado" }, { status: 404 });
+    let plan = null;
+    if (app.plan_id === "custom") {
+      plan = {
+        id: "custom",
+        name: app.custom_plan_name ?? "Plan personalizado",
+        price: Number(app.custom_plan_price ?? 0),
+      };
+    } else {
+      if (!app.plan_id) {
+        return NextResponse.json(
+          { error: "Debes seleccionar un plan antes de pagar" },
+          { status: 400 }
+        );
+      }
+      const { data: planData, error: planError } = await supabaseAdmin
+        .from("plans")
+        .select("id,name,price")
+        .eq("id", app.plan_id)
+        .maybeSingle();
+      if (planError || !planData) {
+        return NextResponse.json({ error: "Plan no encontrado" }, { status: 404 });
+      }
+      plan = planData;
     }
 
     const baseSlug = slugify(app.business_name);
@@ -102,6 +110,9 @@ export async function POST(req: NextRequest) {
       public_slug: publicSlug,
       plan_id: app.plan_id,
       subscription_status: "trial",
+      custom_domain: app.custom_domain ?? null,
+      custom_plan_name: app.custom_plan_name ?? null,
+      custom_plan_price: app.custom_plan_price ?? null,
       theme_config: {
         displayName: app.business_name,
         logoUrl: app.logo_url ?? null,
@@ -171,6 +182,14 @@ export async function POST(req: NextRequest) {
       })
       .eq("id", app.id);
 
+    // Lógica de métodos de pago por país
+    if (app.country === "Venezuela") {
+      // Aquí podrías devolver info para mostrar opciones de Pago Móvil, Zelle, Transferencia, Stripe
+      // Por ahora, solo Stripe está implementado, pero puedes extenderlo
+      // Ejemplo: return NextResponse.json({ ok: true, paymentOptions: ["Pago Móvil", "Zelle", "Transferencia", "Stripe"], ... });
+      // Continúa con Stripe por defecto
+    }
+
     const amount = Math.round(Number(plan.price ?? 0) * months * 100);
     const params = new URLSearchParams();
     params.append("mode", "payment");
@@ -220,6 +239,9 @@ export async function POST(req: NextRequest) {
       ok: true,
       url: session.url,
       sessionId: session.id,
+      country: app.country,
+      paymentOptions: Array.isArray(app.payment_methods) && app.payment_methods.length > 0 ? app.payment_methods : (app.country === "Venezuela" ? ["Pago Móvil", "Zelle", "Transferencia", "Stripe"] : ["Stripe"]),
+      currency: app.currency || "USD",
     });
   } catch (err) {
     console.error("onboarding checkout error:", err);

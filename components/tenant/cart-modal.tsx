@@ -1,55 +1,87 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import DOMPurify from "dompurify";
 import {
   AlertCircle,
   ArrowLeft,
   Check,
   CheckCircle2,
   Copy,
+  Banknote,
+  Smartphone,
+  DollarSign,
+  Building,
   CreditCard,
   MessageCircle,
   Minus,
   Plus,
-  ShoppingBag,
+  // ShoppingBag,
   Store,
   Trash2,
   Upload,
   X,
 } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import type { ComponentType } from "react";
+import type { LucideProps } from "lucide-react";
 import Image from "next/image";
 
 import { useCart } from "./use-cart";
-import { ordersService } from "./orders-service";
-import { formatRut, validateRut } from "./utils/formatters";
-import { getCloudinaryOptimizedUrl, validateImageFile } from "./utils/cloudinary";
-import { getTenantScopedPath } from "./utils/tenant-route";
+import { ordersService } from "./admin/kit/orders/services/orders";
+// import { validateRut } from "./utils/formatters";
+import { validateImageFile } from "./utils/cloudinary";
+import { getCloudinaryOptimizedUrl } from "./utils/cloudinary";
+// import eliminado porque no se usa
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 
 import "../../app/[subdomain]/styles/CartModal.css";
+import "../../app/[subdomain]/styles/CartModal.custom.css";
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80";
 
-interface BusinessInfo {
-  name?: string | null;
-  address?: string | null;
-  phone?: string | null;
-  schedule?: string | null;
+interface BranchInfo {
+  id: string;
+  name: string | null;
+  address: string | null;
+  phone: string | null;
+  company_id?: string | null;
   bank_name?: string | null;
   account_type?: string | null;
   account_number?: string | null;
   account_rut?: string | null;
   account_email?: string | null;
   account_holder?: string | null;
+  payment_methods?: string[];
+  pago_movil?: {
+    banco?: string;
+    telefono?: string;
+    identificacion?: string;
+  } | null;
+  zelle?: {
+    email?: string;
+    name?: string;
+  } | null;
+  transferencia_bancaria?: {
+    banco?: string;
+    nro_cuenta?: string;
+    tipo_cuenta?: string;
+    identificacion?: string;
+    titular?: string;
+    email?: string;
+  } | null;
+  stripe?: { [key: string]: string } | null;
+  mercadopago?: { [key: string]: string } | null;
+  paypal?: { [key: string]: string } | null;
 }
 
-interface BranchInfo {
-  id: string;
+interface BusinessInfo {
   name?: string | null;
   address?: string | null;
   phone?: string | null;
-  company_id?: string | null;
+  schedule?: string | null;
   bank_name?: string | null;
   account_type?: string | null;
   account_number?: string | null;
@@ -67,13 +99,28 @@ interface CartLineItem {
   has_discount?: boolean | null;
   discount_price?: number | null;
   description?: string | null;
+  is_active?: boolean | null;
 }
+
+// Tipo unificado para manejar la información activa
+type ActiveSessionInfo = BusinessInfo & Partial<BranchInfo>;
+
+const PAYMENT_METHOD_CONFIG: Record<string, { label: string; icon: ComponentType<LucideProps>; isOnline: boolean }> = {
+  efectivo: { label: "Efectivo", icon: Banknote, isOnline: false },
+  tarjeta: { label: "Tarjeta (Presencial)", icon: CreditCard, isOnline: false },
+  pago_movil: { label: "Pago Móvil", icon: Smartphone, isOnline: true },
+  zelle: { label: "Zelle", icon: DollarSign, isOnline: true },
+  transferencia_bancaria: { label: "Transferencia", icon: Building, isOnline: true },
+  stripe: { label: "Tarjeta (Online)", icon: CreditCard, isOnline: true },
+  mercadopago: { label: "MercadoPago", icon: CreditCard, isOnline: true },
+  paypal: { label: "PayPal", icon: DollarSign, isOnline: true },
+};
 
 const generateWSMessage = (
   formData: { name: string; rut: string; phone: string },
   cart: Array<{ name?: string | null; quantity: number; description?: string | null }>,
   total: number,
-  paymentType: "online" | "tienda" | null,
+  paymentMethodKey: string | null,
   note: string,
   businessName?: string | null
 ) => {
@@ -90,9 +137,60 @@ const generateWSMessage = (
     }
   });
   msg += `\n*TOTAL: $${total.toLocaleString("es-CL")}*\n`;
-  msg += `Pago: ${paymentType === "online" ? "Transferencia (Comprobante Adjunto)" : "En Local"}\n`;
+  const methodLabel = paymentMethodKey && PAYMENT_METHOD_CONFIG[paymentMethodKey] ? PAYMENT_METHOD_CONFIG[paymentMethodKey].label : "Por definir";
+  msg += `Pago: ${methodLabel}\n`;
   if (note && note.trim()) msg += `\nNota: ${note}\n`;
   return msg;
+};
+
+const formatRutOnChange = (value: string): string => {
+  if (!value) return "";
+  // 1. Limpiar todo excepto números y la letra K
+  const cleanRut = value.replace(/[^0-9kK]/g, "").toUpperCase();
+
+  if (cleanRut.length === 0) {
+    return "";
+  }
+
+  // 2. Separar cuerpo y dígito verificador
+  const body = cleanRut.slice(0, -1);
+  const verifier = cleanRut.slice(-1);
+
+  // Si no hay cuerpo, es solo el inicio del RUT, devolverlo tal cual.
+  if (body === "") {
+    return verifier;
+  }
+
+  // 3. Formatear cuerpo con puntos
+  const formattedBody = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${formattedBody}-${verifier}`;
+};
+
+const validateRut = (rut: string): boolean => {
+  if (!rut) return false;
+  // Limpiar: dejar solo números y k/K
+  const clean = rut.replace(/[^0-9kK]/g, "").toUpperCase();
+  // Mínimo: 1 dígito cuerpo + 1 dígito verificador (ej: 1-9 es válido para pruebas)
+  if (clean.length < 2) return false;
+
+  const body = clean.slice(0, -1);
+  const dv = clean.slice(-1);
+  
+  // Asegurar que el cuerpo sean solo números
+  if (!/^\d+$/.test(body)) return false;
+
+  let sum = 0;
+  let multiplier = 2;
+
+  for (let i = body.length - 1; i >= 0; i--) {
+    sum += parseInt(body[i]) * multiplier;
+    multiplier = multiplier === 7 ? 2 : multiplier + 1;
+  }
+
+  const res = 11 - (sum % 11);
+  const expectedDv = res === 11 ? "0" : res === 10 ? "K" : res.toString();
+
+  return dv === expectedDv;
 };
 
 export function CartModal({
@@ -102,27 +200,115 @@ export function CartModal({
   businessInfo?: BusinessInfo | null;
   selectedBranch?: BranchInfo | null;
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const supabase = useMemo(() => createSupabaseBrowserClient("tenant"), []);
-  const homePath = useMemo(
-    () => getTenantScopedPath(pathname ?? "/", "/"),
-    [pathname]
-  );
+    // const router = useRouter(); // No usado
+    // const pathname = usePathname(); // No usado
+    const supabase = useMemo(() => createSupabaseBrowserClient("tenant"), []);
+    // homePath eliminado porque no se usa y generaba error de sintaxis
 
-  const {
-    cart,
-    isCartOpen,
-    toggleCart,
-    addToCart,
-    decreaseQuantity,
-    removeFromCart,
-    clearCart,
-    cartTotal,
-    getPrice,
-    orderNote,
-    setOrderNote,
-  } = useCart();
+    const {
+      cart,
+      isCartOpen,
+      toggleCart,
+      addToCart,
+      decreaseQuantity,
+      removeFromCart,
+      clearCart,
+      cartTotal,
+      getPrice,
+      orderNote,
+      setOrderNote,
+    } = useCart();
+
+
+    // --- Lógica para filtrar productos desactivados y actualizar precios ---
+    const [filteredCart, setFilteredCart] = useState<CartLineItem[]>(cart);
+    const cartProductIds = useMemo(
+      () => Array.isArray(cart)
+        ? Array.from(new Set(cart.map((item) => String(item.id || "")).filter(Boolean))).join(",")
+        : "",
+      [cart]
+    );
+
+    useEffect(() => {
+      if (!cartProductIds || !selectedBranch?.id) {
+        return;
+      }
+      let cancelled = false;
+      const validatePrices = async () => {
+        const ids = cartProductIds.split(",").filter(Boolean);
+        // ...existing code...
+        if (ids.length === 0) return;
+        try {
+          const { data, error } = await supabase
+            .from("product_prices")
+            .select("product_id, price, has_discount, discount_price, products(id,name,is_active,description)")
+            .in("product_id", ids)
+            .eq("branch_id", selectedBranch.id);
+          if (cancelled) return;
+          if (error) {
+            console.log("[CartModal] Error en supabase product_prices:", error);
+            setFilteredCart(cart);
+            return;
+          }
+          // ...existing code...
+          const priceByProductId = new Map(
+            ((data ?? []) as { product_id: string; price: number | null; has_discount: boolean | null; discount_price: number | null; products?: { id?: string; name?: string | null; is_active?: boolean | null; description?: string | null; }; }[]).map((row) => [String(row.product_id), row])
+          );
+          const hasAnyRows = (data ?? []).length > 0;
+          const next = cart.reduce<CartLineItem[]>((acc, cartItem) => {
+              const priceRow = priceByProductId.get(String(cartItem.id)) ?? null;
+              const meta = priceRow?.products;
+              // ...existing code...
+              if (priceRow) {
+                acc.push({
+                  ...cartItem,
+                  price: priceRow.price,
+                  has_discount: priceRow.has_discount,
+                  discount_price: priceRow.discount_price,
+                  name: meta?.name ?? cartItem.name,
+                  description: meta?.description ?? cartItem.description,
+                  is_active: meta?.is_active ?? cartItem.is_active,
+                });
+                return acc;
+              }
+              if (!hasAnyRows) {
+                acc.push(cartItem);
+              }
+              return acc;
+            }, [])
+            .filter((item) => item.is_active !== false);
+          // ...existing code...
+          setFilteredCart(next);
+        } catch {
+          // ...existing code...
+          if (!cancelled) {
+            setFilteredCart(cart);
+          }
+        }
+      };
+      validatePrices();
+      return () => {
+        cancelled = true;
+      };
+    }, [cart, cartProductIds, selectedBranch?.id, supabase]);
+
+    // --- Fin lógica filtrado ---
+
+    // Detectar productos eliminados al cambiar de sucursal
+    // const [removedProducts, setRemovedProducts] = useState<string[]>([]);
+    // useEffect(() => {
+    //   // Buscar en localStorage si hay productos eliminados
+    //   const storage = localStorage.getItem("tenant_cart_storage");
+    //   if (storage) {
+    //     try {
+    //       const parsed = JSON.parse(storage);
+    //       if (parsed.removedProducts && Array.isArray(parsed.removedProducts)) {
+    //         setRemovedProducts(parsed.removedProducts);
+    //         localStorage.removeItem("tenant_cart_storage_removed");
+    //       }
+    //     } catch {}
+    //   }
+    // }, [selectedBranch]);
 
   const [viewState, setViewState] = useState({
     showPaymentInfo: false,
@@ -134,17 +320,43 @@ export function CartModal({
   });
   const [showFieldErrors, setShowFieldErrors] = useState(false);
 
-  const [paymentType, setPaymentType] = useState<"online" | "tienda" | null>(null);
+  const [paymentMethodKey, setPaymentMethodKey] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState({
-    name: "",
-    phone: "+56 9 ",
-    rut: "",
-    receiptFile: null as File | null,
-    receiptPreview: null as string | null,
+  // Zod schema para validación robusta
+    const clientSchema = z.object({
+      name: z.string()
+        .min(3, "Nombre muy corto")
+        .max(50)
+        .regex(/^[\p{L} .'-]+$/u, "Nombre inválido"),
+      phone: z.string(), // Validación desactivada temporalmente
+      rut: z.string(), // Validación desactivada temporalmente
+      receiptFile: z.any().optional(),
+      receiptPreview: z.string().optional(),
+    });
+
+  const form = useForm({
+    resolver: zodResolver(clientSchema),
+    defaultValues: {
+      name: "",
+      phone: "+56 9 ",
+      rut: "",
+      receiptFile: null,
+      receiptPreview: undefined,
+    },
   });
+     // Prellenar datos desde localStorage solo en cliente
+     useEffect(() => {
+       if (typeof window !== "undefined") {
+         const phone = localStorage.getItem("tenant_client_phone");
+         const rut = localStorage.getItem("tenant_client_rut");
+         if (phone) form.setValue("phone", phone);
+         if (rut) form.setValue("rut", rut);
+       }
+     }, [form]);
 
-  const [isShiftLoading, setIsShiftLoading] = useState(false);
+  const { handleSubmit, setValue, getValues, control } = form;
+  const formValues = useWatch({ control });
+    const [isShiftLoading, setIsShiftLoading] = useState(false);
   const [isShiftOpen, setIsShiftOpen] = useState(true);
   const selectedBranchId = selectedBranch?.id ?? null;
 
@@ -215,7 +427,7 @@ export function CartModal({
 
   const canCheckout = isShiftOpen;
 
-  const activeInfo = useMemo(() => {
+  const activeInfo = useMemo<ActiveSessionInfo>(() => {
     const info = businessInfo || {};
     if (!selectedBranch) return info;
     return {
@@ -235,47 +447,59 @@ export function CartModal({
 
   useEffect(() => {
     return () => {
-      if (formData.receiptPreview) URL.revokeObjectURL(formData.receiptPreview);
+      const receiptPreview = getValues("receiptPreview");
+      if (receiptPreview) URL.revokeObjectURL(receiptPreview);
     };
-  }, [formData.receiptPreview]);
+  }, [getValues]);
 
   const validation = useMemo(() => {
-    const phoneDigits = formData.phone.replace(/\D/g, "").length;
-    const isRutValid = validateRut(formData.rut);
-    const nameValue = formData.name.trim();
+    const values = formValues; // CORRECTO: Usa los valores reactivos de watch()
+    // Validación de teléfono: ignora el prefijo y exige al menos 8 dígitos después de '+56 9'
+    let phoneValue = (values.phone || "").replace(/\D/g, "");
+    // Si el input es solo el prefijo, no es válido
+    if ((values.phone || "").trim() === "+56 9" || phoneValue === "569") {
+      phoneValue = "";
+    }
+    // Debe tener al menos 8 dígitos después del prefijo
+    const isPhoneValid =
+      (phoneValue.length === 11 && phoneValue.startsWith("569")) || // 569XXXXXXXX
+      (phoneValue.length === 9 && phoneValue.startsWith("9")) || // 912345678
+      (phoneValue.length >= 8 && phoneValue.startsWith("9")); // 9XXXXXXX (mínimo 8 dígitos)
+
+    // Validación de RUT real (Módulo 11)
+    const isRutValid = validateRut(values.rut || "");
+
+    const nameValue = (values.name || "").trim();
     const namePattern = /^[\p{L} .'-]+$/u;
     const isNameValid = nameValue.length > 2 && namePattern.test(nameValue);
-    const isReceiptValid = paymentType === "online" ? !!formData.receiptFile : true;
+    const isOnline = paymentMethodKey && PAYMENT_METHOD_CONFIG[paymentMethodKey]?.isOnline;
+    const isReceiptValid = isOnline ? !!values.receiptFile : true;
 
     return {
       rut: isRutValid,
-      phone: phoneDigits >= 11,
+      phone: isPhoneValid,
       name: isNameValid,
       receipt: isReceiptValid,
-      isReady: isNameValid && phoneDigits >= 11 && isRutValid && isReceiptValid,
+      isReady: isNameValid && isPhoneValid && isRutValid && isReceiptValid,
     };
-  }, [formData, paymentType]);
+  }, [formValues, paymentMethodKey]); // CORRECTO: Depende de los valores reactivos
 
+  // Usar setValue de react-hook-form para cambios
   const handleInputChange = useCallback((field: string, value: string) => {
-    setFormData((prev) => {
-      let finalValue = value;
-      if (field === "rut") finalValue = formatRut(value);
-      if (field === "phone") {
-        if (!value.startsWith("+56 9")) {
-          if (value.length < 6) return { ...prev, [field]: "+56 9 " };
-        }
-        finalValue = value;
-      }
-      return { ...prev, [field]: finalValue };
-    });
+    if (field === "rut") value = formatRutOnChange(value);
+    if (field === "phone" && !value.startsWith("+56 9")) {
+      if (value.length < 6) value = "+56 9 ";
+    }
+    setValue(field as keyof typeof clientSchema.shape, value);
     setViewState((prev) => ({ ...prev, error: null }));
-  }, []);
+  }, [setValue, clientSchema]);
 
   const handleFileChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
+      // ...existing code...
       if (file) {
-        if (formData.receiptPreview) URL.revokeObjectURL(formData.receiptPreview);
+        const preview = URL.createObjectURL(file);
         const { valid, error: validationError } = validateImageFile(file);
         if (!valid) {
           setViewState((prev) => ({
@@ -284,15 +508,12 @@ export function CartModal({
           }));
           return;
         }
-        setFormData((prev) => ({
-          ...prev,
-          receiptFile: file,
-          receiptPreview: URL.createObjectURL(file),
-        }));
+        setValue("receiptFile", file);
+        setValue("receiptPreview", preview);
         setViewState((prev) => ({ ...prev, error: null }));
       }
     },
-    [formData.receiptPreview]
+    [setValue]
   );
 
   const resetFlow = useCallback(() => {
@@ -304,10 +525,14 @@ export function CartModal({
       error: null,
       receiptUploadFailed: false,
     });
-    setPaymentType(null);
-    setFormData({ name: "", phone: "+56 9 ", rut: "", receiptFile: null, receiptPreview: null });
+    setPaymentMethodKey(null);
+    setValue("name", "");
+    setValue("phone", "+56 9 ");
+    setValue("rut", "");
+    setValue("receiptFile", null);
+    setValue("receiptPreview", undefined);
     setShowFieldErrors(false);
-  }, []);
+  }, [setValue]);
 
   const handleCloseCart = useCallback(() => {
     if (viewState.showSuccess) {
@@ -318,40 +543,33 @@ export function CartModal({
     setTimeout(resetFlow, 300);
   }, [viewState.showSuccess, toggleCart, resetFlow]);
 
-  const handleSendOrder = async (event: React.FormEvent) => {
-    event.preventDefault();
-
+  const handleSendOrder = handleSubmit(async (data) => {
+    // ...existing code...
     if (!canCheckout) {
       const msg = selectedBranch
         ? `Esta sucursal (${selectedBranch.name}) no esta recibiendo pedidos. Abre la caja en el admin para habilitar compras.`
         : businessInfo?.schedule
           ? `Nuestro horario es: ${businessInfo.schedule}`
           : "No se pueden recibir pedidos en este momento.";
+      // ...existing code...
       setViewState((v) => ({ ...v, isSaving: false, error: msg }));
       return;
     }
-
-    if (viewState.isSaving) return;
-
-    if (!validation.isReady) {
-      setShowFieldErrors(true);
-      setViewState((prev) => ({ ...prev, error: "Por favor completa todos los campos correctamente." }));
+    if (viewState.isSaving) {
+      // ...existing code...
       return;
     }
-
     if (!selectedBranch?.id) {
+      // ...existing code...
       setViewState((prev) => ({
         ...prev,
         error: "No hay sucursal seleccionada. Elige una sucursal para enviar el pedido.",
       }));
       return;
     }
-
     setViewState((v) => ({ ...v, isSaving: true, error: null }));
-
     try {
-      const sanitizeInput = (text: string) => (text ? text.replace(/<[^>]*>?/gm, "").trim() : "");
-
+      const sanitizeInput = (text: string) => DOMPurify.sanitize(text ? text.trim() : "");
       const itemsForOrder = (cart as CartLineItem[]).map((item) => ({
         id: item.id,
         name: String(item.name ?? ""),
@@ -359,26 +577,26 @@ export function CartModal({
         price: Number(item.price) || 0,
         has_discount: Boolean(item.has_discount),
         discount_price: item.has_discount && item.discount_price != null ? Number(item.discount_price) : null,
-        description: item.description ? String(item.description) : null,
+        description: item.description ? sanitizeInput(item.description) : null,
       }));
-
+      const isOnline = paymentMethodKey && PAYMENT_METHOD_CONFIG[paymentMethodKey]?.isOnline;
       const orderPayload = {
-        client_name: sanitizeInput(formData.name),
-        client_phone: String(formData.phone ?? "").trim(),
-        client_rut: String(formData.rut ?? "").trim(),
-        payment_type: paymentType,
+        client_name: sanitizeInput(data.name),
+        client_phone: String(data.phone ?? "").trim(),
+        client_rut: String(data.rut ?? "").trim(),
+        payment_type: isOnline ? 'online' : 'tienda',
+        payment_method_specific: paymentMethodKey,
         total: Number(cartTotal) || 0,
         items: itemsForOrder,
         note: sanitizeInput(orderNote),
         status: "pending",
-        receiptFile: formData.receiptFile,
+        receiptFile: data.receiptFile,
         branch_id: selectedBranch.id,
         branch_name: selectedBranch.name || "Desconocido",
         company_id: selectedBranch.company_id || null,
       };
-
-      const { receiptUploadFailed } = await ordersService.createOrder(orderPayload, formData.receiptFile);
-
+      // ...existing code...
+      const { receiptUploadFailed } = await ordersService.createOrder(orderPayload, null);
       setViewState((v) => ({
         ...v,
         showSuccess: true,
@@ -386,157 +604,165 @@ export function CartModal({
         receiptUploadFailed: receiptUploadFailed ?? false,
       }));
       setShowFieldErrors(false);
-
       setTimeout(() => {
-        const message = generateWSMessage(formData, cart, cartTotal, paymentType, orderNote, activeInfo.name);
+        const message = generateWSMessage(data, cart, cartTotal, paymentMethodKey, orderNote, activeInfo.name);
         let targetPhone = "56976645547";
         if (activeInfo.phone) {
           targetPhone = activeInfo.phone.replace(/\D/g, "");
         }
-
+        // ...existing code...
         window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`, "_blank");
         clearCart();
       }, 1500);
     } catch (error: unknown) {
       const errorRecord = (error ?? {}) as Record<string, unknown>;
-      const message =
-        (typeof errorRecord.message === "string" && errorRecord.message) ||
-        (typeof errorRecord.error_description === "string" && errorRecord.error_description) ||
-        "Error al procesar el pedido. Intenta nuevamente.";
+      const message = String(errorRecord.message || "Error al procesar el pedido. Intenta nuevamente.");
       setViewState((v) => ({ ...v, isSaving: false, error: message }));
     }
-  };
+  });
 
   if (!isCartOpen) return null;
 
-  return (
-    <div className="modal-overlay cart-overlay" onClick={handleCloseCart}>
-      <div className="cart-panel glass animate-slide-in" onClick={(event) => event.stopPropagation()}>
-        {viewState.showSuccess ? (
+  if (viewState.showSuccess) {
+    return (
+      <div className="modal-overlay cart-overlay" onClick={handleCloseCart}>
+        <div className="cart-panel" onClick={(e) => e.stopPropagation()}>
+          <header className="cart-header">
+            <h3>¡Pedido Enviado!</h3>
+            <button onClick={handleCloseCart} className="btn-close-cart" aria-label="Cerrar"><X size={20} /></button>
+          </header>
           <SuccessView
             onNewOrder={resetFlow}
-            onGoHome={() => {
-              resetFlow();
-              router.push(homePath);
-            }}
+            onGoHome={handleCloseCart}
             receiptUploadFailed={viewState.receiptUploadFailed}
             activeInfo={activeInfo}
           />
-        ) : (
-          <>
-            <header className="cart-header">
-              <div className="cart-header-main">
-                <div className="cart-header-title-row">
-                  <ShoppingBag size={20} className="text-accent" />
-                  <h3>Tu Pedido</h3>
-                  <span className="cart-count-badge">{(cart as CartLineItem[]).reduce((a, c) => a + c.quantity, 0)}</span>
-                </div>
-                {selectedBranch ? <p className="cart-branch-name">{selectedBranch.name}</p> : null}
-              </div>
-              <button onClick={handleCloseCart} className="btn-close-cart" aria-label="Cerrar carrito" title="Cerrar carrito">
-                <X size={24} />
-              </button>
-            </header>
+        </div>
+      </div>
+    );
+  }
 
-            {viewState.error ? (
-              <div className="cart-error-banner animate-fade">
-                <AlertCircle size={16} /> {viewState.error}
-              </div>
-            ) : null}
-
-            <div className="cart-body">
-              {cart.length === 0 ? (
-                <EmptyState onMenu={handleCloseCart} />
-              ) : (
-                <>
-                  <div className="cart-items-list">
-                    {(cart as CartLineItem[]).map((item) => (
-                      <CartItem
-                        key={item.id}
-                        item={item}
-                        unitPrice={getPrice(item)}
-                        onRemove={removeFromCart}
-                        onAdd={addToCart}
-                        onDecrease={decreaseQuantity}
-                      />
-                    ))}
-                  </div>
-                  <div className="cart-notes">
-                    <label>Notas de cocina</label>
-                    <textarea
-                      className="form-input"
-                      placeholder="Ej: Sin sesamo..."
-                      value={orderNote}
-                      onChange={(event) => setOrderNote(event.target.value)}
-                      rows={2}
-                    />
-                  </div>
-                </>
-              )}
+  return (
+    <div className="modal-overlay cart-overlay" onClick={handleCloseCart}>
+      <div className="cart-panel" onClick={(e) => e.stopPropagation()}>
+        <header className="cart-header">
+          <div className="cart-header-main">
+            <div className="cart-header-title-row">
+              <h3>Tu Pedido</h3>
+              <span className="cart-count-badge">{filteredCart.length}</span>
             </div>
+            {selectedBranch ? <span className="cart-branch-name">{selectedBranch.name}</span> : null}
+          </div>
+          <button onClick={handleCloseCart} className="btn-close-cart" aria-label="Cerrar"><X size={20} /></button>
+        </header>
 
-            {cart.length > 0 ? (
-              <footer className="cart-footer">
-                {!viewState.showPaymentInfo ? (
-                  <>
-                    <div className="total-row">
-                      <span>Total</span>
-                      <span className="total-price">${cartTotal.toLocaleString("es-CL")}</span>
-                    </div>
+        {viewState.error ? (
+          <div className="cart-error-banner animate-fade">
+            <AlertCircle size={16} /> {viewState.error}
+          </div>
+        ) : null}
 
-                    {isShiftLoading ? (
-                      <button className="btn btn-primary btn-block btn-lg" disabled>
-                        Cargando...
-                      </button>
-                    ) : canCheckout ? (
-                      <button
-                        onClick={() => setViewState((v) => ({ ...v, showPaymentInfo: true }))}
-                        className="btn btn-primary btn-block btn-lg"
-                      >
-                        Ir a Pagar
-                      </button>
-                    ) : (
-                      <div className="cash-closed-banner">
-                        <AlertCircle size={16} />
-                        <span>
-                          {selectedBranch
-                            ? `Esta sucursal no esta recibiendo pedidos. Abre la caja en ${selectedBranch.name} para habilitar compras.`
-                            : `Caja cerrada.${businessInfo?.schedule ? ` Horario: ${businessInfo.schedule}` : ""}`}
-                        </span>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <PaymentFlow
-                    paymentType={paymentType}
-                    setPaymentType={setPaymentType}
-                    showForm={viewState.showForm}
-                    setShowForm={(value: boolean) => setViewState((v) => ({ ...v, showForm: value }))}
-                    formData={formData}
-                    onInputChange={handleInputChange}
-                    onFileChange={handleFileChange}
-                    onSubmit={handleSendOrder}
-                    isSaving={viewState.isSaving}
-                    validation={validation}
-                    showFieldErrors={showFieldErrors}
-                    setShowFieldErrors={setShowFieldErrors}
-                    cartTotal={cartTotal}
-                    onBack={() => setViewState((v) => ({ ...v, showPaymentInfo: false }))}
-                    activeInfo={activeInfo}
+        <div className="cart-body">
+          {cart.length === 0 ? (
+            <EmptyState onMenu={handleCloseCart} />
+          ) : (
+            <>
+              <div className="cart-items-list">
+                {(filteredCart as CartLineItem[]).map((item) => (
+                  <CartItem
+                    key={item.id}
+                    item={item}
+                    unitPrice={getPrice(item)}
+                    onRemove={removeFromCart}
+                    onAdd={addToCart}
+                    onDecrease={decreaseQuantity}
                   />
+                ))}
+              </div>
+              <div className="cart-notes">
+                <label>Notas de cocina</label>
+                <textarea
+                  className="form-input"
+                  placeholder="Ej: Sin sésamo..."
+                  value={orderNote}
+                  onChange={(event) => setOrderNote(event.target.value)}
+                  rows={2}
+                />
+              </div>
+            </>
+          )}
+        </div>
+
+        {cart.length > 0 ? (
+          <footer className="cart-footer">
+            {!viewState.showPaymentInfo ? (
+              <>
+                <div className="total-row">
+                  <span>Total</span>
+                  <span className="total-price">${cartTotal.toLocaleString("es-CL")}</span>
+                </div>
+
+                {isShiftLoading ? (
+                  <button className="btn btn-primary btn-block btn-lg" disabled>
+                    Cargando...
+                  </button>
+                ) : canCheckout ? (
+                  <button
+                    onClick={() => {
+                      setViewState((v) => ({ ...v, showPaymentInfo: true }));
+                    }}
+                    className="btn btn-primary btn-block btn-lg"
+                  >
+                    Ir a Pagar
+                  </button>
+                ) : (
+                  <div className="cash-closed-banner">
+                    <AlertCircle size={16} />
+                    <span>
+                      {selectedBranch
+                        ? `Esta sucursal no está recibiendo pedidos. Abre la caja en ${selectedBranch.name} para habilitar compras.`
+                        : `Caja cerrada.${businessInfo?.schedule ? ` Horario: ${businessInfo.schedule}` : ""}`}
+                    </span>
+                  </div>
                 )}
-              </footer>
-            ) : null}
-          </>
-        )}
+              </>
+            ) : (
+              <PaymentFlow
+                paymentMethodKey={paymentMethodKey}
+                setPaymentMethodKey={setPaymentMethodKey}
+                showForm={viewState.showForm}
+                setShowForm={(value: boolean) => setViewState((v) => ({ ...v, showForm: value }))}
+                formData={{
+                      name: formValues.name || "",
+                      phone: formValues.phone || "",
+                      rut: formValues.rut || "",
+                      receiptFile: formValues.receiptFile ?? null,
+                      receiptPreview: formValues.receiptPreview ?? null,
+                }}
+                onInputChange={handleInputChange}
+                onFileChange={handleFileChange}
+                onSubmit={handleSendOrder}
+                isSaving={viewState.isSaving}
+                validation={validation}
+                showFieldErrors={showFieldErrors}
+                setShowFieldErrors={setShowFieldErrors}
+                cartTotal={cartTotal}
+                onBack={() => setViewState((v) => ({ ...v, showPaymentInfo: false }))}
+                activeInfo={activeInfo}
+                setViewState={setViewState}
+                viewState={viewState}
+              />
+            )}
+          </footer>
+        ) : null}
       </div>
     </div>
   );
 }
 
 const PaymentFlow = ({
-  paymentType,
-  setPaymentType,
+  paymentMethodKey,
+  setPaymentMethodKey,
   showForm,
   setShowForm,
   formData,
@@ -550,9 +776,11 @@ const PaymentFlow = ({
   cartTotal,
   onBack,
   activeInfo,
+  setViewState,
+  // viewState solo usado como tipo
 }: {
-  paymentType: "online" | "tienda" | null;
-  setPaymentType: (value: "online" | "tienda" | null) => void;
+  paymentMethodKey: string | null;
+  setPaymentMethodKey: (value: string | null) => void;
   showForm: boolean;
   setShowForm: (value: boolean) => void;
   formData: {
@@ -571,12 +799,15 @@ const PaymentFlow = ({
   setShowFieldErrors: (value: boolean) => void;
   cartTotal: number;
   onBack: () => void;
-  activeInfo: BusinessInfo;
+  activeInfo: ActiveSessionInfo;
+  setViewState: React.Dispatch<React.SetStateAction<{ showPaymentInfo: boolean; showForm: boolean; showSuccess: boolean; isSaving: boolean; error: string | null; receiptUploadFailed: boolean; }>>;
+  viewState: { showPaymentInfo: boolean; showForm: boolean; showSuccess: boolean; isSaving: boolean; error: string | null; receiptUploadFailed: boolean; };
 }) => {
+  const isOnline = paymentMethodKey && PAYMENT_METHOD_CONFIG[paymentMethodKey]?.isOnline;
   const showNameError = showFieldErrors && !validation.name;
   const showRutError = showFieldErrors && !validation.rut;
   const showPhoneError = showFieldErrors && !validation.phone;
-  const showReceiptError = showFieldErrors && paymentType === "online" && !validation.receipt;
+  const showReceiptError = showFieldErrors && isOnline && !validation.receipt;
   const topValidationMessage = showFieldErrors
     ? [
         showNameError ? "nombre válido" : null,
@@ -588,7 +819,7 @@ const PaymentFlow = ({
         .join(", ")
     : "";
 
-  if (paymentType && showForm) {
+  if (paymentMethodKey && showForm) {
     return (
       <form onSubmit={onSubmit} className="checkout-form animate-fade">
         <h4 className="form-title">
@@ -614,9 +845,7 @@ const PaymentFlow = ({
 
         <div className="form-row">
           <div className="form-group">
-            <label>
-              RUT {validation.rut ? <CheckCircle2 size={14} color="#25d366" /> : null}
-            </label>
+            <label>RUT {validation.rut ? <CheckCircle2 size={14} color="#25d366" /> : null}</label>
             <input
               type="text"
               required
@@ -624,12 +853,12 @@ const PaymentFlow = ({
               onChange={(event) => onInputChange("rut", event.target.value)}
               className={`form-input ${showRutError ? "input-error" : ""}`}
               placeholder="12.345.678-9"
-              maxLength={12}
             />
           </div>
+
           <div className="form-group">
             <label>
-              Telefono {validation.phone ? <CheckCircle2 size={14} color="#25d366" /> : null}
+              Teléfono {validation.phone ? <CheckCircle2 size={14} color="#25d366" /> : null}
             </label>
             <input
               type="tel"
@@ -642,7 +871,7 @@ const PaymentFlow = ({
           </div>
         </div>
 
-        {paymentType === "online" ? (
+        {isOnline ? (
           <div className="form-group">
             <label>
               Comprobante {validation.receipt ? <CheckCircle2 size={14} color="#25d366" /> : <span className="text-accent">*</span>}
@@ -670,10 +899,20 @@ const PaymentFlow = ({
         <div className="form-actions-col mt-20">
           <button
             type="submit"
-            disabled={isSaving}
+            disabled={isSaving || !validation.isReady}
             className="btn btn-primary btn-block"
             onClick={() => {
-              if (!validation.isReady) setShowFieldErrors(true);
+              if (!validation.isReady) {
+                setShowFieldErrors(true);
+                let errorMsg = "Por favor completa correctamente:";
+                const errors = [];
+                if (!validation.name) errors.push("nombre");
+                if (!validation.rut) errors.push("RUT");
+                if (!validation.phone) errors.push("teléfono");
+                if (!validation.receipt && isOnline) errors.push("comprobante");
+                if (errors.length > 0) errorMsg += " " + errors.join(", ");
+                setViewState((prev) => ({ ...prev, error: errorMsg }));
+              }
             }}
           >
             {isSaving ? "Enviando..." : "Confirmar Pedido"}
@@ -686,16 +925,16 @@ const PaymentFlow = ({
     );
   }
 
-  if (paymentType) {
+  if (paymentMethodKey) {
     return (
       <div className="payment-details animate-fade">
-        {paymentType === "online" ? (
-          <BankInfo cartTotal={cartTotal} activeInfo={activeInfo} />
+        {isOnline ? (
+          <OnlinePaymentDetails methodKey={paymentMethodKey} cartTotal={cartTotal} activeInfo={activeInfo} />
         ) : (
           <div className="store-pay-info glass mb-20">
             <Store size={32} className="text-accent" />
             <div>
-              <h4>Pagar en Local</h4>
+              <h4>{PAYMENT_METHOD_CONFIG[paymentMethodKey]?.label || "Pagar en Local"}</h4>
               <p className="text-muted">Pagas en efectivo o tarjeta al retirar.</p>
             </div>
             <div className="pay-total">Total: ${cartTotal.toLocaleString("es-CL")}</div>
@@ -703,25 +942,40 @@ const PaymentFlow = ({
         )}
 
         <button onClick={() => setShowForm(true)} className="btn btn-primary btn-block mt-4">
-          {paymentType === "online" ? "Ya pague" : "Continuar"}
+          {isOnline ? "Ya pagué" : "Continuar"}
         </button>
 
-        <button onClick={() => setPaymentType(null)} className="btn btn-text btn-block mt-2">
+        <button onClick={() => setPaymentMethodKey(null)} className="btn btn-text btn-block mt-2">
           <ArrowLeft size={16} className="mr-5" /> Elegir otro metodo
         </button>
       </div>
     );
   }
 
+  // Mostrar lista de métodos activos de la sucursal
+  const activeMethods = activeInfo.payment_methods || [];
+
   return (
     <div className="payment-options animate-fade">
       <h4 className="text-center mb-15 text-white">Metodo de Pago</h4>
-      <button className="btn btn-secondary btn-block payment-opt" onClick={() => setPaymentType("online")}>
-        <CreditCard size={20} className="mr-5" /> Transferencia
-      </button>
-      <button className="btn btn-secondary btn-block payment-opt" onClick={() => setPaymentType("tienda")}>
-        <Store size={20} className="mr-5" /> Pagar en Local
-      </button>
+      {activeMethods.length === 0 ? (
+        <div className="text-center text-sm text-gray-400 py-4">No hay métodos de pago configurados en esta sucursal.</div>
+      ) : (
+        activeMethods.map(methodKey => {
+          const config = PAYMENT_METHOD_CONFIG[methodKey];
+          if (!config) return null;
+          const Icon = config.icon;
+          return (
+            <button 
+              key={methodKey} 
+              className="btn btn-secondary btn-block payment-opt" 
+              onClick={() => setPaymentMethodKey(methodKey)}
+            >
+              {Icon && <Icon size={20} className="mr-5" />} {config.label}
+            </button>
+          );
+        })
+      )}
       <button onClick={onBack} className="btn btn-text btn-block mt-2">
         Cancelar
       </button>
@@ -729,67 +983,98 @@ const PaymentFlow = ({
   );
 };
 
-const BankInfo = ({ cartTotal, activeInfo }: { cartTotal: number; activeInfo: BusinessInfo }) => {
-  const info = activeInfo || {};
+const OnlinePaymentDetails = ({ methodKey, cartTotal, activeInfo }: { methodKey: string, cartTotal: number; activeInfo: ActiveSessionInfo }) => {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
   };
 
-  const hasData =
-    info.bank_name || info.account_number || info.account_rut || info.account_email || info.account_holder;
+  const renderRow = (label: string, value: string | undefined | null) => {
+    if (!value) return null;
+    return (
+      <li className="copy-row" onClick={() => copyToClipboard(value)}>
+        <span className="copy-row-label">{label}:</span> <div className="copy-row-value"><b>{value}</b> <Copy size={14} /></div>
+      </li>
+    );
+  };
+
+  // Renderizado dinámico según el método
+  const renderDetails = () => {
+    let methodData = activeInfo[methodKey as keyof ActiveSessionInfo];
+
+    // Si viene como string JSON, parsear
+    if (typeof methodData === "string") {
+      try {
+        methodData = JSON.parse(methodData);
+      } catch {
+        methodData = null;
+      }
+    }
+
+    if (!methodData || typeof methodData !== "object") {
+      return <p className="bank-empty-msg">Sin datos configurados para {PAYMENT_METHOD_CONFIG[methodKey]?.label || methodKey}.</p>;
+    }
+
+    if (methodKey === 'transferencia_bancaria') {
+      const data = methodData as BranchInfo['transferencia_bancaria'] | null | undefined;
+      if (!data) return <p className="bank-empty-msg">Sin datos bancarios configurados.</p>;
+      const bankName = data.banco;
+      const accNum = data.nro_cuenta || data.identificacion;
+      if (!bankName && !accNum) return <p className="bank-empty-msg">Sin datos bancarios configurados.</p>;
+      return (
+        <ul className="bank-details-list">
+          {bankName && <li><span>Banco:</span> <b>{bankName}</b></li>}
+          {data.tipo_cuenta && <li><span>Tipo:</span> <b>{data.tipo_cuenta}</b></li>}
+          {renderRow("Cuenta", accNum)}
+          {renderRow("ID/RUT", data.identificacion)}
+          {renderRow("Email", data.email)}
+          {data.titular && <li><span>Titular:</span> <b>{data.titular}</b></li>}
+          {/* 'nombre' no existe en el tipo, omitido */}
+        </ul>
+      );
+    }
+
+    if (methodKey === 'pago_movil') {
+      const data = methodData as BranchInfo['pago_movil'] | null | undefined;
+      if (!data || !data.telefono || !data.banco) return <p className="bank-empty-msg">Sin datos de Pago Móvil.</p>;
+      return (
+        <ul className="bank-details-list">
+          <li><span>Banco:</span> <b>{data.banco}</b></li>
+          {renderRow("Teléfono", data.telefono)}
+          {renderRow("C.I.", data.identificacion)}
+        </ul>
+      );
+    }
+
+    if (methodKey === 'zelle') {
+      const data = methodData as BranchInfo['zelle'] | null | undefined;
+      if (!data || !data.email) return <p className="bank-empty-msg">Sin datos de Zelle.</p>;
+      return (
+        <ul className="bank-details-list">
+          {renderRow("Email", data.email)}
+          {data.name && <li><span>Titular:</span> <b>{data.name}</b></li>}
+        </ul>
+      );
+    }
+
+    // Fallback genérico para otros métodos (stripe, mercadopago, paypal, etc)
+    // Muestra todos los campos string configurados en el objeto JSON de la sucursal
+    const entries = Object.entries(methodData).filter(([, v]) => v && typeof v === "string");
+
+    if (entries.length > 0) {
+      return (
+        <ul className="bank-details-list">
+          {entries.map(([k, v]) => renderRow(k.replace(/_/g, " "), v as string))}
+        </ul>
+      );
+    }
+
+    return <p className="bank-empty-msg">Sigue las instrucciones para pagar con {PAYMENT_METHOD_CONFIG[methodKey]?.label}.</p>;
+  };
 
   return (
     <div className="bank-info glass">
-      <h4>Datos para Transferir</h4>
-      {hasData ? (
-        <ul className="bank-details-list">
-          {info.bank_name ? (
-            <li>
-              <span>Banco:</span> <b>{info.bank_name}</b>
-            </li>
-          ) : null}
-          {info.account_type ? (
-            <li>
-              <span>Tipo:</span> <b>{info.account_type}</b>
-            </li>
-          ) : null}
-          {info.account_number ? (
-            <li className="copy-row" onClick={() => copyToClipboard(info.account_number || "")}> 
-              <span>Cuenta:</span>
-              <div className="copy-row-value">
-                <b>{info.account_number}</b> <Copy size={14} />
-              </div>
-            </li>
-          ) : null}
-          {info.account_rut ? (
-            <li className="copy-row" onClick={() => copyToClipboard(info.account_rut || "")}> 
-              <span>RUT:</span>
-              <div className="copy-row-value">
-                <b>{info.account_rut}</b> <Copy size={14} />
-              </div>
-            </li>
-          ) : null}
-          {info.account_email ? (
-            <li className="copy-row" onClick={() => copyToClipboard(info.account_email || "")}> 
-              <span>Email:</span>
-              <div className="copy-row-value">
-                <b>{info.account_email}</b> <Copy size={14} />
-              </div>
-            </li>
-          ) : null}
-          {info.account_holder ? (
-            <li>
-              <span>Nombre:</span> <b>{info.account_holder}</b>
-            </li>
-          ) : null}
-        </ul>
-      ) : (
-        <p className="bank-empty-msg">
-          No hay datos de transferencia configurados.
-          <br />
-          Contacta al administrador.
-        </p>
-      )}
+      <h4>Datos de Pago</h4>
+      {renderDetails()}
       <div className="pay-total">Total: ${cartTotal.toLocaleString("es-CL")}</div>
     </div>
   );

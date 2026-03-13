@@ -16,26 +16,33 @@ export const formatRut = (rut: string) => {
   return value;
 };
 
-export const validateRut = (rut: string) => {
+export const validateRut = (rut: string, debug = false) => {
   if (!rut || rut.trim().length < 3) return false;
+  // Remove dots and hyphens, keep only numbers and K/k
   const cleanRut = rut.replace(/[^0-9kK]/g, "");
   if (cleanRut.length < 2) return false;
 
   const body = cleanRut.slice(0, -1);
   const dv = cleanRut.slice(-1).toUpperCase();
 
+  // Validate body is all digits
+  if (!/^[0-9]+$/.test(body)) return false;
+
   let sum = 0;
   let multiplier = 2;
-
   for (let i = body.length - 1; i >= 0; i--) {
     sum += parseInt(body.charAt(i), 10) * multiplier;
     multiplier = multiplier === 7 ? 2 : multiplier + 1;
   }
-
   const expectedDv = 11 - (sum % 11);
-  const calculatedDv = expectedDv === 11 ? "0" : expectedDv === 10 ? "K" : expectedDv.toString();
+  let calculatedDv = "";
+  if (expectedDv === 11) calculatedDv = "0";
+  else if (expectedDv === 10) calculatedDv = "K";
+  else calculatedDv = expectedDv.toString();
   return dv === calculatedDv;
 };
+
+// Debug: test validateRut with real RUTs
 
 export const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("es-CL", {

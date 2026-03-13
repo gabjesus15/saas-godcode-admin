@@ -28,6 +28,27 @@ interface BranchInfo {
   account_rut?: string | null;
   account_email?: string | null;
   account_holder?: string | null;
+  payment_methods?: string[];
+  pago_movil?: {
+    banco?: string;
+    telefono?: string;
+    identificacion?: string;
+  } | null;
+  zelle?: {
+    email?: string;
+    name?: string;
+  } | null;
+  transferencia_bancaria?: {
+    banco?: string;
+    nro_cuenta?: string;
+    tipo_cuenta?: string;
+    identificacion?: string;
+    titular?: string;
+    email?: string;
+  } | null;
+  stripe?: { [key: string]: string } | null;
+  mercadopago?: { [key: string]: string } | null;
+  paypal?: { [key: string]: string } | null;
 }
 
 interface BranchModalItem {
