@@ -134,21 +134,28 @@ export function CartProvider({
     const [isHydrated, setIsHydrated] = useState(false);
     const supabase = useMemo(() => createSupabaseBrowserClient("tenant"), []);
 
-    // Hidratación: esperar cliente Y rehidratación del store persist para no perder adds ni mostrar estado inconsistente
+    // Hidratación: marcar listo en cliente. Fallback por si persist no expone API o tarda.
     useEffect(() => {
       if (typeof window === "undefined") return;
-      const persistApi = useCartStore.persist;
       const setHydrated = () => setIsHydrated(true);
-      if (persistApi?.hasHydrated?.()) {
-        setHydrated();
-        return;
-      }
-      const unsub = persistApi?.onFinishHydration?.(setHydrated);
-      if (!unsub) {
-        window.requestAnimationFrame(() => window.requestAnimationFrame(setHydrated));
-        return () => {};
-      }
-      return () => { unsub(); };
+      try {
+        const persistApi = (useCartStore as { persist?: { hasHydrated?: () => boolean; onFinishHydration?: (cb: () => void) => () => void } }).persist;
+        if (persistApi?.hasHydrated?.()) {
+          setHydrated();
+          return;
+        }
+        const unsub = persistApi?.onFinishHydration?.(setHydrated);
+        if (typeof unsub === "function") {
+          const t = window.setTimeout(setHydrated, 200);
+          return () => {
+            unsub();
+            window.clearTimeout(t);
+          };
+        }
+      } catch (_) {}
+      window.requestAnimationFrame(() => window.requestAnimationFrame(setHydrated));
+      const fallback = window.setTimeout(setHydrated, 250);
+      return () => window.clearTimeout(fallback);
     }, []);
 
     // Sincronizar branch guardado con branch actual al hidratar
@@ -168,8 +175,8 @@ export function CartProvider({
       }
     }, [isHydrated, selectedBranchId]);
 
-  // Lógica de Validación de Precios en tiempo real (Base de datos)
-  // Se ejecuta cuando cambian los productos del carrito O cuando cambia la sucursal
+  // Validación de precios desde product_prices (por branch_id).
+  // En BD algunas sucursales pueden tener 0 precios (ej. branch "GA"); los ítems se mantienen en carrito con datos actuales.
   const cartProductIds = useMemo(
     () => isHydrated ? store.cart.map((item) => item.id).join(",") : "",
     [store.cart, isHydrated]
@@ -229,7 +236,6 @@ export function CartProvider({
         const currentCart = useCartStore.getState().cart;
         const nextCart = currentCart.reduce<CartItem[]>((acc, cartItem) => {
           const priceRow = priceByProductId.get(String(cartItem.id)) as PriceRow | undefined;
-          // Solo mantener productos que existen en la sucursal con precio válido
           if (priceRow) {
             const meta = priceRow.products;
             acc.push({
@@ -241,16 +247,19 @@ export function CartProvider({
               is_active: meta?.is_active ?? cartItem.is_active,
               description: meta?.description ?? cartItem.description,
             });
+          } else {
+            // Mantener el ítem en el carrito aunque no haya precio en product_prices (evita que desaparezca al agregar)
+            acc.push({ ...cartItem });
           }
-          // Si no hay precio para este producto en la sucursal, se omite (se elimina del carrito)
           return acc;
         }, []).filter(item => item.is_active !== false);
 
         const isSame = JSON.stringify(currentCart) === JSON.stringify(nextCart);
-        if (!isSame) {
-            if (typeof store.setCart === "function") store.setCart(nextCart);
+        // No vaciar el carrito si la API devolvió 0 filas (sucursal sin precios en BD o error RLS)
+        const wouldClear = (data?.length === 0 || !data) && currentCart.length > 0 && nextCart.length < currentCart.length;
+        if (!isSame && !wouldClear && typeof store.setCart === "function") {
+          store.setCart(nextCart);
         }
-
       } catch (err) {
         console.error("Error validando precios:", err);
       }
