@@ -7,7 +7,7 @@ import { Button } from "../../../components/ui/button";
 
 function PagoContent() {
   const searchParams = useSearchParams();
-  const token = searchParams.get("token");
+  const token = searchParams ? searchParams.get("token") : null;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [months, setMonths] = useState(1);
