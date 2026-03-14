@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const verifyUrl = `${APP_URL.replace(/\/$/, "")}/onboarding/verify?token=${verificationToken}`;
+    const verifyUrl = `${APP_URL.replace(/\/$/, "")}/onboarding/verify/${verificationToken}`;
 
     await sendOnboardingEmail({
       type: "verification",

@@ -152,7 +152,7 @@ export function CartProvider({
             window.clearTimeout(t);
           };
         }
-      } catch (_) {}
+      } catch {}
       window.requestAnimationFrame(() => window.requestAnimationFrame(setHydrated));
       const fallback = window.setTimeout(setHydrated, 250);
       return () => window.clearTimeout(fallback);

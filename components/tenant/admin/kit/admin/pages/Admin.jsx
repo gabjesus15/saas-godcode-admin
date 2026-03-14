@@ -570,6 +570,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
               setReceiptModalOrder={setReceiptModalOrder}
               branch={selectedBranch}
               clients={clients}
+              logoUrl={logoUrl}
             />
           ) : (
             <React.Suspense fallback={<TabFallback />}>
@@ -1445,7 +1446,8 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
         isMobile={isMobile}
         showNotify={showNotify}
         registerSale={cashSystem.registerSale}
-        branch={selectedBranch} // Pass selected branch
+        branch={selectedBranch}
+        logoUrl={logoUrl}
       />
 
       {isModalOpen && (

@@ -32,7 +32,7 @@ export async function GET() {
 		}).filter((item) => item.slug);
 
 		return NextResponse.json({ companies: list });
-	} catch (err) {
+	} catch {
 		return NextResponse.json(
 			{ error: "Error al cargar el listado" },
 			{ status: 500 }

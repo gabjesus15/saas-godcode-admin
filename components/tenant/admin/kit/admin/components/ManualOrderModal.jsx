@@ -11,7 +11,7 @@ const logo = '/tenant/logo-placeholder.svg';
 import { useManualOrder } from '../hooks/useManualOrder';
 import { printOrderTicket } from '../utils/receiptPrinting';
 
-const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderSaved, showNotify, registerSale, branch }) => {
+const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderSaved, showNotify, registerSale, branch, logoUrl }) => {
     const {
         manualOrder, loading, rutValid, phoneValid,
         receiptFile, receiptPreview,
@@ -48,9 +48,8 @@ const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderS
 		return text.replace(/[<>]/g, '');
 	};
 
-    // [NUEVO] Función para imprimir ticket térmico
     const handlePrintPreCheck = () => {
-        printOrderTicket(manualOrder, branch?.name, logo);
+        printOrderTicket(manualOrder, branch?.name, logoUrl ?? null);
     };
 
     // --- EFFECT: ESCAPE KEY ---

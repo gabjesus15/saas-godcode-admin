@@ -13,6 +13,11 @@ import { logAdminAction } from "../../utils/audit";
 import { requireAdminRole, roleSets } from "../../utils/admin";
 import { getTenantBaseDomain } from "../../utils/tenant-url";
 import { uploadImage } from "../tenant/utils/cloudinary";
+import {
+  TENANT_ADMIN_TAB_OPTIONS,
+  TENANT_ADMIN_TAB_IDS,
+  DEFAULT_ROLE_NAV_PERMISSIONS as SHARED_DEFAULT_ROLE_NAV_PERMISSIONS,
+} from "../../lib/tenant-admin-tabs";
 
 const BrandingPreview = dynamic(
   () => import("./branding-preview").then((mod) => mod.BrandingPreview),
@@ -59,18 +64,7 @@ interface CompanyData {
 
 type RoleNavPermissions = Record<string, string[]>;
 
-const ADMIN_TAB_OPTIONS = [
-  { id: "orders", label: "Cocina / Pedidos" },
-  { id: "caja", label: "Caja" },
-  { id: "analytics", label: "Reportes" },
-  { id: "categories", label: "Categorías" },
-  { id: "products", label: "Productos" },
-  { id: "inventory", label: "Inventario" },
-  { id: "clients", label: "Clientes" },
-  { id: "settings", label: "Herramientas" },
-  { id: "users", label: "Equipo" },
-  { id: "company", label: "Datos de la empresa" },
-] as const;
+const ADMIN_TAB_OPTIONS = TENANT_ADMIN_TAB_OPTIONS;
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Admin",
@@ -82,13 +76,11 @@ const ROLE_LABELS: Record<string, string> = {
 const ROLES_EDITABLE_IN_SUPER_ADMIN = ["admin", "ceo", "cashier"] as const;
 
 const DEFAULT_ROLE_NAV_PERMISSIONS: RoleNavPermissions = {
-  admin: ["orders", "caja", "analytics", "categories", "products", "inventory", "clients", "settings", "users", "company"],
-  ceo: ["orders", "caja", "analytics", "categories", "products", "inventory", "clients", "settings", "users", "company"],
-  cashier: ["orders", "caja"],
+  ...SHARED_DEFAULT_ROLE_NAV_PERMISSIONS,
 };
 
 function normalizeRoleNavPermissions(raw: unknown): RoleNavPermissions {
-  const allowedTabIds = new Set<string>(ADMIN_TAB_OPTIONS.map((tab) => tab.id));
+  const allowedTabIds = new Set<string>(TENANT_ADMIN_TAB_IDS);
   const normalized: RoleNavPermissions = { ...DEFAULT_ROLE_NAV_PERMISSIONS };
 
   if (!raw || typeof raw !== "object") {
@@ -102,7 +94,7 @@ function normalizeRoleNavPermissions(raw: unknown): RoleNavPermissions {
       .filter((value): value is string => typeof value === "string")
       .filter((value) => allowedTabIds.has(value));
 
-    normalized[role] = cleanTabs.length > 0 ? Array.from(new Set(cleanTabs)) : [];
+    normalized[role] = cleanTabs.length > 0 ? Array.from(new Set(cleanTabs)) : (DEFAULT_ROLE_NAV_PERMISSIONS[role as keyof RoleNavPermissions] ?? []);
   }
 
   return normalized;

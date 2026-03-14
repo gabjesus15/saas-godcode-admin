@@ -22,7 +22,12 @@ export const printOrderTicket = (order, branchName = 'NOMBRE DEL LOCAL', logoUrl
 		}
 	})();
 
-	const printWindow = window.open('', '', 'width=300,height=600');
+	// Ancho típico para impresoras térmicas 58mm/80mm (aprox. 280px útil)
+	const receiptWidth = 280;
+	const logoMaxWidth = 180;
+	const logoMaxHeight = 48;
+
+	const printWindow = window.open('', '', `width=${receiptWidth + 40},height=600`);
 	if (!printWindow) {
 		return;
 	}
@@ -60,9 +65,9 @@ export const printOrderTicket = (order, branchName = 'NOMBRE DEL LOCAL', logoUrl
 			<title>Comanda #${safeOrderId}</title>
 			<style>
 				@page { margin: 0; }
-				body { font-family: 'Courier New', monospace; font-size: 11px; width: 100%; max-width: 300px; margin: 0; padding: 5px; color: black; background: white; line-height: 1.1; }
-				.header { text-align: center; margin-bottom: 5px; border-bottom: 1px dashed #000; padding-bottom: 5px; }
-				.logo { width: 40px; height: auto; margin-bottom: 2px; filter: grayscale(100%); }
+				body { font-family: 'Courier New', monospace; font-size: 11px; width: 100%; max-width: ${receiptWidth}px; margin: 0 auto; padding: 8px; color: black; background: white; line-height: 1.1; box-sizing: border-box; }
+				.header { text-align: center; margin-bottom: 6px; border-bottom: 1px dashed #000; padding-bottom: 6px; }
+				.logo { max-width: ${logoMaxWidth}px; max-height: ${logoMaxHeight}px; width: auto; height: auto; display: block; margin: 0 auto 4px; object-fit: contain; filter: grayscale(100%) contrast(1.1); }
 				.title { font-size: 14px; font-weight: bold; margin: 0; text-transform: uppercase; }
 				.info { font-size: 10px; margin: 0; }
 				.items { margin-top: 5px; }
@@ -97,8 +102,32 @@ export const printOrderTicket = (order, branchName = 'NOMBRE DEL LOCAL', logoUrl
 
 	printWindow.document.write(html);
 	printWindow.document.close();
-	setTimeout(() => {
+
+	// Esperar a que el logo cargue antes de imprimir (impresoras térmicas capturan el documento al imprimir)
+	const runPrint = () => {
 		printWindow.print();
 		printWindow.close();
-	}, 500);
+	};
+	if (safeLogoUrl) {
+		const img = printWindow.document.querySelector('.logo');
+		if (img) {
+			if (img.complete && img.naturalWidth > 0) {
+				setTimeout(runPrint, 100);
+			} else {
+				const timeout = setTimeout(runPrint, 2000);
+				img.onload = () => {
+					clearTimeout(timeout);
+					setTimeout(runPrint, 150);
+				};
+				img.onerror = () => {
+					clearTimeout(timeout);
+					setTimeout(runPrint, 150);
+				};
+			}
+		} else {
+			setTimeout(runPrint, 400);
+		}
+	} else {
+		setTimeout(runPrint, 300);
+	}
 };

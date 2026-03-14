@@ -3,7 +3,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import OrderCard from './OrderCard';
 
-const AdminKanban = ({ columns, isMobile, mobileTab, setMobileTab, moveOrder, setReceiptModalOrder, branch, clients }) => {
+const AdminKanban = ({ columns, isMobile, mobileTab, setMobileTab, moveOrder, setReceiptModalOrder, branch, clients, logoUrl }) => {
 
     const [mounted, setMounted] = useState(false);
     useEffect(() => {
@@ -83,6 +83,7 @@ const AdminKanban = ({ columns, isMobile, mobileTab, setMobileTab, moveOrder, se
                                             setReceiptModalOrder={setReceiptModalOrder}
                                             branch={branch}
                                             clients={clients}
+                                            logoUrl={logoUrl}
                                         />
                                     ))
                                 )}

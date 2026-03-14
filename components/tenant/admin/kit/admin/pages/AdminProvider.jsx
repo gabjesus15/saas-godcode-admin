@@ -8,15 +8,10 @@ import { uploadImage, validateImageFile } from '../../shared/utils/cloudinary';
 import { useCashSystem } from '../hooks/useCashSystem';
 import { sanitizeOrder } from '../../shared/utils/orderUtils';
 import { getTenantScopedPath } from '../../../../utils/tenant-route';
+import { TENANT_ADMIN_TAB_IDS, DEFAULT_ROLE_NAV_PERMISSIONS as SHARED_DEFAULT_ROLE_NAV_PERMISSIONS } from '../../../../lib/tenant-admin-tabs';
 
-const ALL_ADMIN_TABS = ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'users', 'payment_methods'];
-
-const DEFAULT_ROLE_NAV_PERMISSIONS = {
-	owner: ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'users', 'payment_methods'],
-	admin: ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'users'],
-	ceo: ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'users', 'payment_methods'],
-	cashier: ['orders', 'caja'],
-};
+const ALL_ADMIN_TABS = TENANT_ADMIN_TAB_IDS;
+const DEFAULT_ROLE_NAV_PERMISSIONS = { ...SHARED_DEFAULT_ROLE_NAV_PERMISSIONS };
 
 const normalizeRoleNavPermissions = (raw) => {
 	const allowed = new Set(ALL_ADMIN_TABS);
@@ -29,7 +24,7 @@ const normalizeRoleNavPermissions = (raw) => {
 		if (!Array.isArray(tabs)) return;
 		const role = String(rawRole).toLowerCase() === 'staff' ? 'cashier' : String(rawRole).toLowerCase();
 		const cleanTabs = [...new Set(tabs.filter((tab) => typeof tab === 'string' && allowed.has(tab)))];
-		normalized[role] = cleanTabs;
+		normalized[role] = cleanTabs.length > 0 ? cleanTabs : (DEFAULT_ROLE_NAV_PERMISSIONS[role] ?? []);
 	});
 
 	return normalized;

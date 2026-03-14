@@ -31,7 +31,7 @@ const METHOD_FIELDS = {
 	],
 };
 
-function BranchMethodForm({ methodKey, label, fields, initialValues, saving, onSave }) {
+function BranchMethodForm({ label, fields, initialValues, saving, onSave }) {
 	const [values, setValues] = useState(() => {
 		const o = {};
 		fields.forEach((f) => { o[f.key] = initialValues[f.key] ?? ''; });
@@ -74,7 +74,7 @@ function BranchMethodForm({ methodKey, label, fields, initialValues, saving, onS
 	);
 }
 
-export default function AdminPaymentMethods({ showNotify, branches: branchesProp, companyId }) {
+export default function AdminPaymentMethods({ showNotify, branches: branchesProp }) {
 	const [loading, setLoading] = useState(true);
 	const [connectedAccounts, setConnectedAccounts] = useState([]);
 	const [branchMethods, setBranchMethods] = useState([]);
@@ -101,7 +101,7 @@ export default function AdminPaymentMethods({ showNotify, branches: branchesProp
 			if (Array.isArray(data.branches) && data.branches.length > 0) {
 				setBranches(data.branches);
 			}
-		} catch (e) {
+		} catch {
 			showNotify?.('Error de conexión', 'error');
 		} finally {
 			setLoading(false);
@@ -139,7 +139,7 @@ export default function AdminPaymentMethods({ showNotify, branches: branchesProp
 					return [...rest, { branch_id: branchId, provider, is_enabled: isEnabled }];
 				});
 				showNotify?.('Guardado');
-			} catch (e) {
+			} catch {
 				showNotify?.('Error al guardar', 'error');
 			} finally {
 				setSaving(null);
@@ -168,7 +168,7 @@ export default function AdminPaymentMethods({ showNotify, branches: branchesProp
 				showNotify?.('Datos guardados');
 				setBranchConfigVersion((v) => v + 1);
 				load();
-			} catch (e) {
+			} catch {
 				showNotify?.('Error al guardar', 'error');
 			} finally {
 				setSavingBranchConfig(null);
@@ -270,7 +270,7 @@ export default function AdminPaymentMethods({ showNotify, branches: branchesProp
 														setShowPayPalForm(false);
 														setPaypalEmail('');
 														load();
-													} catch (e) {
+													} catch {
 														showNotify?.('Error de conexión', 'error');
 													} finally {
 														setConnectingPayPal(false);
@@ -315,7 +315,7 @@ export default function AdminPaymentMethods({ showNotify, branches: branchesProp
 														}
 														showNotify?.('Cuenta PayPal desconectada');
 														load();
-													} catch (e) {
+													} catch {
 														showNotify?.('Error de conexión', 'error');
 													} finally {
 														setConnectingPayPal(false);
@@ -352,7 +352,7 @@ export default function AdminPaymentMethods({ showNotify, branches: branchesProp
 													return;
 												}
 												showNotify?.('No se recibió enlace de Stripe', 'error');
-											} catch (e) {
+											} catch {
 												showNotify?.('Error de conexión', 'error');
 											} finally {
 												setConnectingStripe(false);
@@ -412,7 +412,7 @@ export default function AdminPaymentMethods({ showNotify, branches: branchesProp
 														setShowPayPalForm(false);
 														setPaypalEmail('');
 														load();
-													} catch (e) {
+													} catch {
 														showNotify?.('Error de conexión', 'error');
 													} finally {
 														setConnectingPayPal(false);

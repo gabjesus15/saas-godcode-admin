@@ -5,21 +5,17 @@ import { Clock, XCircle, Upload, ImageIcon, Printer, Crown, MessageCircle } from
 import { formatTimeElapsed } from '../../shared/utils/formatters';
 import { getPaymentLabel } from '../../shared/utils/orderUtils';
 import { printOrderTicket } from '../utils/receiptPrinting';
-const logo = '/tenant/logo-placeholder.svg';
 
-const OrderCard = ({ order, moveOrder, setReceiptModalOrder, branch, clients }) => {
-    
+const OrderCard = ({ order, moveOrder, setReceiptModalOrder, branch, clients, logoUrl }) => {
     const handleMoveToKitchen = (e) => {
         e.stopPropagation();
-        // 1. Imprimir Comanda
-        printOrderTicket(order, branch?.name, logo);
-        // 2. Mover a estado "active" (Cocinando)
+        printOrderTicket(order, branch?.name, logoUrl ?? null);
         moveOrder(order.id, 'active');
     };
 
     const handleReprint = (e) => {
         e.stopPropagation();
-        printOrderTicket(order, branch?.name, logo);
+        printOrderTicket(order, branch?.name, logoUrl ?? null);
     };
 
     // Lógica VIP: Buscar cliente y verificar si tiene más de 5 pedidos
