@@ -74,7 +74,7 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
     slug ? getTenantUrl(slug) : "";
 
   return (
-    <>
+    <div className="flex flex-col gap-6">
       {companies.map((company) => {
         const plan = Array.isArray(company.plans) ? company.plans[0] : company.plans;
         const status = statusMap[company.subscription_status ?? ""] ?? {
@@ -155,6 +155,6 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
                     </div>
         );
       })}
-    </>
+    </div>
   );
 }

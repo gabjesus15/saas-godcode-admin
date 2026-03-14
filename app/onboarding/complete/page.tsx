@@ -29,7 +29,7 @@ export default async function OnboardingCompletePage({
   async function fetchApp() {
     const { data, error } = await supabaseAdmin
       .from("onboarding_applications")
-      .select("id,status,legal_name,logo_url,fiscal_address,billing_address,billing_rut,social_instagram,social_facebook,social_twitter,description,plan_id,business_name,country,currency,custom_plan_name,custom_plan_price,custom_domain,subscription_payment_method")
+      .select("*")
       .eq("verification_token", token)
       .maybeSingle();
     return { app: data, error };
