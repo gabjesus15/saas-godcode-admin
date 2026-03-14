@@ -8,7 +8,9 @@ const supabaseAdmin = createClient(
 
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
+  console.log("[ONBOARDING VERIFY] Token recibido:", token);
   if (!token) {
+    console.error("[ONBOARDING VERIFY] Token faltante");
     return NextResponse.json({ error: "Token faltante" }, { status: 400 });
   }
 
@@ -19,16 +21,20 @@ export async function GET(req: NextRequest) {
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ error: "Error al verificar" }, { status: 500 });
+    console.error("[ONBOARDING VERIFY] Error al consultar Supabase:", error);
+    return NextResponse.json({ error: "Error al verificar", log: error }, { status: 500 });
   }
   if (!data) {
-    return NextResponse.json({ error: "Enlace inválido o expirado" }, { status: 404 });
+    console.warn("[ONBOARDING VERIFY] No se encontró aplicación para token:", token);
+    return NextResponse.json({ error: "Enlace inválido o expirado", log: token }, { status: 404 });
   }
   if (data.status !== "pending_verification") {
+    console.log("[ONBOARDING VERIFY] Token ya verificado o status distinto:", data.status);
     return NextResponse.json({
       ok: true,
       alreadyVerified: true,
       status: data.status,
+      log: data,
     });
   }
 
@@ -42,12 +48,15 @@ export async function GET(req: NextRequest) {
     .eq("id", data.id);
 
   if (updateError) {
-    return NextResponse.json({ error: "Error al confirmar" }, { status: 500 });
+    console.error("[ONBOARDING VERIFY] Error al actualizar status:", updateError);
+    return NextResponse.json({ error: "Error al confirmar", log: updateError }, { status: 500 });
   }
 
+  console.log("[ONBOARDING VERIFY] Email verificado correctamente para token:", token);
   return NextResponse.json({
     ok: true,
     token,
     message: "Email verificado. Puedes continuar con el formulario.",
+    log: data,
   });
 }
