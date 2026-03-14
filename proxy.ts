@@ -3,7 +3,8 @@ import { createServerClient } from "@supabase/ssr";
 import type { SupabaseAuthScope } from "./utils/supabase/auth-scope";
 
 const adminPaths = ["/dashboard", "/companies", "/login", "/plans", "/onboarding/solicitudes"];
-const tenantBypassPaths = ["/api", "/_next", "/favicon.ico"];
+// /onboarding debe servirse en el dominio principal; no reescribir a /[subdomain]/onboarding
+const tenantBypassPaths = ["/api", "/_next", "/favicon.ico", "/onboarding"];
 const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "");
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const tenantBaseDomain = (process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN ?? "")

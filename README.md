@@ -34,6 +34,7 @@ Configurar en Project Settings → Environment Variables:
 
 ### Recomendadas
 
+- `NEXT_PUBLIC_APP_URL` = URL canónica de la app (ej. `https://www.godcode.me`). Usada en correos de onboarding y redirecciones; debe ser el dominio principal (sin subdominio de tenant). Si no se define, se usa `VERCEL_URL` o `NEXT_PUBLIC_TENANT_BASE_DOMAIN`.
 - `NEXT_PUBLIC_TENANT_PROTOCOL` = `https`
 - `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`
 - `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET`
@@ -48,6 +49,7 @@ Configurar en Project Settings → Environment Variables:
 - Confirmar que `npm run build` pasa localmente.
 - Agregar todas las env vars obligatorias en Vercel para `Production` (y `Preview` si usas previews).
 - Verificar que el dominio base en `NEXT_PUBLIC_TENANT_BASE_DOMAIN` coincide con tu wildcard/subdominios.
+- Si hay redirección entre variantes del dominio (ej. `godcode.me` → `www.godcode.me`), asegurarse de que la redirección conserve el query string (habitual en la mayoría de configuraciones).
 - Si usas subida de imágenes, configurar también variables de Cloudinary.
 
 ## Nota técnica de build

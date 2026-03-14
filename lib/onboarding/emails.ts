@@ -9,12 +9,14 @@
  *   EMAIL_TAGLINE      - Eslogan bajo el logo (default: Tu visión, nuestro código.)
  */
 
+import { getAppUrl } from "../app-url";
+
 const RESEND_API = "https://api.resend.com/emails";
 
 const EMAIL_LOGO_URL = process.env.EMAIL_LOGO_URL ?? "";
 const EMAIL_COMPANY_NAME = process.env.EMAIL_COMPANY_NAME ?? "GodCode";
 const EMAIL_TAGLINE = process.env.EMAIL_TAGLINE ?? "Tu visión, nuestro código.";
-const EMAIL_APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.godcode.me";
+const EMAIL_APP_URL = getAppUrl();
 
 const BRAND_PRIMARY = "#6d28d9";
 const TEXT_DARK = "#1f2937";

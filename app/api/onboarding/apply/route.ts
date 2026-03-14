@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
 
+import { getAppUrl } from "../../../../lib/app-url";
 import { sendOnboardingEmail } from "../../../../lib/onboarding/emails";
 import { verifyRecaptcha } from "../../../../lib/onboarding/recaptcha";
 
@@ -9,13 +10,6 @@ const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
-const APP_URL =
-  process.env.NEXT_PUBLIC_APP_URL ||
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-  process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN
-    ? `${process.env.NEXT_PUBLIC_TENANT_PROTOCOL || "https"}://${process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN}`
-    : "http://localhost:3000";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "";
 const RESEND_FROM = process.env.RESEND_FROM ?? "noreply@example.com";
@@ -121,7 +115,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const verifyUrl = `${APP_URL.replace(/\/$/, "")}/onboarding/verify/${verificationToken}`;
+    // URL canónica (dominio principal) para que el enlace no pase por subdominio de tenant
+const baseUrl = getAppUrl();
+const verifyUrl = `${baseUrl}/onboarding/verify/${verificationToken}`;
 
     await sendOnboardingEmail({
       type: "verification",
@@ -134,7 +130,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (TEAM_EMAIL && TEAM_EMAIL !== emailRaw) {
-      const dashboardUrl = `${APP_URL.replace(/\/$/, "")}/onboarding/solicitudes`;
+      const dashboardUrl = `${baseUrl}/onboarding/solicitudes`;
       await sendOnboardingEmail({
         type: "team_notification",
         to: TEAM_EMAIL,
