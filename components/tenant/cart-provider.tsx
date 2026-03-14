@@ -161,16 +161,17 @@ export function CartProvider({
     // Sincronizar branch guardado con branch actual al hidratar
     useEffect(() => {
       if (!isHydrated) return;
-      const { setStoredBranchId, storedBranchId } = useCartStore.getState();
+      const { setStoredBranchId, storedBranchId, clearCart } = useCartStore.getState();
       if (!selectedBranchId) {
         if (storedBranchId !== null) {
           if (typeof setStoredBranchId === "function") setStoredBranchId(null);
+          if (typeof clearCart === "function") clearCart();
         }
         return;
       }
-      // Solo actualizamos el branch_id almacenado, NO limpiamos el carrito
-      // Los precios se actualizarán automáticamente en el useEffect de validación
+      // Si el branch_id almacenado es diferente al seleccionado, limpiar el carrito y actualizar branch
       if (storedBranchId !== selectedBranchId) {
+        if (typeof clearCart === "function") clearCart();
         if (typeof setStoredBranchId === "function") setStoredBranchId(selectedBranchId);
       }
     }, [isHydrated, selectedBranchId]);

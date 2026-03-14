@@ -110,18 +110,14 @@ export const getTenantUrl = (slug: string) => {
     return "";
   }
 
-  const usePathRouting = shouldUsePathRouting(baseDomain);
-  const host = usePathRouting ? baseDomain : `${safeSlug}.${baseDomain}`;
-
   const protocolOverride = process.env.NEXT_PUBLIC_TENANT_PROTOCOL;
-  const isLocal = host.includes("localhost") || host.startsWith("127.0.0.1");
+  const isLocal = baseDomain.includes("localhost") || baseDomain.startsWith("127.0.0.1");
   const protocol = protocolOverride?.trim()
     ? protocolOverride.trim()
     : isLocal
       ? "http"
       : "https";
 
-  return usePathRouting
-    ? `${protocol}://${host}/${safeSlug}`
-    : `${protocol}://${host}`;
+  // Siempre formato dominio.com/negocio
+  return `${protocol}://${baseDomain}/${safeSlug}`;
 };

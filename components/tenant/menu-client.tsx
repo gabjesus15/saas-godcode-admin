@@ -371,7 +371,23 @@ export function MenuClient({
     const element = document.getElementById(`section-${id}`);
     if (element) {
       element.scrollIntoView({ behavior: "smooth", block: "start" });
-      setTimeout(() => setIsManualScrolling(false), 1000);
+      // Desactivar manual scrolling solo cuando el scroll realmente termina
+      let scrollTimeout: ReturnType<typeof setTimeout>;
+      const onScrollEnd = () => {
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+          setIsManualScrolling(false);
+          window.removeEventListener("scroll", onScrollEnd);
+        }, 200);
+      };
+      window.addEventListener("scroll", onScrollEnd);
+      // Fallback por si no hay scroll
+      scrollTimeout = setTimeout(() => {
+        setIsManualScrolling(false);
+        window.removeEventListener("scroll", onScrollEnd);
+      }, 1200);
+    } else {
+      setIsManualScrolling(false);
     }
   }, []);
 
