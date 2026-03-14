@@ -25,7 +25,11 @@ export default function OnboardingVerifyTokenPage() {
 			.then((data) => {
 				if (data.ok) {
 					setStatus("ok");
-					router.replace(`/onboarding/complete?token=${encodeURIComponent(token)}`);
+					// Pequeña espera para que el estado email_verified se propague antes de cargar /complete
+					const delay = 1200;
+					setTimeout(() => {
+						router.replace(`/onboarding/complete?token=${encodeURIComponent(token)}`);
+					}, delay);
 				} else {
 					setStatus("error");
 					setMessage(data.error ?? "Error al verificar el correo");
