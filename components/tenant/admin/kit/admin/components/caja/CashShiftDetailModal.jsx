@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, History, Clock, User } from 'lucide-react';
 import { cashService } from '../../services/cashService';
-import { getPaymentLabel } from '../../shared/utils/orderUtils';
+import { getPaymentLabel } from '../../../shared/utils/orderUtils';
 
 const CashShiftDetailModal = ({ isOpen, onClose, shift, getTotals }) => {
     const [movements, setMovements] = useState([]);
