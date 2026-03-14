@@ -8,7 +8,7 @@ import { uploadImage, validateImageFile } from '../../shared/utils/cloudinary';
 import { useCashSystem } from '../hooks/useCashSystem';
 import { sanitizeOrder } from '../../shared/utils/orderUtils';
 import { getTenantScopedPath } from '../../../../utils/tenant-route';
-import { TENANT_ADMIN_TAB_IDS, DEFAULT_ROLE_NAV_PERMISSIONS as SHARED_DEFAULT_ROLE_NAV_PERMISSIONS } from '../../../../lib/tenant-admin-tabs';
+import { TENANT_ADMIN_TAB_IDS, DEFAULT_ROLE_NAV_PERMISSIONS as SHARED_DEFAULT_ROLE_NAV_PERMISSIONS } from '../../../../../../lib/tenant-admin-tabs';
 
 const ALL_ADMIN_TABS = TENANT_ADMIN_TAB_IDS;
 const DEFAULT_ROLE_NAV_PERMISSIONS = { ...SHARED_DEFAULT_ROLE_NAV_PERMISSIONS };
