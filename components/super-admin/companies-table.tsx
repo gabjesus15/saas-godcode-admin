@@ -93,11 +93,77 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
                   className="inline-flex h-9 min-w-0 items-center rounded-xl border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
                 >
                   Gestionar
-                </Link>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </Card>
-  );
+                return (
+                  <>
+                    <div
+                      key={company.id}
+                      className="flex flex-col gap-4 border-zinc-200 p-4 dark:border-zinc-700 md:grid md:grid-cols-13 md:items-center md:gap-4 md:px-6 md:py-4 md:border-0"
+                    >
+                      <div className="min-w-0 md:col-span-4">
+                        <Link
+                          href={`/companies/${company.id}`}
+                          className="font-semibold text-zinc-900 hover:underline dark:text-zinc-100"
+                        >
+                          {company.name ?? "Sin nombre"}
+                        </Link>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">ID: {company.id}</p>
+                        {company.public_slug ? (
+                          <Link
+                            href={buildTenantUrl(company.public_slug)}
+                            className="mt-2 inline-flex items-center rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-semibold text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {buildTenantHost(company.public_slug)}
+                          </Link>
+                        ) : null}
+                      </div>
+                      <div className="min-w-0 md:col-span-3">
+                        <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 md:normal-case md:tracking-normal md:text-zinc-900 dark:md:text-zinc-100">
+                          Plan
+                        </p>
+                        <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                          {plan?.name ?? "Sin plan"}
+                        </p>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                          {plan?.price ? `$${plan.price}` : "--"} · {plan?.max_branches ?? 0} sucursales
+                        </p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <p className="mb-1 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 md:sr-only">
+                          Estado
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <Badge variant={status.variant}>{status.label}</Badge>
+                          {expiry ? (
+                            <Badge variant={expiry.variant}>{expiry.label}</Badge>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="md:col-span-2">
+                        <p className="mb-1 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 md:sr-only">
+                          Email verificado
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {company.status === "email_verified" || company.status === "form_completed" || company.email_verified_at ? (
+                            <span className="text-green-600 font-semibold">Sí</span>
+                          ) : (
+                            <span className="text-red-600 font-semibold">No</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 md:col-span-2">
+                        <CompanyStatusToggle
+                          companyId={company.id}
+                          currentStatus={company.subscription_status}
+                        />
+                        <Link
+                          href={`/companies/${company.id}`}
+                          className="inline-flex h-9 min-w-0 items-center rounded-xl border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                        >
+                          Gestionar
+                        </Link>
+                      </div>
+                    </div>
+                  </>
+                );
