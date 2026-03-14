@@ -35,18 +35,57 @@ export default async function OnboardingCompletePage({
   }
 
   let { app, error } = await fetchApp();
-  if (error || !app) redirect("/onboarding?from=complete&reason=app_not_found");
+  if (error || !app) {
+    return (
+      <main className="onboarding-main relative mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-12 md:py-14">
+        <div className="onboarding-card max-w-md mx-auto p-8 text-center">
+          <h2 className="text-xl font-bold text-red-600 mb-4">Error de registro</h2>
+          <p className="text-sm text-red-700">No se pudo cargar la aplicación. Intenta de nuevo o contacta soporte.</p>
+        </div>
+      </main>
+    );
+  }
+  if (!app) {
+    return (
+      <main className="onboarding-main relative mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-12 md:py-14">
+        <div className="onboarding-card max-w-md mx-auto p-8 text-center">
+          <h2 className="text-xl font-bold text-red-600 mb-4">Aplicación no encontrada</h2>
+          <p className="text-sm text-red-700">El enlace es inválido o la aplicación no existe.</p>
+        </div>
+      </main>
+    );
+  }
 
   // Propagación de escritura en Supabase: hasta 3 intentos con espera (evita redirigir al paso 1)
   const maxAttempts = 3;
   const waitMs = 2000;
+  let loading = false;
   for (let attempt = 1; attempt <= maxAttempts && app.status !== "email_verified" && app.status !== "form_completed"; attempt++) {
+    loading = true;
     await new Promise((r) => setTimeout(r, waitMs));
     const retry = await fetchApp();
-    if (retry.error || !retry.app) redirect("/onboarding?from=complete&reason=app_not_found");
+    if (retry.error || !retry.app) {
+      return (
+        <main className="onboarding-main relative mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-12 md:py-14">
+          <div className="onboarding-card max-w-md mx-auto p-8 text-center">
+            <h2 className="text-xl font-bold text-red-600 mb-4">Error de registro</h2>
+            <p className="text-sm text-red-700">No se pudo cargar la aplicación. Intenta de nuevo o contacta soporte.</p>
+          </div>
+        </main>
+      );
+    }
     app = retry.app;
   }
-  if (app.status !== "email_verified" && app.status !== "form_completed") redirect("/onboarding?from=complete&reason=status_not_verified");
+  if (app.status !== "email_verified" && app.status !== "form_completed") {
+    return (
+      <main className="onboarding-main relative mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-12 md:py-14">
+        <div className="onboarding-card max-w-md mx-auto p-8 text-center">
+          <h2 className="text-xl font-bold text-red-600 mb-4">Correo no verificado</h2>
+          <p className="text-sm text-red-700">Debes verificar tu correo antes de continuar. Revisa tu bandeja y haz clic en el enlace de verificación.</p>
+        </div>
+      </main>
+    );
+  }
 
   const [plansResult, addonsResult, applicationAddonsResult] = await Promise.all([
     supabaseAdmin.from("plans").select("id,name,price,max_branches").eq("is_active", true).order("price", { ascending: true }),
