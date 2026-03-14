@@ -27,6 +27,8 @@ type CompanyRow = {
   created_by?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+  status?: string | null;
+  email_verified_at?: string | null;
   plans: PlanInfo | PlanInfo[] | null;
 };
 
@@ -71,34 +73,20 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
   const buildTenantUrl = (slug: string | null | undefined) =>
     slug ? getTenantUrl(slug) : "";
 
-              <div className="md:col-span-2">
-                <p className="mb-1 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 md:sr-only">
-                  Email verificado
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {company.status === "email_verified" || company.status === "form_completed" || company.email_verified_at ? (
-                    <span className="text-green-600 font-semibold">Sí</span>
-                  ) : (
-                    <span className="text-red-600 font-semibold">No</span>
-                  )}
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 md:col-span-2">
-                <CompanyStatusToggle
-                  companyId={company.id}
-                  currentStatus={company.subscription_status}
-                />
-                <Link
-                  href={`/companies/${company.id}`}
-                  className="inline-flex h-9 min-w-0 items-center rounded-xl border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                >
-                  Gestionar
-                return (
-                  <>
-                    <div
-                      key={company.id}
-                      className="flex flex-col gap-4 border-zinc-200 p-4 dark:border-zinc-700 md:grid md:grid-cols-13 md:items-center md:gap-4 md:px-6 md:py-4 md:border-0"
-                    >
+  return (
+    <>
+      {companies.map((company) => {
+        const plan = Array.isArray(company.plans) ? company.plans[0] : company.plans;
+        const status = statusMap[company.subscription_status ?? ""] ?? {
+          label: company.subscription_status ?? "—",
+          variant: "neutral" as const,
+        };
+        const expiry = getExpiryBadge(company.subscription_ends_at);
+        return (
+          <div
+            key={company.id}
+            className="flex flex-col gap-4 border-zinc-200 p-4 dark:border-zinc-700 md:grid md:grid-cols-13 md:items-center md:gap-4 md:px-6 md:py-4 md:border-0"
+          >
                       <div className="min-w-0 md:col-span-4">
                         <Link
                           href={`/companies/${company.id}`}
@@ -165,5 +153,8 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
                         </Link>
                       </div>
                     </div>
-                  </>
-                );
+        );
+      })}
+    </>
+  );
+}
