@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import type { SupabaseAuthScope } from "./utils/supabase/auth-scope";
+import { getAppUrl } from "./lib/app-url";
 
 const adminPaths = ["/dashboard", "/companies", "/login", "/plans", "/onboarding/solicitudes"];
 // /onboarding debe servirse en el dominio principal; no reescribir a /[subdomain]/onboarding
@@ -136,6 +137,12 @@ export async function proxy(req: NextRequest) {
   }
 
   if (subdomain) {
+    // Onboarding es del dominio principal: redirigir a godcode.me/onboarding (o APP_URL)
+    if (pathname.startsWith("/onboarding")) {
+      const base = getAppUrl().replace(/\/$/, "");
+      const target = new URL(pathname + req.nextUrl.search, base);
+      return NextResponse.redirect(target, 302);
+    }
     if (
       tenantBypassPaths.some((path) => pathname.startsWith(path)) ||
       pathname.includes(".")

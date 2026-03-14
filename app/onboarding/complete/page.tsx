@@ -23,7 +23,7 @@ export default async function OnboardingCompletePage({
       : Array.isArray(tokenRaw) && tokenRaw.length > 0
         ? String(tokenRaw[0]).trim()
         : null;
-  if (!token) redirect("/onboarding");
+  if (!token) redirect("/onboarding?from=complete&reason=no_token");
 
   async function fetchApp() {
     const { data, error } = await supabaseAdmin
@@ -35,7 +35,7 @@ export default async function OnboardingCompletePage({
   }
 
   let { app, error } = await fetchApp();
-  if (error || !app) redirect("/onboarding");
+  if (error || !app) redirect("/onboarding?from=complete&reason=app_not_found");
 
   // Propagación de escritura en Supabase: hasta 3 intentos con espera (evita redirigir al paso 1)
   const maxAttempts = 3;
@@ -43,10 +43,10 @@ export default async function OnboardingCompletePage({
   for (let attempt = 1; attempt <= maxAttempts && app.status !== "email_verified" && app.status !== "form_completed"; attempt++) {
     await new Promise((r) => setTimeout(r, waitMs));
     const retry = await fetchApp();
-    if (retry.error || !retry.app) redirect("/onboarding");
+    if (retry.error || !retry.app) redirect("/onboarding?from=complete&reason=app_not_found");
     app = retry.app;
   }
-  if (app.status !== "email_verified" && app.status !== "form_completed") redirect("/onboarding");
+  if (app.status !== "email_verified" && app.status !== "form_completed") redirect("/onboarding?from=complete&reason=status_not_verified");
 
   const [plansResult, addonsResult, applicationAddonsResult] = await Promise.all([
     supabaseAdmin.from("plans").select("id,name,price,max_branches").eq("is_active", true).order("price", { ascending: true }),

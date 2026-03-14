@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Store, ExternalLink } from "lucide-react";
+import { getTenantUrl } from "../../../utils/tenant-url";
 
 type CompanyPublic = {
 	id: string;
@@ -10,20 +11,6 @@ type CompanyPublic = {
 	slug: string;
 	logoUrl: string | null;
 };
-
-function getTenantUrl(slug: string): string {
-	if (typeof window !== "undefined") {
-		const host = window.location.host.toLowerCase();
-		if (host.includes("localhost") || host.includes(".vercel.app")) {
-			return `/${slug}`;
-		}
-	}
-	const base = process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN || "";
-	if (base && (base.includes("localhost") || base.includes(".vercel.app"))) {
-		return `/${slug}`;
-	}
-	return slug && base ? `https://${slug}.${base}` : `/${slug}`;
-}
 
 export default function NegociosPage() {
 	const [companies, setCompanies] = useState<CompanyPublic[]>([]);

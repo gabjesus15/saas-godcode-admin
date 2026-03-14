@@ -1,17 +1,38 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 
+const tenantBaseDomain = (process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN ?? "")
+  .replace(/^https?:\/\//i, "")
+  .replace(/\/$/, "")
+  .toLowerCase();
+
+function isMainDomain(host: string): boolean {
+  const h = host.split(":")[0].toLowerCase();
+  if (!tenantBaseDomain) return h === "localhost" || h === "www.localhost";
+  // Siempre llevar godcode.me y www.godcode.me (o el dominio configurado) a /login
+  if (h === tenantBaseDomain || h === `www.${tenantBaseDomain}`) return true;
+  if (tenantBaseDomain.startsWith("www.") && h === tenantBaseDomain.replace(/^www\./, "")) return true;
+  return false;
+}
+
+function getSubdomainFromHost(host: string): string | null {
+  const h = host.split(":")[0].toLowerCase();
+  if (!tenantBaseDomain || !h.endsWith(`.${tenantBaseDomain}`)) return null;
+  const sub = h.slice(0, -(`.${tenantBaseDomain}`.length));
+  if (!sub || sub === "www" || sub.includes(".")) return null;
+  return sub;
+}
+
 export default async function Home() {
-  // Detectar host en SSR
   const hdrs = await headers();
   const host = hdrs.get("host") || "";
-  if (host === "godcode.me" || host === "www.godcode.me") {
+  if (isMainDomain(host)) {
     redirect("/login");
     return null;
   }
-  const match = host.match(/^([^.]+)\.godcode\.me$/);
-  if (match && match[1]) {
-    redirect(`/${match[1]}`);
+  const subdomain = getSubdomainFromHost(host);
+  if (subdomain) {
+    redirect(`/${subdomain}`);
     return null;
   }
   return null;

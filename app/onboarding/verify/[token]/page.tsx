@@ -24,11 +24,17 @@ export default function OnboardingVerifyTokenPage() {
 			.then((data) => {
 				if (data.ok) {
 					setStatus("ok");
-					// Redirigir con navegación completa para que /complete reciba el token en la URL
-					const completeUrl = `/onboarding/complete?token=${encodeURIComponent(token)}`;
-					const delay = 1200;
+					// Usar el token devuelto por la API y URL absoluta para que /complete reciba el token
+					const tokenToUse = (data.token != null && data.token !== "") ? data.token : token;
+					const params = new URLSearchParams({ token: tokenToUse });
+					params.set("_", String(Date.now())); // evita caché de la página complete
+					const completePath = `/onboarding/complete?${params.toString()}`;
+					const completeUrl = typeof window !== "undefined"
+						? window.location.origin + completePath
+						: completePath;
+					const delay = 2000; // dar tiempo a que Supabase propague el status email_verified
 					setTimeout(() => {
-						window.location.href = completeUrl;
+						window.location.assign(completeUrl);
 					}, delay);
 				} else {
 					setStatus("error");
