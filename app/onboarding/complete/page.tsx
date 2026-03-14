@@ -18,14 +18,26 @@ export default async function OnboardingCompletePage({
   const { token } = await searchParams;
   if (!token) redirect("/onboarding");
 
-  const { data: app, error } = await supabaseAdmin
-    .from("onboarding_applications")
-    .select("id,status,legal_name,logo_url,fiscal_address,billing_address,billing_rut,billing_document,social_instagram,social_facebook,social_twitter,description,plan_id,business_name,country,currency,payment_methods,custom_plan_name,custom_plan_price,custom_domain,subscription_payment_method")
-    .eq("verification_token", token)
-    .maybeSingle();
+  async function fetchApp() {
+    const { data, error } = await supabaseAdmin
+      .from("onboarding_applications")
+      .select("id,status,legal_name,logo_url,fiscal_address,billing_address,billing_rut,billing_document,social_instagram,social_facebook,social_twitter,description,plan_id,business_name,country,currency,payment_methods,custom_plan_name,custom_plan_price,custom_domain,subscription_payment_method")
+      .eq("verification_token", token)
+      .maybeSingle();
+    return { app: data, error };
+  }
 
+  let { app, error } = await fetchApp();
   if (error || !app) redirect("/onboarding");
-  if (app.status !== "email_verified" && app.status !== "form_completed") redirect("/onboarding");
+
+  // Si acaba de verificar, la BD a veces no ha propagado email_verified: reintentar con espera
+  if (app.status !== "email_verified" && app.status !== "form_completed") {
+    await new Promise((r) => setTimeout(r, 2000));
+    const retry = await fetchApp();
+    if (retry.error || !retry.app) redirect("/onboarding");
+    app = retry.app;
+    if (app.status !== "email_verified" && app.status !== "form_completed") redirect("/onboarding");
+  }
 
   const [plansResult, addonsResult, applicationAddonsResult] = await Promise.all([
     supabaseAdmin.from("plans").select("id,name,price,max_branches").eq("is_active", true).order("price", { ascending: true }),
