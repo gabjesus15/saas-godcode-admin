@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Search, Filter, Calendar, DollarSign, Package, ChevronDown, ChevronUp, CreditCard, Receipt, Upload, Eye } from 'lucide-react';
+import { getPaymentLabel } from '../../shared/utils/orderUtils';
 
 const AdminHistoryTable = ({ orders, setReceiptModalOrder }) => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -120,7 +121,7 @@ const AdminHistoryTable = ({ orders, setReceiptModalOrder }) => {
                                             <td data-label="Tipo Pago">
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                     {o.payment_type === 'online' ? <Receipt size={14} className="text-primary"/> : (o.payment_type==='tarjeta' ? <CreditCard size={14} /> : <DollarSign size={14} />)}
-                                                    <span style={{ textTransform: 'capitalize', fontSize: '0.85rem' }}>{o.payment_type === 'online' ? 'Transf.' : o.payment_type}</span>
+                                                    <span style={{ textTransform: 'capitalize', fontSize: '0.85rem' }}>{getPaymentLabel(o)}</span>
                                                 </div>
                                             </td>
                                             <td data-label="Total" style={{ fontWeight: 700, color: '#25d366' }}>
@@ -204,7 +205,7 @@ const AdminHistoryTable = ({ orders, setReceiptModalOrder }) => {
                                                                 </div>
                                                             ) : (
                                                                 <div style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', color: '#9ca3af', fontSize: '0.85rem' }}>
-                                                                    Pago registrado como {o.payment_type === 'tarjeta' ? 'Tarjeta (Presencial)' : 'Efectivo'}. No requiere comprobante.
+                                                                    Pago registrado como {getPaymentLabel(o)}. No requiere comprobante.
                                                                 </div>
                                                             )}
                                                         </div>

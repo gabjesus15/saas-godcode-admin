@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, History, Clock, User } from 'lucide-react';
 import { cashService } from '../../services/cashService';
+import { getPaymentLabel } from '../../shared/utils/orderUtils';
 
 const CashShiftDetailModal = ({ isOpen, onClose, shift, getTotals }) => {
     const [movements, setMovements] = useState([]);
@@ -157,7 +158,7 @@ const CashShiftDetailModal = ({ isOpen, onClose, shift, getTotals }) => {
                                                     </div>
                                                 )}
                                                 <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: 2 }}>
-                                                    {m.payment_method === 'cash' ? '💵 Efectivo' : (m.payment_method === 'card' ? '💳 Tarjeta' : '📲 Transf.')}
+                                                    {m.orders ? getPaymentLabel(m.orders) : (m.payment_method === 'cash' ? '💵 Efectivo' : (m.payment_method === 'card' ? '💳 Tarjeta' : '📲 Transf.'))}
                                                 </div>
                                             </td>
                                             <td style={{ textAlign: 'right', padding: '12px 15px' }}>

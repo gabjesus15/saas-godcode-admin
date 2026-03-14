@@ -15,6 +15,7 @@ import CashMovementModal from './CashMovementModal';
 import CashShiftDetailModal from './CashShiftDetailModal';
 import CashOrderDetailPanel from './CashOrderDetailPanel';
 import { formatCurrency } from '../../../shared/utils/formatters';
+import { getPaymentLabel } from '../../../shared/utils/orderUtils';
 const cashIcon = '/tenant/cash.svg';
 
 const fmt = (n) => {
@@ -264,7 +265,7 @@ const CashManager = ({ showNotify, selectedBranchId, orders = [] }) => {
                                     const isCancel = m.type === 'cancel';
                                     const paymentMethod = m.payment_method ?? order?.payment_type;
                                     const paymentSlug = isCancel ? null : (paymentMethod === 'cash' ? 'cash' : paymentMethod === 'card' || paymentMethod === 'tarjeta' ? 'card' : 'transfer');
-                                    const paymentLabel = paymentMethod === 'cash' ? 'Efectivo' : paymentMethod === 'card' || paymentMethod === 'tarjeta' ? 'Tarjeta' : 'Transf.';
+                                    const paymentLabel = order ? getPaymentLabel(order) : (paymentMethod === 'cash' ? 'Efectivo' : paymentMethod === 'card' || paymentMethod === 'tarjeta' ? 'Tarjeta' : 'Transf.');
                                     const movementColor = isCancel ? '#f87171' : paymentSlug === 'cash' ? '#4ade80' : paymentSlug === 'transfer' ? '#facc15' : paymentSlug === 'card' ? '#60a5fa' : undefined;
                                     const textStyle = movementColor ? { color: movementColor } : undefined;
                                     return (

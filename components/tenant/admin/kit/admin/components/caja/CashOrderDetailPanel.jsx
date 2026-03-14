@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { formatCurrency } from '../../../shared/utils/formatters';
+import { getPaymentLabel, getPaymentSlug } from '../../../shared/utils/orderUtils';
 import './CashOrderDetailPanel.css';
 
 const fmt = (n) => {
@@ -22,25 +23,8 @@ const STATUS_LABELS = {
 	cancelled: 'Cancelado',
 };
 
-const PAYMENT_LABELS = {
-	online: 'Transferencia',
-	transfer: 'Transferencia',
-	tarjeta: 'Tarjeta',
-	card: 'Tarjeta',
-};
-
 function getStatusLabel(status) {
 	return STATUS_LABELS[status] || 'Pendiente';
-}
-
-function getPaymentLabel(paymentType) {
-	return PAYMENT_LABELS[paymentType] || 'Efectivo';
-}
-
-function getPaymentSlug(paymentType) {
-	if (paymentType === 'online' || paymentType === 'transfer') return 'transfer';
-	if (paymentType === 'tarjeta' || paymentType === 'card') return 'card';
-	return 'cash';
 }
 
 function parseItems(raw) {
@@ -109,9 +93,9 @@ export default function CashOrderDetailPanel({ order, onClose }) {
 							{getStatusLabel(order.status)}
 						</span>
 						<span
-							className={`cash-order-detail-badge cash-order-detail-badge-payment cash-order-detail-badge-payment--${getPaymentSlug(order.payment_type)}`}
+							className={`cash-order-detail-badge cash-order-detail-badge-payment cash-order-detail-badge-payment--${getPaymentSlug(order)}`}
 						>
-							{getPaymentLabel(order.payment_type)}
+							{getPaymentLabel(order)}
 						</span>
 					</div>
 
@@ -158,7 +142,7 @@ export default function CashOrderDetailPanel({ order, onClose }) {
 						</div>
 					) : null}
 
-					<div className={`cash-order-detail-summary cash-order-detail-summary--${order.status === 'cancelled' ? 'cancelled' : getPaymentSlug(order.payment_type)}`}>
+					<div className={`cash-order-detail-summary cash-order-detail-summary--${order.status === 'cancelled' ? 'cancelled' : getPaymentSlug(order)}`}>
 						<div className="cash-order-detail-label">Total</div>
 						<div className="cash-order-detail-total">
 							{fmt(order.total || 0)}

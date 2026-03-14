@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo } from 'react';
 import { X, Loader2, Image as ImageIcon, Upload, Calendar, DollarSign, Package, TrendingUp, Clock } from 'lucide-react';
+import { getPaymentLabel, isOnlineOrder } from '../../shared/utils/orderUtils';
 
 const ClientDetailsPanel = ({
     selectedClient,
@@ -64,8 +65,8 @@ const ClientDetailsPanel = ({
             );
         }
         
-        // Solo mostrar botón de subir si es pago online/transferencia
-        if (order.payment_type === 'online' || order.payment_type === 'transfer') {
+        // Solo mostrar botón de subir si es pago online (Transf., Zelle, Pago Móvil, etc.)
+        if (isOnlineOrder(order)) {
             return (
                 <button 
                     onClick={() => setReceiptModalOrder(order)} 
@@ -199,6 +200,9 @@ const ClientDetailsPanel = ({
                                                 <Calendar size={12} />
                                                 {formatDate(order.created_at)}
                                             </div>
+                                            <span className="order-payment-method" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                                {getPaymentLabel(order)}
+                                            </span>
                                             <span className="order-total">
                                                 ${order.total.toLocaleString('es-CL')}
                                             </span>

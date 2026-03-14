@@ -3,6 +3,7 @@
 import React from 'react';
 import { Clock, XCircle, Upload, ImageIcon, Printer, Crown, MessageCircle } from 'lucide-react';
 import { formatTimeElapsed } from '../../shared/utils/formatters';
+import { getPaymentLabel } from '../../shared/utils/orderUtils';
 import { printOrderTicket } from '../utils/receiptPrinting';
 const logo = '/tenant/logo-placeholder.svg';
 
@@ -38,7 +39,7 @@ const OrderCard = ({ order, moveOrder, setReceiptModalOrder, branch, clients }) 
                         <Printer size={14} />
                     </button>
                 <span className={`payment-badge ${order.payment_type === 'online' ? 'online' : ''}`}>
-                    {order.payment_type === 'online' ? 'Transf.' : (order.payment_type === 'tarjeta' ? 'Tarjeta' : 'Efectivo')}
+                    {getPaymentLabel(order)}
                 </span>
                 </div>
             </div>

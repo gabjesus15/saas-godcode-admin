@@ -158,9 +158,10 @@ export const ordersService = {
                 p_total: totalToUse,
                 p_payment_type: orderData.payment_type,
                 p_payment_ref: paymentRef,
+                p_payment_method_specific: orderData.payment_method_specific ?? null,
                 p_note: finalNote,
                 p_branch_id: orderData.branch_id,
-                p_company_id: orderData.company_id || null, // [FIX] Enviar null explícito si es undefined
+                p_company_id: orderData.company_id || null,
                 p_status: orderData.status || 'pending'
             });
 

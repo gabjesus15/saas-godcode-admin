@@ -13,6 +13,7 @@ import {
     Smartphone, TrendingUp, Package, Clock, MapPin
 } from 'lucide-react';
 import { formatCurrency } from '../../shared/utils/formatters';
+import { isOnlineOrder, getPaymentSlug } from '../../shared/utils/orderUtils';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
@@ -58,8 +59,8 @@ const AdminAnalytics = ({ orders, clients, branches }) => {
 
         const filterByTab = (o) => {
             if (chartTab === 'all') return true;
-            if (chartTab === 'online') return o.payment_type === 'online' || o.payment_type === 'transferencia';
-            if (chartTab === 'store') return o.payment_type !== 'online' && o.payment_type !== 'transferencia';
+            if (chartTab === 'online') return isOnlineOrder(o);
+            if (chartTab === 'store') return !isOnlineOrder(o);
             return true;
         };
 
@@ -115,11 +116,12 @@ const AdminAnalytics = ({ orders, clients, branches }) => {
         const prevSales = prev.reduce((a, o) => a + Number(o.total), 0);
         const prevCount = prev.length;
 
-        // --- PAYMENT BREAKDOWN ---
+        // --- PAYMENT BREAKDOWN (incl. payment_method_specific: Zelle, Pago Móvil, etc.) ---
         const pb = { cash: 0, card: 0, online: 0 };
         current.forEach(o => {
-            if (o.payment_type === 'online' || o.payment_type === 'transferencia') pb.online += Number(o.total);
-            else if (o.payment_type === 'tarjeta') pb.card += Number(o.total);
+            const slug = getPaymentSlug(o);
+            if (slug === 'transfer') pb.online += Number(o.total);
+            else if (slug === 'card') pb.card += Number(o.total);
             else pb.cash += Number(o.total);
         });
 

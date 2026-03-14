@@ -596,7 +596,7 @@ export function CartModal({
         company_id: selectedBranch.company_id || null,
       };
       // ...existing code...
-      const { receiptUploadFailed } = await ordersService.createOrder(orderPayload, null);
+      const { receiptUploadFailed } = await ordersService.createOrder(orderPayload, data.receiptFile ?? null);
       setViewState((v) => ({
         ...v,
         showSuccess: true,

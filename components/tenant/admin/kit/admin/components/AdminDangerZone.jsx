@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase';
 import { TABLES } from '../../lib/supabaseTables';
 import { Loader2, AlertCircle, XCircle, FileText, Trash2, Users, ChevronDown } from 'lucide-react';
 import { downloadExcel } from '../../shared/utils/exportUtils';
+import { getPaymentLabel } from '../../shared/utils/orderUtils';
 
 const AdminDangerZone = ({ showNotify, loadData, isMobile, selectedBranch, companyId }) => {
   const [analyticsDate, setAnalyticsDate] = useState(() => {
@@ -119,7 +120,7 @@ const AdminDangerZone = ({ showNotify, loadData, isMobile, selectedBranch, compa
           Teléfono: order.client_phone,
           Items: itemsText,
           Total: order.total,
-          'Método Pago': order.payment_type || '',
+          'Método Pago': getPaymentLabel(order) || '',
           'Ref. Pago': order.payment_ref || ''
         };
       });
