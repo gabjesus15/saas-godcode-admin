@@ -397,12 +397,12 @@ export function MenuClient({
     const observerOptions = {
       root: null,
       rootMargin: "-140px 0px -70% 0px",
-      threshold: 0,
+      threshold: 0.6, // Solo activa si la sección está al menos 60% visible
     };
 
     const observerCallback: IntersectionObserverCallback = (entries) => {
       if (isManualScrolling) return;
-      const visible = entries.find((entry) => entry.isIntersecting);
+      const visible = entries.find((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.6);
       if (visible) {
         const id = visible.target.id.replace("section-", "");
         setActiveCategory(id);
