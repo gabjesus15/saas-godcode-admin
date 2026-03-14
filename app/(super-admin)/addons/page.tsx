@@ -308,10 +308,10 @@ export default function AddonsPage() {
 							</div>
 							<div className="flex items-center gap-2">
 								{a.type === "monthly" && a.price_monthly != null ? (
-									<Badge variant="secondary">{currency.format(Number(a.price_monthly))}/mes</Badge>
+									<Badge variant="neutral">{currency.format(Number(a.price_monthly))}/mes</Badge>
 								) : null}
 								{a.type === "one_time" && a.price_one_time != null ? (
-									<Badge variant="secondary">{currency.format(Number(a.price_one_time))} único</Badge>
+									<Badge variant="neutral">{currency.format(Number(a.price_one_time))} único</Badge>
 								) : null}
 								{!a.is_active ? (
 									<Badge variant="destructive">Oculto</Badge>

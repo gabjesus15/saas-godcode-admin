@@ -9,11 +9,12 @@ import { useCashSystem } from '../hooks/useCashSystem';
 import { sanitizeOrder } from '../../shared/utils/orderUtils';
 import { getTenantScopedPath } from '../../../../utils/tenant-route';
 
-const ALL_ADMIN_TABS = ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'users'];
+const ALL_ADMIN_TABS = ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'users', 'payment_methods'];
 
 const DEFAULT_ROLE_NAV_PERMISSIONS = {
+	owner: ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'users', 'payment_methods'],
 	admin: ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'users'],
-	ceo: ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'users'],
+	ceo: ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'users', 'payment_methods'],
 	cashier: ['orders', 'caja'],
 };
 

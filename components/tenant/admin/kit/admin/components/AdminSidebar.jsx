@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { ChefHat, ShoppingBag, BarChart3, Users, UserPlus, List, LogOut, DollarSign, Store, ChevronDown, ClipboardList, Blocks } from 'lucide-react';
+import { ChefHat, ShoppingBag, BarChart3, Users, UserPlus, List, LogOut, DollarSign, Store, ChevronDown, ClipboardList, Blocks, CreditCard } from 'lucide-react';
 const cashIcon = '/tenant/cash.svg';
 const categoryIcon = '/tenant/category.svg';
 
@@ -123,7 +123,8 @@ const AdminSidebar = ({ activeTab, setActiveTab, isMobile, kanbanColumns, userRo
 				]
 			},
 			{ id: 'clients', label: 'Clientes', icon: Users },
-			{ id: 'users', label: 'Equipo', icon: UserPlus }
+			{ id: 'users', label: 'Equipo', icon: UserPlus },
+			{ id: 'payment_methods', label: 'Métodos de pago', icon: CreditCard }
 		];
 
         if (rootModules.length > 0) {

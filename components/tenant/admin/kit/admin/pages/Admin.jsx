@@ -20,6 +20,7 @@ const AdminClients = React.lazy(() => import('../components/AdminClients'));
 const AdminInventory = React.lazy(() => import('../components/AdminInventory'));
 const AdminHistoryTable = React.lazy(() => import('../components/AdminHistoryTable'));
 const CashManager = React.lazy(() => import('../components/caja/CashManager'));
+const AdminPaymentMethods = React.lazy(() => import('../components/AdminPaymentMethods'));
 
 const TabFallback = () => <div style={{ padding: '2rem', display: 'flex', justifyContent: 'center' }}><Loader2 size={32} /></div>;
 import { supabase } from '../../lib/supabase';
@@ -139,8 +140,8 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
 
   const activeDynamicModule = dynamicModuleByTab.get(activeTab) || null;
 
-  const TAB_LABELS = { orders: 'Pedidos', caja: 'Caja', analytics: 'Reportes', categories: 'Categorías', products: 'Productos', inventory: 'Inventario', clients: 'Clientes' };
-  const ALL_TABS = ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients'];
+  const TAB_LABELS = { orders: 'Pedidos', caja: 'Caja', analytics: 'Reportes', categories: 'Categorías', products: 'Productos', inventory: 'Inventario', clients: 'Clientes', payment_methods: 'Métodos de pago' };
+  const ALL_TABS = ['orders', 'caja', 'analytics', 'categories', 'products', 'inventory', 'clients', 'payment_methods'];
 
   const loadBroadcasts = React.useCallback(async () => {
     setBroadcastsLoading(true);
@@ -473,7 +474,8 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
                   activeTab === 'clients' ? 'Clientes' :
                     activeTab === 'caja' ? 'Caja y Turnos' :
                       activeTab === 'users' ? 'Equipo' :
-                        activeDynamicModule ? activeDynamicModule.label : 'Categorías'}
+                        activeTab === 'payment_methods' ? 'Métodos de pago' :
+                          activeDynamicModule ? activeDynamicModule.label : 'Categorías'}
           </h1>
 
           <div className="header-actions">
@@ -697,6 +699,16 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
             <p style={{ margin: 0, opacity: 0.9 }}>Usuarios que pueden entrar al panel de este local. Crea staff y asígnales las pestañas que podrán ver.</p>
           </div>
         )}
+        {activeTab === 'payment_methods' && (
+          <React.Suspense fallback={<TabFallback />}>
+            <AdminPaymentMethods
+              showNotify={showNotify}
+              branches={branches}
+              companyId={companyIdForClients}
+            />
+          </React.Suspense>
+        )}
+
         {activeTab === 'users' && (
           <div className="glass staff-table-glass" style={{ padding: 20, borderRadius: 12 }}>
             {teamLoading ? (

@@ -53,7 +53,7 @@ export default async function TenantAdminPage({
 		redirect(`/${resolvedParams.subdomain}/login`);
 	}
 
-	const allowedRoles = new Set(["admin", "ceo", "cashier"]);
+	const allowedRoles = new Set(["owner", "admin", "ceo", "cashier"]);
 	let resolvedRole = String(adminRows?.role ?? "").toLowerCase() || null;
 
 	// Fallback: buscar por email si auth_user_id no retorna nada

@@ -45,22 +45,6 @@ export async function POST(req: NextRequest) {
     if (!token) {
       return NextResponse.json({ error: "Token faltante" }, { status: 400 });
     }
-    const paypalClientId = process.env.PAYPAL_CLIENT_ID ?? "";
-    const paypalClientSecret = process.env.PAYPAL_CLIENT_SECRET ?? "";
-    const isPayPal = subscriptionMethod === "paypal";
-
-    if (!STRIPE_SECRET && !isPayPal) {
-      return NextResponse.json(
-        { error: "Integración de pago no configurada" },
-        { status: 503 }
-      );
-    }
-    if (isPayPal && (!paypalClientId || !paypalClientSecret)) {
-      return NextResponse.json(
-        { error: "PayPal no configurado (PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET)" },
-        { status: 503 }
-      );
-    }
 
     const { data: app, error: appError } = await supabaseAdmin
       .from("onboarding_applications")
@@ -78,8 +62,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const manualMethodSlugs = ["pago_movil", "zelle", "transferencia"];
     const subscriptionMethod = (app.subscription_payment_method ?? "").trim().toLowerCase();
+    const isPayPal = subscriptionMethod === "paypal";
+    const paypalClientId = process.env.PAYPAL_CLIENT_ID ?? "";
+    const paypalClientSecret = process.env.PAYPAL_CLIENT_SECRET ?? "";
+
+    if (!STRIPE_SECRET && !isPayPal) {
+      return NextResponse.json(
+        { error: "Integración de pago no configurada" },
+        { status: 503 }
+      );
+    }
+    if (isPayPal && (!paypalClientId || !paypalClientSecret)) {
+      return NextResponse.json(
+        { error: "PayPal no configurado (PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET)" },
+        { status: 503 }
+      );
+    }
+
+    const manualMethodSlugs = ["pago_movil", "zelle", "transferencia"];
     const isManualPayment = manualMethodSlugs.includes(subscriptionMethod);
 
     let plan = null;
@@ -333,7 +334,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Error al registrar el pago" }, { status: 500 });
       }
 
-      let methodConfig: Record<string, string> = {};
+      const methodConfig: Record<string, string> = {};
       if (subscriptionMethod) {
         const { data: methodRow } = await supabaseAdmin
           .from("plan_payment_methods")
