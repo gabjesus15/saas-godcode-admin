@@ -31,7 +31,6 @@ import Image from "next/image";
 
 import { useCart } from "./use-cart";
 import { ordersService } from "./admin/kit/orders/services/orders";
-// import { validateRut } from "./utils/formatters";
 import { validateImageFile } from "./utils/cloudinary";
 import { getCloudinaryOptimizedUrl } from "./utils/cloudinary";
 // import eliminado porque no se usa

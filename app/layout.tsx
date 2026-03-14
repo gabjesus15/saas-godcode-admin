@@ -32,7 +32,9 @@ export default function RootLayout({
         <SaasThemeScope />
         <link rel="preconnect" href="https://saas-godcode-admin.vercel.app" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://res.cloudinary.com" crossOrigin="anonymous" />
-        <link rel="preconnect" href="https://YOUR_SUPABASE_PROJECT.supabase.co" crossOrigin="anonymous" />
+        {process.env.NEXT_PUBLIC_SUPABASE_URL ? (
+          <link rel="preconnect" href={process.env.NEXT_PUBLIC_SUPABASE_URL.replace(/\/$/, "")} crossOrigin="anonymous" />
+        ) : null}
         <link rel="preload" href="/fonts/outfit.css" as="style" />
         <link rel="preload" href="/fonts/Outfit-Regular.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
         <link rel="preload" href="/fonts/Outfit-Bold.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />

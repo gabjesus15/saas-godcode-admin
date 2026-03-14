@@ -98,6 +98,8 @@ export default async function TenantLayout({
 
   return (
     <>
+      <link rel="preconnect" href="https://res.cloudinary.com" />
+      <link rel="dns-prefetch" href="https://res.cloudinary.com" />
       <style>{tenantThemeCss}</style>
       <div className="tenant-theme-vars">
         <TenantShell>{children}</TenantShell>
