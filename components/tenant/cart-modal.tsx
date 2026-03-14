@@ -1017,17 +1017,16 @@ const OnlinePaymentDetails = ({ methodKey, cartTotal, activeInfo }: { methodKey:
       const data = methodData as BranchInfo['transferencia_bancaria'] | null | undefined;
       if (!data) return <p className="bank-empty-msg">Sin datos bancarios configurados.</p>;
       const bankName = data.banco;
-      const accNum = data.nro_cuenta || data.identificacion;
-      if (!bankName && !accNum) return <p className="bank-empty-msg">Sin datos bancarios configurados.</p>;
+      const hasAccount = data.nro_cuenta || data.identificacion;
+      if (!bankName && !hasAccount) return <p className="bank-empty-msg">Sin datos bancarios configurados.</p>;
       return (
         <ul className="bank-details-list">
           {bankName && <li><span>Banco:</span> <b>{bankName}</b></li>}
-          {data.tipo_cuenta && <li><span>Tipo:</span> <b>{data.tipo_cuenta}</b></li>}
-          {renderRow("Cuenta", accNum)}
-          {renderRow("ID/RUT", data.identificacion)}
-          {renderRow("Email", data.email)}
+          {data.tipo_cuenta && <li><span>Tipo de cuenta:</span> <b>{data.tipo_cuenta}</b></li>}
+          {renderRow("Número de cuenta", data.nro_cuenta)}
+          {renderRow("RUT / Cédula", data.identificacion)}
           {data.titular && <li><span>Titular:</span> <b>{data.titular}</b></li>}
-          {/* 'nombre' no existe en el tipo, omitido */}
+          {renderRow("Correo", data.email)}
         </ul>
       );
     }
@@ -1037,9 +1036,9 @@ const OnlinePaymentDetails = ({ methodKey, cartTotal, activeInfo }: { methodKey:
       if (!data || !data.telefono || !data.banco) return <p className="bank-empty-msg">Sin datos de Pago Móvil.</p>;
       return (
         <ul className="bank-details-list">
-          <li><span>Banco:</span> <b>{data.banco}</b></li>
+          {data.banco && <li><span>Banco:</span> <b>{data.banco}</b></li>}
           {renderRow("Teléfono", data.telefono)}
-          {renderRow("C.I.", data.identificacion)}
+          {renderRow("Cédula", data.identificacion)}
         </ul>
       );
     }
@@ -1049,20 +1048,34 @@ const OnlinePaymentDetails = ({ methodKey, cartTotal, activeInfo }: { methodKey:
       if (!data || !data.email) return <p className="bank-empty-msg">Sin datos de Zelle.</p>;
       return (
         <ul className="bank-details-list">
-          {renderRow("Email", data.email)}
+          {renderRow("Correo Zelle", data.email)}
           {data.name && <li><span>Titular:</span> <b>{data.name}</b></li>}
         </ul>
       );
     }
 
     // Fallback genérico para otros métodos (stripe, mercadopago, paypal, etc)
-    // Muestra todos los campos string configurados en el objeto JSON de la sucursal
+    const CART_CONFIG_LABELS: Record<string, string> = {
+      email: "Correo",
+      name: "Titular",
+      banco: "Banco",
+      telefono: "Teléfono",
+      identificacion: "RUT / Cédula",
+      tipo_cuenta: "Tipo de cuenta",
+      nro_cuenta: "Número de cuenta",
+      titular: "Titular",
+      connected: "Conectado",
+    };
     const entries = Object.entries(methodData).filter(([, v]) => v && typeof v === "string");
-
     if (entries.length > 0) {
       return (
         <ul className="bank-details-list">
-          {entries.map(([k, v]) => renderRow(k.replace(/_/g, " "), v as string))}
+          {entries.map(([k, v]) => (
+            <li key={k} className="copy-row" onClick={() => copyToClipboard(v as string)}>
+              <span className="copy-row-label">{CART_CONFIG_LABELS[k] ?? k.replace(/_/g, " ")}:</span>{" "}
+              <div className="copy-row-value"><b>{v as string}</b> <Copy size={14} /></div>
+            </li>
+          ))}
         </ul>
       );
     }

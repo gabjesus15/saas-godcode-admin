@@ -16,7 +16,50 @@ type Method = {
 	config: Record<string, string>;
 };
 
-const COMMON_KEYS = ["phone", "email", "bank", "account_number", "reference", "instructions"];
+/** Métodos que se cobran con .env; no tienen formulario de datos */
+const ONLINE_METHOD_SLUGS = ["paypal", "stripe"];
+
+/** Campos por método: solo los que tienen sentido para cada uno (datos que verá el cliente al pagar) */
+const METHOD_FIELDS: Record<string, { key: string; label: string; placeholder?: string }[]> = {
+	pago_movil: [
+		{ key: "banco", label: "Banco", placeholder: "Ej: Mercantil, Banesco" },
+		{ key: "telefono", label: "Teléfono", placeholder: "Ej: 0412-1234567" },
+		{ key: "identificacion", label: "Cédula", placeholder: "Ej: V-12345678" },
+	],
+	zelle: [
+		{ key: "email", label: "Correo Zelle", placeholder: "Ej: pagos@tuempresa.com" },
+		{ key: "name", label: "Nombre del titular", placeholder: "Ej: Juan Pérez" },
+	],
+	transferencia: [
+		{ key: "banco", label: "Banco", placeholder: "Ej: Banco de Chile" },
+		{ key: "tipo_cuenta", label: "Tipo de cuenta", placeholder: "Ej: Cuenta corriente" },
+		{ key: "nro_cuenta", label: "Número de cuenta", placeholder: "Ej: 1234567890" },
+		{ key: "identificacion", label: "RUT / Cédula", placeholder: "Ej: 12.345.678-9" },
+		{ key: "titular", label: "Nombre del titular", placeholder: "Ej: Tu empresa SpA" },
+		{ key: "email", label: "Correo (opcional)", placeholder: "Para confirmación" },
+	],
+	transferencia_bancaria: [
+		{ key: "banco", label: "Banco", placeholder: "Ej: Banco de Chile" },
+		{ key: "tipo_cuenta", label: "Tipo de cuenta", placeholder: "Ej: Cuenta corriente" },
+		{ key: "nro_cuenta", label: "Número de cuenta", placeholder: "Ej: 1234567890" },
+		{ key: "identificacion", label: "RUT / Cédula", placeholder: "Ej: 12.345.678-9" },
+		{ key: "titular", label: "Nombre del titular", placeholder: "Ej: Tu empresa SpA" },
+		{ key: "email", label: "Correo (opcional)", placeholder: "Para confirmación" },
+	],
+};
+
+/** Si el método no está en METHOD_FIELDS, usamos estos como fallback */
+const FALLBACK_KEYS = [
+	{ key: "phone", label: "Teléfono", placeholder: "Ej: 0412-1234567" },
+	{ key: "email", label: "Correo", placeholder: "Ej: pagos@ejemplo.com" },
+	{ key: "bank", label: "Banco", placeholder: "Ej: Nombre del banco" },
+	{ key: "account_number", label: "Número de cuenta", placeholder: "Ej: 1234567890" },
+	{ key: "instructions", label: "Instrucciones", placeholder: "Ej: Indicar nombre en el pago" },
+];
+
+function getFieldsForMethod(slug: string) {
+	return METHOD_FIELDS[slug] ?? FALLBACK_KEYS;
+}
 
 export default function PlanPaymentMethodsPage() {
 	const [methods, setMethods] = useState<Method[]>([]);
@@ -86,68 +129,75 @@ export default function PlanPaymentMethodsPage() {
 			)}
 
 			<div className="grid gap-4">
-				{methods.map((m) => (
-					<Card key={m.id} className="p-4 sm:p-5">
-						<div className="flex flex-wrap items-center justify-between gap-2">
-							<div>
-								<p className="font-medium text-zinc-900 dark:text-zinc-100">{m.name ?? m.slug}</p>
-								<p className="text-xs text-zinc-500">
-									{m.countries?.join(", ") || "—"} · {m.auto_verify ? "Auto-verificación" : "Validación manual"}
-								</p>
-							</div>
-							{editingId !== m.id ? (
-								<Button type="button" variant="outline" size="sm" onClick={() => startEdit(m)}>
-									Editar datos
-								</Button>
-							) : (
-								<div className="flex gap-2">
-									<Button type="button" size="sm" onClick={saveConfig} disabled={saving}>
-										{saving ? "Guardando…" : "Guardar"}
-									</Button>
-									<Button
-										type="button"
-										variant="outline"
-										size="sm"
-										onClick={() => { setEditingId(null); }}
-									>
-										Cancelar
-									</Button>
+				{methods.map((m) => {
+					const isOnline = ONLINE_METHOD_SLUGS.includes(m.slug);
+					return (
+						<Card key={m.id} className="p-4 sm:p-5">
+							<div className="flex flex-wrap items-center justify-between gap-2">
+								<div>
+									<p className="font-medium text-zinc-900 dark:text-zinc-100">{m.name ?? m.slug}</p>
+									<p className="text-xs text-zinc-500">
+										{m.countries?.join(", ") || "—"} · {m.auto_verify ? "Auto-verificación" : "Validación manual"}
+									</p>
 								</div>
-							)}
-						</div>
-						{editingId === m.id && (
-							<div className="mt-4 grid gap-3 sm:grid-cols-2">
-								{COMMON_KEYS.map((key) => (
-									<label key={key} className="flex flex-col gap-1 text-sm">
-										<span className="font-medium text-zinc-700 capitalize dark:text-zinc-300">
-											{key.replace(/_/g, " ")}
-										</span>
-										<Input
-											value={editConfig[key] ?? ""}
-											onChange={(e) =>
-												setEditConfig((prev) => ({ ...prev, [key]: e.target.value }))
-											}
-											placeholder={`Ej: ${key === "phone" ? "0412-1234567" : key === "email" ? "pagos@ejemplo.com" : ""}`}
-											className="h-10"
-										/>
-									</label>
-								))}
-							</div>
-						)}
-						{editingId !== m.id && Object.keys(m.config).length > 0 && (
-							<dl className="mt-3 grid gap-1 text-sm sm:grid-cols-2">
-								{Object.entries(m.config).map(([k, v]) => (
-									v ? (
-										<div key={k}>
-											<dt className="text-zinc-500 capitalize">{k.replace(/_/g, " ")}</dt>
-											<dd className="font-medium text-zinc-900 dark:text-zinc-100">{v}</dd>
+								{!isOnline && (
+									editingId !== m.id ? (
+										<Button type="button" variant="outline" size="sm" onClick={() => startEdit(m)}>
+											Editar datos
+										</Button>
+									) : (
+										<div className="flex gap-2">
+											<Button type="button" size="sm" onClick={saveConfig} disabled={saving}>
+												{saving ? "Guardando…" : "Guardar"}
+											</Button>
+											<Button
+												type="button"
+												variant="outline"
+												size="sm"
+												onClick={() => { setEditingId(null); }}
+											>
+												Cancelar
+											</Button>
 										</div>
-									) : null
-								))}
-							</dl>
-						)}
-					</Card>
-				))}
+									)
+								)}
+							</div>
+							{isOnline ? (
+								<p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+									Se configura con las variables de entorno (.env): {m.slug === "paypal" ? "PAYPAL_CLIENT_ID y PAYPAL_CLIENT_SECRET" : "STRIPE_SECRET_KEY"}. No hace falta cargar datos aquí; el cliente paga en la página de {m.name ?? m.slug}.
+								</p>
+							) : editingId === m.id ? (
+								<div className="mt-4 grid gap-3 sm:grid-cols-2">
+									{getFieldsForMethod(m.slug).map(({ key, label, placeholder }) => (
+										<label key={key} className="flex flex-col gap-1 text-sm">
+											<span className="font-medium text-zinc-700 dark:text-zinc-300">{label}</span>
+											<Input
+												value={editConfig[key] ?? ""}
+												onChange={(e) =>
+													setEditConfig((prev) => ({ ...prev, [key]: e.target.value }))
+												}
+												placeholder={placeholder ?? ""}
+												className="h-10"
+											/>
+										</label>
+									))}
+								</div>
+							) : null}
+							{!isOnline && editingId !== m.id && Object.keys(m.config).length > 0 && (
+								<dl className="mt-3 grid gap-1 text-sm sm:grid-cols-2">
+									{Object.entries(m.config).map(([k, v]) => (
+										v ? (
+											<div key={k}>
+												<dt className="text-zinc-500 capitalize">{k.replace(/_/g, " ")}</dt>
+												<dd className="font-medium text-zinc-900 dark:text-zinc-100">{v}</dd>
+											</div>
+										) : null
+									))}
+								</dl>
+							)}
+						</Card>
+					);
+				})}
 			</div>
 
 			{methods.length === 0 && !loading && (

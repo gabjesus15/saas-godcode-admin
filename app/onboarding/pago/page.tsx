@@ -11,7 +11,29 @@ const PAYMENT_INSTRUCTIONS_FALLBACK: Record<string, string> = {
 	pago_movil: "Realiza el pago por Pago Móvil con los datos que se muestran abajo. Luego sube el comprobante.",
 	zelle: "Realiza el pago por Zelle al correo indicado. Luego sube el comprobante.",
 	transferencia: "Realiza la transferencia a los datos bancarios indicados. Luego sube el comprobante.",
+	transferencia_bancaria: "Realiza la transferencia a los datos bancarios indicados. Luego sube el comprobante.",
 };
+
+/** Etiquetas amigables para los datos de pago que ve quien paga */
+const CONFIG_KEY_LABELS: Record<string, string> = {
+	banco: "Banco",
+	telefono: "Teléfono",
+	identificacion: "Cédula / RUT",
+	email: "Correo",
+	name: "Nombre del titular",
+	tipo_cuenta: "Tipo de cuenta",
+	nro_cuenta: "Número de cuenta",
+	titular: "Nombre del titular",
+	reference: "Referencia",
+	instructions: "Instrucciones",
+	phone: "Teléfono",
+	bank: "Banco",
+	account_number: "Número de cuenta",
+};
+
+function getConfigLabel(key: string): string {
+	return CONFIG_KEY_LABELS[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 type ManualData = {
 	amount_usd: number;
@@ -194,12 +216,14 @@ function PagoContent() {
 									{PAYMENT_INSTRUCTIONS_FALLBACK[manualData.method_slug] ?? "Realiza el pago con los datos indicados y sube tu comprobante."}
 								</p>
 								{Object.keys(manualData.method_config).length > 0 && (
-									<dl className="mt-3 space-y-1 text-xs">
+									<dl className="mt-3 space-y-1.5 text-sm">
 										{Object.entries(manualData.method_config).map(([key, value]) => (
-											<div key={key}>
-												<dt className="font-medium capitalize text-emerald-900">{key.replace(/_/g, " ")}</dt>
-												<dd className="text-emerald-800">{value}</dd>
-											</div>
+											value ? (
+												<div key={key}>
+													<dt className="font-medium text-emerald-900">{getConfigLabel(key)}</dt>
+													<dd className="mt-0.5 font-mono text-emerald-800">{value}</dd>
+												</div>
+											) : null
 										))}
 									</dl>
 								)}
