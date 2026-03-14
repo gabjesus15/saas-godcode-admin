@@ -1,30 +1,57 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 
 const STORAGE_KEY = "saas-theme";
 
+function getTheme(): "light" | "dark" {
+	if (typeof document === "undefined") return "light";
+	const stored = window.localStorage.getItem(STORAGE_KEY);
+	if (stored === "dark" || stored === "light") return stored;
+	return document.documentElement.classList.contains("dark") ? "dark" : "light";
+}
+
+function applyTheme(theme: "light" | "dark") {
+	const root = document.documentElement;
+	root.classList.toggle("dark", theme === "dark");
+	root.setAttribute("data-theme", theme);
+	window.localStorage.setItem(STORAGE_KEY, theme);
+}
+
 export function ThemeToggle() {
-  const toggleTheme = () => {
-    const root = document.documentElement;
-    const isDark = root.classList.contains("dark");
-    const nextTheme = isDark ? "light" : "dark";
+	const [theme, setTheme] = useState<"light" | "dark">("light");
+	const [mounted, setMounted] = useState(false);
 
-    root.classList.toggle("dark", nextTheme === "dark");
-    root.setAttribute("data-theme", nextTheme);
-    window.localStorage.setItem(STORAGE_KEY, nextTheme);
-  };
+	useEffect(() => {
+		setTheme(getTheme());
+		setMounted(true);
+	}, []);
 
-  return (
-    <button
-      type="button"
-      onClick={toggleTheme}
-      aria-label="Cambiar tema"
-      title="Cambiar tema"
-      className="fixed right-4 top-4 z-[100] inline-flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-white/90 text-zinc-700 shadow-sm backdrop-blur transition hover:bg-white dark:border-zinc-700 dark:bg-zinc-900/90 dark:text-zinc-100 dark:hover:bg-zinc-900"
-    >
-      <Sun size={18} className="hidden dark:block" />
-      <Moon size={18} className="block dark:hidden" />
-    </button>
-  );
+	const toggleTheme = () => {
+		const nextTheme = theme === "dark" ? "light" : "dark";
+		applyTheme(nextTheme);
+		setTheme(nextTheme);
+	};
+
+	if (!mounted) {
+		return (
+			<div
+				className="fixed right-4 top-4 z-[100] h-10 w-10 rounded-xl border border-zinc-200 bg-white/90 dark:border-zinc-700 dark:bg-zinc-900/90"
+				aria-hidden
+			/>
+		);
+	}
+
+	return (
+		<button
+			type="button"
+			onClick={toggleTheme}
+			aria-label="Cambiar tema"
+			title="Cambiar tema"
+			className="fixed right-4 top-4 z-[100] inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 bg-white/90 text-zinc-700 shadow-sm backdrop-blur transition hover:bg-white dark:border-zinc-700 dark:bg-zinc-900/90 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:h-10 sm:w-10 sm:rounded-xl"
+		>
+			{theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+		</button>
+	);
 }

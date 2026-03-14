@@ -73,7 +73,8 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
 
   return (
     <Card className="overflow-hidden p-0">
-      <div className="grid grid-cols-12 gap-4 border-b border-zinc-200 bg-zinc-50/80 px-6 py-4 text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900/70 dark:text-zinc-400">
+      {/* Header: solo en desktop */}
+      <div className="hidden border-b border-zinc-200 bg-zinc-50/80 px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900/70 dark:text-zinc-400 md:grid md:grid-cols-12 md:gap-4 md:px-6 md:py-4">
         <span className="col-span-4">Empresa</span>
         <span className="col-span-3">Plan</span>
         <span className="col-span-2">Estado</span>
@@ -98,9 +99,9 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
           return (
             <div
               key={company.id}
-              className="grid grid-cols-12 items-center gap-4 px-6 py-4 text-sm text-zinc-700 dark:text-zinc-300"
+              className="flex flex-col gap-4 border-zinc-200 p-4 dark:border-zinc-700 md:grid md:grid-cols-12 md:items-center md:gap-4 md:px-6 md:py-4 md:border-0"
             >
-              <div className="col-span-4">
+              <div className="min-w-0 md:col-span-4">
                 <Link
                   href={`/companies/${company.id}`}
                   className="font-semibold text-zinc-900 hover:underline dark:text-zinc-100"
@@ -119,32 +120,36 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
                   </Link>
                 ) : null}
               </div>
-              <div className="col-span-3">
+              <div className="min-w-0 md:col-span-3">
+                <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 md:normal-case md:tracking-normal md:text-zinc-900 dark:md:text-zinc-100">
+                  Plan
+                </p>
                 <p className="font-medium text-zinc-900 dark:text-zinc-100">
                   {plan?.name ?? "Sin plan"}
                 </p>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  {plan?.price ? `$${plan.price}` : "--"} · {plan?.max_branches ?? 0}
-                  {" "}
-                  sucursales
+                  {plan?.price ? `$${plan.price}` : "--"} · {plan?.max_branches ?? 0} sucursales
                 </p>
               </div>
-              <div className="col-span-2">
-                <div className="flex flex-col gap-2">
+              <div className="md:col-span-2">
+                <p className="mb-1 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 md:sr-only">
+                  Estado
+                </p>
+                <div className="flex flex-wrap gap-2">
                   <Badge variant={status.variant}>{status.label}</Badge>
                   {expiry ? (
                     <Badge variant={expiry.variant}>{expiry.label}</Badge>
                   ) : null}
                 </div>
               </div>
-              <div className="col-span-3 flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2 md:col-span-3">
                 <CompanyStatusToggle
                   companyId={company.id}
                   currentStatus={company.subscription_status}
                 />
                 <Link
                   href={`/companies/${company.id}`}
-                  className="inline-flex h-9 items-center rounded-xl border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  className="inline-flex h-9 min-w-0 items-center rounded-xl border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
                 >
                   Gestionar
                 </Link>

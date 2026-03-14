@@ -34,6 +34,11 @@ STRIPE_SECRET_KEY=sk_xxxx
 STRIPE_SUCCESS_URL=https://tudominio.com/checkout/success
 STRIPE_CANCEL_URL=https://tudominio.com/onboarding/pago
 
+# PayPal (opcional; si no configuras, solo Stripe y métodos manuales)
+PAYPAL_CLIENT_ID=xxxx
+PAYPAL_CLIENT_SECRET=xxxx
+# PAYPAL_ENVIRONMENT=production   # omitir o =sandbox para pruebas
+
 # URL base de la app (para links en emails)
 NEXT_PUBLIC_APP_URL=https://tudominio.com
 ```

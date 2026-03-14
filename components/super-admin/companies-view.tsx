@@ -36,31 +36,36 @@ export function CompaniesView({ companies }: CompaniesViewProps) {
   }, [companies, query]);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-semibold text-zinc-900">Empresas</h2>
-          <p className="text-sm text-zinc-500">
-            Busca y gestiona empresas rapidamente.
+    <div className="flex flex-col gap-4 sm:gap-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 sm:text-2xl">
+            Empresas
+          </h2>
+          <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+            Busca y gestiona empresas rápidamente.
           </p>
         </div>
-        <div className="flex w-full max-w-lg flex-wrap items-center justify-end gap-3">
-          <div className="w-full max-w-xs">
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-3 md:max-w-lg">
+          <div className="w-full min-w-0 sm:max-w-xs">
             <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Buscar empresa..."
+              className="w-full"
             />
           </div>
           <Link
             href="/companies/new"
-            className="inline-flex h-11 items-center rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
+            className="inline-flex h-10 min-w-0 items-center justify-center rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 sm:h-11"
           >
             Nueva empresa
           </Link>
         </div>
       </div>
-      <CompaniesTable companies={filtered} />
+      <div className="min-w-0 overflow-x-auto">
+        <CompaniesTable companies={filtered} />
+      </div>
     </div>
   );
 }

@@ -134,6 +134,7 @@ interface PaymentHistory {
   payment_date: string | null;
   payment_reference: string | null;
   months_paid: number | null;
+  reference_file_url?: string | null;
 }
 
 interface CompanyGlobalFormProps {
@@ -616,8 +617,28 @@ export function CompanyGlobalForm({
     paid: "success",
     approved: "success",
     pending: "warning",
+    pending_validation: "warning",
     rejected: "destructive",
     cancelled: "destructive",
+  };
+
+  const [validatingPaymentId, setValidatingPaymentId] = useState<string | null>(null);
+  const handleValidatePayment = async (paymentId: string) => {
+    setValidatingPaymentId(paymentId);
+    try {
+      const res = await fetch("/api/super-admin/payments/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payment_id: paymentId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Error al validar");
+      router.refresh();
+    } catch (err) {
+      setBillingError(err instanceof Error ? err.message : "Error al validar pago");
+    } finally {
+      setValidatingPaymentId(null);
+    }
   };
 
   const selectedPlan = useMemo(
@@ -1001,7 +1022,7 @@ export function CompanyGlobalForm({
             </label>
 
             <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
-              Estado
+              Estado (no se borran empresas, solo se suspenden o reactivan)
               <select
                 value={companyForm.subscription_status}
                 onChange={(e) => setCompanyForm((prev) => ({ ...prev, subscription_status: e.target.value }))}
@@ -1009,6 +1030,8 @@ export function CompanyGlobalForm({
               >
                 <option value="active">Activo</option>
                 <option value="suspended">Suspendido</option>
+                <option value="payment_pending">Pago pendiente</option>
+                <option value="trial">Prueba</option>
               </select>
             </label>
 
@@ -1333,6 +1356,7 @@ export function CompanyGlobalForm({
               {payments.map((payment) => {
                 const statusKey = payment.status?.toLowerCase() ?? "neutral";
                 const badge = statusMap[statusKey] ?? "neutral";
+                const isPendingValidation = payment.status === "pending_validation";
                 return (
                   <div key={payment.id} className="grid gap-3 px-4 py-3 text-sm md:grid-cols-5">
                     <div>
@@ -1365,6 +1389,27 @@ export function CompanyGlobalForm({
                       <p className="text-xs text-zinc-500">
                         {payment.months_paid ? `${payment.months_paid} mes(es)` : ""}
                       </p>
+                      {payment.reference_file_url && (
+                        <a
+                          href={payment.reference_file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-1 inline-block text-xs text-blue-600 hover:underline"
+                        >
+                          Ver comprobante
+                        </a>
+                      )}
+                      {isPendingValidation && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="mt-2"
+                          disabled={validatingPaymentId !== null}
+                          onClick={() => handleValidatePayment(payment.id)}
+                        >
+                          {validatingPaymentId === payment.id ? "Validando…" : "Validar pago"}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 );

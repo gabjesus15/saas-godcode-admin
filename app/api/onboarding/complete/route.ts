@@ -8,6 +8,8 @@ const supabaseAdmin = createClient(
 
 const VALID_STATUSES = new Set(["email_verified"]);
 
+type AddonChoice = { addon_id: string; quantity?: number; price_snapshot?: number };
+
 type CompleteBody = {
   token: string;
   legal_name?: string;
@@ -26,6 +28,10 @@ type CompleteBody = {
   custom_plan_name?: string;
   custom_plan_price?: string;
   custom_domain?: string;
+  /** Método con el que pagará la suscripción al SaaS (slug: stripe, pago_movil, zelle, transferencia) */
+  subscription_payment_method?: string;
+  /** Add-ons elegidos (servicios extra) */
+  addons?: AddonChoice[];
 };
 
 function sanitize(str: string | undefined, maxLen: number): string | null {
@@ -77,6 +83,7 @@ export async function POST(req: NextRequest) {
       custom_plan_name: sanitize(body.custom_plan_name, 100),
       custom_plan_price: sanitize(body.custom_plan_price, 20),
       custom_domain: sanitize(body.custom_domain, 100),
+      subscription_payment_method: sanitize(body.subscription_payment_method, 50),
       status: "form_completed",
       updated_at: new Date().toISOString(),
     };
@@ -88,6 +95,22 @@ export async function POST(req: NextRequest) {
 
     if (updateError) {
       return NextResponse.json({ error: "Error al guardar" }, { status: 500 });
+    }
+
+    const addons = Array.isArray(body.addons) ? body.addons : [];
+    await supabaseAdmin.from("onboarding_application_addons").delete().eq("application_id", app.id);
+    if (addons.length > 0) {
+      const rows = addons
+        .filter((a) => a?.addon_id && String(a.addon_id).trim())
+        .map((a) => ({
+          application_id: app.id,
+          addon_id: String(a.addon_id).trim(),
+          quantity: Math.max(1, Math.min(99, Number(a.quantity) || 1)),
+          price_snapshot: a.price_snapshot != null ? Number(a.price_snapshot) : null,
+        }));
+      if (rows.length > 0) {
+        await supabaseAdmin.from("onboarding_application_addons").insert(rows);
+      }
     }
 
     return NextResponse.json({

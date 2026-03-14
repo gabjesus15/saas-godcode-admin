@@ -64,7 +64,7 @@ export default function LoginPage() {
       <Card className="relative w-full max-w-md border-zinc-200/80 bg-white/90 p-7 shadow-[0_20px_50px_-22px_rgba(15,23,42,0.35)] dark:border-zinc-700/80 dark:bg-zinc-900/90 dark:shadow-[0_20px_50px_-22px_rgba(0,0,0,0.75)]">
         <div className="mb-7 flex flex-col items-center text-center">
           <div className="mb-4 flex flex-col items-center justify-center">
-            <span style={{fontFamily:'Nevis, sans-serif', fontSize:'2.2rem', color:'#14D9D9', fontWeight:'bold', letterSpacing:'-2px'}}>
+            <span style={{fontFamily:'Nevis, sans-serif', fontSize:'2.2rem', color:'#6d28d9', fontWeight:'bold', letterSpacing:'-2px'}}>
               {showGodCode ? (
                 <>
                   {godCodeLetters}

@@ -242,9 +242,9 @@ export default function TicketsManager() {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.15fr_1fr]">
-      <Card className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900/80">
-        <div className="mb-4 grid gap-3 md:grid-cols-5">
+    <div className="grid min-w-0 gap-4 sm:gap-6 lg:grid-cols-[1.15fr_1fr]">
+      <Card className="min-w-0 rounded-2xl border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900/80 sm:p-4">
+        <div className="mb-4 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-5">
           <select title="Selecciona una opción"
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value)}
@@ -354,8 +354,8 @@ export default function TicketsManager() {
         </div>
       </Card>
 
-      <div className="grid gap-6">
-        <Card className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900/80">
+      <div className="grid min-w-0 gap-4 sm:gap-6">
+        <Card className="min-w-0 rounded-2xl border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900/80 sm:p-4">
           <h3 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100">Crear ticket manual</h3>
           <div className="grid gap-3">
             <Input value={newCompanyId} onChange={(event) => setNewCompanyId(event.target.value)} placeholder="Company ID" />
@@ -398,7 +398,7 @@ export default function TicketsManager() {
           </div>
         </Card>
 
-        <Card className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900/80">
+        <Card className="min-w-0 rounded-2xl border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900/80 sm:p-4">
           {!selectedTicket ? (
             <p className="text-sm text-zinc-500 dark:text-zinc-400">Selecciona un ticket para gestionarlo.</p>
           ) : (
@@ -495,7 +495,7 @@ export default function TicketsManager() {
           )}
         </Card>
 
-        <Card className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-300">
+        <Card className="min-w-0 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-300 sm:p-4">
           <LifeBuoy className="mr-2 inline h-4 w-4" />
           Este tab centraliza tickets por empresa en una sola cola y aplica SLA básico por prioridad automáticamente.
         </Card>

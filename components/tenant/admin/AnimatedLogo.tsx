@@ -25,7 +25,7 @@ export function AnimatedLogo() {
   }, []);
 
   return (
-    <span style={{fontFamily:'Nevis, sans-serif', fontSize:'2.2rem', color:'#14D9D9', fontWeight:'bold', letterSpacing:'-2px'}}>
+    <span style={{fontFamily:'Nevis, sans-serif', fontSize:'2.2rem', color:'#6d28d9', fontWeight:'bold', letterSpacing:'-2px'}}>
       {letters}
       {animating && letters.length < 7 ? <span style={{color:'#888'}}>|</span> : null}
     </span>

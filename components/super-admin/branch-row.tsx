@@ -8,6 +8,8 @@ import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 import { requireAdminRole, roleSets } from "../../utils/admin";
 import { logAdminAction } from "../../utils/audit";
 
+import { ChevronDown, ChevronRight, MapPin, Phone } from "lucide-react";
+
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -213,33 +215,58 @@ function BranchView({ branch, onEdit }: { branch: Branch, onEdit: () => void }) 
 
     return (
         <>
-            <div className="grid grid-cols-6 gap-4 items-start p-4 border dark:border-zinc-800 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
-                <div className="col-span-2">
-                    <p className="font-semibold text-zinc-800 dark:text-zinc-200">{branch.name}</p>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">{branch.slug}</p>
+            <div className="grid min-w-0 grid-cols-1 gap-4 rounded-2xl border border-zinc-200 bg-white/80 p-4 shadow-sm backdrop-blur transition-colors hover:border-zinc-300 dark:border-zinc-700 dark:bg-zinc-900/80 dark:hover:border-zinc-600 sm:grid-cols-2 md:grid-cols-6 md:items-start sm:p-5">
+                <div className="min-w-0 md:col-span-2">
+                    <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                        {branch.name}
+                    </h3>
+                    <span className="mt-1 inline-block rounded-md bg-zinc-100 px-2 py-0.5 font-mono text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                        {branch.slug}
+                    </span>
                 </div>
-                <div className="col-span-2">
-                    <p className="text-sm text-zinc-600 dark:text-zinc-300">{branch.address}</p>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-300">{branch.phone}</p>
+                <div className="min-w-0 space-y-1.5 md:col-span-2">
+                    {branch.address ? (
+                        <div className="flex gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+                            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400 dark:text-zinc-500" aria-hidden />
+                            <span>{branch.address}</span>
+                        </div>
+                    ) : null}
+                    {branch.phone ? (
+                        <div className="flex gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+                            <Phone className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400 dark:text-zinc-500" aria-hidden />
+                            <span>{branch.phone}</span>
+                        </div>
+                    ) : null}
+                    {!branch.address && !branch.phone ? (
+                        <span className="text-sm text-zinc-400 dark:text-zinc-500">Sin dirección ni teléfono</span>
+                    ) : null}
                 </div>
-                <div>
-                    <Badge variant={branch.is_active ? "success" : "destructive"}>
+                <div className="flex flex-wrap items-center gap-3 md:col-span-2 md:justify-end">
+                    <Badge variant={branch.is_active ? "success" : "destructive"} className="shrink-0">
                         {branch.is_active ? "Activa" : "Suspendida"}
                     </Badge>
+                    <div className="flex shrink-0 gap-2">
+                        <Button onClick={onEdit} size="sm" variant="outline">
+                            Editar
+                        </Button>
+                        <Button onClick={() => setIsDeleting(true)} size="sm" variant="destructive">
+                            Eliminar
+                        </Button>
+                    </div>
                 </div>
-                <div className="flex justify-end gap-2">
-                    <Button onClick={onEdit} size="sm" variant="outline">Editar</Button>
-                    <Button onClick={() => setIsDeleting(true)} size="sm" variant="destructive">Eliminar</Button>
-                </div>
-                <div className="col-span-6 mt-4">
-                    <h4 className="font-semibold text-zinc-700 dark:text-zinc-300 mb-1">Métodos de Pago Activos</h4>
+                <div className="min-w-0 rounded-xl border border-zinc-100 bg-zinc-50/80 py-3 px-3 dark:border-zinc-700 dark:bg-zinc-800/50 md:col-span-6 md:px-4">
+                    <p className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                        Métodos de pago activos
+                    </p>
                     <div className="flex flex-wrap gap-2">
                         {branch.payment_methods && branch.payment_methods.length > 0 ? (
                             [...new Set(branch.payment_methods)].map((method) => (
-                                <Badge key={method} variant="neutral">{method.replace(/_/g, " ")}</Badge>
+                                <Badge key={method} variant="neutral" className="font-normal">
+                                    {method.replace(/_/g, " ")}
+                                </Badge>
                             ))
                         ) : (
-                            <span className="text-zinc-400 dark:text-zinc-500 text-sm">Ninguno</span>
+                            <span className="text-sm text-zinc-400 dark:text-zinc-500">Ninguno</span>
                         )}
                     </div>
                 </div>
@@ -272,7 +299,17 @@ function BranchEditForm({ branch, onCancel }: { branch: Branch, onCancel: () => 
     const supabase = createSupabaseBrowserClient("super-admin");
 
     const [globalError, setGlobalError] = useState<string | null>(null);
-    
+    const [expandedDetails, setExpandedDetails] = useState<Set<string>>(new Set());
+
+    const toggleDetail = (method: string) => {
+        setExpandedDetails((prev) => {
+            const next = new Set(prev);
+            if (next.has(method)) next.delete(method);
+            else next.add(method);
+            return next;
+        });
+    };
+
     // 1. Preparar valores iniciales
     const defaultValues: Partial<BranchFormValues> = {
             name: branch.name || "",
@@ -350,29 +387,33 @@ function BranchEditForm({ branch, onCancel }: { branch: Branch, onCancel: () => 
         }
     };
 
+    const inputSelectClass =
+        "mt-1 flex h-11 w-full min-w-0 rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-500";
+
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="p-4 my-4 border-2 border-blue-200 dark:border-zinc-800 rounded-lg bg-blue-50 dark:bg-zinc-900">
-             <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Renderizado de campos estáticos */}
+        <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="min-w-0 rounded-2xl border border-zinc-200 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/80 sm:p-5"
+        >
+            <div className="space-y-5 sm:space-y-6">
+                <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
                     {["name", "slug", "address", "phone", "instagram", "schedule", "country", "currency"].map(key => (
-                        <div key={key}>
-                            <label htmlFor={key} className="font-semibold text-zinc-800 dark:text-zinc-200 capitalize">{key.replace(/_/g, " ")}</label>
-                            
+                        <div key={key} className="min-w-0">
+                            <label htmlFor={key} className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 capitalize">
+                                {key.replace(/_/g, " ")}
+                            </label>
                             {key === "country" ? (
                                 <select
                                     id={key}
                                     {...register("country")}
                                     onChange={(e) => {
-                                        // Manejo manual de onChange para lógica extra (moneda), RHF mantiene el control
                                         register("country").onChange(e);
-                                        // Auto-selección de moneda (Mejora de UX)
                                         const val = e.target.value;
                                         if (val === "CL" && currentCurrency === branch.currency) setValue("currency", "CLP");
                                         if (val === "VE" && currentCurrency === branch.currency) setValue("currency", "VES");
                                         if (val === "US" && currentCurrency === branch.currency) setValue("currency", "USD");
                                     }}
-                                    className="mt-1 flex h-9 w-full rounded-md border border-zinc-200 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950 disabled:cursor-not-allowed disabled:opacity-50"
+                                    className={inputSelectClass}
                                 >
                                     <option value="">Selecciona país</option>
                                     {COUNTRY_OPTIONS.map(opt => (
@@ -380,86 +421,147 @@ function BranchEditForm({ branch, onCancel }: { branch: Branch, onCancel: () => 
                                     ))}
                                 </select>
                             ) : key === "currency" ? (
-                                <select
-                                    id={key}
-                                    {...register("currency")}
-                                    className="mt-1 flex h-9 w-full rounded-md border border-zinc-200 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
+                                <select id={key} {...register("currency")} className={inputSelectClass}>
                                     <option value="">Selecciona moneda</option>
                                     {CURRENCY_OPTIONS.map(opt => (
                                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                                     ))}
                                 </select>
                             ) : (
-                                <Input 
-                                    id={key} 
+                                <Input
+                                    id={key}
                                     {...register(key as keyof BranchFormValues)}
-                                    className="mt-1" 
+                                    className="mt-1 w-full min-w-0"
                                 />
                             )}
-                            
                             {errors[key as keyof BranchFormValues] && (
-                                <p className="text-red-500 text-xs mt-1">{errors[key as keyof BranchFormValues]?.message as string}</p>
+                                <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                                    {errors[key as keyof BranchFormValues]?.message as string}
+                                </p>
                             )}
                         </div>
                     ))}
                 </div>
 
-                <div>
-                    <h3 className="text-lg font-semibold border-b dark:border-zinc-700 pb-2 mb-3 text-zinc-800 dark:text-zinc-200">Métodos de Pago</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="border-t border-zinc-200 pt-4 dark:border-zinc-700">
+                    <h3 className="mb-3 text-base font-semibold text-zinc-800 dark:text-zinc-200 sm:text-lg">
+                        Métodos de Pago
+                    </h3>
+                    <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
                         {ALL_PAYMENT_METHODS.map(method => (
                             <div key={method} className="flex items-center gap-2">
-                                <Checkbox id={`edit-${method}`} checked={(currentPaymentMethods || []).includes(method)} onCheckedChange={() => handlePaymentMethodToggle(method)} />
-                                <label htmlFor={`edit-${method}`} className="capitalize font-medium text-zinc-800 dark:text-zinc-200">{method.replace(/_/g, " ")}</label>
+                                <Checkbox
+                                    id={`edit-${method}`}
+                                    checked={(currentPaymentMethods || []).includes(method)}
+                                    onCheckedChange={() => handlePaymentMethodToggle(method)}
+                                />
+                                <label htmlFor={`edit-${method}`} className="cursor-pointer text-sm font-medium capitalize text-zinc-700 dark:text-zinc-300">
+                                    {method.replace(/_/g, " ")}
+                                </label>
                             </div>
                         ))}
                     </div>
                 </div>
 
                 {(currentPaymentMethods || []).length > 0 && (
-                    <div>
-                        <h3 className="text-lg font-semibold border-b dark:border-zinc-700 pb-2 mb-3 text-zinc-800 dark:text-zinc-200">Detalles de Pago</h3>
-                        {(currentPaymentMethods || []).map(method => {
-                            // Obtener campos dinámicamente según el país actual del formulario
-                            const fields = paymentFieldsConfig[method];
-
-                            if (!fields) return null;
-                            return (
-                                <div key={method} className="p-3 my-2 border dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800">
-                                    <h4 className="font-semibold capitalize text-zinc-700 dark:text-zinc-300">{method.replace(/_/g, " ")}</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                                        {fields.map(field => (
-                                            <div key={field.key}>
-                                                <label htmlFor={`${method}-${field.key}`} className="text-sm text-zinc-600 dark:text-zinc-300">{field.label}</label>
-                                                <Input 
-                                                      id={`${method}-${field.key}`}
-                                                    {...register(
-                                                        `${method}.${field.key}` as
-                                                        | `pago_movil.${string}`
-                                                        | `zelle.${string}`
-                                                        | `transferencia_bancaria.${string}`
-                                                        | `stripe.${string}`
-                                                        | `mercadopago.${string}`
-                                                        | `paypal.${string}`
-                                                    )}
-                                                      className="mt-1"
-                                                      placeholder={field.label}
-                                                />
+                    <div className="border-t border-zinc-200 pt-4 dark:border-zinc-700">
+                        <h3 className="mb-3 text-base font-semibold text-zinc-800 dark:text-zinc-200 sm:text-lg">
+                            Detalles de Pago
+                        </h3>
+                        <p className="mb-3 text-sm text-zinc-500 dark:text-zinc-400">
+                            Despliega cada método para completar sus datos.
+                        </p>
+                        <div className="space-y-2">
+                            {(currentPaymentMethods || []).map((method) => {
+                                const fields = paymentFieldsConfig[method];
+                                if (!fields) return null;
+                                const isOpen = expandedDetails.has(method);
+                                const methodLabel = method.replace(/_/g, " ");
+                                return (
+                                    <div
+                                        key={method}
+                                        className="min-w-0 overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800/50"
+                                    >
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleDetail(method)}
+                                            className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/80"
+                                            aria-expanded={isOpen}
+                                            aria-controls={`detail-${method}`}
+                                            id={`header-${method}`}
+                                        >
+                                            <span
+                                                className="flex h-6 w-6 shrink-0 items-center justify-center text-zinc-500 dark:text-zinc-400"
+                                                aria-hidden
+                                            >
+                                                {isOpen ? (
+                                                    <ChevronDown className="h-4 w-4" />
+                                                ) : (
+                                                    <ChevronRight className="h-4 w-4" />
+                                                )}
+                                            </span>
+                                            <span className="font-medium capitalize text-zinc-800 dark:text-zinc-200">
+                                                {methodLabel}
+                                            </span>
+                                        </button>
+                                        <div
+                                            id={`detail-${method}`}
+                                            role="region"
+                                            aria-labelledby={`header-${method}`}
+                                            className="grid transition-[grid-template-rows] duration-200 ease-out"
+                                            style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}
+                                        >
+                                            <div className="min-h-0 overflow-hidden">
+                                                <div className="border-t border-zinc-200 bg-zinc-50/50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900/50 sm:py-4">
+                                                    <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                                                        {fields.map((field) => (
+                                                            <div key={field.key} className="min-w-0">
+                                                                <label
+                                                                    htmlFor={`${method}-${field.key}`}
+                                                                    className="block text-xs font-medium text-zinc-600 dark:text-zinc-400"
+                                                                >
+                                                                    {field.label}
+                                                                </label>
+                                                                <Input
+                                                                    id={`${method}-${field.key}`}
+                                                                    {...register(
+                                                                        `${method}.${field.key}` as
+                                                                            | `pago_movil.${string}`
+                                                                            | `zelle.${string}`
+                                                                            | `transferencia_bancaria.${string}`
+                                                                            | `stripe.${string}`
+                                                                            | `mercadopago.${string}`
+                                                                            | `paypal.${string}`
+                                                                    )}
+                                                                    className="mt-1 w-full min-w-0"
+                                                                    placeholder={field.label}
+                                                                />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
                                             </div>
-                                        ))}
+                                        </div>
                                     </div>
-                                </div>
-                            )
-                        })}
+                                );
+                            })}
+                        </div>
                     </div>
                 )}
 
-                {globalError && <div className="p-3 text-sm text-red-800 bg-red-100 dark:bg-red-950 dark:text-red-200 rounded-lg">{globalError}</div>}
+                {globalError && (
+                    <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300">
+                        {globalError}
+                    </div>
+                )}
 
-                <div className="flex justify-end gap-3 pt-4 border-t dark:border-zinc-700">
-                    <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>Cancelar</Button>
-                    <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Guardando..." : "Guardar Cambios"}</Button>
+                <div className="flex flex-wrap justify-end gap-3 border-t border-zinc-200 pt-4 dark:border-zinc-700">
+                    <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+                        Cancelar
+                    </Button>
+                    <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? "Guardando..." : "Guardar Cambios"}
+                    </Button>
                 </div>
             </div>
         </form>

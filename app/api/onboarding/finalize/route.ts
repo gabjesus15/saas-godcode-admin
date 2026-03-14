@@ -51,13 +51,26 @@ export async function POST(req: NextRequest) {
     }
     const { data: paymentUpdated } = await supabaseAdmin
       .from("payments_history")
-      .select("status")
+      .select("status,months_paid")
       .eq("payment_reference", ref)
       .maybeSingle();
     const status = paymentUpdated?.status ?? payment.status;
+    const monthsPaid = paymentUpdated?.months_paid ?? 1;
     if (status !== "paid" && status !== "approved") {
       return NextResponse.json({ ok: true, message: "Pago aún no confirmado" });
     }
+
+    const now = new Date();
+    const endsAt = new Date(now);
+    endsAt.setDate(endsAt.getDate() + Math.max(1, Number(monthsPaid)) * 30);
+    await supabaseAdmin
+      .from("companies")
+      .update({
+        subscription_status: "active",
+        subscription_ends_at: endsAt.toISOString(),
+        updated_at: now.toISOString(),
+      })
+      .eq("id", payment.company_id);
 
     const { data: app, error: appError } = await supabaseAdmin
       .from("onboarding_applications")
@@ -142,6 +155,33 @@ export async function POST(req: NextRequest) {
         updated_at: new Date().toISOString(),
       })
       .eq("id", app.id);
+
+    const { data: appAddons } = await supabaseAdmin
+      .from("onboarding_application_addons")
+      .select("addon_id,quantity,price_snapshot")
+      .eq("application_id", app.id);
+    if (Array.isArray(appAddons) && appAddons.length > 0) {
+      const addonIds = [...new Set(appAddons.map((a) => a.addon_id))];
+      const { data: addonsMeta } = await supabaseAdmin.from("addons").select("id,type").in("id", addonIds);
+      const typeById = new Map((addonsMeta ?? []).map((a) => [a.id, a.type]));
+      const now = new Date();
+      const expiresBase = new Date(now);
+      expiresBase.setDate(expiresBase.getDate() + Math.max(1, Number(paymentUpdated?.months_paid ?? 1)) * 30);
+      for (const row of appAddons) {
+        const type = typeById.get(row.addon_id) ?? "one_time";
+        await supabaseAdmin.from("company_addons").upsert(
+          {
+            company_id: payment.company_id,
+            addon_id: row.addon_id,
+            status: "active",
+            price_paid: row.price_snapshot != null ? Number(row.price_snapshot) : null,
+            expires_at: type === "monthly" ? expiresBase.toISOString() : null,
+            updated_at: now.toISOString(),
+          },
+          { onConflict: "company_id,addon_id" }
+        );
+      }
+    }
 
     return NextResponse.json({
       ok: true,

@@ -7,7 +7,7 @@ export function AnimatedLogo() {
           fontSize: '2rem',
           fontWeight: 'bold',
           letterSpacing: '-2px',
-          color: 'var(--logo-color, #14D9D9)',
+          color: 'var(--logo-color, #6d28d9)',
           transition: 'color 0.2s',
         }}
         className="logo-godcode"
@@ -29,14 +29,14 @@ export function AnimatedLogo() {
       </div>
       <style>{`
         .logo-godcode {
-          color: #14D9D9;
+          color: #6d28d9;
         }
         .logo-slogan {
           color: #888;
         }
         @media (prefers-color-scheme: dark) {
           .logo-godcode {
-            color: #14D9D9;
+            color: #7c3aed;
           }
           .logo-slogan {
             color: #888;
@@ -44,7 +44,7 @@ export function AnimatedLogo() {
         }
         @media (prefers-color-scheme: light) {
           .logo-godcode {
-            color: #0A4C4C;
+            color: #6d28d9;
           }
           .logo-slogan {
             color: #444;

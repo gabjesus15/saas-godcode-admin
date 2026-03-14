@@ -1,46 +1,150 @@
-/* Onboarding - estilos premium */
+/* Onboarding - moderno, con personalidad sin pasarse */
 
 .onboarding-page {
   min-height: 100vh;
-  background: linear-gradient(160deg, #f8fafc 0%, #f1f5f9 40%, #e2e8f0 100%);
+  background:
+    linear-gradient(165deg, #f5f3ff 0%, #ede9fe 22%, #e5e7eb 45%, #d1d5db 100%);
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: manipulation;
 }
 
 .onboarding-page::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: 
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(16, 185, 129, 0.08), transparent),
-    radial-gradient(ellipse 60% 40% at 100% 50%, rgba(59, 130, 246, 0.06), transparent),
-    radial-gradient(ellipse 50% 30% at 0% 80%, rgba(16, 185, 129, 0.05), transparent);
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(124, 58, 237, 0.08), transparent 50%),
+    radial-gradient(ellipse 55% 40% at 85% 40%, rgba(139, 92, 246, 0.05), transparent 45%),
+    radial-gradient(ellipse 50% 35% at 15% 90%, rgba(124, 58, 237, 0.04), transparent 45%);
   pointer-events: none;
 }
 
 .onboarding-header {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(124, 58, 237, 0.06);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .onboarding-card {
-  background: #ffffff;
-  border-radius: 20px;
-  box-shadow: 
-    0 1px 2px rgba(0, 0, 0, 0.04),
-    0 8px 24px rgba(0, 0, 0, 0.06),
-    0 0 0 1px rgba(0, 0, 0, 0.03);
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  position: relative;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 24px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.04),
+    0 2px 6px rgba(0, 0, 0, 0.04),
+    0 12px 32px rgba(124, 58, 237, 0.06);
+  transition: box-shadow 0.3s ease, transform 0.25s ease, border-color 0.2s ease;
+}
+
+/* Acento corto centrado en la card (detalle discreto) */
+.onboarding-card::before {
+  content: "";
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(124, 58, 237, 0.6), transparent);
+  border-radius: 1px;
 }
 
 .onboarding-card:hover {
-  box-shadow: 
-    0 2px 4px rgba(0, 0, 0, 0.04),
-    0 12px 32px rgba(0, 0, 0, 0.08),
-    0 0 0 1px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 0 0 1px rgba(124, 58, 237, 0.08),
+    0 4px 12px rgba(0, 0, 0, 0.05),
+    0 20px 48px rgba(124, 58, 237, 0.08);
+}
+
+/* Onboarding siempre legible: inputs claros y texto oscuro (ignora dark mode) */
+.onboarding-page input:not([type="checkbox"]):not([type="radio"]),
+.onboarding-page textarea,
+.onboarding-page .onboarding-input {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border-color: #d1d5db !important;
+}
+
+.onboarding-page input::placeholder,
+.onboarding-page textarea::placeholder {
+  color: #6b7280 !important;
+}
+
+.onboarding-page input:focus,
+.onboarding-page textarea:focus,
+.onboarding-page .onboarding-input:focus {
+  border-color: #7c3aed !important;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15) !important;
+  outline: none !important;
+}
+
+.onboarding-page .onboarding-card label {
+  color: #374151 !important;
+}
+
+.onboarding-page .onboarding-card h2 {
+  color: #111827 !important;
+}
+
+/* Textos que no se pierdan: tamaño mínimo y contraste */
+.onboarding-page p,
+.onboarding-page .onboarding-card p,
+.onboarding-page .onboarding-success-card p {
+  color: #4b5563 !important;
+  font-size: clamp(0.875rem, 2.2vw, 1rem);
+  line-height: 1.5;
+}
+
+.onboarding-page .onboarding-card .text-sm,
+.onboarding-page .onboarding-card [class*="text-zinc-5"] {
+  color: #4b5563 !important;
+  font-size: min(0.9375rem, 4vw) !important;
+}
+
+.onboarding-page footer,
+.onboarding-page .onboarding-trust-line {
+  font-size: clamp(0.8125rem, 2vw, 0.875rem) !important;
+  color: #4b5563 !important;
+}
+
+.onboarding-page a:not(.onboarding-btn-primary):not(.onboarding-header-cta) {
+  color: #374151 !important;
+}
+
+.onboarding-page a:not(.onboarding-btn-primary):not(.onboarding-header-cta):hover {
+  color: #111827 !important;
+}
+
+/* Botón CTA del header: gradiente, profundidad y hover refinado */
+.onboarding-header-cta {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #6d28d9 0%, #7c3aed 50%, #8b5cf6 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.06),
+    0 4px 12px rgba(124, 58, 237, 0.35) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease !important;
+}
+
+.onboarding-header-cta:hover {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #5b21b6 0%, #6d28d9 50%, #7c3aed 100%) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.08),
+    0 8px 20px rgba(124, 58, 237, 0.4) !important;
+  transform: translateY(-1px);
+}
+
+.onboarding-header-cta:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3) !important;
 }
 
 .onboarding-input {
@@ -48,21 +152,21 @@
 }
 
 .onboarding-input:focus {
-  border-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
 }
 
 .onboarding-btn-primary {
-  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  background: linear-gradient(135deg, #6d28d9 0%, #7c3aed 100%);
   color: white;
   font-weight: 600;
-  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
-  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .onboarding-btn-primary:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.4);
 }
 
 .onboarding-btn-outline {
@@ -78,10 +182,10 @@
 }
 
 .onboarding-success-card {
-  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border: 1px solid rgba(16, 185, 129, 0.25);
   border-radius: 20px;
-  box-shadow: 0 4px 24px rgba(16, 185, 129, 0.12);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
 .onboarding-plan-option {
@@ -90,12 +194,87 @@
 }
 
 .onboarding-plan-option:hover {
-  border-color: #10b981 !important;
-  background: #f0fdf4 !important;
+  border-color: #7c3aed !important;
+  background: #f5f3ff !important;
 }
 
 .onboarding-plan-option.selected {
-  border-color: #10b981 !important;
-  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%) !important;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+  border-color: #7c3aed !important;
+  background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%) !important;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+}
+
+/* Validación y errores de campo */
+.onboarding-field-error,
+.onboarding .error {
+  display: block;
+  margin-top: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #dc2626;
+}
+
+.onboarding-input.is-invalid {
+  border-color: #f87171;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.1);
+}
+
+/* Secciones del formulario avanzado */
+.onboarding-section-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.onboarding-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #f3f4f6;
+}
+
+/* Entrada suave del contenido (modernidad sin ser ortero) */
+@keyframes onboarding-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.onboarding-main {
+  animation: onboarding-fade-in 0.5s ease-out forwards;
+}
+
+/* Línea decorativa bajo el hero (detalle premium) */
+.onboarding-hero-accent {
+  width: 48px;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #7c3aed, rgba(124, 58, 237, 0.4));
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Paginador: siempre legible, pastilla clara con toque de profundidad */
+.onboarding-step-pill {
+  background: rgba(255, 255, 255, 0.95);
+  color: #1f2937;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Footer más integrado */
+.onboarding-page footer {
+  background: rgba(255, 255, 255, 0.5);
+  border-top: 1px solid rgba(124, 58, 237, 0.08);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }

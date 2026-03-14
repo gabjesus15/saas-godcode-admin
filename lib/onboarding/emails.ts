@@ -9,7 +9,13 @@ export type OnboardingEmailType =
   | "verification"
   | "welcome"
   | "team_notification"
-  | "application_confirmation";
+  | "application_confirmation"
+  | "payment_reminder"
+  | "plan_expiring"
+  | "invoice"
+  | "site_ready"
+  | "status_suspended"
+  | "status_reactivated";
 
 interface BaseEmailParams {
   to: string;
@@ -47,11 +53,64 @@ interface TeamNotificationParams extends BaseEmailParams {
   dashboardUrl: string;
 }
 
+interface PaymentReminderParams extends BaseEmailParams {
+  type: "payment_reminder";
+  responsibleName: string;
+  businessName: string;
+  amount?: string;
+  paymentUrl?: string;
+}
+
+interface PlanExpiringParams extends BaseEmailParams {
+  type: "plan_expiring";
+  responsibleName: string;
+  businessName: string;
+  expiresAt: string;
+  panelUrl?: string;
+}
+
+interface InvoiceParams extends BaseEmailParams {
+  type: "invoice";
+  responsibleName: string;
+  businessName: string;
+  planName: string;
+  amount: string;
+  date: string;
+  reference?: string;
+}
+
+interface SiteReadyParams extends BaseEmailParams {
+  type: "site_ready";
+  responsibleName: string;
+  businessName: string;
+  siteUrl: string;
+}
+
+interface StatusSuspendedParams extends BaseEmailParams {
+  type: "status_suspended";
+  responsibleName: string;
+  businessName: string;
+  panelUrl?: string;
+}
+
+interface StatusReactivatedParams extends BaseEmailParams {
+  type: "status_reactivated";
+  responsibleName: string;
+  businessName: string;
+  panelUrl?: string;
+}
+
 type EmailParams =
   | VerificationEmailParams
   | ConfirmationEmailParams
   | WelcomeEmailParams
-  | TeamNotificationParams;
+  | TeamNotificationParams
+  | PaymentReminderParams
+  | PlanExpiringParams
+  | InvoiceParams
+  | SiteReadyParams
+  | StatusSuspendedParams
+  | StatusReactivatedParams;
 
 const baseStyles = `
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -148,6 +207,115 @@ function buildTeamNotification(p: TeamNotificationParams): { subject: string; ht
   return { subject, html };
 }
 
+function buildPaymentReminder(p: PaymentReminderParams): { subject: string; html: string } {
+  const subject = `Recordatorio de pago - ${p.businessName}`;
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="${baseStyles} padding: 24px;">
+  <div style="background: #fef3c7; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+    <h1 style="color: #92400e; font-size: 20px; margin: 0 0 16px;">Hola, ${p.responsibleName}</h1>
+    <p style="margin: 0 0 16px;">Tienes un pago pendiente para <strong>${p.businessName}</strong>.</p>
+    ${p.amount ? `<p style="margin: 0 0 16px;"><strong>Monto:</strong> ${p.amount}</p>` : ""}
+    ${p.paymentUrl ? `<p style="margin: 16px 0;"><a href="${p.paymentUrl}" style="display: inline-block; background: #d97706; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">Pagar ahora</a></p>` : ""}
+  </div>
+</body>
+</html>`;
+  return { subject, html };
+}
+
+function buildPlanExpiring(p: PlanExpiringParams): { subject: string; html: string } {
+  const subject = `Tu plan vence pronto - ${p.businessName}`;
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="${baseStyles} padding: 24px;">
+  <div style="background: #fef3c7; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+    <h1 style="color: #92400e; font-size: 20px; margin: 0 0 16px;">Hola, ${p.responsibleName}</h1>
+    <p style="margin: 0 0 16px;">La suscripción de <strong>${p.businessName}</strong> vence el <strong>${p.expiresAt}</strong>. Renueva para seguir activo.</p>
+    ${p.panelUrl ? `<p style="margin: 16px 0;"><a href="${p.panelUrl}" style="display: inline-block; background: #d97706; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">Ir al panel</a></p>` : ""}
+  </div>
+</body>
+</html>`;
+  return { subject, html };
+}
+
+function buildInvoice(p: InvoiceParams): { subject: string; html: string } {
+  const subject = `Factura / Resumen de pago - ${p.businessName}`;
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="${baseStyles} padding: 24px;">
+  <div style="background: #f0fdf4; border-radius: 12px; padding: 24px; margin-bottom: 24px; border: 1px solid #86efac;">
+    <h1 style="color: #166534; font-size: 20px; margin: 0 0 16px;">Resumen de pago</h1>
+    <p style="margin: 0 0 8px;">Hola, ${p.responsibleName}.</p>
+    <p style="margin: 0 0 16px;">Detalle del pago para <strong>${p.businessName}</strong>:</p>
+    <ul style="margin: 0; padding-left: 20px;">
+      <li><strong>Plan:</strong> ${p.planName}</li>
+      <li><strong>Monto:</strong> ${p.amount}</li>
+      <li><strong>Fecha:</strong> ${p.date}</li>
+      ${p.reference ? `<li><strong>Referencia:</strong> ${p.reference}</li>` : ""}
+    </ul>
+  </div>
+</body>
+</html>`;
+  return { subject, html };
+}
+
+function buildSiteReady(p: SiteReadyParams): { subject: string; html: string } {
+  const subject = `Tu sitio está listo - ${p.businessName}`;
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="${baseStyles} padding: 24px;">
+  <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border-radius: 12px; padding: 32px; margin-bottom: 24px;">
+    <h1 style="color: #065f46; font-size: 22px; margin: 0 0 16px;">¡Todo listo, ${p.responsibleName}!</h1>
+    <p style="margin: 0 0 16px;">La página de <strong>${p.businessName}</strong> ya está configurada y lista para funcionar.</p>
+    <p style="margin: 24px 0;"><a href="${p.siteUrl}" style="display: inline-block; background: #059669; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">Ver mi sitio</a></p>
+  </div>
+</body>
+</html>`;
+  return { subject, html };
+}
+
+function buildStatusSuspended(p: StatusSuspendedParams): { subject: string; html: string } {
+  const subject = `Suscripción suspendida - ${p.businessName}`;
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="${baseStyles} padding: 24px;">
+  <div style="background: #fef2f2; border-radius: 12px; padding: 24px; margin-bottom: 24px; border: 1px solid #fecaca;">
+    <h1 style="color: #991b1b; font-size: 20px; margin: 0 0 16px;">Hola, ${p.responsibleName}</h1>
+    <p style="margin: 0 0 16px;">La suscripción de <strong>${p.businessName}</strong> ha sido suspendida. Para reactivar, contacta a soporte o renueva tu plan.</p>
+    ${p.panelUrl ? `<p style="margin: 16px 0;"><a href="${p.panelUrl}" style="display: inline-block; background: #dc2626; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">Ir al panel</a></p>` : ""}
+  </div>
+</body>
+</html>`;
+  return { subject, html };
+}
+
+function buildStatusReactivated(p: StatusReactivatedParams): { subject: string; html: string } {
+  const subject = `Cuenta reactivada - ${p.businessName}`;
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="${baseStyles} padding: 24px;">
+  <div style="background: #ecfdf5; border-radius: 12px; padding: 24px; margin-bottom: 24px; border: 1px solid #a7f3d0;">
+    <h1 style="color: #065f46; font-size: 20px; margin: 0 0 16px;">Hola, ${p.responsibleName}</h1>
+    <p style="margin: 0 0 16px;">La cuenta de <strong>${p.businessName}</strong> ha sido reactivada. Ya puedes acceder de nuevo.</p>
+    ${p.panelUrl ? `<p style="margin: 16px 0;"><a href="${p.panelUrl}" style="display: inline-block; background: #059669; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">Ir al panel</a></p>` : ""}
+  </div>
+</body>
+</html>`;
+  return { subject, html };
+}
+
 export async function sendOnboardingEmail(params: EmailParams): Promise<{ ok: boolean; error?: string }> {
   const apiKey = params.apiKey;
   const from = params.from;
@@ -171,6 +339,24 @@ export async function sendOnboardingEmail(params: EmailParams): Promise<{ ok: bo
       break;
     case "team_notification":
       ({ subject, html } = buildTeamNotification(params));
+      break;
+    case "payment_reminder":
+      ({ subject, html } = buildPaymentReminder(params));
+      break;
+    case "plan_expiring":
+      ({ subject, html } = buildPlanExpiring(params));
+      break;
+    case "invoice":
+      ({ subject, html } = buildInvoice(params));
+      break;
+    case "site_ready":
+      ({ subject, html } = buildSiteReady(params));
+      break;
+    case "status_suspended":
+      ({ subject, html } = buildStatusSuspended(params));
+      break;
+    case "status_reactivated":
+      ({ subject, html } = buildStatusReactivated(params));
       break;
     default:
       return { ok: false, error: "Unknown email type" };

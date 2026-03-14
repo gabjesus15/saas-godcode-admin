@@ -5,6 +5,13 @@ import { SaasThemeScope } from "../../components/theme/saas-theme-scope";
 import { ThemeToggle } from "../../components/theme/theme-toggle";
 import { createSupabaseServerClient } from "../../utils/supabase/server";
 
+export const viewport = {
+	width: "device-width",
+	initialScale: 1,
+	maximumScale: 1,
+	userScalable: false,
+};
+
 export default async function SuperAdminLayout({
 	children,
 }: {

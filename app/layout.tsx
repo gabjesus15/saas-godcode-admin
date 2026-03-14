@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { SaasThemeScope } from "@/components/theme/saas-theme-scope";
 
 import "./globals.css";
 
@@ -29,7 +28,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <SaasThemeScope />
         <link rel="preconnect" href="https://saas-godcode-admin.vercel.app" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://res.cloudinary.com" crossOrigin="anonymous" />
         {process.env.NEXT_PUBLIC_SUPABASE_URL ? (

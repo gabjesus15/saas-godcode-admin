@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import rut from 'rut.js';
 import validator from 'validator';
 
@@ -10,10 +10,26 @@ import { uploadImage } from "../tenant/utils/cloudinary";
 
 type Plan = { id: string; name: string | null; price: number | null; max_branches: number | null };
 
+type PlanPaymentMethod = { id: string; slug: string; name: string | null; auto_verify: boolean; sort_order: number };
+
+type Addon = {
+  id: string;
+  slug: string;
+  name: string | null;
+  description: string | null;
+  price_one_time: number | null;
+  price_monthly: number | null;
+  type: string;
+  sort_order: number;
+};
+
+type AddonChoice = { addon_id: string; quantity: number; price_snapshot: number | null };
+
 export function OnboardingStep2Form({
   token,
   initialData,
   plans,
+  addons = [],
 }: {
   token: string;
   initialData: {
@@ -35,12 +51,24 @@ export function OnboardingStep2Form({
     custom_plan_price?: string | null;
     custom_domain?: string | null;
     business_name?: string | null;
+    subscription_payment_method?: string | null;
+    addons?: { addon_id: string; quantity?: number; price_snapshot?: number | null }[];
   };
   plans: Plan[];
+  addons?: Addon[];
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
+  const [planPaymentMethods, setPlanPaymentMethods] = useState<PlanPaymentMethod[]>([]);
+  const [selectedAddons, setSelectedAddons] = useState<AddonChoice[]>(() => {
+    const fromInitial = initialData.addons ?? [];
+    return fromInitial.map((a) => ({
+      addon_id: a.addon_id,
+      quantity: Math.max(1, Number(a.quantity) || 1),
+      price_snapshot: a.price_snapshot != null ? Number(a.price_snapshot) : null,
+    }));
+  });
   const [form, setForm] = useState({
     legal_name: initialData.legal_name ?? "",
     logo_url: initialData.logo_url ?? "",
@@ -59,7 +87,26 @@ export function OnboardingStep2Form({
     custom_plan_name: initialData.custom_plan_name ?? "",
     custom_plan_price: initialData.custom_plan_price ?? "",
     custom_domain: initialData.custom_domain ?? "",
+    subscription_payment_method: initialData.subscription_payment_method ?? "",
   });
+
+  useEffect(() => {
+    const country = form.country?.trim();
+    if (!country) {
+      setPlanPaymentMethods([]);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/onboarding/plan-payment-methods?country=${encodeURIComponent(country)}`)
+      .then((res) => res.json())
+      .then((json: { data?: PlanPaymentMethod[] }) => {
+        if (!cancelled && Array.isArray(json.data)) setPlanPaymentMethods(json.data);
+      })
+      .catch(() => {
+        if (!cancelled) setPlanPaymentMethods([]);
+      });
+    return () => { cancelled = true; };
+  }, [form.country]);
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -102,6 +149,8 @@ export function OnboardingStep2Form({
           custom_plan_name: form.custom_plan_name || undefined,
           custom_plan_price: form.custom_plan_price || undefined,
           custom_domain: form.custom_domain || undefined,
+          subscription_payment_method: form.subscription_payment_method || undefined,
+          addons: selectedAddons.length > 0 ? selectedAddons : undefined,
         }),
       });
 
@@ -189,7 +238,7 @@ export function OnboardingStep2Form({
           <select
             className="onboarding-input h-12 rounded-xl border border-zinc-200 bg-zinc-50/50 px-4 text-sm text-zinc-900 outline-none focus:bg-white"
             value={form.country}
-            onChange={(e) => setForm((p) => ({ ...p, country: e.target.value }))}
+            onChange={(e) => setForm((p) => ({ ...p, country: e.target.value, subscription_payment_method: "" }))}
             required
           >
             <option value="">Selecciona un país</option>
@@ -204,6 +253,28 @@ export function OnboardingStep2Form({
             <option value="Otro">Otro</option>
           </select>
         </label>
+
+        {planPaymentMethods.length > 0 && (
+          <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
+            Método de pago para tu suscripción *
+            <select
+              className="onboarding-input h-12 rounded-xl border border-zinc-200 bg-zinc-50/50 px-4 text-sm text-zinc-900 outline-none focus:bg-white"
+              value={form.subscription_payment_method}
+              onChange={(e) => setForm((p) => ({ ...p, subscription_payment_method: e.target.value }))}
+              required
+            >
+              <option value="">Selecciona cómo pagarás tu plan</option>
+              {planPaymentMethods.map((m) => (
+                <option key={m.id} value={m.slug}>
+                  {m.name ?? m.slug}
+                </option>
+              ))}
+            </select>
+            <span className="text-xs text-zinc-500">
+              Forma en que pagarás la suscripción al servicio (no los métodos que ofrecerás en tu negocio).
+            </span>
+          </label>
+        )}
 
         <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
           Nombre legal del negocio
@@ -271,7 +342,7 @@ export function OnboardingStep2Form({
               (form.country === 'Venezuela' && validator.isNumeric(form.billing_document) && form.billing_document.length >= 6 && form.billing_document.length <= 9) ||
               (form.country !== 'Chile' && form.country !== 'Venezuela' && form.billing_document.length > 4)
             ) && (
-              <span className="error">Documento inválido</span>
+              <span className="onboarding-field-error">Documento inválido</span>
             )}
           </div>
         </div>
@@ -376,6 +447,66 @@ export function OnboardingStep2Form({
             </label>
           </div>
         </div>
+
+        {addons.length > 0 && (
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50/30 p-5">
+            <h3 className="text-sm font-medium text-zinc-700">Servicios extra (opcional)</h3>
+            <p className="mt-1 text-xs text-zinc-500">Puedes añadir estos servicios a tu plan.</p>
+            <div className="mt-3 space-y-2">
+              {addons.map((addon) => {
+                const price = addon.type === "monthly" ? addon.price_monthly : addon.price_one_time;
+                const priceLabel =
+                  addon.type === "monthly"
+                    ? price != null
+                      ? `${currency.format(Number(price))}/mes`
+                      : ""
+                    : price != null
+                      ? `${currency.format(Number(price))} (pago único)`
+                      : "";
+                const isSelected = selectedAddons.some((a) => a.addon_id === addon.id);
+                return (
+                  <label
+                    key={addon.id}
+                    className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white p-3 transition hover:bg-zinc-50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setSelectedAddons((prev) => {
+                            if (checked) {
+                              const snap =
+                                addon.type === "monthly"
+                                  ? addon.price_monthly != null
+                                    ? Number(addon.price_monthly)
+                                    : null
+                                  : addon.price_one_time != null
+                                    ? Number(addon.price_one_time)
+                                    : null;
+                              return [...prev.filter((a) => a.addon_id !== addon.id), { addon_id: addon.id, quantity: 1, price_snapshot: snap }];
+                            }
+                            return prev.filter((a) => a.addon_id !== addon.id);
+                          });
+                        }}
+                        className="h-4 w-4 rounded border-zinc-300"
+                      />
+                      <div>
+                        <span className="font-medium text-zinc-900">{addon.name ?? addon.slug}</span>
+                        {addon.description ? (
+                          <p className="text-xs text-zinc-500">{addon.description}</p>
+                        ) : null}
+                      </div>
+                    </div>
+                    {priceLabel ? <span className="text-sm font-medium text-zinc-700">{priceLabel}</span> : null}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
                 <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700 mt-6">
                   Dominio propio (opcional)
                   <Input

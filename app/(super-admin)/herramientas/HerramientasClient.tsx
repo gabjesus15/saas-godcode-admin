@@ -7,11 +7,13 @@ const BroadcastsManager = dynamic(() => import("@/components/super-admin/broadca
 
 export function HerramientasClient() {
 	return (
-		<div className="space-y-6">
+		<div className="min-w-0 space-y-4 sm:space-y-6">
 			<div>
-				<h2 className="text-2xl font-bold text-zinc-900">Herramientas</h2>
-				<p className="mt-1 text-sm text-zinc-500">
-					Gestión de roles y configuración avanzada del sistema
+				<h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 sm:text-2xl">
+					Herramientas
+				</h2>
+				<p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+					Gestión de roles y configuración avanzada del sistema.
 				</p>
 			</div>
 

@@ -45,7 +45,7 @@ export default async function CompanyDetailPage({
         .order("price", { ascending: true }),
       supabase
         .from("payments_history")
-        .select("id,amount_paid,payment_method,status,payment_date,payment_reference,months_paid")
+        .select("id,amount_paid,payment_method,status,payment_date,payment_reference,months_paid,reference_file_url")
         .eq("company_id", resolvedParams.id)
         .order("payment_date", { ascending: false })
         .limit(10),
@@ -66,15 +66,15 @@ export default async function CompanyDetailPage({
     }
 
     return (
-      <div className="flex flex-col gap-6">
-        <div>
+      <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
+        <div className="min-w-0">
           <p className="text-xs uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
             Empresa
           </p>
-          <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
+          <h2 className="truncate text-xl font-semibold text-zinc-900 dark:text-zinc-100 sm:text-2xl">
             {company.name ?? "Sin nombre"}
           </h2>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">ID: {company.id}</p>
+          <p className="truncate text-sm text-zinc-500 dark:text-zinc-400">ID: {company.id}</p>
         </div>
 
         <CompanyTabs
@@ -95,10 +95,10 @@ export default async function CompanyDetailPage({
               id: "branches",
               label: "Sucursales",
               content: (
-                <div className="flex flex-col gap-6">
-                  <div className="rounded-2xl border border-zinc-200 bg-white/80 p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/80">
-                    <div className="mb-4">
-                      <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
+                  <div className="min-w-0 rounded-2xl border border-zinc-200 bg-white/80 p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/80 sm:p-5">
+                    <div className="mb-3 sm:mb-4">
+                      <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 sm:text-lg">
                         Nueva sucursal
                       </h3>
                       <p className="text-sm text-zinc-500 dark:text-zinc-400">
