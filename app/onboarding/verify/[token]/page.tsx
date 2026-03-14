@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useParams } from "next/navigation";
+import { useParams } from "next/navigation";
 
 const ERROR_NO_TOKEN = "Enlace inválido. Falta el token de verificación.";
 
 export default function OnboardingVerifyTokenPage() {
 	const params = useParams();
-	const router = useRouter();
 	const token = typeof params?.token === "string" ? params.token : null;
 	const [status, setStatus] = useState<"loading" | "ok" | "error">(() =>
 		token ? "loading" : "error"
@@ -25,10 +24,11 @@ export default function OnboardingVerifyTokenPage() {
 			.then((data) => {
 				if (data.ok) {
 					setStatus("ok");
-					// Pequeña espera para que el estado email_verified se propague antes de cargar /complete
+					// Redirigir con navegación completa para que /complete reciba el token en la URL
+					const completeUrl = `/onboarding/complete?token=${encodeURIComponent(token)}`;
 					const delay = 1200;
 					setTimeout(() => {
-						router.replace(`/onboarding/complete?token=${encodeURIComponent(token)}`);
+						window.location.href = completeUrl;
 					}, delay);
 				} else {
 					setStatus("error");
@@ -39,7 +39,7 @@ export default function OnboardingVerifyTokenPage() {
 				setStatus("error");
 				setMessage("Error de conexión. Intenta de nuevo.");
 			});
-	}, [token, router]);
+	}, [token]);
 
 	return (
 		<div className="relative flex min-h-[60vh] items-center justify-center px-6 py-16">
