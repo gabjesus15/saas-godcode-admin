@@ -85,7 +85,7 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
         return (
           <div
             key={company.id}
-            className="flex flex-col gap-4 border-zinc-200 p-4 dark:border-zinc-700 md:grid md:grid-cols-13 md:items-center md:gap-4 md:px-6 md:py-4 md:border-0"
+            className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/80 md:grid md:grid-cols-12 md:items-center md:gap-4 md:px-6 md:py-4"
           >
                       <div className="min-w-0 md:col-span-4">
                         <Link
@@ -128,7 +128,7 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
                           ) : null}
                         </div>
                       </div>
-                      <div className="md:col-span-2">
+                      <div className="md:col-span-1">
                         <p className="mb-1 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 md:sr-only">
                           Email verificado
                         </p>

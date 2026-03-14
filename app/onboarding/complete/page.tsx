@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
@@ -28,19 +29,23 @@ export default async function OnboardingCompletePage({
   async function fetchApp() {
     const { data, error } = await supabaseAdmin
       .from("onboarding_applications")
-      .select("id,status,legal_name,logo_url,fiscal_address,billing_address,billing_rut,billing_document,social_instagram,social_facebook,social_twitter,description,plan_id,business_name,country,currency,payment_methods,custom_plan_name,custom_plan_price,custom_domain,subscription_payment_method")
+      .select("id,status,legal_name,logo_url,fiscal_address,billing_address,billing_rut,social_instagram,social_facebook,social_twitter,description,plan_id,business_name,country,currency,custom_plan_name,custom_plan_price,custom_domain,subscription_payment_method")
       .eq("verification_token", token)
       .maybeSingle();
     return { app: data, error };
   }
 
   let { app, error } = await fetchApp();
-  if (error || !app) {
+  if (error) {
+    console.error("[ONBOARDING COMPLETE] Error al cargar aplicación:", error);
     return (
       <main className="onboarding-main relative mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-12 md:py-14">
         <div className="onboarding-card max-w-md mx-auto p-8 text-center">
           <h2 className="text-xl font-bold text-red-600 mb-4">Error de registro</h2>
           <p className="text-sm text-red-700">No se pudo cargar la aplicación. Intenta de nuevo o contacta soporte.</p>
+          <Link href="/onboarding" className="mt-4 inline-block text-sm font-medium text-zinc-900 underline hover:no-underline">
+            Volver al inicio
+          </Link>
         </div>
       </main>
     );
@@ -51,6 +56,9 @@ export default async function OnboardingCompletePage({
         <div className="onboarding-card max-w-md mx-auto p-8 text-center">
           <h2 className="text-xl font-bold text-red-600 mb-4">Aplicación no encontrada</h2>
           <p className="text-sm text-red-700">El enlace es inválido o la aplicación no existe.</p>
+          <Link href="/onboarding" className="mt-4 inline-block text-sm font-medium text-zinc-900 underline hover:no-underline">
+            Volver al inicio
+          </Link>
         </div>
       </main>
     );
@@ -65,11 +73,15 @@ export default async function OnboardingCompletePage({
     await new Promise((r) => setTimeout(r, waitMs));
     const retry = await fetchApp();
     if (retry.error || !retry.app) {
+      if (retry.error) console.error("[ONBOARDING COMPLETE] Error en reintento:", retry.error);
       return (
         <main className="onboarding-main relative mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-12 md:py-14">
           <div className="onboarding-card max-w-md mx-auto p-8 text-center">
             <h2 className="text-xl font-bold text-red-600 mb-4">Error de registro</h2>
             <p className="text-sm text-red-700">No se pudo cargar la aplicación. Intenta de nuevo o contacta soporte.</p>
+            <Link href="/onboarding" className="mt-4 inline-block text-sm font-medium text-zinc-900 underline hover:no-underline">
+              Volver al inicio
+            </Link>
           </div>
         </main>
       );
