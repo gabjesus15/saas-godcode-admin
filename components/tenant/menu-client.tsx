@@ -364,30 +364,19 @@ export function MenuClient({
     }
   }, [specialProducts.length, visibleCategories]);
 
+  // Solución robusta: flag y timeout para bloquear el observer tras click
+  const observerBlockRef = useRef(false);
   const scrollToCategory = useCallback((id: string) => {
-    setIsManualScrolling(true);
     setActiveCategory(id);
-
+    observerBlockRef.current = true;
     const element = document.getElementById(`section-${id}`);
     if (element) {
       element.scrollIntoView({ behavior: "smooth", block: "start" });
-      // Desactivar manual scrolling solo cuando el scroll realmente termina
-      let scrollTimeout: ReturnType<typeof setTimeout>;
-      const onScrollEnd = () => {
-        clearTimeout(scrollTimeout);
-        scrollTimeout = setTimeout(() => {
-          setIsManualScrolling(false);
-          window.removeEventListener("scroll", onScrollEnd);
-        }, 200);
-      };
-      window.addEventListener("scroll", onScrollEnd);
-      // Fallback por si no hay scroll
-      scrollTimeout = setTimeout(() => {
-        setIsManualScrolling(false);
-        window.removeEventListener("scroll", onScrollEnd);
-      }, 1200);
+      setTimeout(() => {
+        observerBlockRef.current = false;
+      }, 800); // Bloquea el observer por 800ms tras click
     } else {
-      setIsManualScrolling(false);
+      observerBlockRef.current = false;
     }
   }, []);
 
@@ -396,15 +385,18 @@ export function MenuClient({
 
     const observerOptions = {
       root: null,
-      rootMargin: "-140px 0px -70% 0px",
-      threshold: 0.6, // Solo activa si la sección está al menos 60% visible
+      rootMargin: "-80px 0px -80% 0px", // Ajusta para que la sección activa sea la más cercana al top
+      threshold: 0, // Detecta cualquier intersección
     };
 
     const observerCallback: IntersectionObserverCallback = (entries) => {
-      if (isManualScrolling) return;
-      const visible = entries.find((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.6);
-      if (visible) {
-        const id = visible.target.id.replace("section-", "");
+      if (observerBlockRef.current) return;
+      // Selecciona la sección más cercana al top
+      const sorted = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+      if (sorted.length > 0) {
+        const id = sorted[0].target.id.replace("section-", "");
         setActiveCategory(id);
       }
     };

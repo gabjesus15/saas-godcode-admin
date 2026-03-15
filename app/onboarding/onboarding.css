@@ -198,10 +198,12 @@
   background: #f5f3ff !important;
 }
 
+
+/* Uniforme: todos los planes igual, solo borde y fondo blanco */
 .onboarding-plan-option.selected {
   border-color: #7c3aed !important;
-  background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%) !important;
-  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+  background: #fff !important;
+  box-shadow: none;
 }
 
 /* Validación y errores de campo */

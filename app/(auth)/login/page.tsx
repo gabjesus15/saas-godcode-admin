@@ -1,5 +1,7 @@
 "use client";
 
+// Eliminar el CSS de scroll
+import { useEffect } from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
@@ -9,6 +11,16 @@ import { Card } from "../../../components/ui/card";
 import { createSupabaseBrowserClient } from "../../../utils/supabase/client";
 
 export default function LoginPage() {
+    // Previene zoom con control + scroll
+    useEffect(() => {
+      const handler = (e: WheelEvent) => {
+        if (e.ctrlKey) {
+          e.preventDefault();
+        }
+      };
+      window.addEventListener("wheel", handler, { passive: false });
+      return () => window.removeEventListener("wheel", handler);
+    }, []);
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

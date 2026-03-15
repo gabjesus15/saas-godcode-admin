@@ -117,26 +117,22 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
                           {plan?.price ? `$${plan.price}` : "--"} · {plan?.max_branches ?? 0} sucursales
                         </p>
                       </div>
-                      <div className="md:col-span-2">
-                        <p className="mb-1 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 md:sr-only">
-                          Estado
-                        </p>
-                        <div className="flex flex-wrap gap-2">
+                      <div className="md:col-span-2 flex flex-col items-start">
+                        <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 md:normal-case md:tracking-normal md:text-zinc-900 dark:md:text-zinc-100">ESTADO</p>
+                        <div className="flex flex-wrap gap-2 items-center">
                           <Badge variant={status.variant}>{status.label}</Badge>
                           {expiry ? (
                             <Badge variant={expiry.variant}>{expiry.label}</Badge>
                           ) : null}
                         </div>
                       </div>
-                      <div className="md:col-span-1">
-                        <p className="mb-1 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 md:sr-only">
-                          Email verificado
-                        </p>
-                        <div className="flex flex-wrap gap-2">
+                      <div className="md:col-span-1 flex flex-col items-start">
+                        <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 md:normal-case md:tracking-normal md:text-zinc-900 dark:md:text-zinc-100">EMAIL VERIFICADO</p>
+                        <div className="flex flex-wrap gap-2 items-center">
                           {company.status === "email_verified" || company.status === "form_completed" || company.email_verified_at ? (
-                            <span className="text-green-600 font-semibold">Sí</span>
+                            <span className="text-green-600 font-medium text-sm">Sí</span>
                           ) : (
-                            <span className="text-red-600 font-semibold">No</span>
+                            <span className="text-red-600 font-medium text-sm">No</span>
                           )}
                         </div>
                       </div>

@@ -204,84 +204,90 @@ export function PlansAdminClient({
 			)}
 
 			<div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-				{plans.map((plan) => (
-					<Card key={plan.id} className="flex min-w-0 flex-col gap-4 p-4 sm:p-5">
-						<div className="flex flex-wrap items-start justify-between gap-2">
-							<div>
-								<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-									{plan.name ?? "Sin nombre"}
-								</p>
-								<div className="mt-2 flex flex-wrap items-center gap-2">
-									<h3 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
-										{currency.format(Number(plan.price ?? 0))} / mes
-									</h3>
-									{plan.is_public === false ? (
-										<Badge variant="destructive">Solo interno</Badge>
-									) : null}
-									{rate ? (
-										<span className="text-xs text-zinc-500">
-											{clpCurrency.format(Number(plan.price ?? 0) * rate)} aprox
-										</span>
-									) : null}
-								</div>
-							</div>
-							<Button type="button" variant="outline" size="sm" onClick={() => startEdit(plan)}>
-								Editar
-							</Button>
-						</div>
-						{plan.name?.toLowerCase() === "basico" ? (
-							<div className="flex flex-col gap-3">
-								<div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
-									Incluye CRM, Caja y Menu.
-								</div>
-								<ul className="grid gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-									<li>1 sucursal incluida.</li>
-									<li>Sucursales extra: $100 / mes c/u.</li>
-									<li>Soporte basico.</li>
-								</ul>
-							</div>
-						) : plan.name?.toLowerCase().includes("beta") ? (
-							<div className="flex flex-col gap-3">
-								<div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700 dark:bg-sky-950/50 dark:text-sky-300">
-									Acceso gratis por 1 mes a casi todas las funciones.
-								</div>
-								<ul className="grid gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-									<li>CRM, Caja y Menu incluidos.</li>
-									<li>Sucursales ilimitadas durante el beta.</li>
-									<li>Soporte prioritario durante el mes gratis.</li>
-								</ul>
-							</div>
-						) : plan.name?.toLowerCase().includes("dev") ? (
-							<div className="flex flex-col gap-3">
-								<div className="rounded-xl border border-purple-200 bg-purple-50 px-4 py-3 text-sm text-purple-700 dark:bg-purple-950/50 dark:text-purple-300">
-									Plan interno con acceso ilimitado.
-								</div>
-								<ul className="grid gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-									<li>Acceso completo a todas las funciones.</li>
-									<li>Sucursales ilimitadas sin vencimiento.</li>
-									<li>Soporte directo para el equipo interno.</li>
-								</ul>
-							</div>
-						) : plan.features && Object.keys(plan.features).length > 0 ? (
-							<div className="flex flex-col gap-3">
-								<div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
-									Modulos incluidos:
-								</div>
-								<ul className="grid gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-									{Object.entries(plan.features)
-										.filter(([, enabled]) => enabled)
-										.map(([key]) => (
-											<li key={key}>{featureLabels[key] ?? key}</li>
-										))}
-								</ul>
-							</div>
-						) : (
-							<div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
-								Max sucursales: <span className="font-semibold">{plan.max_branches ?? 0}</span>
-							</div>
-						)}
-					</Card>
-				))}
+				   {plans.map((plan) => (
+					   <Card key={plan.id} className="flex min-w-0 flex-col gap-4 p-4 sm:p-5">
+						   <div className="flex flex-col gap-2">
+							   <div className="flex items-center justify-between">
+								   <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+									   {plan.name ?? "Sin nombre"}
+								   </p>
+								   <Button type="button" variant="outline" size="sm" onClick={() => startEdit(plan)}>
+									   Editar
+								   </Button>
+							   </div>
+							   <div className="flex items-center gap-2 mt-2">
+								   <h3 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
+									   {currency.format(Number(plan.price ?? 0))} / mes
+								   </h3>
+								   {plan.is_public === false ? (
+									   <Badge variant="destructive">Solo interno</Badge>
+								   ) : null}
+								   {rate ? (
+									   <span className="text-xs text-zinc-500">
+										   {clpCurrency.format(Number(plan.price ?? 0) * rate)} aprox
+									   </span>
+								   ) : null}
+							   </div>
+						   </div>
+						   <div className="flex flex-col gap-3">
+							   {/* Descripción y features unificados */}
+							   {plan.name?.toLowerCase() === "basico" && (
+								   <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+									   Incluye CRM, Caja y Menu.
+								   </div>
+							   )}
+							   {plan.name?.toLowerCase().includes("beta") && (
+								   <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700 dark:bg-sky-950/50 dark:text-sky-300">
+									   Acceso gratis por 1 mes a casi todas las funciones.
+								   </div>
+							   )}
+							   {plan.name?.toLowerCase().includes("dev") && (
+								   <div className="rounded-xl border border-purple-200 bg-purple-50 px-4 py-3 text-sm text-purple-700 dark:bg-purple-950/50 dark:text-purple-300">
+									   Plan interno con acceso ilimitado.
+								   </div>
+							   )}
+							   {plan.features && Object.keys(plan.features).length > 0 && (
+								   <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
+									   Modulos incluidos:
+								   </div>
+							   )}
+							   <ul className="grid gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+								   {/* Features y descripción */}
+								   {plan.name?.toLowerCase() === "basico" && (
+									   <>
+										   <li>1 sucursal incluida.</li>
+										   <li>Sucursales extra: $100 / mes c/u.</li>
+										   <li>Soporte basico.</li>
+									   </>
+								   )}
+								   {plan.name?.toLowerCase().includes("beta") && (
+									   <>
+										   <li>CRM, Caja y Menu incluidos.</li>
+										   <li>Sucursales ilimitadas durante el beta.</li>
+										   <li>Soporte prioritario durante el mes gratis.</li>
+									   </>
+								   )}
+								   {plan.name?.toLowerCase().includes("dev") && (
+									   <>
+										   <li>Acceso completo a todas las funciones.</li>
+										   <li>Sucursales ilimitadas sin vencimiento.</li>
+										   <li>Soporte directo para el equipo interno.</li>
+									   </>
+								   )}
+								   {plan.features && Object.keys(plan.features).length > 0 && (
+									   Object.entries(plan.features)
+										   .filter(([, enabled]) => enabled)
+										   .map(([key]) => (
+											   <li key={key}>{featureLabels[key] ?? key}</li>
+										   ))
+								   )}
+								   {!(plan.name?.toLowerCase() === "basico" || plan.name?.toLowerCase().includes("beta") || plan.name?.toLowerCase().includes("dev")) && !plan.features && (
+									   <li>Max sucursales: <span className="font-semibold">{plan.max_branches ?? 0}</span></li>
+								   )}
+							   </ul>
+						   </div>
+					   </Card>
+				   ))}
 			</div>
 		</div>
 	);
