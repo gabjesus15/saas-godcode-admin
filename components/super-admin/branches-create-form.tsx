@@ -1,6 +1,5 @@
 "use client";
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "../ui/button";
@@ -41,24 +40,40 @@ export function BranchesCreateForm({ companyId, businessInfo }: BranchesCreateFo
     currency: businessInfo?.currency ?? "",
   });
 
+  const [betaLimitReached, setBetaLimitReached] = useState(false);
+
+  // Check beta plan branch limit on mount
+  useEffect(() => {
+    async function checkBetaLimit() {
+      if (!companyId) return;
+      try {
+        const res = await fetch(`/api/branches/limit-beta?company_id=${encodeURIComponent(companyId)}`);
+        const json = await res.json();
+        setBetaLimitReached(json.allowed === false);
+      } catch {
+        setBetaLimitReached(false);
+      }
+    }
+    checkBetaLimit();
+  }, [companyId]);
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoading(true);
     setError(null);
-
     try {
       const permission = await requireAdminRole(roleSets.billing);
       if (!permission.ok) {
         throw new Error(permission.error);
       }
-
       const supabase = createSupabaseBrowserClient("super-admin");
       const finalSlug = form.slug.trim() || slugify(form.name);
-
       if (!finalSlug) {
         throw new Error("Define un slug valido para la sucursal.");
       }
-
+      if (betaLimitReached) {
+        throw new Error("El plan beta solo permite 2 sucursales.");
+      }
       const { data, error: insertError } = await supabase
         .from("branches")
         .insert({
@@ -73,11 +88,9 @@ export function BranchesCreateForm({ companyId, businessInfo }: BranchesCreateFo
         })
         .select("id")
         .single();
-
       if (insertError) {
         throw insertError;
       }
-
       await logAdminAction({
         action: "branch.create",
         targetType: "branch",
@@ -85,7 +98,6 @@ export function BranchesCreateForm({ companyId, businessInfo }: BranchesCreateFo
         companyId,
         metadata: { name: form.name, slug: finalSlug },
       });
-
       setForm({ name: "", slug: "", address: "", phone: "", is_active: true, country: businessInfo?.country ?? "", currency: businessInfo?.currency ?? "" });
       router.refresh();
     } catch (err) {
@@ -115,6 +127,9 @@ export function BranchesCreateForm({ companyId, businessInfo }: BranchesCreateFo
           className="w-full min-w-0"
         />
       </div>
+      {betaLimitReached && (
+        <div className="text-violet-600 text-sm mb-2">El plan beta solo permite 2 sucursales. No puedes crear más.</div>
+      )}
       <div className="min-w-0">
         <Input
           value={form.slug}

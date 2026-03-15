@@ -116,6 +116,11 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
                         <p className="text-xs text-zinc-500 dark:text-zinc-400">
                           {plan?.price ? `$${plan.price}` : "--"} · {plan?.max_branches ?? 0} sucursales
                         </p>
+                        {expiry && (
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                            {expiry.label}
+                          </p>
+                        )}
                       </div>
                       <div className="md:col-span-2 flex flex-col items-start">
                         <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 md:normal-case md:tracking-normal md:text-zinc-900 dark:md:text-zinc-100">ESTADO</p>

@@ -60,6 +60,7 @@ function PagoContent() {
 	const [referenceFile, setReferenceFile] = useState<File | null>(null);
 	const [referenceUploading, setReferenceUploading] = useState(false);
 	const [referenceSubmitted, setReferenceSubmitted] = useState(false);
+	const [planSummary, setPlanSummary] = useState<{ name: string; price: number; addons: Array<{ name: string; price: number }> } | null>(null);
 
 	const isVenezuela = manualData?.country === "Venezuela" || manualData?.country === "VE";
 
@@ -99,6 +100,14 @@ function PagoContent() {
 			if (data.paymentOptions && Array.isArray(data.paymentOptions) && data.paymentOptions.length > 0) {
 				setPaymentOptions(data.paymentOptions);
 				setSelectedPayment(data.paymentOptions.includes("Stripe") ? "Stripe" : data.paymentOptions[0]);
+			}
+
+			if (data.plan_name && data.plan_price) {
+				setPlanSummary({
+					name: data.plan_name,
+					price: data.plan_price,
+					addons: Array.isArray(data.addons) ? data.addons : [],
+				});
 			}
 
 			if (data.url) {
@@ -284,6 +293,24 @@ function PagoContent() {
 				</div>
 
 				<div className="onboarding-card space-y-6 p-6 sm:p-8">
+					{/* Plan summary */}
+					{planSummary && (
+						<div className="rounded-xl border border-zinc-200 bg-zinc-50/50 px-4 py-3 text-sm mb-4">
+							<div className="font-medium text-zinc-900">Plan seleccionado: {planSummary.name}</div>
+							<div className="mt-1 text-zinc-700">Precio: <span className="font-semibold">${planSummary.price.toFixed(2)} USD</span></div>
+							{planSummary.addons && planSummary.addons.length > 0 && (
+								<div className="mt-2">
+									<div className="font-medium text-zinc-900">Servicios extra:</div>
+									<ul className="mt-1 ml-4 list-disc text-zinc-700">
+										{planSummary.addons.map((addon, idx) => (
+											<li key={idx}>{addon.name} <span className="font-semibold">${addon.price.toFixed(2)} USD</span></li>
+										))}
+									</ul>
+								</div>
+							)}
+						</div>
+					)}
+
 					<label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
 						¿Por cuántos meses deseas suscribirte?
 						<select
@@ -299,36 +326,47 @@ function PagoContent() {
 						</select>
 					</label>
 
-					{paymentOptions.length > 1 && (
-						<div>
-							<label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
-								Método de pago
-								<select
-									value={selectedPayment}
-									onChange={(e) => {
-										setSelectedPayment(e.target.value);
+					{/* Payment options visually grouped */}
+					<div className="mt-6">
+						<div className="font-medium text-zinc-900 mb-2">Métodos de pago disponibles:</div>
+						<div className="flex flex-wrap gap-3">
+							{paymentOptions.map((opt) => (
+								<button
+									key={opt}
+									type="button"
+									className={`onboarding-payment-option px-4 py-2 rounded-xl border-2 font-medium text-sm ${selectedPayment === opt ? "border-violet-600 bg-violet-50" : "border-zinc-200 bg-white"}`}
+									onClick={() => {
+										setSelectedPayment(opt);
 										setInstructionsShown(null);
 									}}
-									className="onboarding-input h-12 rounded-xl border border-zinc-200 bg-zinc-50/50 px-4 text-sm text-zinc-900 outline-none focus:bg-white"
 								>
-									{paymentOptions.map((opt) => (
-										<option key={opt} value={opt}>{opt}</option>
-									))}
-								</select>
-							</label>
-							{selectedPayment !== "Stripe" && (
-								<p className="mt-2 text-xs text-zinc-500">
-									Al continuar verás las instrucciones para pagar con {selectedPayment}.
-								</p>
+									{opt}
+								</button>
+							))}
+						</div>
+						{selectedPayment !== "Stripe" && (
+							<p className="mt-2 text-xs text-zinc-500">
+								Al continuar verás las instrucciones para pagar con {selectedPayment}.
+							</p>
+						)}
+					</div>
+
+					{/* Total and conversion for Venezuela */}
+					{manualData && (
+						<div className="mt-6">
+							<div className="font-medium text-zinc-900">Total a pagar:</div>
+							<div className="text-2xl font-bold text-zinc-900 mt-1">${(manualData as ManualData).amount_usd.toFixed(2)} USD</div>
+							{isVenezuela && bcvRate != null && (
+								<div className="rounded-xl border border-zinc-200 bg-zinc-50/50 px-4 py-3 text-sm mt-3">
+									<p className="text-zinc-600">Equivalente aprox. (tasa BCV):</p>
+									<p className="font-semibold text-zinc-900">
+										{((manualData as ManualData).amount_usd * bcvRate).toFixed(2)} VES
+									</p>
+									<p className="mt-1 text-xs text-zinc-500">Tasa de referencia; el monto oficial es en USD.</p>
+								</div>
 							)}
 						</div>
 					)}
-
-					<p className="text-sm text-zinc-500">
-						{selectedPayment === "Stripe"
-							? "Aceptamos tarjetas de crédito y débito a través de Stripe. El pago es seguro y encriptado."
-							: `Pago con ${selectedPayment}. Sigue las instrucciones que te mostraremos.`}
-					</p>
 
 					{error && (
 						<div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
@@ -347,12 +385,12 @@ function PagoContent() {
 						onClick={handlePay}
 						loading={loading}
 						size="lg"
-						className="onboarding-btn-primary w-full rounded-xl py-6 text-base"
+						className="onboarding-btn-primary w-full rounded-xl py-6 text-base mt-6"
 					>
 						{selectedPayment === "Stripe" ? "Ir a pagar" : "Continuar con pago manual"}
 					</Button>
 
-					<p className="text-center text-xs text-zinc-500">
+					<p className="text-center text-xs text-zinc-500 mt-4">
 						Al continuar aceptas los términos de pago. Puedes cancelar la suscripción en cualquier momento.
 					</p>
 				</div>

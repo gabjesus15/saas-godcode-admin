@@ -53,6 +53,7 @@ export function OnboardingStep2Form({
     business_name?: string | null;
     subscription_payment_method?: string | null;
     addons?: { addon_id: string; quantity?: number; price_snapshot?: number | null }[];
+    email?: string | null;
   };
   plans: Plan[];
   addons?: Addon[];
@@ -89,6 +90,27 @@ export function OnboardingStep2Form({
     custom_domain: initialData.custom_domain ?? "",
     subscription_payment_method: initialData.subscription_payment_method ?? "",
   });
+
+  // Restricción para plan beta
+  const [betaDisabled, setBetaDisabled] = useState(false);
+  useEffect(() => {
+    async function checkBeta() {
+      // El id del plan beta debe ser el correcto
+      const betaPlan = plans.find(p => p.name?.toLowerCase().includes("beta"));
+      if (!betaPlan || !initialData.email) {
+        setBetaDisabled(false);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/onboarding/check-beta?email=${encodeURIComponent(initialData.email)}&plan_id=${betaPlan.id}`);
+        const json = await res.json();
+        setBetaDisabled(json.used === true);
+      } catch {
+        setBetaDisabled(false);
+      }
+    }
+    checkBeta();
+  }, [initialData.email, plans]);
 
   useEffect(() => {
     const country = form.country?.trim();
@@ -181,7 +203,7 @@ export function OnboardingStep2Form({
           </p>
         </div>
         <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
-          Moneda principal *
+          Moneda principal del negocio *
           <select
             className="onboarding-input h-12 rounded-xl border border-zinc-200 bg-zinc-50/50 px-4 text-sm text-zinc-900 outline-none focus:bg-white"
             value={form.currency}
@@ -199,82 +221,6 @@ export function OnboardingStep2Form({
             <option value="Otro">Otro</option>
           </select>
         </label>
-        <div className="flex flex-col gap-2 text-sm font-medium text-zinc-700 mt-4">
-          Métodos de pago disponibles *
-          <div className="flex flex-wrap gap-3">
-            {[
-              "Pago Móvil",
-              "Zelle",
-              "Transferencia bancaria",
-              "Stripe",
-              "MercadoPago",
-              "Efectivo",
-              "Tarjeta",
-              "PayPal",
-            ].map((method) => (
-              <label key={method} className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={form.payment_methods.includes(method)}
-                  onChange={(e) => {
-                    setForm((prev) => {
-                      const arr = prev.payment_methods;
-                      return {
-                        ...prev,
-                        payment_methods: e.target.checked
-                          ? [...arr, method]
-                          : arr.filter((m) => m !== method),
-                      };
-                    });
-                  }}
-                />
-                {method}
-              </label>
-            ))}
-          </div>
-        </div>
-        <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
-          País de la empresa *
-          <select
-            className="onboarding-input h-12 rounded-xl border border-zinc-200 bg-zinc-50/50 px-4 text-sm text-zinc-900 outline-none focus:bg-white"
-            value={form.country}
-            onChange={(e) => setForm((p) => ({ ...p, country: e.target.value, subscription_payment_method: "" }))}
-            required
-          >
-            <option value="">Selecciona un país</option>
-            <option value="Chile">Chile</option>
-            <option value="Venezuela">Venezuela</option>
-            <option value="Argentina">Argentina</option>
-            <option value="Colombia">Colombia</option>
-            <option value="México">México</option>
-            <option value="Perú">Perú</option>
-            <option value="España">España</option>
-            <option value="Estados Unidos">Estados Unidos</option>
-            <option value="Otro">Otro</option>
-          </select>
-        </label>
-
-        {planPaymentMethods.length > 0 && (
-          <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
-            Método de pago para tu suscripción *
-            <select
-              className="onboarding-input h-12 rounded-xl border border-zinc-200 bg-zinc-50/50 px-4 text-sm text-zinc-900 outline-none focus:bg-white"
-              value={form.subscription_payment_method}
-              onChange={(e) => setForm((p) => ({ ...p, subscription_payment_method: e.target.value }))}
-              required
-            >
-              <option value="">Selecciona cómo pagarás tu plan</option>
-              {planPaymentMethods.map((m) => (
-                <option key={m.id} value={m.slug}>
-                  {m.name ?? m.slug}
-                </option>
-              ))}
-            </select>
-            <span className="text-xs text-zinc-500">
-              Forma en que pagarás la suscripción al servicio (no los métodos que ofrecerás en tu negocio).
-            </span>
-          </label>
-        )}
 
         <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
           Nombre legal del negocio
@@ -387,64 +333,42 @@ export function OnboardingStep2Form({
           <div className="mt-2 grid gap-3 sm:grid-cols-2">
             {plans
               .filter((p) => !p.name?.toLowerCase().includes("dev"))
-              .map((plan) => (
-                <label
-                  key={plan.id}
-                  className={`onboarding-plan-option flex cursor-pointer items-center justify-between rounded-xl border-2 p-4 ${
-                    form.plan_id === plan.id ? "selected" : "border-zinc-200 bg-white"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="plan_id"
-                    value={plan.id}
-                    checked={form.plan_id === plan.id}
-                    onChange={(e) => setForm((p) => ({ ...p, plan_id: e.target.value, custom_plan_name: "", custom_plan_price: "" }))}
-                    className="sr-only"
-                  />
-                  <div>
-                    <span className="font-medium text-zinc-900">{plan.name ?? "Plan"}</span>
-                    <span className="ml-2 text-sm text-zinc-500">
-                      hasta {plan.max_branches ?? 1} sucursal{Number(plan.max_branches) > 1 ? "es" : ""}
+              .map((plan) => {
+                const isBeta = plan.name?.toLowerCase().includes("beta");
+                return (
+                  <label
+                    key={plan.id}
+                    className={`onboarding-plan-option flex cursor-pointer items-center justify-between rounded-xl border-2 p-4 ${
+                      form.plan_id === plan.id ? "selected" : "border-zinc-200 bg-white"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="plan_id"
+                      value={plan.id}
+                      checked={form.plan_id === plan.id}
+                      onChange={(e) => setForm((p) => ({ ...p, plan_id: e.target.value, custom_plan_name: "", custom_plan_price: "" }))}
+                      className="sr-only"
+                      disabled={isBeta && betaDisabled}
+                    />
+                    <div>
+                      <span className="font-medium text-zinc-900">{plan.name ?? "Plan"}</span>
+                      <span className="ml-2 text-sm text-zinc-500">
+                        hasta {isBeta ? 2 : plan.max_branches ?? 1} sucursal{(isBeta ? 2 : Number(plan.max_branches)) > 1 ? "es" : ""}
+                      </span>
+                      {isBeta && (
+                        <span className="block text-xs text-violet-600 mt-1">El plan beta permite máximo 2 sucursales.</span>
+                      )}
+                      {isBeta && betaDisabled && (
+                        <span className="block text-xs text-red-600 mt-1">Ya has usado el plan beta con este correo.</span>
+                      )}
+                    </div>
+                    <span className="font-semibold text-zinc-900">
+                      {currency.format(Number(plan.price ?? 0))}/mes
                     </span>
-                  </div>
-                  <span className="font-semibold text-zinc-900">
-                    {currency.format(Number(plan.price ?? 0))}/mes
-                  </span>
-                </label>
-              ))}
-            {/* Custom plan option */}
-            <label className={`onboarding-plan-option flex flex-col cursor-pointer rounded-xl border-2 p-4 ${form.plan_id === "custom" ? "selected" : "border-zinc-200 bg-white"}`}>
-              <div className="flex items-center gap-2 mb-2">
-                <input
-                  type="radio"
-                  name="plan_id"
-                  value="custom"
-                  checked={form.plan_id === "custom"}
-                  onChange={() => setForm((p) => ({ ...p, plan_id: "custom" }))}
-                  className="sr-only"
-                />
-                <span className="font-medium text-zinc-900">Plan personalizado</span>
-              </div>
-              {form.plan_id === "custom" && (
-                <div className="flex flex-col gap-2">
-                  <Input
-                    className="onboarding-input"
-                    value={form.custom_plan_name}
-                    onChange={(e) => setForm((p) => ({ ...p, custom_plan_name: e.target.value }))}
-                    placeholder="Nombre del plan personalizado"
-                  />
-                  <Input
-                    className="onboarding-input"
-                    type="number"
-                    min="0"
-                    value={form.custom_plan_price}
-                    onChange={(e) => setForm((p) => ({ ...p, custom_plan_price: e.target.value }))}
-                    placeholder="Precio mensual (ej: 10000)"
-                  />
-                </div>
-              )}
-            </label>
+                  </label>
+                );
+              })}
           </div>
         </div>
 
