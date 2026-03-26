@@ -43,6 +43,7 @@ describe("proxyToOnboardingBilling", () => {
 			headers: { "content-type": "application/json" },
 		});
 		const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(mockResponse);
+		vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const proxy = await getProxy();
 		const result = await proxy(makeReq(), "/api/onboarding/addons");
@@ -50,6 +51,7 @@ describe("proxyToOnboardingBilling", () => {
 		expect(result).not.toBeNull();
 		expect(result!.status).toBe(200);
 		expect(result!.headers.get("x-proxied-to")).toBe("onboarding-billing");
+		expect(result!.headers.get("x-proxy-duration-ms")).toBeDefined();
 
 		const [calledUrl, calledInit] = fetchSpy.mock.calls[0];
 		expect(calledUrl).toBe("http://localhost:3001/api/onboarding/addons");
@@ -63,6 +65,7 @@ describe("proxyToOnboardingBilling", () => {
 
 		const mockResponse = new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
 		const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(mockResponse);
+		vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const proxy = await getProxy();
 		const req = makeReq("GET", "http://localhost:3000/api/onboarding/addons?plan=basic");
@@ -78,6 +81,7 @@ describe("proxyToOnboardingBilling", () => {
 
 		const mockResponse = new Response("{}", { status: 201, headers: { "content-type": "application/json" } });
 		const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(mockResponse);
+		vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const proxy = await getProxy();
 		const req = new NextRequest("http://localhost:3000/api/onboarding/checkout", {
@@ -112,6 +116,7 @@ describe("proxyToOnboardingBilling", () => {
 
 		const mockResponse = new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
 		const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(mockResponse);
+		vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const proxy = await getProxy();
 		await proxy(makeReq(), "/api/onboarding/addons");

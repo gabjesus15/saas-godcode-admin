@@ -2,20 +2,31 @@ import { randomUUID } from "crypto";
 
 export type LogContext = {
 	requestId: string;
+	service?: string;
 	endpoint?: string;
 	method?: string;
 	[key: string]: unknown;
 };
 
-export function createRequestContext(endpoint: string, method: string): LogContext {
+export function createRequestContext(
+	endpoint: string,
+	method: string,
+	service = "bff"
+): LogContext {
 	return {
 		requestId: randomUUID(),
+		service,
 		endpoint,
 		method,
 	};
 }
 
-function formatLog(level: string, message: string, ctx?: LogContext, extra?: Record<string, unknown>): string {
+function formatLog(
+	level: string,
+	message: string,
+	ctx?: LogContext,
+	extra?: Record<string, unknown>
+): string {
 	const payload: Record<string, unknown> = {
 		level,
 		message,
@@ -39,3 +50,8 @@ export const logger = {
 		console.error(formatLog("error", message, ctx, extra));
 	},
 };
+
+export function startTimer(): () => number {
+	const start = performance.now();
+	return () => Math.round(performance.now() - start);
+}

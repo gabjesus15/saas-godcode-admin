@@ -1,18 +1,23 @@
 import { NextResponse } from "next/server";
 
 import { supabaseAdmin } from "../../../lib/supabase-admin";
+import { startTimer } from "../../../lib/logger";
+
+const startedAt = new Date().toISOString();
 
 export async function GET() {
 	const checks: Record<string, string> = {};
 	let healthy = true;
 
 	try {
+		const elapsed = startTimer();
 		const { error } = await supabaseAdmin
 			.from("companies")
 			.select("id")
 			.limit(1)
 			.maybeSingle();
 		checks.database = error ? "unhealthy" : "ok";
+		checks.database_latency_ms = String(elapsed());
 		if (error) healthy = false;
 	} catch {
 		checks.database = "unhealthy";
@@ -35,6 +40,7 @@ export async function GET() {
 		{
 			service: "onboarding-billing",
 			status: healthy ? "healthy" : "degraded",
+			started_at: startedAt,
 			timestamp: new Date().toISOString(),
 			checks,
 		},

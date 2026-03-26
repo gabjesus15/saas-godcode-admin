@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { flags, getOnboardingBillingBaseUrl } from "./feature-flags";
+import { logger, createRequestContext, startTimer } from "./logger";
 
 const SERVICE_API_KEY = process.env.SERVICE_API_KEY ?? "";
 
@@ -11,6 +12,9 @@ export async function proxyToOnboardingBilling(
 
 	const baseUrl = getOnboardingBillingBaseUrl();
 	if (!baseUrl) return null;
+
+	const ctx = createRequestContext(path, req.method, "bff-proxy");
+	const elapsed = startTimer();
 
 	try {
 		const url = new URL(path, baseUrl);
@@ -39,6 +43,13 @@ export async function proxyToOnboardingBilling(
 
 		const upstream = await fetch(url.toString(), init);
 		const responseBody = await upstream.text();
+		const durationMs = elapsed();
+
+		logger.info("proxy_request", ctx, {
+			upstream_url: url.toString(),
+			upstream_status: upstream.status,
+			duration_ms: durationMs,
+		});
 
 		return new NextResponse(responseBody, {
 			status: upstream.status,
@@ -46,10 +57,15 @@ export async function proxyToOnboardingBilling(
 			headers: {
 				"content-type": upstream.headers.get("content-type") ?? "application/json",
 				"x-proxied-to": "onboarding-billing",
+				"x-proxy-duration-ms": String(durationMs),
 			},
 		});
 	} catch (err) {
-		console.error("[service-proxy] Error proxying to onboarding-billing:", err);
+		const durationMs = elapsed();
+		logger.error("proxy_error", ctx, {
+			duration_ms: durationMs,
+			error: err instanceof Error ? err.message : String(err),
+		});
 		return null;
 	}
 }
