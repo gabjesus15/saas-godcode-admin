@@ -124,4 +124,45 @@ describe("proxyToOnboardingBilling", () => {
 		const sentHeaders = fetchSpy.mock.calls[0][1]!.headers as Headers;
 		expect(sentHeaders.get("host")).toBeNull();
 	});
+
+	it("proxy_only: retorna 503 si no hay URL configurada", async () => {
+		process.env.FF_ONBOARDING_BILLING_EXTERNAL = "proxy_only";
+		const proxy = await getProxy();
+		const result = await proxy(makeReq(), "/api/onboarding/addons");
+
+		expect(result).not.toBeNull();
+		expect(result!.status).toBe(503);
+	});
+
+	it("proxy_only: retorna 502 cuando fetch falla (sin fallback)", async () => {
+		process.env.FF_ONBOARDING_BILLING_EXTERNAL = "proxy_only";
+		process.env.ONBOARDING_BILLING_SERVICE_URL = "http://localhost:3001";
+		process.env.SERVICE_API_KEY = "k";
+
+		vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Connection refused"));
+		vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const proxy = await getProxy();
+		const result = await proxy(makeReq(), "/api/onboarding/addons");
+
+		expect(result).not.toBeNull();
+		expect(result!.status).toBe(502);
+		const body = await result!.json();
+		expect(body.error).toBe("Microservicio no disponible");
+	});
+
+	it("proxy_only: incluye x-proxy-mode header", async () => {
+		process.env.FF_ONBOARDING_BILLING_EXTERNAL = "proxy_only";
+		process.env.ONBOARDING_BILLING_SERVICE_URL = "http://localhost:3001";
+		process.env.SERVICE_API_KEY = "k";
+
+		const mockResponse = new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
+		vi.spyOn(globalThis, "fetch").mockResolvedValue(mockResponse);
+		vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const proxy = await getProxy();
+		const result = await proxy(makeReq(), "/api/onboarding/addons");
+
+		expect(result!.headers.get("x-proxy-mode")).toBe("proxy_only");
+	});
 });
