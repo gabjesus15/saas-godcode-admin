@@ -43,9 +43,9 @@ export function validateEnv(): void {
 
 	if (missing.length > 0) {
 		const msg = `[env] Variables obligatorias faltantes: ${missing.join(", ")}`;
-		const isRuntimeProduction =
-			process.env.NODE_ENV === "production" && process.env.NEXT_PHASE !== "phase-production-build";
-		if (isRuntimeProduction) {
+		const isBuild =
+			process.env.NEXT_PHASE === "phase-production-build" || !!process.env.CI;
+		if (process.env.NODE_ENV === "production" && !isBuild) {
 			throw new Error(msg);
 		}
 		console.error(msg);
