@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
+import { proxyToOnboardingBilling } from "../../../../lib/service-proxy";
 
 export async function GET(req: NextRequest) {
+  const proxied = await proxyToOnboardingBilling(req, "/api/onboarding/check-beta");
+  if (proxied) return proxied;
   const email = req.nextUrl.searchParams.get("email")?.toLowerCase();
   const plan_id = req.nextUrl.searchParams.get("plan_id");
   if (!email || !plan_id) {

@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
+import { proxyToOnboardingBilling } from "../../../../lib/service-proxy";
 
-/** Acepta JSON: { token, payment_reference, reference_file_url }.
- * reference_file_url es la URL ya subida (p. ej. desde Cloudinary en el cliente).
- * Alternativamente se podría aceptar FormData con file y subir aquí; por simplicidad
- * el cliente sube a Cloudinary y nos pasa la URL. */
 export async function POST(req: NextRequest) {
+	const proxied = await proxyToOnboardingBilling(req, "/api/onboarding/upload-payment-reference");
+	if (proxied) return proxied;
 	try {
 		const body = (await req.json().catch(() => ({}))) as {
 			token?: string;

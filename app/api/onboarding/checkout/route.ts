@@ -15,6 +15,7 @@ import {
 	recordPayment,
 	getManualMethodConfig,
 } from "../../../../lib/onboarding/checkout-service";
+import { proxyToOnboardingBilling } from "../../../../lib/service-proxy";
 
 const STRIPE_SECRET = process.env.STRIPE_SECRET_KEY ?? "";
 const STRIPE_SUCCESS_URL =
@@ -29,6 +30,8 @@ const STRIPE_CANCEL_URL =
 		: "http://localhost:3000/onboarding/pago");
 
 export async function POST(req: NextRequest) {
+	const proxied = await proxyToOnboardingBilling(req, "/api/onboarding/checkout");
+	if (proxied) return proxied;
 	try {
 		const body = (await req.json().catch(() => ({}))) as { token: string; months?: number };
 		const token = typeof body.token === "string" ? body.token.trim() : "";

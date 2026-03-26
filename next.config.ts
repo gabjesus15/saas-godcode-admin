@@ -24,6 +24,7 @@ const nextConfig: NextConfig = {
           "**/supabase-functions-backup/**",
           "**/tenant-template/**",
           "**/_vercel_exclude/**",
+          "**/services/**",
         ],
       };
     }

@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
 import { suspendExpiredSubscriptions } from "../../../../lib/onboarding/billing-activation";
+import { proxyToOnboardingBilling } from "../../../../lib/service-proxy";
 
-/** GET o POST con header Authorization: Bearer CRON_SECRET
- * Pasa a suspended las empresas con subscription_status = 'active' y subscription_ends_at < now.
- */
 export async function GET(req: NextRequest) {
+	const proxied = await proxyToOnboardingBilling(req, "/api/cron/subscription-status");
+	if (proxied) return proxied;
 	const secret = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
 	if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
 		return NextResponse.json({ error: "No autorizado" }, { status: 401 });

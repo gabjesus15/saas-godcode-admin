@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
+import { proxyToOnboardingBilling } from "../../../../lib/service-proxy";
 
 export async function GET(req: NextRequest) {
+  const proxied = await proxyToOnboardingBilling(req, "/api/onboarding/verify");
+  if (proxied) return proxied;
   const token = req.nextUrl.searchParams.get("token");
   console.log("[ONBOARDING VERIFY] Token recibido:", token);
   if (!token) {

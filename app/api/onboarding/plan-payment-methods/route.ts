@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
+import { proxyToOnboardingBilling } from "../../../../lib/service-proxy";
 
-/** Países que mapeamos a códigos para filtrar métodos (Chile, Venezuela, etc.) */
 const COUNTRY_NORMALIZE: Record<string, string> = {
 	Chile: "CL",
 	Venezuela: "VE",
@@ -11,6 +11,9 @@ const COUNTRY_NORMALIZE: Record<string, string> = {
 };
 
 export async function GET(req: NextRequest) {
+	const proxied = await proxyToOnboardingBilling(req, "/api/onboarding/plan-payment-methods");
+	if (proxied) return proxied;
+
 	const country = req.nextUrl.searchParams.get("country");
 	const normalized = country ? COUNTRY_NORMALIZE[country.trim()] ?? country.trim() : null;
 

@@ -6,12 +6,14 @@ import {
 } from "@paypal/paypal-server-sdk";
 
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
+import { proxyToOnboardingBilling } from "../../../../lib/service-proxy";
 
 const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID ?? "";
 const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET ?? "";
 
-/** GET: PayPal redirige aquí con ?token=ORDER_ID tras aprobar. Capturamos la orden y redirigimos a /checkout/success. */
 export async function GET(req: NextRequest) {
+	const proxied = await proxyToOnboardingBilling(req, "/api/onboarding/paypal-capture");
+	if (proxied) return proxied;
 	try {
 		const token = req.nextUrl.searchParams.get("token");
 		if (!token) {

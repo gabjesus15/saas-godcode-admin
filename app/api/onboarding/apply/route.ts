@@ -5,6 +5,7 @@ import { supabaseAdmin } from "../../../../lib/supabase-admin";
 import { getAppUrl } from "../../../../lib/app-url";
 import { sendOnboardingEmail } from "../../../../lib/onboarding/emails";
 import { verifyRecaptcha } from "../../../../lib/onboarding/recaptcha";
+import { proxyToOnboardingBilling } from "../../../../lib/service-proxy";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "";
 const RESEND_FROM = process.env.RESEND_FROM ?? "noreply@example.com";
@@ -29,6 +30,8 @@ function sanitize(str: string | undefined, maxLen: number): string {
 }
 
 export async function POST(req: NextRequest) {
+  const proxied = await proxyToOnboardingBilling(req, "/api/onboarding/apply");
+  if (proxied) return proxied;
   try {
     const body = (await req.json().catch(() => ({}))) as ApplyBody;
 

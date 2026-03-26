@@ -9,14 +9,14 @@ import {
 	getMonthsPaidFromPayment,
 } from "../../../../../lib/onboarding/billing-activation";
 import { provisionOnboardingWelcome } from "../../../../../lib/onboarding/welcome-provisioning";
+import { proxyToOnboardingBilling } from "../../../../../lib/service-proxy";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "";
 const RESEND_FROM = process.env.RESEND_FROM ?? "noreply@example.com";
 
-/** POST { "payment_id": "uuid" } o { "payment_reference": "manual-..." }
- * Valida un pago manual: status → paid, company → active + subscription_ends_at, y si es onboarding pendiente crea usuario y envía bienvenida.
- */
 export async function POST(req: NextRequest) {
+	const proxied = await proxyToOnboardingBilling(req, "/api/super-admin/payments/validate");
+	if (proxied) return proxied;
 	const ctx = createRequestContext("/api/super-admin/payments/validate", "POST");
 	const permission = await validateAdminRolesOnServer(["super_admin"]);
 	if (!permission.ok) {

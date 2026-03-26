@@ -11,11 +11,14 @@ import {
 	provisionOnboardingWelcome,
 	WelcomeProvisioningError,
 } from "../../../../lib/onboarding/welcome-provisioning";
+import { proxyToOnboardingBilling } from "../../../../lib/service-proxy";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "";
 const RESEND_FROM = process.env.RESEND_FROM ?? "noreply@example.com";
 
 export async function POST(req: NextRequest) {
+  const proxied = await proxyToOnboardingBilling(req, "/api/onboarding/finalize");
+  if (proxied) return proxied;
   const ctx = createRequestContext("/api/onboarding/finalize", "POST");
   try {
     const ref = req.nextUrl.searchParams.get("ref") ?? (await req.json().catch(() => ({}))).ref;
