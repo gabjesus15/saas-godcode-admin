@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import {
 	Client,
 	Environment,
@@ -7,439 +6,289 @@ import {
 	CheckoutPaymentIntent,
 } from "@paypal/paypal-server-sdk";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabaseAdmin } from "../../../../lib/supabase-admin";
+import {
+	isManualMethod,
+	resolveCheckoutPlan,
+	calculateAddonsTotalUsd,
+	provisionCompanyFromApplication,
+	recordPayment,
+	getManualMethodConfig,
+} from "../../../../lib/onboarding/checkout-service";
 
 const STRIPE_SECRET = process.env.STRIPE_SECRET_KEY ?? "";
 const STRIPE_SUCCESS_URL =
-  process.env.STRIPE_SUCCESS_URL ??
-  (process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN
-    ? `${process.env.NEXT_PUBLIC_TENANT_PROTOCOL || "https"}://${process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN}/checkout/success`
-    : "http://localhost:3000/checkout/success");
+	process.env.STRIPE_SUCCESS_URL ??
+	(process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN
+		? `${process.env.NEXT_PUBLIC_TENANT_PROTOCOL || "https"}://${process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN}/checkout/success`
+		: "http://localhost:3000/checkout/success");
 const STRIPE_CANCEL_URL =
-  process.env.STRIPE_CANCEL_URL ??
-  (process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN
-    ? `${process.env.NEXT_PUBLIC_TENANT_PROTOCOL || "https"}://${process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN}/onboarding/pago`
-    : "http://localhost:3000/onboarding/pago");
-
-function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .slice(0, 80) || "negocio";
-}
+	process.env.STRIPE_CANCEL_URL ??
+	(process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN
+		? `${process.env.NEXT_PUBLIC_TENANT_PROTOCOL || "https"}://${process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN}/onboarding/pago`
+		: "http://localhost:3000/onboarding/pago");
 
 export async function POST(req: NextRequest) {
-  try {
-    const body = (await req.json().catch(() => ({}))) as { token: string; months?: number };
-    const token = typeof body.token === "string" ? body.token.trim() : "";
-    const months = Math.min(12, Math.max(1, Number(body.months) || 1));
+	try {
+		const body = (await req.json().catch(() => ({}))) as { token: string; months?: number };
+		const token = typeof body.token === "string" ? body.token.trim() : "";
+		const months = Math.min(12, Math.max(1, Number(body.months) || 1));
 
-    if (!token) {
-      return NextResponse.json({ error: "Token faltante" }, { status: 400 });
-    }
+		if (!token) {
+			return NextResponse.json({ error: "Token faltante" }, { status: 400 });
+		}
 
-    const { data: app, error: appError } = await supabaseAdmin
-      .from("onboarding_applications")
-      .select(
-        "id,business_name,responsible_name,email,legal_name,logo_url,fiscal_address,billing_address,billing_rut,social_instagram,social_facebook,social_twitter,description,plan_id,country,payment_methods,currency,custom_plan_name,custom_plan_price,custom_domain,company_id,subscription_payment_method"
-      )
-      .eq("verification_token", token)
-      .in("status", ["form_completed", "payment_pending"])
-      .maybeSingle();
+		const { data: app, error: appError } = await supabaseAdmin
+			.from("onboarding_applications")
+			.select(
+				"id,business_name,responsible_name,email,legal_name,logo_url,fiscal_address,billing_address,billing_rut,social_instagram,social_facebook,social_twitter,description,plan_id,country,payment_methods,currency,custom_plan_name,custom_plan_price,custom_domain,company_id,subscription_payment_method"
+			)
+			.eq("verification_token", token)
+			.in("status", ["form_completed", "payment_pending"])
+			.maybeSingle();
 
-    if (appError || !app) {
-      return NextResponse.json(
-        { error: "Solicitud no encontrada o incompleta" },
-        { status: 404 }
-      );
-    }
+		if (appError || !app) {
+			return NextResponse.json({ error: "Solicitud no encontrada o incompleta" }, { status: 404 });
+		}
 
-    const subscriptionMethod = (app.subscription_payment_method ?? "").trim().toLowerCase();
-    const isPayPal = subscriptionMethod === "paypal";
-    const paypalClientId = process.env.PAYPAL_CLIENT_ID ?? "";
-    const paypalClientSecret = process.env.PAYPAL_CLIENT_SECRET ?? "";
+		const subscriptionMethod = (app.subscription_payment_method ?? "").trim().toLowerCase();
+		const isPayPal = subscriptionMethod === "paypal";
+		const paypalClientId = process.env.PAYPAL_CLIENT_ID ?? "";
+		const paypalClientSecret = process.env.PAYPAL_CLIENT_SECRET ?? "";
 
-    if (!STRIPE_SECRET && !isPayPal) {
-      return NextResponse.json(
-        { error: "Integración de pago no configurada" },
-        { status: 503 }
-      );
-    }
-    if (isPayPal && (!paypalClientId || !paypalClientSecret)) {
-      return NextResponse.json(
-        { error: "PayPal no configurado (PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET)" },
-        { status: 503 }
-      );
-    }
+		if (!STRIPE_SECRET && !isPayPal) {
+			return NextResponse.json({ error: "Integración de pago no configurada" }, { status: 503 });
+		}
+		if (isPayPal && (!paypalClientId || !paypalClientSecret)) {
+			return NextResponse.json({ error: "PayPal no configurado (PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET)" }, { status: 503 });
+		}
 
-    const manualMethodSlugs = ["pago_movil", "zelle", "transferencia"];
-    const isManualPayment = manualMethodSlugs.includes(subscriptionMethod);
+		const isManualPayment = isManualMethod(subscriptionMethod);
 
-    let plan = null;
-    if (app.plan_id === "custom") {
-      plan = {
-        id: "custom",
-        name: app.custom_plan_name ?? "Plan personalizado",
-        price: Number(app.custom_plan_price ?? 0),
-      };
-    } else {
-      if (!app.plan_id) {
-        return NextResponse.json(
-          { error: "Debes seleccionar un plan antes de pagar" },
-          { status: 400 }
-        );
-      }
-      const { data: planData, error: planError } = await supabaseAdmin
-        .from("plans")
-        .select("id,name,price")
-        .eq("id", app.plan_id)
-        .maybeSingle();
-      if (planError || !planData) {
-        return NextResponse.json({ error: "Plan no encontrado" }, { status: 404 });
-      }
-      plan = planData;
-    }
+		const planResult = await resolveCheckoutPlan(supabaseAdmin, app);
+		if (!planResult.plan) {
+			return NextResponse.json({ error: planResult.error }, { status: planResult.status });
+		}
+		const plan = planResult.plan;
 
-    const { data: applicationAddonsRows } = await supabaseAdmin
-      .from("onboarding_application_addons")
-      .select("addon_id,quantity,price_snapshot")
-      .eq("application_id", app.id);
-    const applicationAddons = applicationAddonsRows ?? [];
-    let addonsTotalUsd = 0;
-    if (applicationAddons.length > 0) {
-      const addonIds = [...new Set(applicationAddons.map((a) => a.addon_id))];
-      const { data: addonsMeta } = await supabaseAdmin
-        .from("addons")
-        .select("id,type")
-        .in("id", addonIds);
-      const typeById = new Map((addonsMeta ?? []).map((a) => [a.id, a.type]));
-      for (const row of applicationAddons) {
-        const price = Number(row.price_snapshot ?? 0);
-        const qty = Math.max(1, Number(row.quantity) || 1);
-        const type = typeById.get(row.addon_id) ?? "one_time";
-        if (type === "monthly") addonsTotalUsd += price * qty * months;
-        else addonsTotalUsd += price * qty;
-      }
-    }
+		const addonsTotalUsd = await calculateAddonsTotalUsd(supabaseAdmin, app.id, months);
 
-    let company: { id: string } | null = null;
+		const companyResult = await provisionCompanyFromApplication(supabaseAdmin, app, isManualPayment);
+		if (!companyResult.ok) {
+			return NextResponse.json({ error: companyResult.error }, { status: companyResult.status });
+		}
+		const company = companyResult.company;
 
-    if (app.company_id) {
-      const { data: existing } = await supabaseAdmin
-        .from("companies")
-        .select("id")
-        .eq("id", app.company_id)
-        .maybeSingle();
-      company = existing;
-    }
+		const amountUsd = Number(plan.price ?? 0) * months + addonsTotalUsd;
 
-    if (!company) {
-      const baseSlug = slugify(app.business_name);
-      let publicSlug = baseSlug;
-      let suffix = 0;
-      while (true) {
-        const { data: existing } = await supabaseAdmin
-          .from("companies")
-          .select("id")
-          .eq("public_slug", publicSlug)
-          .maybeSingle();
-        if (!existing) break;
-        suffix += 1;
-        publicSlug = `${baseSlug}-${suffix}`;
-      }
+		if (isPayPal) {
+			return handlePayPalCheckout({
+				app, plan, company, amountUsd, months, token,
+				paypalClientId, paypalClientSecret,
+			});
+		}
 
-      const companyPayload = {
-        name: app.business_name,
-        legal_rut: app.billing_rut ?? null,
-        email: app.email,
-        phone: null,
-        address: app.fiscal_address ?? null,
-        public_slug: publicSlug,
-        plan_id: app.plan_id,
-        subscription_status: isManualPayment ? "payment_pending" : "trial",
-        custom_domain: app.custom_domain ?? null,
-        custom_plan_name: app.custom_plan_name ?? null,
-        custom_plan_price: app.custom_plan_price ?? null,
-        theme_config: {
-          displayName: app.business_name,
-          logoUrl: app.logo_url ?? null,
-          primaryColor: "#111827",
-          secondaryColor: "#111827",
-          roleNavPermissions: {
-            owner: ["orders", "caja", "analytics", "categories", "products", "inventory", "clients", "settings", "company"],
-            admin: ["orders", "caja", "analytics", "categories", "products", "inventory", "clients", "settings", "company"],
-            ceo: ["orders", "caja", "analytics", "categories", "products", "inventory", "clients", "settings"],
-            cashier: ["orders", "caja"],
-          },
-        },
-      };
+		if (isManualPayment) {
+			return handleManualCheckout({
+				app, company, amountUsd, months, subscriptionMethod,
+			});
+		}
 
-      const { data: inserted, error: companyError } = await supabaseAdmin
-        .from("companies")
-        .insert(companyPayload)
-        .select("id")
-        .single();
+		return handleStripeCheckout({
+			app, plan, company, amountUsd, addonsTotalUsd, months,
+		});
+	} catch (err) {
+		console.error("onboarding checkout error:", err);
+		return NextResponse.json({ error: "Error interno. Intenta más tarde." }, { status: 500 });
+	}
+}
 
-      if (companyError || !inserted) {
-        if (companyError?.code === "23505") {
-          return NextResponse.json(
-            { error: "Ya existe una empresa con datos similares" },
-            { status: 409 }
-          );
-        }
-        console.error("onboarding checkout company insert:", companyError);
-        return NextResponse.json(
-          { error: "Error al crear la empresa" },
-          { status: 500 }
-        );
-      }
-      company = inserted;
+async function handlePayPalCheckout(params: {
+	app: { id: string; country?: string | null; payment_methods?: string[] | null; currency?: string | null; plan_id: string };
+	plan: { name: string };
+	company: { id: string };
+	amountUsd: number;
+	months: number;
+	token: string;
+	paypalClientId: string;
+	paypalClientSecret: string;
+}) {
+	const baseUrl =
+		process.env.NEXT_PUBLIC_APP_URL ||
+		(process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+		(process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN
+			? `${process.env.NEXT_PUBLIC_TENANT_PROTOCOL || "https"}://${process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN}`
+			: "http://localhost:3000");
+	const returnUrl = `${baseUrl}/api/onboarding/paypal-capture`;
+	const cancelUrl = `${baseUrl}/onboarding/pago?token=${encodeURIComponent(params.token)}`;
 
-      const { error: branchError } = await supabaseAdmin.from("branches").insert({
-        company_id: company.id,
-        name: "Principal",
-        slug: "principal",
-        address: app.fiscal_address ?? null,
-        is_active: true,
-      });
-      if (branchError) console.error("onboarding checkout branch insert:", branchError);
+	const paypalClient = new Client({
+		clientCredentialsAuthCredentials: {
+			oAuthClientId: params.paypalClientId,
+			oAuthClientSecret: params.paypalClientSecret,
+		},
+		environment:
+			process.env.PAYPAL_ENVIRONMENT === "production"
+				? Environment.Production
+				: Environment.Sandbox,
+	});
+	const ordersController = new OrdersController(paypalClient);
 
-      await supabaseAdmin.from("business_info").insert({
-        company_id: company.id,
-        name: app.business_name,
-        address: app.fiscal_address ?? null,
-        instagram: app.social_instagram ?? null,
-        schedule: null,
-      }).then(() => {});
+	const createRes = await ordersController.createOrder({
+		body: {
+			intent: CheckoutPaymentIntent.Capture,
+			purchaseUnits: [
+				{
+					amount: { currencyCode: "USD", value: params.amountUsd.toFixed(2) },
+					description: params.plan.name ?? "Plan",
+				},
+			],
+			applicationContext: { returnUrl, cancelUrl },
+		},
+	});
 
-      await supabaseAdmin
-        .from("onboarding_applications")
-        .update({
-          company_id: company.id,
-          status: "payment_pending",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", app.id);
-    }
+	const order = createRes.result;
+	const orderId = order?.id;
+	const approveLink = order?.links?.find((l) => l.rel === "approve")?.href;
 
-    const amountUsd = Number(plan.price ?? 0) * months + addonsTotalUsd;
+	if (!orderId || !approveLink) {
+		console.error("paypal create order:", createRes);
+		return NextResponse.json({ error: "Error al crear la orden de PayPal" }, { status: 502 });
+	}
 
-    if (isPayPal) {
-      const baseUrl =
-        process.env.NEXT_PUBLIC_APP_URL ||
-        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-        (process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN
-          ? `${process.env.NEXT_PUBLIC_TENANT_PROTOCOL || "https"}://${process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN}`
-          : "http://localhost:3000");
-      const returnUrl = `${baseUrl}/api/onboarding/paypal-capture`;
-      const cancelUrl = `${baseUrl}/onboarding/pago?token=${encodeURIComponent(token)}`;
+	await recordPayment(supabaseAdmin, {
+		companyId: params.company.id,
+		planId: params.app.plan_id,
+		amountPaid: params.amountUsd,
+		paymentMethod: "paypal",
+		paymentMethodSlug: "paypal",
+		paymentReference: orderId,
+		status: "pending",
+		monthsPaid: params.months,
+	});
 
-      const paypalClient = new Client({
-        clientCredentialsAuthCredentials: {
-          oAuthClientId: paypalClientId,
-          oAuthClientSecret: paypalClientSecret,
-        },
-        environment:
-          process.env.PAYPAL_ENVIRONMENT === "production"
-            ? Environment.Production
-            : Environment.Sandbox,
-      });
-      const ordersController = new OrdersController(paypalClient);
+	return NextResponse.json({
+		ok: true,
+		url: approveLink,
+		sessionId: orderId,
+		country: params.app.country,
+		paymentOptions:
+			Array.isArray(params.app.payment_methods) && params.app.payment_methods.length > 0
+				? params.app.payment_methods
+				: ["PayPal", "Stripe"],
+		currency: params.app.currency || "USD",
+	});
+}
 
-      const orderValue = amountUsd.toFixed(2);
-      const createRes = await ordersController.createOrder({
-        body: {
-          intent: CheckoutPaymentIntent.Capture,
-          purchaseUnits: [
-            {
-              amount: {
-                currencyCode: "USD",
-                value: orderValue,
-              },
-              description: plan.name ?? "Plan",
-            },
-          ],
-          applicationContext: {
-            returnUrl,
-            cancelUrl,
-          },
-        },
-      });
+async function handleManualCheckout(params: {
+	app: { id: string; country?: string | null; currency?: string | null; plan_id: string; subscription_payment_method?: string | null };
+	company: { id: string };
+	amountUsd: number;
+	months: number;
+	subscriptionMethod: string;
+}) {
+	const paymentRef = `manual-${params.app.id}-${Date.now()}`;
 
-      const order = createRes.result;
-      const orderId = order?.id;
-      const approveLink = order?.links?.find((l) => l.rel === "approve")?.href;
+	const payResult = await recordPayment(supabaseAdmin, {
+		companyId: params.company.id,
+		planId: params.app.plan_id,
+		amountPaid: params.amountUsd,
+		paymentMethod: params.subscriptionMethod,
+		paymentMethodSlug: params.subscriptionMethod,
+		paymentReference: paymentRef,
+		status: "pending_validation",
+		monthsPaid: params.months,
+	});
 
-      if (!orderId || !approveLink) {
-        console.error("paypal create order:", createRes);
-        return NextResponse.json(
-          { error: "Error al crear la orden de PayPal" },
-          { status: 502 }
-        );
-      }
+	if (payResult.error) {
+		return NextResponse.json({ error: "Error al registrar el pago" }, { status: 500 });
+	}
 
-      await supabaseAdmin.from("payments_history").insert({
-        company_id: company.id,
-        plan_id: app.plan_id,
-        amount_paid: amountUsd,
-        payment_method: "paypal",
-        payment_method_slug: "paypal",
-        payment_reference: orderId,
-        payment_date: new Date().toISOString(),
-        status: "pending",
-        months_paid: months,
-      });
+	const methodConfig = await getManualMethodConfig(supabaseAdmin, params.subscriptionMethod);
 
-      return NextResponse.json({
-        ok: true,
-        url: approveLink,
-        sessionId: orderId,
-        country: app.country,
-        paymentOptions:
-          Array.isArray(app.payment_methods) && app.payment_methods.length > 0
-            ? app.payment_methods
-            : ["PayPal", "Stripe"],
-        currency: app.currency || "USD",
-      });
-    }
+	return NextResponse.json({
+		ok: true,
+		manual: true,
+		company_id: params.company.id,
+		payment_id: payResult.id,
+		payment_reference: paymentRef,
+		amount_usd: params.amountUsd,
+		months: params.months,
+		currency: params.app.currency || "USD",
+		country: params.app.country ?? null,
+		method_slug: params.subscriptionMethod,
+		method_config: methodConfig,
+	});
+}
 
-    if (isManualPayment) {
-      const paymentRef = `manual-${app.id}-${Date.now()}`;
-      const { data: paymentRow, error: payErr } = await supabaseAdmin
-        .from("payments_history")
-        .insert({
-          company_id: company.id,
-          plan_id: app.plan_id,
-          amount_paid: amountUsd,
-          payment_method: subscriptionMethod,
-          payment_method_slug: subscriptionMethod,
-          payment_reference: paymentRef,
-          payment_date: new Date().toISOString(),
-          status: "pending_validation",
-          months_paid: months,
-        })
-        .select("id")
-        .single();
+async function handleStripeCheckout(params: {
+	app: { id: string; country?: string | null; payment_methods?: string[] | null; currency?: string | null; plan_id: string };
+	plan: { name: string; price: number };
+	company: { id: string };
+	amountUsd: number;
+	addonsTotalUsd: number;
+	months: number;
+}) {
+	if (!STRIPE_SECRET) {
+		return NextResponse.json({ error: "Integración de pago con tarjeta no configurada" }, { status: 503 });
+	}
 
-      if (payErr) {
-        console.error("onboarding checkout manual payment insert:", payErr);
-        return NextResponse.json({ error: "Error al registrar el pago" }, { status: 500 });
-      }
+	const planAmountCents = Math.round(Number(params.plan.price ?? 0) * params.months * 100);
+	const stripeParams = new URLSearchParams();
+	stripeParams.append("mode", "payment");
+	stripeParams.append("success_url", `${STRIPE_SUCCESS_URL}?ref={CHECKOUT_SESSION_ID}`);
+	stripeParams.append("cancel_url", STRIPE_CANCEL_URL);
+	stripeParams.append("line_items[0][price_data][currency]", "usd");
+	stripeParams.append("line_items[0][price_data][product_data][name]", params.plan.name ?? "Plan");
+	stripeParams.append("line_items[0][price_data][unit_amount]", planAmountCents.toString());
+	stripeParams.append("line_items[0][quantity]", "1");
+	if (params.addonsTotalUsd > 0) {
+		stripeParams.append("line_items[1][price_data][currency]", "usd");
+		stripeParams.append("line_items[1][price_data][product_data][name]", "Servicios extra");
+		stripeParams.append("line_items[1][price_data][unit_amount]", Math.round(params.addonsTotalUsd * 100).toString());
+		stripeParams.append("line_items[1][quantity]", "1");
+	}
+	stripeParams.append("metadata[company_id]", params.company.id);
+	stripeParams.append("metadata[plan_id]", params.app.plan_id);
+	stripeParams.append("metadata[months]", params.months.toString());
+	stripeParams.append("metadata[onboarding_application_id]", params.app.id);
 
-      const methodConfig: Record<string, string> = {};
-      if (subscriptionMethod) {
-        const { data: methodRow } = await supabaseAdmin
-          .from("plan_payment_methods")
-          .select("id")
-          .eq("slug", subscriptionMethod)
-          .maybeSingle();
-        if (methodRow) {
-          const { data: configRows } = await supabaseAdmin
-            .from("plan_payment_method_config")
-            .select("key,value")
-            .eq("method_id", methodRow.id);
-          for (const row of configRows ?? []) {
-            if (row.key) methodConfig[row.key] = row.value ?? "";
-          }
-        }
-      }
+	const stripeRes = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+		method: "POST",
+		headers: {
+			Authorization: `Bearer ${STRIPE_SECRET}`,
+			"Content-Type": "application/x-www-form-urlencoded",
+		},
+		body: stripeParams.toString(),
+	});
 
-      return NextResponse.json({
-        ok: true,
-        manual: true,
-        company_id: company.id,
-        payment_id: paymentRow?.id,
-        payment_reference: paymentRef,
-        amount_usd: amountUsd,
-        months,
-        currency: app.currency || "USD",
-        country: app.country ?? null,
-        method_slug: subscriptionMethod,
-        method_config: methodConfig,
-      });
-    }
+	if (!stripeRes.ok) {
+		const text = await stripeRes.text();
+		console.error("stripe checkout:", text);
+		return NextResponse.json({ error: "Error al crear sesión de pago" }, { status: 502 });
+	}
 
-    if (!STRIPE_SECRET) {
-      return NextResponse.json(
-        { error: "Integración de pago con tarjeta no configurada" },
-        { status: 503 }
-      );
-    }
+	const session = (await stripeRes.json()) as { id?: string; url?: string };
 
-    const planAmountUsd = Number(plan.price ?? 0) * months;
-    const planAmountCents = Math.round(planAmountUsd * 100);
-    const params = new URLSearchParams();
-    params.append("mode", "payment");
-    params.append("success_url", `${STRIPE_SUCCESS_URL}?ref={CHECKOUT_SESSION_ID}`);
-    params.append("cancel_url", STRIPE_CANCEL_URL);
-    params.append("line_items[0][price_data][currency]", "usd");
-    params.append("line_items[0][price_data][product_data][name]", plan.name ?? "Plan");
-    params.append("line_items[0][price_data][unit_amount]", planAmountCents.toString());
-    params.append("line_items[0][quantity]", "1");
-    if (addonsTotalUsd > 0) {
-      params.append("line_items[1][price_data][currency]", "usd");
-      params.append("line_items[1][price_data][product_data][name]", "Servicios extra");
-      params.append("line_items[1][price_data][unit_amount]", Math.round(addonsTotalUsd * 100).toString());
-      params.append("line_items[1][quantity]", "1");
-    }
-    params.append("metadata[company_id]", company.id);
-    params.append("metadata[plan_id]", app.plan_id);
-    params.append("metadata[months]", months.toString());
-    params.append("metadata[onboarding_application_id]", app.id);
+	await recordPayment(supabaseAdmin, {
+		companyId: params.company.id,
+		planId: params.app.plan_id,
+		amountPaid: params.amountUsd,
+		paymentMethod: "stripe",
+		paymentMethodSlug: "stripe",
+		paymentReference: session.id ?? "stripe-session",
+		status: "pending",
+		monthsPaid: params.months,
+	});
 
-    const stripeRes = await fetch("https://api.stripe.com/v1/checkout/sessions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${STRIPE_SECRET}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: params.toString(),
-    });
-
-    if (!stripeRes.ok) {
-      const text = await stripeRes.text();
-      console.error("stripe checkout:", text);
-      return NextResponse.json(
-        { error: "Error al crear sesión de pago" },
-        { status: 502 }
-      );
-    }
-
-    const session = (await stripeRes.json()) as { id?: string; url?: string };
-
-    await supabaseAdmin.from("payments_history").insert({
-      company_id: company.id,
-      plan_id: app.plan_id,
-      amount_paid: amountUsd,
-      payment_method: "stripe",
-      payment_method_slug: "stripe",
-      payment_reference: session.id ?? "stripe-session",
-      payment_date: new Date().toISOString(),
-      status: "pending",
-      months_paid: months,
-    });
-
-    return NextResponse.json({
-      ok: true,
-      url: session.url,
-      sessionId: session.id,
-      country: app.country,
-      paymentOptions: Array.isArray(app.payment_methods) && app.payment_methods.length > 0 ? app.payment_methods : (app.country === "Venezuela" ? ["Pago Móvil", "Zelle", "Transferencia", "Stripe"] : ["Stripe"]),
-      currency: app.currency || "USD",
-    });
-  } catch (err) {
-    console.error("onboarding checkout error:", err);
-    return NextResponse.json(
-      { error: "Error interno. Intenta más tarde." },
-      { status: 500 }
-    );
-  }
+	return NextResponse.json({
+		ok: true,
+		url: session.url,
+		sessionId: session.id,
+		country: params.app.country,
+		paymentOptions: Array.isArray(params.app.payment_methods) && params.app.payment_methods.length > 0
+			? params.app.payment_methods
+			: (params.app.country === "Venezuela" ? ["Pago Móvil", "Zelle", "Transferencia", "Stripe"] : ["Stripe"]),
+		currency: params.app.currency || "USD",
+	});
 }

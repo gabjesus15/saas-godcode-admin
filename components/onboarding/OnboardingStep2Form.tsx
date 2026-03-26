@@ -61,7 +61,7 @@ export function OnboardingStep2Form({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
-  const [planPaymentMethods, setPlanPaymentMethods] = useState<PlanPaymentMethod[]>([]);
+  const [, setPlanPaymentMethods] = useState<PlanPaymentMethod[]>([]);
   const [selectedAddons, setSelectedAddons] = useState<AddonChoice[]>(() => {
     const fromInitial = initialData.addons ?? [];
     return fromInitial.map((a) => ({

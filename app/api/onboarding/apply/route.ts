@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
 
+import { supabaseAdmin } from "../../../../lib/supabase-admin";
 import { getAppUrl } from "../../../../lib/app-url";
 import { sendOnboardingEmail } from "../../../../lib/onboarding/emails";
 import { verifyRecaptcha } from "../../../../lib/onboarding/recaptcha";
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "";
 const RESEND_FROM = process.env.RESEND_FROM ?? "noreply@example.com";

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 
+import { supabaseAdmin } from "../../../lib/supabase-admin";
 import { validateAdminRolesOnServer } from "../../../utils/admin/server-auth";
 
 type BroadcastRow = {
@@ -21,11 +21,6 @@ type BroadcastRow = {
   created_at: string;
   updated_at: string;
 };
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 const TYPE_VALUES = new Set(["general", "maintenance", "incident", "billing", "release"]);
 const PRIORITY_VALUES = new Set(["low", "medium", "high", "critical"]);

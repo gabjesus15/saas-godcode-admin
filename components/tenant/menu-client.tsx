@@ -172,7 +172,7 @@ export function MenuClient({
   const [searchExpanded, setSearchExpanded] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [logoError, setLogoError] = useState(false);
-  const [isManualScrolling, setIsManualScrolling] = useState(false);
+  const [isManualScrolling] = useState(false);
   
   // Modal should always open on entry so user explicitly selects a branch.
   const hasOpenBranches = (openBranchIds ?? []).length > 0;
