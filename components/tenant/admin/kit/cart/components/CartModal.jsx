@@ -13,8 +13,13 @@ import { ordersService } from '../../orders/services/orders';
 import { useBusiness } from '../../../context/useBusiness';
 import { useLocation } from '../../../context/useLocation';
 import { useCash } from '../../../context/useCash';
-import { formatRut } from '../../../shared/utils/formatters';
-import rut from 'rut.js';
+import {
+  formatRut,
+  normalizeChilePhoneInput,
+  validateChileCustomerPhone,
+  validateRut,
+} from '../../../shared/utils/formatters';
+import { sanitizeUserText } from '../../../shared/utils/sanitize-user-text';
 import validator from 'validator';
 import { validateImageFile } from '../../../shared/utils/cloudinary';
 
@@ -137,7 +142,6 @@ const CartModal = React.memo(() => {
 
   // Validación Memoizada
   const validation = useMemo(() => {
-    const phoneDigits = formData.phone.replace(/\D/g, '').length;
     const nameValue = formData.name.trim();
     const namePattern = /^[\p{L} .'-]+$/u;
     const isNameValid = nameValue.length > 2 && namePattern.test(nameValue);
@@ -148,19 +152,21 @@ const CartModal = React.memo(() => {
     const country = activeInfo.country || 'CL';
     let isDocumentValid = false;
     if (country === 'CL') {
-      isDocumentValid = rut.validate(formData.document);
+      isDocumentValid = validateRut(formData.document);
     } else if (country === 'VE') {
       isDocumentValid = validator.isNumeric(formData.document) && formData.document.length >= 6 && formData.document.length <= 9;
     } else {
       isDocumentValid = formData.document.length > 4;
     }
 
+    const isPhoneValid = validateChileCustomerPhone(formData.phone);
+
     return {
       document: isDocumentValid,
-      phone: phoneDigits >= 11,
+      phone: isPhoneValid,
       name: isNameValid,
       receipt: isReceiptValid,
-      isReady: isNameValid && phoneDigits >= 11 && isDocumentValid && isReceiptValid
+      isReady: isNameValid && isPhoneValid && isDocumentValid && isReceiptValid
     };
   }, [formData, paymentType, activeInfo]);
 
@@ -170,10 +176,7 @@ const CartModal = React.memo(() => {
       let finalValue = value;
       if (field === 'document' && activeInfo.country === 'CL') finalValue = formatRut(value);
       if (field === 'phone') {
-        if (!value.startsWith("+56 9")) {
-           if (value.length < 6) return { ...prev, [field]: "+56 9 " };
-        }
-        finalValue = value;
+        finalValue = normalizeChilePhoneInput(value);
       }
       return { ...prev, [field]: finalValue };
     });
@@ -242,8 +245,6 @@ const CartModal = React.memo(() => {
     setViewState(v => ({ ...v, isSaving: true, error: null }));
 
     try {
-      const sanitizeInput = (text) => text ? text.replace(/<[^>]*>?/gm, "").trim() : "";
-
       // Items solo con campos serializables para JSONB (evitar undefined o tipos raros)
       const itemsForOrder = cart.map((item) => ({
         id: item.id,
@@ -252,17 +253,17 @@ const CartModal = React.memo(() => {
         price: Number(item.price) || 0,
         has_discount: Boolean(item.has_discount),
         discount_price: item.has_discount && item.discount_price != null ? Number(item.discount_price) : null,
-        description: item.description ? String(item.description) : null
+        description: item.description ? sanitizeUserText(item.description) : null
       }));
 
       const orderPayload = {
-        client_name: sanitizeInput(formData.name),
+        client_name: sanitizeUserText(formData.name),
         client_phone: String(formData.phone ?? '').trim(),
         client_document: String(formData.document ?? '').trim(),
         payment_type: paymentType,
         total: Number(cartTotal) || 0,
         items: itemsForOrder,
-        note: sanitizeInput(orderNote),
+        note: sanitizeUserText(orderNote),
         status: 'pending',
         receiptFile: formData.receiptFile,
         branch_id: currentBranch.id,

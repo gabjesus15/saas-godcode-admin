@@ -1,15 +1,8 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { createSupabaseServerClient } from "../../../utils/supabase/server";
 
-function getSupabaseAdmin() {
-	const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-	const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-	if (!url || !key) {
-		throw new Error("Faltan NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY");
-	}
-	return createClient(url, key);
-}
+import { supabaseAdmin } from "@/lib/supabase-admin";
+import { createSupabaseServerClient } from "@/utils/supabase/server";
 
 type CeoResult = { companyId: string; userId: string } | { error: string };
 
@@ -60,7 +53,7 @@ function normalizeTenantRole(value: unknown): string {
  * Comprueba si el usuario de la sesión es CEO en la tabla users (no admin_users).
  * Así, si el mismo correo es super_admin y CEO, puede usar Equipo en el panel del local.
  */
-async function getCeoCompanyId(supabaseAdmin: ReturnType<typeof getSupabaseAdmin>): Promise<CeoResult> {
+async function getCeoCompanyId(supabaseAdminClient: SupabaseClient): Promise<CeoResult> {
 	const supabase = await createSupabaseServerClient("tenant");
 	const {
 		data: { user },
@@ -72,7 +65,7 @@ async function getCeoCompanyId(supabaseAdmin: ReturnType<typeof getSupabaseAdmin
 	}
 
 	const email = user.email.trim();
-	const { data: rows, error } = await supabaseAdmin
+	const { data: rows, error } = await supabaseAdminClient
 		.from("users")
 		.select("id,company_id,role")
 		.ilike("email", email) as { data: UserRow[] | null; error: MessageError };
@@ -86,7 +79,6 @@ async function getCeoCompanyId(supabaseAdmin: ReturnType<typeof getSupabaseAdmin
 
 export async function GET() {
 	try {
-		const supabaseAdmin = getSupabaseAdmin();
 		const ceo = await getCeoCompanyId(supabaseAdmin);
 		if ("error" in ceo) {
 			return NextResponse.json({ error: ceo.error }, { status: 403 });
@@ -111,7 +103,6 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
 	try {
-		const supabaseAdmin = getSupabaseAdmin();
 		const ceo = await getCeoCompanyId(supabaseAdmin);
 		if ("error" in ceo) {
 			return NextResponse.json({ error: ceo.error }, { status: 403 });
@@ -193,7 +184,6 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
 	try {
-		const supabaseAdmin = getSupabaseAdmin();
 		const ceo = await getCeoCompanyId(supabaseAdmin);
 		if ("error" in ceo) {
 			return NextResponse.json({ error: ceo.error }, { status: 403 });
@@ -283,7 +273,6 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
 	try {
-		const supabaseAdmin = getSupabaseAdmin();
 		const ceo = await getCeoCompanyId(supabaseAdmin);
 		if ("error" in ceo) {
 			return NextResponse.json({ error: ceo.error }, { status: 403 });

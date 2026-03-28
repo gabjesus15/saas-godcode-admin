@@ -7,6 +7,7 @@ import { Input } from "../ui/input";
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 import { logAdminAction } from "../../utils/audit";
 import { requireAdminRole, roleSets } from "../../utils/admin";
+import { slugify } from "../../utils/slugify";
 
 interface BranchesCreateFormProps {
   companyId: string;
@@ -15,16 +16,6 @@ interface BranchesCreateFormProps {
     currency?: string | null;
   };
 }
-
-const slugify = (value: string) => {
-  // Comentario: normaliza el nombre para generar un slug estable.
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
-};
 
 export function BranchesCreateForm({ companyId, businessInfo }: BranchesCreateFormProps) {
   const router = useRouter();

@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { formatRut, validateRut } from '../../shared/utils/formatters';
+import { sanitizeUserText } from '../../shared/utils/sanitize-user-text';
 import { validateImageFile } from '../../shared/utils/cloudinary';
 import { createManualOrder } from '../../orders/services/orders';
 
@@ -173,8 +174,6 @@ export const useManualOrder = (showNotify, onOrderSaved, onClose, registerSale, 
             return;
         }
 
-        const sanitizeInput = (text) => text ? text.replace(/<[^>]*>?/gm, "").trim() : "";
-
         const digitCount = (manualOrder.client_phone || '').replace(/\D/g, '').length;
         if (!manualOrder.client_name || manualOrder.client_name.trim().length < 3 || digitCount < 11 || manualOrder.items.length === 0) {
             showNotify('Faltan datos obligatorios o son incorrectos', 'error');
@@ -193,10 +192,10 @@ export const useManualOrder = (showNotify, onOrderSaved, onClose, registerSale, 
         try {
             const sanitizedOrder = {
                 ...manualOrder,
-                client_name: sanitizeInput(manualOrder.client_name),
-                client_phone: sanitizeInput(manualOrder.client_phone),
-                client_rut: sanitizeInput(manualOrder.client_rut),
-                note: sanitizeInput(manualOrder.note),
+                client_name: sanitizeUserText(manualOrder.client_name),
+                client_phone: sanitizeUserText(manualOrder.client_phone),
+                client_rut: sanitizeUserText(manualOrder.client_rut),
+                note: sanitizeUserText(manualOrder.note),
                 branch_id: branch.id,
                 company_id: branch.company_id,
                 branch_name: branch.name
@@ -209,7 +208,7 @@ export const useManualOrder = (showNotify, onOrderSaved, onClose, registerSale, 
                 price: Number(item.price) || 0,
                 has_discount: Boolean(item.has_discount),
                 discount_price: item.has_discount && item.discount_price != null ? Number(item.discount_price) : null,
-                description: item.description ? String(item.description) : null
+                description: item.description ? sanitizeUserText(item.description) : null
             }));
 
             const totalForOrder = itemsForOrder.reduce((acc, i) => {

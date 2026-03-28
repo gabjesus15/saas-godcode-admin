@@ -7,8 +7,18 @@ import { proxyToOnboardingBilling } from "../../../../lib/service-proxy";
 export async function GET(req: NextRequest) {
 	const proxied = await proxyToOnboardingBilling(req, "/api/cron/subscription-status");
 	if (proxied) return proxied;
+
+	const isProd =
+		process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production";
+	if (isProd && !process.env.CRON_SECRET?.trim()) {
+		return NextResponse.json(
+			{ error: "CRON_SECRET es obligatorio en producción" },
+			{ status: 503 },
+		);
+	}
+
 	const secret = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
-	if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
+	if (process.env.CRON_SECRET?.trim() && secret !== process.env.CRON_SECRET) {
 		return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 	}
 

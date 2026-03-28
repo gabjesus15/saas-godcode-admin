@@ -1,10 +1,30 @@
 import { createBrowserClient } from "@supabase/ssr";
 import type { SupabaseAuthScope } from "./auth-scope";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+/** Misma normalización que `utils/supabase/server.ts` para evitar URLs mal formadas en Auth (p. ej. doble `/`). */
+const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim().replace(/\/$/, "");
+const supabaseAnonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "").trim();
 
 const SUPER_ADMIN_PATHS = ["/dashboard", "/companies", "/plans", "/login"];
+
+/** Host parece tenant (subdominio), no el dominio principal del panel. */
+function isLikelyTenantHost(): boolean {
+  if (typeof window === "undefined") return false;
+  const h = window.location.hostname.toLowerCase();
+  const base = (process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN ?? "")
+    .replace(/^https?:\/\//, "")
+    .replace(/\/$/, "")
+    .split("/")[0]
+    ?.toLowerCase();
+  if (base && h !== base && h !== `www.${base}` && h.endsWith(`.${base}`)) {
+    return true;
+  }
+  if (h.endsWith(".localhost")) {
+    const parts = h.split(".").filter(Boolean);
+    return parts.length >= 2 && parts[0] !== "www";
+  }
+  return false;
+}
 
 const resolveScope = (scope?: SupabaseAuthScope): SupabaseAuthScope => {
   if (scope) return scope;
@@ -14,6 +34,12 @@ const resolveScope = (scope?: SupabaseAuthScope): SupabaseAuthScope => {
   }
 
   const pathname = window.location.pathname.toLowerCase();
+  const tenantHost = isLikelyTenantHost();
+  // En subdominio tenant, /login es panel del local (no super-admin).
+  if (pathname === "/login" && tenantHost) {
+    return "tenant";
+  }
+
   const isSuperAdminPath =
     pathname === "/login" || SUPER_ADMIN_PATHS.some((path) => pathname.startsWith(path));
 

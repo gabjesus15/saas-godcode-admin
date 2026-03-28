@@ -1,7 +1,10 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 
-import { createSupabaseServerClient } from "../../../utils/supabase/server";
+import { parseJsonBody } from "@/lib/api/response";
+import { tenantTicketCreateSchema } from "@/lib/api/schemas/tenant-tickets";
+import { supabaseAdmin } from "@/lib/supabase-admin";
+import { createSupabaseServerClient } from "@/utils/supabase/server";
 
 type TicketStatus = "open" | "in_progress" | "waiting_customer" | "resolved" | "closed";
 type TicketPriority = "low" | "medium" | "high" | "critical";
@@ -35,8 +38,6 @@ type TicketRow = {
   updated_at: string;
 };
 
-const PRIORITY_VALUES = new Set(["low", "medium", "high", "critical"]);
-const CATEGORY_VALUES = new Set(["general", "billing", "technical", "product", "account"]);
 const TENANT_ALLOWED_ROLES = new Set(["admin", "ceo", "cashier", "staff"]);
 
 const SLA_HOURS: Record<TicketPriority, { firstResponse: number; resolution: number }> = {
@@ -52,16 +53,7 @@ const addHours = (iso: string, hours: number) => {
   return new Date(base.getTime() + hours * 60 * 60 * 1000).toISOString();
 };
 
-function getSupabaseAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    throw new Error("Faltan NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY");
-  }
-  return createClient(url, key);
-}
-
-async function getTenantContext(client: ReturnType<typeof getSupabaseAdmin>) {
+async function getTenantContext(client: SupabaseClient) {
   const supabase = await createSupabaseServerClient("tenant");
   const {
     data: { user },
@@ -114,14 +106,13 @@ const toDto = (row: TicketRow) => ({
 
 export async function GET() {
   try {
-    const client = getSupabaseAdmin();
-    const ctx = await getTenantContext(client);
+    const ctx = await getTenantContext(supabaseAdmin);
 
     if ("error" in ctx) {
       return NextResponse.json({ error: ctx.error }, { status: 403 });
     }
 
-    const { data, error } = await client
+    const { data, error } = await supabaseAdmin
       .from("saas_tickets")
       .select("id,company_id,created_by_email,source,subject,description,category,priority,status,assigned_to,first_response_at,resolved_at,first_response_due_at,resolution_due_at,last_message_at,created_at,updated_at")
       .eq("company_id", ctx.companyId)
@@ -139,28 +130,20 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const client = getSupabaseAdmin();
-    const ctx = await getTenantContext(client);
+    const ctx = await getTenantContext(supabaseAdmin);
 
     if ("error" in ctx) {
       return NextResponse.json({ error: ctx.error }, { status: 403 });
     }
 
-    const body = await req.json();
-    const subject = String(body.subject ?? "").trim();
-    const description = String(body.description ?? "").trim();
-    const category = String(body.category ?? "general").trim().toLowerCase();
-    const priority = String(body.priority ?? "medium").trim().toLowerCase() as TicketPriority;
+    const parsed = await parseJsonBody(req, tenantTicketCreateSchema);
+    if (!parsed.ok) return parsed.response;
 
-    if (!subject) return NextResponse.json({ error: "El asunto es obligatorio" }, { status: 400 });
-    if (!description) return NextResponse.json({ error: "La descripción es obligatoria" }, { status: 400 });
-    if (!CATEGORY_VALUES.has(category)) return NextResponse.json({ error: "Categoría inválida" }, { status: 400 });
-    if (!PRIORITY_VALUES.has(priority)) return NextResponse.json({ error: "Prioridad inválida" }, { status: 400 });
-
+    const { subject, description, category, priority } = parsed.data;
     const nowIso = new Date().toISOString();
     const { firstResponse, resolution } = SLA_HOURS[priority];
 
-    const { data, error } = await client
+    const { data, error } = await supabaseAdmin
       .from("saas_tickets")
       .insert({
         company_id: ctx.companyId,
@@ -181,7 +164,7 @@ export async function POST(req: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-    await client.from("saas_ticket_messages").insert({
+    await supabaseAdmin.from("saas_ticket_messages").insert({
       ticket_id: (data as TicketRow).id,
       author_type: "tenant",
       author_email: ctx.email,

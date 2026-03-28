@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import DOMPurify from "dompurify";
 import {
   AlertCircle,
   ArrowLeft,
@@ -35,6 +34,14 @@ import { validateImageFile } from "./utils/cloudinary";
 import { getCloudinaryOptimizedUrl } from "./utils/cloudinary";
 // import eliminado porque no se usa
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
+import {
+  formatRutOnInput,
+  normalizeChilePhoneInput,
+  validateChileCustomerPhone,
+  validateRutChile,
+} from "../../utils/chile-forms";
+import { sanitizeUserText } from "../../utils/sanitize-user-text";
+import { mergeCartWithBranchPrices } from "./utils/cart-pricing";
 
 import "../../app/[subdomain]/styles/CartModal.css";
 import "../../app/[subdomain]/styles/CartModal.custom.css";
@@ -142,56 +149,6 @@ const generateWSMessage = (
   return msg;
 };
 
-const formatRutOnChange = (value: string): string => {
-  if (!value) return "";
-  // 1. Limpiar todo excepto números y la letra K
-  const cleanRut = value.replace(/[^0-9kK]/g, "").toUpperCase();
-
-  if (cleanRut.length === 0) {
-    return "";
-  }
-
-  // 2. Separar cuerpo y dígito verificador
-  const body = cleanRut.slice(0, -1);
-  const verifier = cleanRut.slice(-1);
-
-  // Si no hay cuerpo, es solo el inicio del RUT, devolverlo tal cual.
-  if (body === "") {
-    return verifier;
-  }
-
-  // 3. Formatear cuerpo con puntos
-  const formattedBody = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  return `${formattedBody}-${verifier}`;
-};
-
-const validateRut = (rut: string): boolean => {
-  if (!rut) return false;
-  // Limpiar: dejar solo números y k/K
-  const clean = rut.replace(/[^0-9kK]/g, "").toUpperCase();
-  // Mínimo: 1 dígito cuerpo + 1 dígito verificador (ej: 1-9 es válido para pruebas)
-  if (clean.length < 2) return false;
-
-  const body = clean.slice(0, -1);
-  const dv = clean.slice(-1);
-  
-  // Asegurar que el cuerpo sean solo números
-  if (!/^\d+$/.test(body)) return false;
-
-  let sum = 0;
-  let multiplier = 2;
-
-  for (let i = body.length - 1; i >= 0; i--) {
-    sum += parseInt(body[i]) * multiplier;
-    multiplier = multiplier === 7 ? 2 : multiplier + 1;
-  }
-
-  const res = 11 - (sum % 11);
-  const expectedDv = res === 11 ? "0" : res === 10 ? "K" : res.toString();
-
-  return dv === expectedDv;
-};
-
 export function CartModal({
   businessInfo,
   selectedBranch,
@@ -250,32 +207,9 @@ export function CartModal({
             return;
           }
           // ...existing code...
-          const priceByProductId = new Map(
-            ((data ?? []) as { product_id: string; price: number | null; has_discount: boolean | null; discount_price: number | null; products?: { id?: string; name?: string | null; is_active?: boolean | null; description?: string | null; }; }[]).map((row) => [String(row.product_id), row])
-          );
-          const hasAnyRows = (data ?? []).length > 0;
-          const next = cart.reduce<CartLineItem[]>((acc, cartItem) => {
-              const priceRow = priceByProductId.get(String(cartItem.id)) ?? null;
-              const meta = priceRow?.products;
-              // ...existing code...
-              if (priceRow) {
-                acc.push({
-                  ...cartItem,
-                  price: priceRow.price,
-                  has_discount: priceRow.has_discount,
-                  discount_price: priceRow.discount_price,
-                  name: meta?.name ?? cartItem.name,
-                  description: meta?.description ?? cartItem.description,
-                  is_active: meta?.is_active ?? cartItem.is_active,
-                });
-                return acc;
-              }
-              if (!hasAnyRows) {
-                acc.push(cartItem);
-              }
-              return acc;
-            }, [])
-            .filter((item) => item.is_active !== false);
+          const next = mergeCartWithBranchPrices(cart, data ?? [], {
+            omitLinesWithoutPriceWhenBranchHasData: true,
+          });
           // ...existing code...
           setFilteredCart(next);
         } catch {
@@ -453,20 +387,9 @@ export function CartModal({
 
   const validation = useMemo(() => {
     const values = formValues; // CORRECTO: Usa los valores reactivos de watch()
-    // Validación de teléfono: ignora el prefijo y exige al menos 8 dígitos después de '+56 9'
-    let phoneValue = (values.phone || "").replace(/\D/g, "");
-    // Si el input es solo el prefijo, no es válido
-    if ((values.phone || "").trim() === "+56 9" || phoneValue === "569") {
-      phoneValue = "";
-    }
-    // Debe tener al menos 8 dígitos después del prefijo
-    const isPhoneValid =
-      (phoneValue.length === 11 && phoneValue.startsWith("569")) || // 569XXXXXXXX
-      (phoneValue.length === 9 && phoneValue.startsWith("9")) || // 912345678
-      (phoneValue.length >= 8 && phoneValue.startsWith("9")); // 9XXXXXXX (mínimo 8 dígitos)
+    const isPhoneValid = validateChileCustomerPhone(values.phone || "");
 
-    // Validación de RUT real (Módulo 11)
-    const isRutValid = validateRut(values.rut || "");
+    const isRutValid = validateRutChile(values.rut || "");
 
     const nameValue = (values.name || "").trim();
     const namePattern = /^[\p{L} .'-]+$/u;
@@ -485,10 +408,8 @@ export function CartModal({
 
   // Usar setValue de react-hook-form para cambios
   const handleInputChange = useCallback((field: string, value: string) => {
-    if (field === "rut") value = formatRutOnChange(value);
-    if (field === "phone" && !value.startsWith("+56 9")) {
-      if (value.length < 6) value = "+56 9 ";
-    }
+    if (field === "rut") value = formatRutOnInput(value);
+    if (field === "phone") value = normalizeChilePhoneInput(value);
     setValue(field as keyof typeof clientSchema.shape, value);
     setViewState((prev) => ({ ...prev, error: null }));
   }, [setValue, clientSchema]);
@@ -568,7 +489,6 @@ export function CartModal({
     }
     setViewState((v) => ({ ...v, isSaving: true, error: null }));
     try {
-      const sanitizeInput = (text: string) => DOMPurify.sanitize(text ? text.trim() : "");
       const itemsForOrder = (cart as CartLineItem[]).map((item) => ({
         id: item.id,
         name: String(item.name ?? ""),
@@ -576,18 +496,18 @@ export function CartModal({
         price: Number(item.price) || 0,
         has_discount: Boolean(item.has_discount),
         discount_price: item.has_discount && item.discount_price != null ? Number(item.discount_price) : null,
-        description: item.description ? sanitizeInput(item.description) : null,
+        description: item.description ? sanitizeUserText(item.description) : null,
       }));
       const isOnline = paymentMethodKey && PAYMENT_METHOD_CONFIG[paymentMethodKey]?.isOnline;
       const orderPayload = {
-        client_name: sanitizeInput(data.name),
+        client_name: sanitizeUserText(data.name),
         client_phone: String(data.phone ?? "").trim(),
         client_rut: String(data.rut ?? "").trim(),
         payment_type: isOnline ? 'online' : 'tienda',
         payment_method_specific: paymentMethodKey,
         total: Number(cartTotal) || 0,
         items: itemsForOrder,
-        note: sanitizeInput(orderNote),
+        note: sanitizeUserText(orderNote),
         status: "pending",
         receiptFile: data.receiptFile,
         branch_id: selectedBranch.id,

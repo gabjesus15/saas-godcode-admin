@@ -5,14 +5,14 @@ import { X, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { TABLES } from '../../lib/supabaseTables';
 import { formatRut, validateRut } from '../../shared/utils/formatters';
+import { sanitizeUserTextNoTrim } from '../../shared/utils/sanitize-user-text';
 
 const MAX_NAME_LENGTH = 200;
 const MIN_PHONE_DIGITS = 9;
 
-const sanitizeText = (value) => {
+const sanitizeClientName = (value) => {
     if (value == null) return '';
-    const raw = String(value).replace(/<[^>]*>?/gm, '').trim();
-    return raw.slice(0, MAX_NAME_LENGTH);
+    return sanitizeUserTextNoTrim(String(value)).trim().slice(0, MAX_NAME_LENGTH);
 };
 
 const ClientFormModal = ({ isOpen, onClose, onClientCreated, showNotify, companyId }) => {
@@ -30,7 +30,7 @@ const ClientFormModal = ({ isOpen, onClose, onClientCreated, showNotify, company
         const { name, value } = e.target;
         let finalValue = value;
         if (name === 'rut') finalValue = formatRut(value);
-        if (name === 'name') finalValue = sanitizeText(value);
+        if (name === 'name') finalValue = sanitizeClientName(value);
         setFormData({ ...formData, [name]: finalValue });
     };
 
@@ -38,7 +38,7 @@ const ClientFormModal = ({ isOpen, onClose, onClientCreated, showNotify, company
         e.preventDefault();
         setLoading(true);
 
-        const name = sanitizeText(formData.name);
+        const name = sanitizeClientName(formData.name);
         const phone = String(formData.phone ?? '').trim();
         const rut = String(formData.rut ?? '').trim();
 
@@ -163,7 +163,7 @@ const ClientFormModal = ({ isOpen, onClose, onClientCreated, showNotify, company
                         type="submit" 
                         form="client-form"
                         className="btn btn-primary"
-                        disabled={loading || sanitizeText(formData.name).length < 2 || formData.phone.replace(/\D/g, '').length < MIN_PHONE_DIGITS}
+                        disabled={loading || sanitizeClientName(formData.name).length < 2 || formData.phone.replace(/\D/g, '').length < MIN_PHONE_DIGITS}
                     >
                         {loading ? <Loader2 className="animate-spin" size={18} /> : 'Guardar Cliente'}
                     </button>

@@ -8,6 +8,7 @@ import { ShieldCheck } from "lucide-react";
 
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
+import { mapAuthClientError } from "../../../utils/auth-client-errors";
 import { createSupabaseBrowserClient } from "../../../utils/supabase/client";
 
 export default function LoginPage() {
@@ -37,11 +38,12 @@ export default function LoginPage() {
 
     try {
       const supabase = createSupabaseBrowserClient("super-admin");
+      const normalizedEmail = email.trim().toLowerCase();
 
       await supabase.auth.signOut();
 
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
+        email: normalizedEmail,
         password,
       });
 
@@ -62,8 +64,7 @@ export default function LoginPage() {
       router.push("/dashboard");
       router.refresh();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "No se pudo iniciar sesión.";
-      setError(message);
+      setError(mapAuthClientError(err));
     } finally {
       setLoading(false);
     }

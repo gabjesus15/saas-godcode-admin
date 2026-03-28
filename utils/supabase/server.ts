@@ -5,7 +5,6 @@ import type { SupabaseAuthScope } from "./auth-scope";
 
 const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "");
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-
 const getCookieName = (scope: SupabaseAuthScope) =>
   scope === "super-admin" ? "sb-super-admin-auth-token" : "sb-tenant-auth-token";
 

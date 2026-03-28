@@ -12,6 +12,7 @@ import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 import { logAdminAction } from "../../utils/audit";
 import { requireAdminRole, roleSets } from "../../utils/admin";
 import { getTenantBaseDomain } from "../../utils/tenant-url";
+import { slugify } from "../../utils/slugify";
 import { uploadImage } from "../tenant/utils/cloudinary";
 import {
   TENANT_ADMIN_TAB_OPTIONS,
@@ -587,16 +588,6 @@ export function CompanyGlobalForm({
   const baseDomain = getTenantBaseDomain();
 
   // Utilidades y Formateadores
-  const slugify = (value: string) =>
-    value
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9\s-]/g, "")
-      .trim()
-      .replace(/\s+/g, "-")
-      .replace(/-+/g, "-");
-
   const currency = useMemo(() => new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",

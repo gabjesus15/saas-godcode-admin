@@ -6,9 +6,11 @@ let _client: SupabaseClient | null = null;
 function getClient(): SupabaseClient {
 	if (!_client) {
 		validateEnv();
+		const url = process.env.NEXT_PUBLIC_SUPABASE_URL!.trim().replace(/\/$/, "");
+		const key = process.env.SUPABASE_SERVICE_ROLE_KEY!.trim();
 		_client = createClient(
-			process.env.NEXT_PUBLIC_SUPABASE_URL!,
-			process.env.SUPABASE_SERVICE_ROLE_KEY!,
+			url,
+			key,
 			{
 				auth: {
 					autoRefreshToken: false,

@@ -1,7 +1,10 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 
-import { createSupabaseServerClient } from "../../../utils/supabase/server";
+import { parseJsonBody } from "@/lib/api/response";
+import { tenantBroadcastAckSchema } from "@/lib/api/schemas/tenant-broadcasts";
+import { supabaseAdmin } from "@/lib/supabase-admin";
+import { createSupabaseServerClient } from "@/utils/supabase/server";
 
 type MessageError = { message: string } | null;
 
@@ -39,18 +42,9 @@ type ReadRow = {
   read_at: string;
 };
 
-function getSupabaseAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    throw new Error("Faltan NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY");
-  }
-  return createClient(url, key);
-}
-
 const TENANT_ALLOWED_ROLES = new Set(["admin", "ceo", "cashier", "staff"]);
 
-async function getTenantContext(supabaseAdmin: ReturnType<typeof getSupabaseAdmin>) {
+async function getTenantContext(admin: SupabaseClient) {
   const supabase = await createSupabaseServerClient("tenant");
   const {
     data: { user },
@@ -62,7 +56,7 @@ async function getTenantContext(supabaseAdmin: ReturnType<typeof getSupabaseAdmi
   }
 
   const email = user.email.trim().toLowerCase();
-  const { data: rows, error: userRowError } = await supabaseAdmin
+  const { data: rows, error: userRowError } = await admin
     .from("users")
     .select("id,company_id,role")
     .ilike("email", email) as { data: TenantUserRow[] | null; error: MessageError };
@@ -74,7 +68,7 @@ async function getTenantContext(supabaseAdmin: ReturnType<typeof getSupabaseAdmi
     return { error: "No tienes permisos de panel tenant" };
   }
 
-  const { data: company, error: companyError } = await supabaseAdmin
+  const { data: company, error: companyError } = await admin
     .from("companies")
     .select("id,plan_id,public_slug")
     .eq("id", userRow.company_id)
@@ -123,7 +117,6 @@ const shouldIncludeBroadcast = (
 
 export async function GET() {
   try {
-    const supabaseAdmin = getSupabaseAdmin();
     const ctx = await getTenantContext(supabaseAdmin);
 
     if ("error" in ctx) {
@@ -182,18 +175,15 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const supabaseAdmin = getSupabaseAdmin();
     const ctx = await getTenantContext(supabaseAdmin);
 
     if ("error" in ctx) {
       return NextResponse.json({ error: ctx.error }, { status: 403 });
     }
 
-    const body = await req.json();
-    const broadcastId = String(body.broadcastId ?? "").trim();
-    if (!broadcastId) {
-      return NextResponse.json({ error: "Falta broadcastId" }, { status: 400 });
-    }
+    const parsed = await parseJsonBody(req, tenantBroadcastAckSchema);
+    if (!parsed.ok) return parsed.response;
+    const { broadcastId } = parsed.data;
 
     const { data: broadcast, error: broadcastError } = await supabaseAdmin
       .from("saas_broadcasts")

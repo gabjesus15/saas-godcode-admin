@@ -1,63 +1,11 @@
-const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+import {
+	uploadImage as uploadImageShared,
+	validateImageFile as validateImageFileShared,
+} from "./cloudinary-upload";
 
-const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
-
-export const validateImageFile = (file: File | null) => {
-  if (!file || !(file instanceof File)) {
-    return { valid: false, error: "Archivo no valido." };
-  }
-  if (file.size > MAX_FILE_SIZE_BYTES) {
-    return { valid: false, error: "La imagen es muy pesada (max. 5 MB)." };
-  }
-  const type = (file.type || "").toLowerCase();
-  if (!ALLOWED_IMAGE_TYPES.includes(type)) {
-    return { valid: false, error: "Solo se permiten imagenes JPG, PNG o WebP." };
-  }
-  return { valid: true };
-};
-
-export const uploadImage = async (file: File, folder = "tenant") => {
-  if (!CLOUD_NAME || !UPLOAD_PRESET) {
-    throw new Error("Cloudinary configuration is missing in .env");
-  }
-
-  const validation = validateImageFile(file);
-  if (!validation.valid) {
-    throw new Error(validation.error || "Archivo no valido.");
-  }
-
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", UPLOAD_PRESET);
-  formData.append("folder", folder);
-
-  const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
-    {
-      method: "POST",
-      body: formData,
-    }
-  );
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    const msg = errorData.error?.message || "Error uploading to Cloudinary";
-    if (
-      msg.toLowerCase().includes("preset") &&
-      msg.toLowerCase().includes("not found")
-    ) {
-      throw new Error(
-        "Configuracion de Cloudinary: el Upload Preset no existe. Revisa .env y crea un preset sin firmar."
-      );
-    }
-    throw new Error(msg);
-  }
-
-  const data = await response.json();
-  return data.secure_url as string;
-};
+export const validateImageFile = (file: File | null) => validateImageFileShared(file);
+export const uploadImage = (file: File, folder = "tenant") =>
+	uploadImageShared(file, folder);
 
 const CLOUDINARY_UPLOAD_SEGMENT = "/image/upload/";
 const TRANSFORM_HINT = /(?:^|,)(w_|h_|c_|q_|f_|g_)/;

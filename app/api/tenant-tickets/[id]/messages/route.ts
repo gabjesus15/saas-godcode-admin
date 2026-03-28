@@ -1,7 +1,10 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 
-import { createSupabaseServerClient } from "../../../../../utils/supabase/server";
+import { parseJsonBody } from "@/lib/api/response";
+import { tenantTicketMessageBodySchema } from "@/lib/api/schemas/tenant-tickets";
+import { supabaseAdmin } from "@/lib/supabase-admin";
+import { createSupabaseServerClient } from "@/utils/supabase/server";
 
 type MessageError = { message: string } | null;
 
@@ -22,16 +25,7 @@ type MessageRow = {
 
 const TENANT_ALLOWED_ROLES = new Set(["admin", "ceo", "cashier", "staff"]);
 
-function getSupabaseAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    throw new Error("Faltan NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY");
-  }
-  return createClient(url, key);
-}
-
-async function getTenantContext(client: ReturnType<typeof getSupabaseAdmin>) {
+async function getTenantContext(client: SupabaseClient) {
   const supabase = await createSupabaseServerClient("tenant");
   const {
     data: { user },
@@ -56,7 +50,7 @@ async function getTenantContext(client: ReturnType<typeof getSupabaseAdmin>) {
   return { companyId: userRow.company_id, email };
 }
 
-async function verifyTicketOwnership(client: ReturnType<typeof getSupabaseAdmin>, ticketId: string, companyId: string) {
+async function verifyTicketOwnership(client: SupabaseClient, ticketId: string, companyId: string) {
   const { data, error } = await client
     .from("saas_tickets")
     .select("id,company_id")
@@ -70,18 +64,17 @@ async function verifyTicketOwnership(client: ReturnType<typeof getSupabaseAdmin>
 
 export async function GET(_: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const client = getSupabaseAdmin();
-    const ctx = await getTenantContext(client);
+    const ctx = await getTenantContext(supabaseAdmin);
     if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: 403 });
 
     const params = await context.params;
     const ticketId = String(params.id ?? "").trim();
     if (!ticketId) return NextResponse.json({ error: "Falta id" }, { status: 400 });
 
-    const ownership = await verifyTicketOwnership(client, ticketId, ctx.companyId);
+    const ownership = await verifyTicketOwnership(supabaseAdmin, ticketId, ctx.companyId);
     if ("error" in ownership) return NextResponse.json({ error: ownership.error }, { status: 403 });
 
-    const { data, error } = await client
+    const { data, error } = await supabaseAdmin
       .from("saas_ticket_messages")
       .select("id,ticket_id,author_type,author_email,is_internal,message,created_at")
       .eq("ticket_id", ticketId)
@@ -99,34 +92,33 @@ export async function GET(_: NextRequest, context: { params: Promise<{ id: strin
 
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const client = getSupabaseAdmin();
-    const ctx = await getTenantContext(client);
+    const ctx = await getTenantContext(supabaseAdmin);
     if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: 403 });
 
     const params = await context.params;
     const ticketId = String(params.id ?? "").trim();
     if (!ticketId) return NextResponse.json({ error: "Falta id" }, { status: 400 });
 
-    const ownership = await verifyTicketOwnership(client, ticketId, ctx.companyId);
+    const ownership = await verifyTicketOwnership(supabaseAdmin, ticketId, ctx.companyId);
     if ("error" in ownership) return NextResponse.json({ error: ownership.error }, { status: 403 });
 
-    const body = await req.json();
-    const message = String(body.message ?? "").trim();
-    if (!message) return NextResponse.json({ error: "El mensaje es obligatorio" }, { status: 400 });
+    const parsed = await parseJsonBody(req, tenantTicketMessageBodySchema);
+    if (!parsed.ok) return parsed.response;
+    const bodyMessage = parsed.data.message;
 
     const nowIso = new Date().toISOString();
 
-    const { error } = await client.from("saas_ticket_messages").insert({
+    const { error } = await supabaseAdmin.from("saas_ticket_messages").insert({
       ticket_id: ticketId,
       author_type: "tenant",
       author_email: ctx.email,
       is_internal: false,
-      message,
+      message: bodyMessage,
     });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-    await client
+    await supabaseAdmin
       .from("saas_tickets")
       .update({ status: "open", resolved_at: null, last_message_at: nowIso, updated_at: nowIso })
       .eq("id", ticketId);

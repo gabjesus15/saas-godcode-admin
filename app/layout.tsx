@@ -18,8 +18,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SaaS Super Admin",
-  description: "Super Admin Panel for a multi-tenant SaaS",
+  title: {
+    default: "SaaS Super Admin",
+    template: "%s · SaaS Super Admin",
+  },
+  description:
+    "Panel de administración multi-tenant: empresas, planes, onboarding y soporte.",
 };
 
 export default function RootLayout({
@@ -28,7 +32,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://saas-godcode-admin.vercel.app" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://res.cloudinary.com" crossOrigin="anonymous" />
@@ -46,8 +50,12 @@ export default function RootLayout({
       >
         {/* Logo y slogan eliminados del layout global por petición del usuario */}
         {children}
-        <Analytics />
-        <SpeedInsights />
+        {process.env.NODE_ENV === "production" ? (
+          <>
+            <Analytics />
+            <SpeedInsights />
+          </>
+        ) : null}
       </body>
     </html>
   );

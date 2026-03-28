@@ -6,6 +6,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import CartContext from "./cart-context";
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 import { filterValidProductIds, isValidBranchId } from "./utils/safe-ids";
+import { mergeCartWithBranchPrices } from "./utils/cart-pricing";
 
 // --- TIPOS ---
 interface CartItem {
@@ -217,43 +218,24 @@ export function CartProvider({
 
         if (cancelled || error) return;
 
-        const priceByProductId = new Map(
-            (data || []).map((row: PriceRow) => {
-              const typedRow: PriceRow = {
-                product_id: String(row.product_id),
-                price: Number(row.price),
-                has_discount: Boolean(row.has_discount),
-                discount_price: Number(row.discount_price),
-                products: row.products ? {
-                  id: String(row.products.id),
-                  name: row.products.name ?? null,
-                  is_active: row.products.is_active ?? null,
-                  description: row.products.description ?? null,
-                } : undefined
-              };
-              return [typedRow.product_id, typedRow];
-            })
-        );
+        const rows = (data || []).map((row: PriceRow) => ({
+          product_id: String(row.product_id),
+          price: Number(row.price),
+          has_discount: Boolean(row.has_discount),
+          discount_price: Number(row.discount_price),
+          products: row.products
+            ? {
+                id: String(row.products.id),
+                name: row.products.name ?? null,
+                is_active: row.products.is_active ?? null,
+                description: row.products.description ?? null,
+              }
+            : undefined,
+        }));
         const currentCart = useCartStore.getState().cart;
-        const nextCart = currentCart.reduce<CartItem[]>((acc, cartItem) => {
-          const priceRow = priceByProductId.get(String(cartItem.id)) as PriceRow | undefined;
-          if (priceRow) {
-            const meta = priceRow.products;
-            acc.push({
-              ...cartItem,
-              price: priceRow.price,
-              has_discount: priceRow.has_discount,
-              discount_price: priceRow.discount_price,
-              name: meta?.name ?? cartItem.name,
-              is_active: meta?.is_active ?? cartItem.is_active,
-              description: meta?.description ?? cartItem.description,
-            });
-          } else {
-            // Mantener el ítem en el carrito aunque no haya precio en product_prices (evita que desaparezca al agregar)
-            acc.push({ ...cartItem });
-          }
-          return acc;
-        }, []).filter(item => item.is_active !== false);
+        const nextCart = mergeCartWithBranchPrices(currentCart, rows, {
+          omitLinesWithoutPriceWhenBranchHasData: false,
+        });
 
         const isSame = JSON.stringify(currentCart) === JSON.stringify(nextCart);
         // No vaciar el carrito si la API devolvió 0 filas (sucursal sin precios en BD o error RLS)

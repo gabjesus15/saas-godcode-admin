@@ -4,6 +4,7 @@ import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AlertCircle, Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
 
+import { mapAuthClientError } from "../../utils/auth-client-errors";
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 import { getTenantScopedPath } from "./utils/tenant-route";
 
@@ -107,13 +108,14 @@ export function TenantLoginForm({
     } catch (err) {
       const rawMessage =
         err instanceof Error ? err.message : "No se pudo iniciar sesion.";
+      const lower = rawMessage.toLowerCase();
 
       const message =
-        rawMessage.toLowerCase().includes("invalid login credentials")
+        lower.includes("invalid login credentials")
           ? "Correo o contraseña incorrectos."
-          : rawMessage.toLowerCase().includes("email not confirmed")
+          : lower.includes("email not confirmed")
             ? "Tu correo aun no ha sido confirmado."
-            : rawMessage;
+            : mapAuthClientError(err);
 
       setError(message);
     } finally {

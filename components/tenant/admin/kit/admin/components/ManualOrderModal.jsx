@@ -7,6 +7,7 @@ import {
     Upload, FileText
 } from 'lucide-react';
 import { formatCurrency } from '../../shared/utils/formatters';
+import { sanitizeUserTextNoTrim } from '../../shared/utils/sanitize-user-text';
 const logo = '/tenant/logo-placeholder.svg';
 import { useManualOrder } from '../hooks/useManualOrder';
 import { printOrderTicket } from '../utils/receiptPrinting';
@@ -36,16 +37,14 @@ const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderS
 
     const getQty = (id) => manualOrder.items.find(i => i.id === id)?.quantity || 0;
 
-	// [MEJORA SEGURIDAD] Función de sanitización
-	const sanitizeInput = (text) => {
+	const sanitizeNameOnChange = (text) => {
 		if (!text) return '';
-		return text.replace(/[<>]/g, '').trim(); // Elimina < y > para evitar inyección básica
+		return sanitizeUserTextNoTrim(text).trim();
 	};
 
-	// La nota no debe hacer trim para permitir espacios entre palabras mientras escribes.
-	const sanitizeNote = (text) => {
+	const sanitizeNoteOnChange = (text) => {
 		if (text == null || text === '') return '';
-		return text.replace(/[<>]/g, '');
+		return sanitizeUserTextNoTrim(text);
 	};
 
     const handlePrintPreCheck = () => {
@@ -322,7 +321,7 @@ const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderS
                                         placeholder="NOMBRE COMPLETO *"
                                         className="manual-order-input"
                                         value={manualOrder.client_name}
-                                        onChange={e => updateClientName(sanitizeInput(e.target.value))}
+                                        onChange={e => updateClientName(sanitizeNameOnChange(e.target.value))}
                                         aria-label="Nombre completo del cliente"
                                         style={{ paddingRight: manualOrder.client_name.length >= 3 ? '40px' : '16px' }}
                                     />
@@ -384,7 +383,7 @@ const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderS
                                     placeholder="Nota opcional..."
                                     className="manual-order-input"
                                     value={manualOrder.note}
-                                    onChange={e => updateNote(sanitizeNote(e.target.value))}
+                                    onChange={e => updateNote(sanitizeNoteOnChange(e.target.value))}
                                     rows={1}
                                     maxLength={500}
                                     aria-label="Nota o comentario del pedido"

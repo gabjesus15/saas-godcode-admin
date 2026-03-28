@@ -1,15 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-function slugify(value: string): string {
-	return value
-		.toLowerCase()
-		.normalize("NFD")
-		.replace(/[\u0300-\u036f]/g, "")
-		.replace(/[^a-z0-9\s-]/g, "")
-		.trim()
-		.replace(/\s+/g, "-")
-		.replace(/-+/g, "-")
-		.slice(0, 80) || "negocio";
+import { slugify as slugifyBase } from "../../../../utils/slugify";
+
+function slugifyCompanyPublicSlug(value: string): string {
+	return slugifyBase(value, { maxLength: 80, emptyFallback: "negocio" });
 }
 
 export type OnboardingApplication = {
@@ -123,7 +117,7 @@ export async function provisionCompanyFromApplication(
 		if (existing) return { ok: true, company: existing };
 	}
 
-	const baseSlug = slugify(app.business_name);
+	const baseSlug = slugifyCompanyPublicSlug(app.business_name);
 	let publicSlug = baseSlug;
 	let suffix = 0;
 	while (true) {
