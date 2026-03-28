@@ -25,6 +25,16 @@ type Addon = {
 
 type AddonChoice = { addon_id: string; quantity: number; price_snapshot: number | null };
 
+/** Debe coincidir con MANUAL_METHOD_SLUGS en lib/onboarding/checkout-service */
+const MANUAL_SUBSCRIPTION_SLUGS = new Set(["pago_movil", "zelle", "transferencia"]);
+
+function normalizeSubscriptionMethod(raw: string | null | undefined): string {
+	const t = (raw ?? "").trim().toLowerCase();
+	if (t === "paypal") return "paypal";
+	if (MANUAL_SUBSCRIPTION_SLUGS.has(t)) return t;
+	return "stripe";
+}
+
 export function OnboardingStep2Form({
   token,
   initialData,
@@ -61,7 +71,8 @@ export function OnboardingStep2Form({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
-  const [, setPlanPaymentMethods] = useState<PlanPaymentMethod[]>([]);
+  const [planPaymentMethods, setPlanPaymentMethods] = useState<PlanPaymentMethod[]>([]);
+  const [planMethodsLoadState, setPlanMethodsLoadState] = useState<"idle" | "loading" | "ready">("idle");
   const [selectedAddons, setSelectedAddons] = useState<AddonChoice[]>(() => {
     const fromInitial = initialData.addons ?? [];
     return fromInitial.map((a) => ({
@@ -88,7 +99,7 @@ export function OnboardingStep2Form({
     custom_plan_name: initialData.custom_plan_name ?? "",
     custom_plan_price: initialData.custom_plan_price ?? "",
     custom_domain: initialData.custom_domain ?? "",
-    subscription_payment_method: initialData.subscription_payment_method ?? "",
+    subscription_payment_method: normalizeSubscriptionMethod(initialData.subscription_payment_method),
   });
 
   // Restricción para plan beta
@@ -116,8 +127,10 @@ export function OnboardingStep2Form({
     const country = form.country?.trim();
     if (!country) {
       setPlanPaymentMethods([]);
+      setPlanMethodsLoadState("idle");
       return;
     }
+    setPlanMethodsLoadState("loading");
     let cancelled = false;
     fetch(`/api/onboarding/plan-payment-methods?country=${encodeURIComponent(country)}`)
       .then((res) => res.json())
@@ -126,9 +139,27 @@ export function OnboardingStep2Form({
       })
       .catch(() => {
         if (!cancelled) setPlanPaymentMethods([]);
+      })
+      .finally(() => {
+        if (!cancelled) setPlanMethodsLoadState("ready");
       });
     return () => { cancelled = true; };
   }, [form.country]);
+
+  useEffect(() => {
+    if (planMethodsLoadState !== "ready") return;
+    setForm((prev) => {
+      const m = prev.subscription_payment_method;
+      if (!MANUAL_SUBSCRIPTION_SLUGS.has(m)) return prev;
+      const allowed = new Set(planPaymentMethods.map((p) => p.slug));
+      if (allowed.has(m)) return prev;
+      return { ...prev, subscription_payment_method: "stripe" };
+    });
+  }, [planPaymentMethods, planMethodsLoadState]);
+
+  const manualMethodsForCountry = planPaymentMethods.filter((m) =>
+    MANUAL_SUBSCRIPTION_SLUGS.has(m.slug)
+  );
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -171,7 +202,7 @@ export function OnboardingStep2Form({
           custom_plan_name: form.custom_plan_name || undefined,
           custom_plan_price: form.custom_plan_price || undefined,
           custom_domain: form.custom_domain || undefined,
-          subscription_payment_method: form.subscription_payment_method || undefined,
+          subscription_payment_method: form.subscription_payment_method,
           addons: selectedAddons.length > 0 ? selectedAddons : undefined,
         }),
       });
@@ -369,6 +400,64 @@ export function OnboardingStep2Form({
                   </label>
                 );
               })}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50/30 p-5">
+          <h3 className="text-sm font-medium text-zinc-700">¿Cómo pagarás tu suscripción? *</h3>
+          <p className="mt-1 text-xs text-zinc-500">
+            Elige la pasarela para el cobro del plan SaaS (no confundir con los métodos que ofrecerás a tus clientes).
+          </p>
+          <div className="mt-3 space-y-2">
+            <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-zinc-200 bg-white p-3 transition hover:bg-zinc-50">
+              <input
+                type="radio"
+                name="subscription_payment_method"
+                value="stripe"
+                checked={form.subscription_payment_method === "stripe"}
+                onChange={() => setForm((p) => ({ ...p, subscription_payment_method: "stripe" }))}
+                className="h-4 w-4 border-zinc-300"
+              />
+              <div>
+                <span className="font-medium text-zinc-900">Tarjeta (Stripe)</span>
+                <p className="text-xs text-zinc-500">Pago con tarjeta de débito o crédito.</p>
+              </div>
+            </label>
+            <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-zinc-200 bg-white p-3 transition hover:bg-zinc-50">
+              <input
+                type="radio"
+                name="subscription_payment_method"
+                value="paypal"
+                checked={form.subscription_payment_method === "paypal"}
+                onChange={() => setForm((p) => ({ ...p, subscription_payment_method: "paypal" }))}
+                className="h-4 w-4 border-zinc-300"
+              />
+              <div>
+                <span className="font-medium text-zinc-900">PayPal</span>
+                <p className="text-xs text-zinc-500">Serás redirigido a PayPal para completar el pago.</p>
+              </div>
+            </label>
+            {manualMethodsForCountry.map((method) => (
+              <label
+                key={method.id}
+                className="flex cursor-pointer items-center gap-3 rounded-lg border border-zinc-200 bg-white p-3 transition hover:bg-zinc-50"
+              >
+                <input
+                  type="radio"
+                  name="subscription_payment_method"
+                  value={method.slug}
+                  checked={form.subscription_payment_method === method.slug}
+                  onChange={() =>
+                    setForm((p) => ({ ...p, subscription_payment_method: method.slug }))
+                  }
+                  className="h-4 w-4 border-zinc-300"
+                />
+                <div>
+                  <span className="font-medium text-zinc-900">{method.name ?? method.slug}</span>
+                  <p className="text-xs text-zinc-500">Instrucciones y comprobante en el siguiente paso.</p>
+                </div>
+              </label>
+            ))}
           </div>
         </div>
 
