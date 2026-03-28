@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { validateAdminRolesOnServer } from "../../../utils/admin/server-auth";
+
+import { supabaseAdmin } from "../../../lib/supabase-admin";
 
 type RoleRow = {
 	id: string;
@@ -8,11 +9,6 @@ type RoleRow = {
 	description: string | null;
 	is_system: boolean;
 };
-
-const supabaseAdmin = createClient(
-	process.env.NEXT_PUBLIC_SUPABASE_URL!,
-	process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 async function validateSuperAdminAccess() {
 	const result = await validateAdminRolesOnServer(["super_admin"]);

@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabaseAdmin } from "../../../../lib/supabase-admin";
+import { proxyToOnboardingBilling } from "../../../../lib/service-proxy";
 
 const VALID_STATUSES = new Set(["email_verified"]);
 
@@ -41,6 +38,9 @@ function sanitize(str: string | undefined, maxLen: number): string | null {
 }
 
 export async function POST(req: NextRequest) {
+  const proxied = await proxyToOnboardingBilling(req, "/api/onboarding/complete");
+  if (proxied) return proxied;
+
   try {
     const body = (await req.json().catch(() => ({}))) as CompleteBody;
     const token = sanitize(body.token, 100);

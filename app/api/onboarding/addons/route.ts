@@ -1,13 +1,11 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { NextRequest, NextResponse } from "next/server";
 
-const supabaseAdmin = createClient(
-	process.env.NEXT_PUBLIC_SUPABASE_URL!,
-	process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabaseAdmin } from "../../../../lib/supabase-admin";
+import { proxyToOnboardingBilling } from "../../../../lib/service-proxy";
 
-/** GET: listar add-ons activos para el formulario de registro (paso 2). */
-export async function GET() {
+export async function GET(req: NextRequest) {
+	const proxied = await proxyToOnboardingBilling(req, "/api/onboarding/addons");
+	if (proxied) return proxied;
 	const { data, error } = await supabaseAdmin
 		.from("addons")
 		.select("id,slug,name,description,price_one_time,price_monthly,type,sort_order")

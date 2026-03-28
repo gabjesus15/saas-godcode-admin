@@ -1,21 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import {
 	Client,
 	Environment,
 	OrdersController,
 } from "@paypal/paypal-server-sdk";
 
-const supabaseAdmin = createClient(
-	process.env.NEXT_PUBLIC_SUPABASE_URL!,
-	process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabaseAdmin } from "../../../../lib/supabase-admin";
+import { proxyToOnboardingBilling } from "../../../../lib/service-proxy";
 
 const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID ?? "";
 const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET ?? "";
 
-/** GET: PayPal redirige aquí con ?token=ORDER_ID tras aprobar. Capturamos la orden y redirigimos a /checkout/success. */
 export async function GET(req: NextRequest) {
+	const proxied = await proxyToOnboardingBilling(req, "/api/onboarding/paypal-capture");
+	if (proxied) return proxied;
 	try {
 		const token = req.nextUrl.searchParams.get("token");
 		if (!token) {

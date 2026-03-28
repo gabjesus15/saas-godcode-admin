@@ -1,15 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
 
+import { supabaseAdmin } from "../../../lib/supabase-admin";
 import { OnboardingStep2Form } from "../../../components/onboarding/OnboardingStep2Form";
 
 export const dynamic = "force-dynamic";
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 export default async function OnboardingCompletePage({
   searchParams,
@@ -35,7 +30,9 @@ export default async function OnboardingCompletePage({
     return { app: data, error };
   }
 
-  let { app, error } = await fetchApp();
+  const initialFetch = await fetchApp();
+  let app = initialFetch.app;
+  const error = initialFetch.error;
   if (error) {
     console.error("[ONBOARDING COMPLETE] Error al cargar aplicación:", error);
     return (
@@ -67,9 +64,7 @@ export default async function OnboardingCompletePage({
   // Propagación de escritura en Supabase: hasta 3 intentos con espera (evita redirigir al paso 1)
   const maxAttempts = 3;
   const waitMs = 2000;
-  let loading = false;
   for (let attempt = 1; attempt <= maxAttempts && app.status !== "email_verified" && app.status !== "form_completed"; attempt++) {
-    loading = true;
     await new Promise((r) => setTimeout(r, waitMs));
     const retry = await fetchApp();
     if (retry.error || !retry.app) {

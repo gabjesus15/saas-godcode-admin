@@ -1,12 +1,11 @@
-import { createClient } from "@supabase/supabase-js";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabaseAdmin } from "../../../../lib/supabase-admin";
+import { proxyToOnboardingBilling } from "../../../../lib/service-proxy";
 
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
+  const proxied = await proxyToOnboardingBilling(request, "/api/onboarding/delete");
+  if (proxied) return proxied;
   const { id } = await request.json();
   if (!id) {
     return NextResponse.json({ error: "Missing id" }, { status: 400 });

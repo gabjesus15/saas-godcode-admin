@@ -1,15 +1,13 @@
-import { createClient } from "@supabase/supabase-js";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabaseAdmin } from "../../../../lib/supabase-admin";
+import { proxyToOnboardingBilling } from "../../../../lib/service-proxy";
 
-// Expire requests older than X days (default: 7 days)
 const EXPIRATION_DAYS = 7;
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+  const proxied = await proxyToOnboardingBilling(req, "/api/onboarding/expire-unverified");
+  if (proxied) return proxied;
   const cutoff = new Date(Date.now() - EXPIRATION_DAYS * 24 * 60 * 60 * 1000);
 
   // Only expire requests that are still pending_verification

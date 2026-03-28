@@ -1,17 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { randomBytes } from "crypto";
 
-import { sendOnboardingEmail } from "../../../../lib/onboarding/emails";
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabaseAdmin } from "../../../../lib/supabase-admin";
+import { logger, createRequestContext } from "../../../../lib/logger";
+import {
+	activateCompanyAddonsFromApplication,
+	activateCompanySubscription,
+	getMonthsPaidFromPayment,
+} from "../../../../lib/onboarding/billing-activation";
+import {
+	provisionOnboardingWelcome,
+	WelcomeProvisioningError,
+} from "../../../../lib/onboarding/welcome-provisioning";
+import { proxyToOnboardingBilling } from "../../../../lib/service-proxy";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "";
 const RESEND_FROM = process.env.RESEND_FROM ?? "noreply@example.com";
 
 export async function POST(req: NextRequest) {
+  const proxied = await proxyToOnboardingBilling(req, "/api/onboarding/finalize");
+  if (proxied) return proxied;
+  const ctx = createRequestContext("/api/onboarding/finalize", "POST");
   try {
     const ref = req.nextUrl.searchParams.get("ref") ?? (await req.json().catch(() => ({}))).ref;
     if (!ref || typeof ref !== "string") {
@@ -55,22 +63,21 @@ export async function POST(req: NextRequest) {
       .eq("payment_reference", ref)
       .maybeSingle();
     const status = paymentUpdated?.status ?? payment.status;
-    const monthsPaid = paymentUpdated?.months_paid ?? 1;
+    const monthsPaid = getMonthsPaidFromPayment(
+      { months_paid: paymentUpdated?.months_paid },
+      1
+    );
     if (status !== "paid" && status !== "approved") {
       return NextResponse.json({ ok: true, message: "Pago aún no confirmado" });
     }
 
     const now = new Date();
-    const endsAt = new Date(now);
-    endsAt.setDate(endsAt.getDate() + Math.max(1, Number(monthsPaid)) * 30);
-    await supabaseAdmin
-      .from("companies")
-      .update({
-        subscription_status: "active",
-        subscription_ends_at: endsAt.toISOString(),
-        updated_at: now.toISOString(),
-      })
-      .eq("id", payment.company_id);
+    await activateCompanySubscription({
+      supabaseAdmin,
+      companyId: payment.company_id,
+      monthsPaid,
+      now,
+    });
 
     const { data: app, error: appError } = await supabaseAdmin
       .from("onboarding_applications")
@@ -92,103 +99,36 @@ export async function POST(req: NextRequest) {
       .eq("id", payment.company_id)
       .maybeSingle();
 
-    const tempPassword = randomBytes(16).toString("hex");
-    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: app.email,
-      password: tempPassword,
-      email_confirm: true,
-    });
-
-    if (authError) {
-      return NextResponse.json(
-        { error: authError.message || "Error al crear usuario" },
-        { status: 400 }
-      );
-    }
-
-    const authUserId = authUser.user?.id;
-    if (!authUserId) {
-      return NextResponse.json({ error: "Usuario de auth no creado" }, { status: 500 });
-    }
-
-    const { error: userInsertError } = await supabaseAdmin.from("users").insert({
-      email: app.email,
-      role: "ceo",
-      company_id: payment.company_id,
-      branch_id: null,
-      auth_user_id: authUserId,
-      auth_id: authUserId,
-    });
-
-    if (userInsertError) {
-      return NextResponse.json(
-        { error: userInsertError.message || "Error al vincular usuario" },
-        { status: 500 }
-      );
-    }
-
-    const linkResult = await supabaseAdmin.auth.admin.generateLink({
-      type: "recovery",
-      email: app.email,
-    });
-    const magicLink = (linkResult.data as { properties?: { action_link?: string } })?.properties?.action_link;
-    const fallbackUrl = process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN
-      ? `${process.env.NEXT_PUBLIC_TENANT_PROTOCOL || "https"}://${process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN}`
-      : "http://localhost:3000";
-    const panelUrl = magicLink || fallbackUrl;
-
-    await sendOnboardingEmail({
-      type: "welcome",
-      to: app.email,
-      from: RESEND_FROM,
-      apiKey: RESEND_API_KEY,
-      responsibleName: app.responsible_name,
-      businessName: app.business_name,
-      panelUrl,
-    });
-
-    await supabaseAdmin
-      .from("onboarding_applications")
-      .update({
-        status: "active",
-        welcome_email_sent_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", app.id);
-
-    const { data: appAddons } = await supabaseAdmin
-      .from("onboarding_application_addons")
-      .select("addon_id,quantity,price_snapshot")
-      .eq("application_id", app.id);
-    if (Array.isArray(appAddons) && appAddons.length > 0) {
-      const addonIds = [...new Set(appAddons.map((a) => a.addon_id))];
-      const { data: addonsMeta } = await supabaseAdmin.from("addons").select("id,type").in("id", addonIds);
-      const typeById = new Map((addonsMeta ?? []).map((a) => [a.id, a.type]));
-      const now = new Date();
-      const expiresBase = new Date(now);
-      expiresBase.setDate(expiresBase.getDate() + Math.max(1, Number(paymentUpdated?.months_paid ?? 1)) * 30);
-      for (const row of appAddons) {
-        const type = typeById.get(row.addon_id) ?? "one_time";
-        await supabaseAdmin.from("company_addons").upsert(
-          {
-            company_id: payment.company_id,
-            addon_id: row.addon_id,
-            status: "active",
-            price_paid: row.price_snapshot != null ? Number(row.price_snapshot) : null,
-            expires_at: type === "monthly" ? expiresBase.toISOString() : null,
-            updated_at: now.toISOString(),
-          },
-          { onConflict: "company_id,addon_id" }
-        );
+    try {
+      await provisionOnboardingWelcome({
+        supabaseAdmin,
+        application: app,
+        companyId: payment.company_id,
+        resendApiKey: RESEND_API_KEY,
+        resendFrom: RESEND_FROM,
+      });
+    } catch (error) {
+      if (error instanceof WelcomeProvisioningError) {
+        return NextResponse.json({ error: error.message }, { status: error.status });
       }
+      throw error;
     }
 
+    await activateCompanyAddonsFromApplication({
+      supabaseAdmin,
+      applicationId: app.id,
+      companyId: payment.company_id,
+      monthsPaid,
+      now,
+    });
+
+    logger.info("Finalize completado", ctx, { companyId: payment.company_id });
     return NextResponse.json({
       ok: true,
       message: "Usuario creado y email de bienvenida enviado",
     });
   } catch (err) {
-    console.error("onboarding finalize error:", err);
+    logger.error("onboarding finalize error", ctx, { error: String(err) });
     return NextResponse.json(
       { error: "Error interno" },
       { status: 500 }

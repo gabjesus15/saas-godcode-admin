@@ -1,18 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
+import { supabaseAdmin } from "../../lib/supabase-admin";
 
 const FALLBACK_ALLOWED_ROLES = new Set(["super_admin"]);
-
-// Service role client para bypass RLS en validaciones server-side
-const supabaseAdmin = createClient(
-	process.env.NEXT_PUBLIC_SUPABASE_URL!,
-	process.env.SUPABASE_SERVICE_ROLE_KEY!,
-	{
-		auth: {
-			autoRefreshToken: false,
-			persistSession: false,
-		},
-	}
-);
 
 export interface ServerAdminPermissionResult {
 	ok: boolean;

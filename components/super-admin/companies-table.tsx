@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { Badge } from "../ui/badge";
-import { Card } from "../ui/card";
 import { CompanyStatusToggle } from "./company-status-toggle";
 import { getTenantHost, getTenantUrl } from "../../utils/tenant-url";
 
