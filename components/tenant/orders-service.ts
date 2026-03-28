@@ -16,6 +16,8 @@ interface CreateOrderPayload {
   client_phone: string;
   client_rut?: string;
   payment_type: "online" | "tienda" | null;
+  /** Clave del método (ej. transferencia); debe alinearse con la RPC que incluye p_payment_method_specific. */
+  payment_method_specific?: string | null;
   total: number;
   items: OrderItem[];
   note?: string | null;
@@ -209,6 +211,7 @@ export const ordersService = {
         p_branch_id: orderData.branch_id,
         p_company_id: orderData.company_id || null,
         p_status: orderData.status || "pending",
+        p_payment_method_specific: orderData.payment_method_specific ?? null,
       }
     );
 

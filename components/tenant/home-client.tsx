@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
-import { Building2, Instagram, MapPin, MessageCircle, Settings, Utensils, QrCode } from "lucide-react";
+import { Building2, Share2, MapPin, MessageCircle, Settings, Utensils, QrCode } from "lucide-react";
 import Image from "next/image";
 
 import { ContactBranchModal } from "./contact-branch-modal";
@@ -18,13 +18,14 @@ interface BranchInfo {
 }
 
 interface HomeClientProps {
+  publicSlug: string;
   name: string;
   logoUrl?: string | null;
   schedule?: string | null;
   branches: BranchInfo[];
 }
 
-export function HomeClient({ name, logoUrl, schedule, branches }: HomeClientProps) {
+export function HomeClient({ name, logoUrl, schedule, branches, publicSlug }: HomeClientProps) {
     // Estado para detectar mobile
     const [showQR, setShowQR] = useState(true);
 
@@ -44,10 +45,13 @@ export function HomeClient({ name, logoUrl, schedule, branches }: HomeClientProp
     [pathname]
   );
 
-  const loginPath = useMemo(
-    () => getTenantScopedPath(pathname ?? "/", "/login"),
-    [pathname]
-  );
+  const panelBase = (process.env.NEXT_PUBLIC_TENANT_PANEL_URL ?? "").replace(/\/$/, "");
+  const loginPath = useMemo(() => {
+    if (panelBase) {
+      return `${panelBase}/`;
+    }
+    return getTenantScopedPath(pathname ?? "/", "/login");
+  }, [pathname, panelBase]);
 
   // Estados de UI
   const [showModal, setShowModal] = useState(false);
@@ -128,7 +132,7 @@ export function HomeClient({ name, logoUrl, schedule, branches }: HomeClientProp
     },
     {
       label: "Instagram",
-      icon: <Instagram size={20} />,
+      icon: <Share2 size={20} />,
       onClick: () => handleActionClick("instagram"),
     },
     {
@@ -154,14 +158,17 @@ export function HomeClient({ name, logoUrl, schedule, branches }: HomeClientProp
 
   return (
     <div className="home-container animate-fade">
-      <button
-        onClick={() => router.push(loginPath)}
-        className="settings-btn"
-        title="Acceso Administrativo"
-        aria-label="Acceso Administrativo"
-      >
-        <Settings size={20} />
-      </button>
+      {panelBase ? (
+        <button
+          type="button"
+          onClick={() => router.push(loginPath)}
+          className="settings-btn"
+          title="Acceso Administrativo"
+          aria-label="Acceso Administrativo"
+        >
+          <Settings size={20} />
+        </button>
+      ) : null}
 
       <div className="home-overlay" aria-hidden="true" />
 

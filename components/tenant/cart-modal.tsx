@@ -29,7 +29,7 @@ import type { LucideProps } from "lucide-react";
 import Image from "next/image";
 
 import { useCart } from "./use-cart";
-import { ordersService } from "./admin/kit/orders/services/orders";
+import { ordersService } from "./orders-service";
 import { validateImageFile } from "./utils/cloudinary";
 import { getCloudinaryOptimizedUrl } from "./utils/cloudinary";
 // import eliminado porque no se usa
@@ -503,7 +503,7 @@ export function CartModal({
         client_name: sanitizeUserText(data.name),
         client_phone: String(data.phone ?? "").trim(),
         client_rut: String(data.rut ?? "").trim(),
-        payment_type: isOnline ? 'online' : 'tienda',
+        payment_type: isOnline ? ('online' as const) : ('tienda' as const),
         payment_method_specific: paymentMethodKey,
         total: Number(cartTotal) || 0,
         items: itemsForOrder,

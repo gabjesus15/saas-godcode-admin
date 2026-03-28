@@ -63,6 +63,7 @@ export default async function TenantPage({ params }: TenantPageProps) {
       logoUrl={logoUrl}
       schedule={businessInfo?.schedule ?? null}
       branches={branchesWithStatus}
+      publicSlug={resolvedParams.subdomain}
     />
   );
 }
