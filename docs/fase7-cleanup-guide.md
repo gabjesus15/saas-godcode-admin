@@ -11,23 +11,18 @@ El feature flag `FF_ONBOARDING_BILLING_EXTERNAL` tiene 3 modos:
 
 | Valor | Modo | Comportamiento |
 |---|---|---|
-| `false` | Off | Logica local del BFF (sin proxy) |
-| `true` | On | Proxy al microservicio, con fallback a logica local si falla |
-| `proxy_only` | Proxy-only | Solo proxy, sin fallback. Error 502 si el micro no responde |
+| `false` | Off | Sin proxy: rutas `/api/onboarding/*` responden 503 (no hay implementacion local) |
+| `true` | On | Proxy al micro; sin URL -> 503; error de red/upstream -> 502 |
+| `proxy_only` | Proxy-only | Igual que `on` para errores; distincion solo informativa en logs/headers |
 
 ### Ruta de migracion recomendada
 
 ```
-false  -->  true  -->  proxy_only  -->  borrar logica local
- (1)         (2)          (3)              (4)
+false  -->  true / proxy_only  -->  BFF solo proxy (estado actual del repo)
 ```
 
-1. **false**: Estado inicial. Todo funciona con logica local.
-2. **true**: Proxy activo con safety net. Si el micro falla, el BFF responde con logica local.
-3. **proxy_only**: Todo pasa por el micro. Si falla, se retorna 502. Esto permite detectar
-   cualquier dependencia residual en la logica local.
-4. **Borrar logica local**: Cuando `proxy_only` funciona estable por 1-2 semanas,
-   es seguro borrar la logica local.
+1. **false**: Solo para entornos donde no quieras llamar al micro (onboarding queda en 503).
+2. **true** / **proxy_only**: Produccion; el BFF reenvia todo a `onboarding-billing`.
 
 ## Paso 3: Activar proxy_only
 
@@ -43,34 +38,20 @@ Redesplegar y monitorear:
 
 ### Rollback
 
-Si algo falla, cambiar a `true` (proxy + fallback) o `false` (logica local pura).
+Si el micro falla, corregir el micro o la URL; el BFF ya no ejecuta la logica de onboarding localmente (recuperarla desde git si hiciera falta).
 
-## Paso 4: Borrar logica local (cuando estes listo)
+## Paso 4: Borrar logica local (hecho en el monorepo)
 
-### Archivos a simplificar (16 route handlers en el BFF)
+Las 14 rutas bajo `app/api/onboarding/*/route.ts` solo reenvian con `forwardOnboardingBilling` (`lib/onboarding-bff-proxy.ts`). El helper responde 503 si el proxy no aplica (flag `off`).
 
-Cada ruta se puede reducir a solo el proxy. Ejemplo:
+Ejemplo actual:
 
-**Antes** (`app/api/onboarding/addons/route.ts`):
-```typescript
-import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "../../../../lib/supabase-admin";
-import { proxyToOnboardingBilling } from "../../../../lib/service-proxy";
-
-export async function GET(req: NextRequest) {
-  const proxied = await proxyToOnboardingBilling(req, "/api/onboarding/addons");
-  if (proxied) return proxied;
-  // ... 15 lineas de logica local ...
-}
-```
-
-**Despues** (solo proxy):
 ```typescript
 import { NextRequest } from "next/server";
-import { proxyToOnboardingBilling } from "../../../../lib/service-proxy";
+import { forwardOnboardingBilling } from "../../../../lib/onboarding-bff-proxy";
 
 export async function GET(req: NextRequest) {
-  return proxyToOnboardingBilling(req, "/api/onboarding/addons");
+  return forwardOnboardingBilling(req, "/api/onboarding/addons");
 }
 ```
 
@@ -90,40 +71,29 @@ export async function GET(req: NextRequest) {
 - `app/api/onboarding/plan-payment-methods/route.ts`
 - `app/api/onboarding/upload-payment-reference/route.ts`
 - `app/api/onboarding/verify/route.ts`
-- `app/api/super-admin/payments/validate/route.ts`
-- `app/api/cron/subscription-status/route.ts`
 
-### Dependencias que se pueden remover del BFF (despues de limpiar)
+**Siguen en el BFF** (no son proxy al micro de onboarding): `app/api/super-admin/payments/validate`, `app/api/cron/subscription-status` — usan `lib/onboarding/billing-activation.ts` y `welcome-provisioning.ts`.
 
-Si ya ninguna otra parte del BFF usa estos modulos, se pueden eliminar:
+### Modulos eliminados del BFF (ya aplicado)
 
-- `lib/onboarding/checkout-service.ts`
-- `lib/onboarding/billing-activation.ts`
-- `lib/onboarding/welcome-provisioning.ts`
-- `lib/onboarding/emails.ts`
-- `lib/onboarding/recaptcha.ts`
+- `lib/onboarding/checkout-service.ts` (solo lo usaba checkout local)
+- `lib/onboarding/recaptcha.ts` (solo apply local)
 
-**Verificar antes de borrar** que ningun otro archivo del BFF los importa:
-```bash
-rg "from.*lib/onboarding/" app/ components/ --files-with-matches
-```
+### Modulos que se conservan en el BFF
 
-### Dependencias npm que podrian removerse
+- `lib/onboarding/billing-activation.ts`, `welcome-provisioning.ts`, `emails.ts` — usados por validate/cron/welcome.
 
-Si `@paypal/paypal-server-sdk` y `stripe` solo se usan en las rutas de onboarding:
-```bash
-rg "paypal-server-sdk|from.*stripe" app/ components/ lib/ --files-with-matches
-```
+### Dependencias npm
+
+- Eliminado `@paypal/paypal-server-sdk` del BFF raiz (queda en `services/onboarding-billing`).
+- `stripe` se mantiene (conexion Stripe Connect en tenant).
 
 ## Checklist final
 
-- [ ] `proxy_only` estable en produccion por 1-2 semanas
-- [ ] Todas las rutas de onboarding responden correctamente via proxy
-- [ ] Cron `subscription-status` funciona via proxy
-- [ ] No hay errores `proxy_error` en los logs de Vercel
-- [ ] Simplificar las 16 rutas a solo proxy
-- [ ] Verificar que ningun otro codigo del BFF importa los modulos de `lib/onboarding/`
-- [ ] Borrar modulos no usados de `lib/onboarding/`
-- [ ] Remover dependencias npm no usadas si aplica
-- [ ] Ejecutar `npm test` para verificar que nada se rompio
-- [ ] Commit y deploy
+- [ ] `proxy_only` o `true` en produccion con `ONBOARDING_BILLING_SERVICE_URL` correcto
+- [ ] Todas las rutas `/api/onboarding/*` del BFF responden via micro
+- [ ] Cron `subscription-status` y validate de pagos siguen funcionando en el BFF
+- [ ] No hay errores `proxy_error` recurrentes en logs
+- [x] Rutas onboarding del BFF reducidas a proxy + `forwardOnboardingBilling`
+- [x] Modulos onboarding muertos eliminados del BFF donde aplica
+- [x] `npm test` y `npm run build` OK

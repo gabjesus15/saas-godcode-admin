@@ -26,11 +26,12 @@ describe("proxyToOnboardingBilling", () => {
 		expect(result).toBeNull();
 	});
 
-	it("retorna null cuando no hay base URL configurada", async () => {
+	it("retorna 503 cuando no hay base URL y el proxy esta activo (modo on)", async () => {
 		process.env.FF_ONBOARDING_BILLING_EXTERNAL = "true";
 		const proxy = await getProxy();
 		const result = await proxy(makeReq(), "/api/onboarding/addons");
-		expect(result).toBeNull();
+		expect(result).not.toBeNull();
+		expect(result!.status).toBe(503);
 	});
 
 	it("hace proxy con headers correctos cuando el flag esta activo", async () => {
@@ -95,7 +96,7 @@ describe("proxyToOnboardingBilling", () => {
 		expect((fetchSpy.mock.calls[0][1]!).body).toBe('{"plan":"pro"}');
 	});
 
-	it("retorna null (fallback) cuando fetch falla", async () => {
+	it("retorna 502 cuando fetch falla y el proxy esta activo (sin fallback local)", async () => {
 		process.env.FF_ONBOARDING_BILLING_EXTERNAL = "true";
 		process.env.ONBOARDING_BILLING_SERVICE_URL = "http://localhost:3001";
 		process.env.SERVICE_API_KEY = "k";
@@ -106,7 +107,10 @@ describe("proxyToOnboardingBilling", () => {
 		const proxy = await getProxy();
 		const result = await proxy(makeReq(), "/api/onboarding/addons");
 
-		expect(result).toBeNull();
+		expect(result).not.toBeNull();
+		expect(result!.status).toBe(502);
+		const body = await result!.json();
+		expect(body.error).toBe("Microservicio no disponible");
 	});
 
 	it("no envia el header host original al upstream", async () => {

@@ -17,7 +17,6 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
-    "@paypal/paypal-server-sdk": "^2.2.0",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.98.0",
     "@vercel/analytics": "^2.0.1",
@@ -40,7 +39,6 @@
     "stripe": "^17.5.0",
     "tailwind-merge": "^3.5.0",
     "validator": "^13.15.26",
-    "validator.js": "^2.0.4",
     "zod": "^4.3.6",
     "zustand": "^5.0.11"
   },

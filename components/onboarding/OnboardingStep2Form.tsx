@@ -25,7 +25,7 @@ type Addon = {
 
 type AddonChoice = { addon_id: string; quantity: number; price_snapshot: number | null };
 
-/** Debe coincidir con MANUAL_METHOD_SLUGS en lib/onboarding/checkout-service */
+/** Debe coincidir con MANUAL_METHOD_SLUGS en el checkout del micro onboarding-billing */
 const MANUAL_SUBSCRIPTION_SLUGS = new Set(["pago_movil", "zelle", "transferencia"]);
 
 function normalizeSubscriptionMethod(raw: string | null | undefined): string {

@@ -38,7 +38,7 @@ export async function GET() {
 	}
 
 	const proxy: Record<string, string> = {
-		feature_flag: flags.ONBOARDING_BILLING_EXTERNAL ? "on" : "off",
+		feature_flag: flags.ONBOARDING_BILLING_MODE,
 	};
 
 	if (flags.ONBOARDING_BILLING_EXTERNAL) {

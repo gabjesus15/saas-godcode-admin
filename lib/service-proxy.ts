@@ -10,11 +10,10 @@ export async function proxyToOnboardingBilling(
 ): Promise<NextResponse | null> {
 	if (!flags.ONBOARDING_BILLING_EXTERNAL) return null;
 
-	const isProxyOnly = flags.ONBOARDING_BILLING_MODE === "proxy_only";
 	const baseUrl = getOnboardingBillingBaseUrl();
 
 	if (!baseUrl) {
-		if (isProxyOnly) {
+		if (flags.ONBOARDING_BILLING_EXTERNAL) {
 			return NextResponse.json(
 				{ error: "Microservicio no configurado (ONBOARDING_BILLING_SERVICE_URL)" },
 				{ status: 503 }
@@ -80,7 +79,7 @@ export async function proxyToOnboardingBilling(
 			error: err instanceof Error ? err.message : String(err),
 		});
 
-		if (isProxyOnly) {
+		if (flags.ONBOARDING_BILLING_EXTERNAL) {
 			return NextResponse.json(
 				{ error: "Microservicio no disponible", detail: err instanceof Error ? err.message : "unknown" },
 				{ status: 502 }
