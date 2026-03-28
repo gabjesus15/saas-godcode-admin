@@ -13,7 +13,8 @@
 
 @media (max-width: 600px) {
     :root {
-        --menu-header-height: 78px;
+        /* Alineado con .category-section scroll-margin-top: la barra (logo + tabs) es más alta que 78px */
+        --menu-header-height: 116px;
     }
 }
 
@@ -145,13 +146,20 @@
 
 .category-title {
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     gap: 12px;
     font-size: 1.5rem;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 1px;
     color: var(--text-primary);
+    line-height: 1.15;
+}
+
+.category-title .category-icon {
+    flex-shrink: 0;
+    display: block;
+    align-self: flex-end;
 }
 
 .category-title::after {

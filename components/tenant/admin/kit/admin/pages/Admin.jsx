@@ -10,6 +10,7 @@ import CategoryModal from '../../products/components/CategoryModal';
 import AdminSidebar from '../components/AdminSidebar';
 import AdminKanban from '../components/AdminKanban';
 import ManualOrderModal from '../components/ManualOrderModal';
+import BannerManager from '../components/BannerManager';
 import InventoryCard from '../components/InventoryCard';
 import ClientDetailsPanel from '../components/ClientDetailsPanel';
 import ScopeSelectionModal from '../components/ScopeSelectionModal';
@@ -582,7 +583,13 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
         {/* 2. INVENTARIO */}
         {activeTab === 'products' && (
           <div className="products-view animate-fade">
-            
+
+            <BannerManager
+              branchId={selectedBranch?.id}
+              companyId={companyIdForClients}
+              showNotify={showNotify}
+            />
+
             {/* BARRA DE ESTADÍSTICAS */}
             <div className="stats-bar glass" style={{ display: 'flex', gap: 20, padding: '15px 20px', marginBottom: 20, borderRadius: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

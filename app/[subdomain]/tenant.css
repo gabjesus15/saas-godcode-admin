@@ -5,6 +5,8 @@
 @import "./styles/Menu.css";
 @import "./styles/ProductCard.css";
 @import "./styles/Navbar.css";
+@import "./styles/HeroCarousel.css";
+@import "./styles/BannerManager.css";
 @import "./styles/BranchSelectorModal.css";
 @import "./styles/Login.css";
 @import "./styles/AdminLayout.css";

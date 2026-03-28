@@ -1,0 +1,324 @@
+/* =========================================
+   BANNER MANAGER (Admin)
+   ========================================= */
+
+.banner-manager {
+	margin-bottom: 20px;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 12px;
+	overflow: hidden;
+	background: rgba(255, 255, 255, 0.03);
+}
+
+.banner-manager-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 14px 18px;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.banner-manager-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 0.9rem;
+	font-weight: 600;
+	color: #e5e7eb;
+}
+
+.banner-count {
+	font-size: 0.72rem;
+	font-weight: 500;
+	color: #9ca3af;
+	background: rgba(255, 255, 255, 0.06);
+	padding: 2px 8px;
+	border-radius: 10px;
+}
+
+/* --- Add form --- */
+.banner-add-form {
+	padding: 14px 18px;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+	animation: fadeIn 0.15s ease-out;
+}
+
+.banner-add-saving {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 0.85rem;
+	color: #9ca3af;
+}
+
+.banner-add-row {
+	display: flex;
+	align-items: flex-end;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+.banner-add-label {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	font-size: 0.78rem;
+	font-weight: 500;
+	color: #9ca3af;
+	flex: 1;
+	min-width: 160px;
+}
+
+.banner-add-select,
+.banner-add-input {
+	padding: 8px 12px;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 8px;
+	background: rgba(0, 0, 0, 0.3);
+	color: #e5e7eb;
+	font-size: 0.85rem;
+	outline: none;
+	transition: border-color 0.15s;
+}
+
+.banner-add-select:focus,
+.banner-add-input:focus {
+	border-color: var(--tenant-primary, #6366f1);
+}
+
+.banner-add-intro {
+	margin: 0 0 10px;
+	font-size: 0.82rem;
+	color: #9ca3af;
+	line-height: 1.4;
+}
+
+.banner-add-image-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px;
+	margin-top: 12px;
+	padding-top: 12px;
+	border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.banner-file-input-hidden {
+	position: absolute;
+	width: 0.01px;
+	height: 0.01px;
+	opacity: 0;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+}
+
+.banner-pick-image-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.banner-add-hint {
+	font-size: 0.72rem;
+	color: #6b7280;
+	flex: 1 1 100%;
+}
+
+.banner-add-preview-wrap {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+}
+
+.banner-add-preview {
+	border-radius: 8px;
+	object-fit: cover;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-text-sm {
+	background: none;
+	border: none;
+	color: #9ca3af;
+	font-size: 0.75rem;
+	cursor: pointer;
+	text-decoration: underline;
+	padding: 0;
+}
+
+.btn-text-sm:hover {
+	color: #e5e7eb;
+}
+
+.banner-card-image-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin-top: 4px;
+}
+
+.banner-mini-upload {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 0.72rem;
+	color: #a5b4fc;
+	cursor: pointer;
+	position: relative;
+}
+
+.banner-mini-upload:hover {
+	color: #c7d2fe;
+}
+
+.banner-clear-img {
+	text-decoration: none;
+}
+
+/* --- List --- */
+.banner-list {
+	display: flex;
+	flex-direction: column;
+}
+
+.banner-card {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 18px;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+	transition: background 0.15s;
+}
+
+.banner-card:last-child {
+	border-bottom: none;
+}
+
+.banner-card:hover {
+	background: rgba(255, 255, 255, 0.03);
+}
+
+.banner-card--expired {
+	opacity: 0.45;
+}
+
+.banner-card-thumb {
+	flex-shrink: 0;
+	width: 80px;
+	height: 45px;
+	border-radius: 6px;
+	overflow: hidden;
+	background: rgba(255, 255, 255, 0.05);
+}
+
+.banner-card-img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.banner-card-img-placeholder {
+	width: 100%;
+	height: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: rgba(255, 255, 255, 0.2);
+}
+
+.banner-card-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.banner-card-name {
+	display: block;
+	font-size: 0.85rem;
+	font-weight: 600;
+	color: #e5e7eb;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.banner-card-meta {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	margin-top: 2px;
+	color: #9ca3af;
+	font-size: 0.72rem;
+}
+
+.banner-card-actions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex-shrink: 0;
+}
+
+/* --- Expiry badges --- */
+.banner-expiry {
+	font-size: 0.72rem;
+	font-weight: 600;
+	padding: 1px 6px;
+	border-radius: 6px;
+}
+
+.banner-expiry--expired {
+	color: #ef4444;
+	background: rgba(239, 68, 68, 0.12);
+}
+
+.banner-expiry--today {
+	color: #f59e0b;
+	background: rgba(245, 158, 11, 0.12);
+}
+
+.banner-expiry--soon {
+	color: #f59e0b;
+	background: rgba(245, 158, 11, 0.08);
+}
+
+.banner-expiry--ok {
+	color: #25d366;
+	background: rgba(37, 211, 102, 0.08);
+}
+
+/* --- Empty / loading --- */
+.banner-manager-empty {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: 24px 18px;
+	color: #6b7280;
+	font-size: 0.82rem;
+	text-align: center;
+}
+
+.banner-manager-empty p {
+	margin: 0;
+}
+
+.banner-manager-loading {
+	display: flex;
+	justify-content: center;
+	padding: 24px;
+}
+
+/* --- Spin util --- */
+.spin {
+	animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+	to { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+	from { opacity: 0; transform: translateY(-4px); }
+	to { opacity: 1; transform: translateY(0); }
+}
