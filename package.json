@@ -20,6 +20,7 @@
     "@paypal/paypal-server-sdk": "^2.2.0",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.98.0",
+    "@vercel/analytics": "^2.0.1",
     "chart.js": "^4.5.1",
     "clsx": "^2.1.1",
     "dompurify": "^3.3.3",

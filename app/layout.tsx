@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 
 import "./globals.css";
 
@@ -44,6 +45,7 @@ export default function RootLayout({
       >
         {/* Logo y slogan eliminados del layout global por petición del usuario */}
         {children}
+        <Analytics />
       </body>
     </html>
   );
