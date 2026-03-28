@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
 		const baseUrl = getAppUrl();
 		const verifyUrl = `${baseUrl}/onboarding/verify/${verificationToken}`;
 
-		await sendOnboardingEmail({
+		const verificationEmail = await sendOnboardingEmail({
 			type: "verification",
 			to: emailRaw,
 			from: RESEND_FROM,
@@ -104,10 +104,21 @@ export async function POST(req: NextRequest) {
 			businessName,
 			verifyUrl,
 		});
+		if (!verificationEmail.ok) {
+			console.error("onboarding apply: verification email failed:", verificationEmail.error);
+			return NextResponse.json(
+				{
+					error:
+						"La solicitud se guardó pero no pudimos enviar el correo de verificación. Revisa RESEND_API_KEY y RESEND_FROM en el servicio de onboarding.",
+					detail: verificationEmail.error,
+				},
+				{ status: 502 }
+			);
+		}
 
 		if (TEAM_EMAIL && TEAM_EMAIL !== emailRaw) {
 			const dashboardUrl = `${baseUrl}/onboarding/solicitudes`;
-			await sendOnboardingEmail({
+			const teamEmail = await sendOnboardingEmail({
 				type: "team_notification",
 				to: TEAM_EMAIL,
 				from: RESEND_FROM,
@@ -118,6 +129,9 @@ export async function POST(req: NextRequest) {
 				sector,
 				dashboardUrl,
 			});
+			if (!teamEmail.ok) {
+				console.error("onboarding apply: team_notification email failed:", teamEmail.error);
+			}
 		}
 
 		return NextResponse.json({

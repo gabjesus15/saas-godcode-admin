@@ -114,10 +114,10 @@ export async function POST(req: NextRequest) {
     }
 
     // URL canónica (dominio principal) para que el enlace no pase por subdominio de tenant
-const baseUrl = getAppUrl();
-const verifyUrl = `${baseUrl}/onboarding/verify/${verificationToken}`;
+    const baseUrl = getAppUrl();
+    const verifyUrl = `${baseUrl}/onboarding/verify/${verificationToken}`;
 
-    await sendOnboardingEmail({
+    const verificationEmail = await sendOnboardingEmail({
       type: "verification",
       to: emailRaw,
       from: RESEND_FROM,
@@ -126,10 +126,21 @@ const verifyUrl = `${baseUrl}/onboarding/verify/${verificationToken}`;
       businessName,
       verifyUrl,
     });
+    if (!verificationEmail.ok) {
+      console.error("onboarding apply: verification email failed:", verificationEmail.error);
+      return NextResponse.json(
+        {
+          error:
+            "La solicitud se guardó pero no pudimos enviar el correo de verificación. Revisa RESEND_API_KEY y RESEND_FROM.",
+          detail: verificationEmail.error,
+        },
+        { status: 502 }
+      );
+    }
 
     if (TEAM_EMAIL && TEAM_EMAIL !== emailRaw) {
       const dashboardUrl = `${baseUrl}/onboarding/solicitudes`;
-      await sendOnboardingEmail({
+      const teamEmail = await sendOnboardingEmail({
         type: "team_notification",
         to: TEAM_EMAIL,
         from: RESEND_FROM,
@@ -140,6 +151,9 @@ const verifyUrl = `${baseUrl}/onboarding/verify/${verificationToken}`;
         sector,
         dashboardUrl,
       });
+      if (!teamEmail.ok) {
+        console.error("onboarding apply: team_notification email failed:", teamEmail.error);
+      }
     }
 
     return NextResponse.json({
