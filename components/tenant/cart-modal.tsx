@@ -475,8 +475,26 @@ export function CartModal({
     setGeoHint("Buscando ubicacion...");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setDeliveryCoords(pos.coords.latitude, pos.coords.longitude);
-        setGeoHint("Ubicacion guardada. Revisa que el pin sea correcto.");
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setDeliveryCoords(lat, lng);
+        setGeoHint("Buscando direccion...");
+        fetch(
+          `/api/reverse-geocode?lat=${encodeURIComponent(String(lat))}&lng=${encodeURIComponent(String(lng))}`
+        )
+          .then((r) => (r.ok ? r.json() : null))
+          .then((data: { line1?: string; commune?: string } | null) => {
+            if (data?.line1?.trim()) setDeliveryLine1(data.line1.trim());
+            if (data?.commune?.trim()) setDeliveryCommune(data.commune.trim());
+            setGeoHint(
+              "Ubicacion guardada. Revisa calle, comuna y el costo de envio."
+            );
+          })
+          .catch(() => {
+            setGeoHint(
+              "Ubicacion guardada. Completa calle y comuna a mano si no se rellenaron."
+            );
+          });
       },
       (err) => {
         if (err.code === err.PERMISSION_DENIED) {
@@ -493,7 +511,11 @@ export function CartModal({
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
     );
-  }, [setDeliveryCoords]);
+  }, [
+    setDeliveryCoords,
+    setDeliveryLine1,
+    setDeliveryCommune,
+  ]);
 
   const activeInfo = useMemo<ActiveSessionInfo>(() => {
     const info = businessInfo || {};
