@@ -6,7 +6,7 @@ import { useCart } from "./use-cart";
 import "../../app/[subdomain]/styles/CartFloat.css";
 
 export function CartFloat() {
-  const { totalItems, cartTotal, toggleCart } = useCart();
+  const { totalItems, grandTotal, toggleCart } = useCart();
   const hasItems = totalItems > 0;
   const [isIdle, setIsIdle] = useState(false);
   const prevCountRef = useRef(totalItems);
@@ -54,7 +54,7 @@ export function CartFloat() {
         <span className="cart-label-text">
           {hasItems ? (
             <>
-              <span className="cart-total-prefix">Total:</span> ${cartTotal.toLocaleString("es-CL")}
+              <span className="cart-total-prefix">Total:</span> ${grandTotal.toLocaleString("es-CL")}
             </>
           ) : (
             "Tu Bandeja"

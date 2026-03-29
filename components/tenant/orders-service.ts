@@ -27,6 +27,10 @@ interface CreateOrderPayload {
   branch_name?: string | null;
   company_id?: string | null;
   payment_ref?: string | null;
+  order_type?: "pickup" | "delivery";
+  /** Snapshot enviado a `orders.delivery_address` (Json). */
+  delivery_address?: Record<string, unknown> | null;
+  delivery_fee?: number;
 }
 
 interface ProductPriceRow {
@@ -160,7 +164,7 @@ export const ordersService = {
       );
     }
 
-    const calculatedTotal = normalizedItems.reduce((sum, item) => {
+    const calculatedSubtotal = normalizedItems.reduce((sum, item) => {
       const price =
         item.has_discount && item.discount_price && Number(item.discount_price) > 0
           ? Number(item.discount_price)
@@ -169,9 +173,16 @@ export const ordersService = {
       return sum + price * qty;
     }, 0);
 
+    const orderType = orderData.order_type === "delivery" ? "delivery" : "pickup";
+    const deliveryFee =
+      orderType === "delivery"
+        ? Math.max(0, Number(orderData.delivery_fee) || 0)
+        : 0;
+    const calculatedGrandTotal = calculatedSubtotal + deliveryFee;
+
     const totalToUse =
-      Math.abs(calculatedTotal - orderData.total) > 50
-        ? calculatedTotal
+      Math.abs(calculatedGrandTotal - orderData.total) > 50
+        ? calculatedGrandTotal
         : orderData.total;
 
     let receiptUrl: string | null = null;
@@ -212,6 +223,12 @@ export const ordersService = {
         p_company_id: orderData.company_id || null,
         p_status: orderData.status || "pending",
         p_payment_method_specific: orderData.payment_method_specific ?? null,
+        p_order_type: orderType,
+        p_delivery_address:
+          orderType === "delivery" && orderData.delivery_address
+            ? orderData.delivery_address
+            : null,
+        p_delivery_fee: deliveryFee,
       }
     );
 
@@ -226,6 +243,12 @@ export const ordersService = {
         throw new Error(
           "Ningun producto del carrito esta disponible en esta sucursal en este momento."
         );
+      }
+      if (rpcMessage.includes("delivery_address_required")) {
+        throw new Error("Falta la direccion de entrega. Completa el formulario de delivery.");
+      }
+      if (rpcMessage.includes("handoff_code_collision")) {
+        throw new Error("No se pudo generar el codigo de entrega. Intenta nuevamente.");
       }
       throw orderError;
     }

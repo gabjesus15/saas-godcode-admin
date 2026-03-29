@@ -16,6 +16,7 @@ import { HeroCarousel } from "./hero-carousel";
 import type { HeroBanner } from "./hero-carousel";
 import { getTenantScopedPath } from "./utils/tenant-route";
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
+import type { Json } from "../../types/supabase-database";
 
 interface BranchInfo {
   id: string;
@@ -51,6 +52,8 @@ interface BranchInfo {
   stripe?: { [key: string]: string } | null;
   mercadopago?: { [key: string]: string } | null;
   paypal?: { [key: string]: string } | null;
+  /** ADMIN-HOOK: reglas de delivery por sucursal */
+  delivery_settings?: Json | null;
 }
 
 interface BranchModalItem {
@@ -543,7 +546,10 @@ export function MenuClient({
   ) : null;
 
   return (
-    <CartProvider selectedBranchId={selectedBranch?.id ?? null}>
+    <CartProvider
+      selectedBranchId={selectedBranch?.id ?? null}
+      branchDeliverySettings={selectedBranch?.delivery_settings ?? null}
+    >
       <div className="page-wrapper">
         {typeof document !== "undefined" && document.getElementById("navbar-portal-root")
           ? createPortal(navbar, document.getElementById("navbar-portal-root") as Element)

@@ -238,6 +238,8 @@ export type Database = {
           country: string | null
           created_at: string | null
           currency: string | null
+          /** ADMIN-HOOK: JSON rules for delivery; use parseDeliverySettings in app */
+          delivery_settings: Json | null
           efectivo: string | null
           id: string
           instagram: string | null
@@ -270,6 +272,7 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           currency?: string | null
+          delivery_settings?: Json | null
           efectivo?: string | null
           id?: string
           instagram?: string | null
@@ -302,6 +305,7 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           currency?: string | null
+          delivery_settings?: Json | null
           efectivo?: string | null
           id?: string
           instagram?: string | null
@@ -1527,6 +1531,7 @@ export type Database = {
           delivery_address: Json | null
           delivery_fee: number | null
           discount_total: number | null
+          handoff_code: string | null
           id: number
           items: Json | null
           note: string | null
@@ -1560,6 +1565,7 @@ export type Database = {
           delivery_address?: Json | null
           delivery_fee?: number | null
           discount_total?: number | null
+          handoff_code?: string | null
           id?: number
           items?: Json | null
           note?: string | null
@@ -1593,6 +1599,7 @@ export type Database = {
           delivery_address?: Json | null
           delivery_fee?: number | null
           discount_total?: number | null
+          handoff_code?: string | null
           id?: number
           items?: Json | null
           note?: string | null
@@ -2531,40 +2538,26 @@ export type Database = {
         Args: { p_branch_id: string; p_opening_balance: number }
         Returns: Json
       }
-      create_order_transaction:
-        | {
-            Args: {
-              p_branch_id: string
-              p_client_name: string
-              p_client_phone: string
-              p_client_rut: string
-              p_company_id: string
-              p_items: Json
-              p_note: string
-              p_payment_ref: string
-              p_payment_type: string
-              p_status: string
-              p_total: number
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_branch_id: string
-              p_client_name: string
-              p_client_phone: string
-              p_client_rut: string
-              p_company_id: string
-              p_items: Json
-              p_note: string
-              p_payment_method_specific?: string
-              p_payment_ref: string
-              p_payment_type: string
-              p_status: string
-              p_total: number
-            }
-            Returns: Json
-          }
+      create_order_transaction: {
+        Args: {
+          p_branch_id: string
+          p_client_name: string
+          p_client_phone: string
+          p_client_rut: string
+          p_company_id: string
+          p_delivery_address?: Json
+          p_delivery_fee?: number
+          p_items: Json
+          p_note: string
+          p_order_type?: string
+          p_payment_method_specific?: string
+          p_payment_ref: string
+          p_payment_type: string
+          p_status: string
+          p_total: number
+        }
+        Returns: Json
+      }
       create_role_definition: {
         Args: { p_description?: string; p_name: string }
         Returns: {

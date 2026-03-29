@@ -21,6 +21,7 @@ import {
   // ShoppingBag,
   Store,
   Trash2,
+  Truck,
   Upload,
   X,
 } from "lucide-react";
@@ -42,9 +43,27 @@ import {
 } from "../../utils/chile-forms";
 import { sanitizeUserText } from "../../utils/sanitize-user-text";
 import { mergeCartWithBranchPrices } from "./utils/cart-pricing";
+import type { Json } from "../../types/supabase-database";
+import type { CartFulfillment } from "./cart-context";
+import { parseDeliverySettings } from "../../lib/tenant-delivery-settings";
 
 import "../../app/[subdomain]/styles/CartModal.css";
 import "../../app/[subdomain]/styles/CartModal.custom.css";
+
+type CartModalViewState = {
+  showPaymentInfo: boolean;
+  showForm: boolean;
+  showSuccess: boolean;
+  isSaving: boolean;
+  error: string | null;
+  receiptUploadFailed: boolean;
+  lastOrderSuccess: {
+    id: number;
+    order_number: number | null;
+    handoff_code: string | null;
+    fulfillment: CartFulfillment;
+  } | null;
+};
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80";
 
@@ -81,6 +100,7 @@ interface BranchInfo {
   stripe?: { [key: string]: string } | null;
   mercadopago?: { [key: string]: string } | null;
   paypal?: { [key: string]: string } | null;
+  delivery_settings?: Json | null;
 }
 
 interface BusinessInfo {
@@ -122,19 +142,45 @@ const PAYMENT_METHOD_CONFIG: Record<string, { label: string; icon: ComponentType
   paypal: { label: "PayPal", icon: DollarSign, isOnline: true },
 };
 
+type WsFulfillmentMeta = {
+  fulfillment: CartFulfillment;
+  cartSubtotal: number;
+  deliveryFee: number;
+  grandTotal: number;
+  deliverySummary?: string;
+  orderId?: number | null;
+  orderNumber?: number | null;
+  handoffCode?: string | null;
+};
+
 const generateWSMessage = (
   formData: { name: string; rut: string; phone: string },
   cart: Array<{ name?: string | null; quantity: number; description?: string | null }>,
-  total: number,
+  grandTotal: number,
   paymentMethodKey: string | null,
   note: string,
-  businessName?: string | null
+  businessName?: string | null,
+  meta?: WsFulfillmentMeta
 ) => {
   let msg = `*NUEVO PEDIDO WEB - ${businessName || "RESTAURANTE"}*\n`;
   msg += "================================\n\n";
   msg += `Cliente: ${formData.name}\n`;
   msg += `RUT: ${formData.rut}\n`;
   msg += `Fono: ${formData.phone}\n\n`;
+  if (meta) {
+    msg += `Tipo: ${meta.fulfillment === "delivery" ? "DELIVERY" : "RETIRO EN LOCAL"}\n`;
+    if (meta.fulfillment === "delivery" && meta.deliverySummary) {
+      msg += `${meta.deliverySummary}\n`;
+    }
+    if (meta.fulfillment === "delivery" && meta.deliveryFee > 0) {
+      msg += `Envio: $${meta.deliveryFee.toLocaleString("es-CL")}\n`;
+    }
+    msg += `Subtotal productos: $${meta.cartSubtotal.toLocaleString("es-CL")}\n`;
+    if (meta.orderNumber != null) msg += `N° pedido: #${meta.orderNumber}\n`;
+    else if (meta.orderId != null) msg += `ID pedido: ${meta.orderId}\n`;
+    if (meta.handoffCode) msg += `Codigo de entrega: ${meta.handoffCode}\n`;
+    msg += "\n";
+  }
   msg += "DETALLE:\n";
   cart.forEach((item) => {
     msg += `+ ${item.quantity} x ${(item.name ?? "").toUpperCase()}\n`;
@@ -142,12 +188,33 @@ const generateWSMessage = (
       msg += `   (Hacer: ${item.description})\n`;
     }
   });
-  msg += `\n*TOTAL: $${total.toLocaleString("es-CL")}*\n`;
+  msg += `\n*TOTAL: $${grandTotal.toLocaleString("es-CL")}*\n`;
   const methodLabel = paymentMethodKey && PAYMENT_METHOD_CONFIG[paymentMethodKey] ? PAYMENT_METHOD_CONFIG[paymentMethodKey].label : "Por definir";
   msg += `Pago: ${methodLabel}\n`;
   if (note && note.trim()) msg += `\nNota: ${note}\n`;
   return msg;
 };
+
+function parseOrderRpcPayload(data: unknown): {
+  id: number;
+  order_number: number | null;
+  handoff_code: string | null;
+} | null {
+  if (!data || typeof data !== "object") return null;
+  const o = data as Record<string, unknown>;
+  const id = Number(o.id);
+  if (!Number.isFinite(id)) return null;
+  const order_number =
+    o.order_number != null && o.order_number !== ""
+      ? Number(o.order_number)
+      : null;
+  const handoff_code = typeof o.handoff_code === "string" ? o.handoff_code : null;
+  return {
+    id,
+    order_number: order_number != null && Number.isFinite(order_number) ? order_number : null,
+    handoff_code,
+  };
+}
 
 export function CartModal({
   businessInfo,
@@ -169,11 +236,33 @@ export function CartModal({
       decreaseQuantity,
       removeFromCart,
       clearCart,
-      cartTotal,
+      cartSubtotal,
+      grandTotal,
+      deliveryFee,
       getPrice,
       orderNote,
       setOrderNote,
+      fulfillment,
+      setFulfillment,
+      deliveryLine1,
+      setDeliveryLine1,
+      deliveryCommune,
+      setDeliveryCommune,
+      deliveryReference,
+      setDeliveryReference,
+      setDeliveryCoords,
+      deliveryLat,
+      deliveryLng,
+      isDeliveryOutOfZone,
+      quotedRouteKm,
     } = useCart();
+
+    const deliverySettings = useMemo(
+      () => parseDeliverySettings(selectedBranch?.delivery_settings),
+      [selectedBranch?.delivery_settings]
+    );
+
+    const [geoHint, setGeoHint] = useState<string | null>(null);
 
 
     // --- Lógica para filtrar productos desactivados y actualizar precios ---
@@ -243,13 +332,14 @@ export function CartModal({
     //   }
     // }, [selectedBranch]);
 
-  const [viewState, setViewState] = useState({
+  const [viewState, setViewState] = useState<CartModalViewState>({
     showPaymentInfo: false,
     showForm: false,
     showSuccess: false,
     isSaving: false,
-    error: null as string | null,
+    error: null,
     receiptUploadFailed: false,
+    lastOrderSuccess: null,
   });
   const [showFieldErrors, setShowFieldErrors] = useState(false);
 
@@ -360,6 +450,35 @@ export function CartModal({
 
   const canCheckout = isShiftOpen;
 
+  const meetsMinDelivery =
+    fulfillment !== "delivery" ||
+    cartSubtotal >= deliverySettings.min_order_subtotal;
+  const deliveryAddressOk =
+    fulfillment !== "delivery" ||
+    (deliveryLine1.trim().length >= 4 && deliveryCommune.trim().length >= 2);
+  const canProceedFulfillment =
+    fulfillment !== "delivery" ||
+    (deliveryAddressOk && meetsMinDelivery && !isDeliveryOutOfZone);
+  const canOpenPay = canCheckout && canProceedFulfillment;
+
+  const requestDeliveryGeo = useCallback(() => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setGeoHint("Tu navegador no permite ubicacion. Escribi la direccion.");
+      return;
+    }
+    setGeoHint("Buscando ubicacion...");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setDeliveryCoords(pos.coords.latitude, pos.coords.longitude);
+        setGeoHint("Ubicacion guardada. Revisa que el pin sea correcto.");
+      },
+      () => {
+        setGeoHint("No pudimos leer tu ubicacion. Escribi calle y comuna.");
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+    );
+  }, [setDeliveryCoords]);
+
   const activeInfo = useMemo<ActiveSessionInfo>(() => {
     const info = businessInfo || {};
     if (!selectedBranch) return info;
@@ -444,6 +563,7 @@ export function CartModal({
       isSaving: false,
       error: null,
       receiptUploadFailed: false,
+      lastOrderSuccess: null,
     });
     setPaymentMethodKey(null);
     setValue("name", "");
@@ -487,6 +607,14 @@ export function CartModal({
       }));
       return;
     }
+    if (fulfillment === "delivery" && deliverySettings.enabled && !canProceedFulfillment) {
+      setViewState((v) => ({
+        ...v,
+        isSaving: false,
+        error: "Completa la direccion de delivery o revisa el monto minimo.",
+      }));
+      return;
+    }
     setViewState((v) => ({ ...v, isSaving: true, error: null }));
     try {
       const itemsForOrder = (cart as CartLineItem[]).map((item) => ({
@@ -499,13 +627,31 @@ export function CartModal({
         description: item.description ? sanitizeUserText(item.description) : null,
       }));
       const isOnline = paymentMethodKey && PAYMENT_METHOD_CONFIG[paymentMethodKey]?.isOnline;
+      const snapFulfillment = fulfillment;
+      const snapSubtotal = cartSubtotal;
+      const snapFee =
+        snapFulfillment === "delivery" && deliverySettings.enabled ? deliveryFee : 0;
+      const snapGrand = grandTotal;
+      const deliverySnapshot =
+        snapFulfillment === "delivery" && deliverySettings.enabled
+          ? {
+              line1: sanitizeUserText(deliveryLine1),
+              commune: sanitizeUserText(deliveryCommune),
+              reference: sanitizeUserText(deliveryReference),
+              lat: deliveryLat,
+              lng: deliveryLng,
+              distance_km_haversine: quotedRouteKm,
+              quote_method:
+                deliveryLat != null && deliveryLng != null ? "haversine" : "address_only",
+            }
+          : null;
       const orderPayload = {
         client_name: sanitizeUserText(data.name),
         client_phone: String(data.phone ?? "").trim(),
         client_rut: String(data.rut ?? "").trim(),
         payment_type: isOnline ? ('online' as const) : ('tienda' as const),
         payment_method_specific: paymentMethodKey,
-        total: Number(cartTotal) || 0,
+        total: Number(snapGrand) || 0,
         items: itemsForOrder,
         note: sanitizeUserText(orderNote),
         status: "pending",
@@ -513,23 +659,60 @@ export function CartModal({
         branch_id: selectedBranch.id,
         branch_name: selectedBranch.name || "Desconocido",
         company_id: selectedBranch.company_id || null,
+        order_type:
+          snapFulfillment === "delivery" && deliverySettings.enabled
+            ? ("delivery" as const)
+            : ("pickup" as const),
+        delivery_address: deliverySnapshot,
+        delivery_fee: snapFee,
       };
-      // ...existing code...
-      const { receiptUploadFailed } = await ordersService.createOrder(orderPayload, data.receiptFile ?? null);
+      const { order: newOrder, receiptUploadFailed } = await ordersService.createOrder(
+        orderPayload,
+        data.receiptFile ?? null
+      );
+      const parsed = parseOrderRpcPayload(newOrder);
       setViewState((v) => ({
         ...v,
         showSuccess: true,
         isSaving: false,
         receiptUploadFailed: receiptUploadFailed ?? false,
+        lastOrderSuccess: parsed
+          ? { ...parsed, fulfillment: snapFulfillment }
+          : {
+              id: 0,
+              order_number: null,
+              handoff_code: null,
+              fulfillment: snapFulfillment,
+            },
       }));
       setShowFieldErrors(false);
+      const deliverySummary =
+        snapFulfillment === "delivery" && deliverySnapshot
+          ? `Direccion: ${deliverySnapshot.line1}, ${deliverySnapshot.commune}`
+          : undefined;
       setTimeout(() => {
-        const message = generateWSMessage(data, cart, cartTotal, paymentMethodKey, orderNote, activeInfo.name);
+        const message = generateWSMessage(
+          data,
+          cart,
+          snapGrand,
+          paymentMethodKey,
+          orderNote,
+          activeInfo.name,
+          {
+            fulfillment: snapFulfillment,
+            cartSubtotal: snapSubtotal,
+            deliveryFee: snapFee,
+            grandTotal: snapGrand,
+            deliverySummary,
+            orderId: parsed?.id ?? null,
+            orderNumber: parsed?.order_number ?? null,
+            handoffCode: parsed?.handoff_code ?? null,
+          }
+        );
         let targetPhone = "56976645547";
         if (activeInfo.phone) {
           targetPhone = activeInfo.phone.replace(/\D/g, "");
         }
-        // ...existing code...
         window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`, "_blank");
         clearCart();
       }, 1500);
@@ -555,6 +738,7 @@ export function CartModal({
             onGoHome={handleCloseCart}
             receiptUploadFailed={viewState.receiptUploadFailed}
             activeInfo={activeInfo}
+            lastOrder={viewState.lastOrderSuccess}
           />
         </div>
       </div>
@@ -608,6 +792,102 @@ export function CartModal({
                   rows={2}
                 />
               </div>
+              {deliverySettings.enabled ? (
+                <div className="cart-fulfillment-block glass">
+                  <div className="cart-fulfillment-title">Como recibis tu pedido</div>
+                  {deliverySettings.pickup_enabled ? (
+                    <div className="cart-fulfillment-choice">
+                      <button
+                        type="button"
+                        className={`cart-fulfill-option ${fulfillment === "pickup" ? "is-active" : ""}`}
+                        onClick={() => setFulfillment("pickup")}
+                      >
+                        <Store size={18} />
+                        Retiro en local
+                      </button>
+                      <button
+                        type="button"
+                        className={`cart-fulfill-option ${fulfillment === "delivery" ? "is-active" : ""}`}
+                        onClick={() => setFulfillment("delivery")}
+                      >
+                        <Truck size={18} />
+                        Delivery
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="cart-fulfillment-hint">Este local envia a domicilio.</p>
+                  )}
+                  {fulfillment === "delivery" && deliverySettings.enabled ? (
+                    <div className="cart-delivery-fields">
+                      {deliverySettings.customer_note ? (
+                        <p className="cart-delivery-note">{deliverySettings.customer_note}</p>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-block cart-geo-btn"
+                        onClick={requestDeliveryGeo}
+                      >
+                        Usar mi ubicacion
+                      </button>
+                      {geoHint ? <p className="cart-geo-hint">{geoHint}</p> : null}
+                      <label className="cart-field-label">Calle y numero</label>
+                      <input
+                        className="form-input"
+                        value={deliveryLine1}
+                        onChange={(e) => setDeliveryLine1(e.target.value)}
+                        placeholder="Ej: Av. Principal 123, depto 4"
+                      />
+                      <label className="cart-field-label">Comuna / ciudad</label>
+                      <input
+                        className="form-input"
+                        value={deliveryCommune}
+                        onChange={(e) => setDeliveryCommune(e.target.value)}
+                        placeholder="Ej: Santiago"
+                      />
+                      <label className="cart-field-label">Referencia para el repartidor</label>
+                      <textarea
+                        className="form-input"
+                        rows={2}
+                        value={deliveryReference}
+                        onChange={(e) => setDeliveryReference(e.target.value)}
+                        placeholder="Porton verde, timbre 402..."
+                      />
+                      {fulfillment === "delivery" &&
+                      deliveryLat != null &&
+                      deliveryLng != null &&
+                      quotedRouteKm != null &&
+                      quotedRouteKm > 0 ? (
+                        <div className="cart-delivery-quote">
+                          <span>Distancia aprox. (linea recta)</span>
+                          <strong>{quotedRouteKm.toFixed(1)} km</strong>
+                        </div>
+                      ) : null}
+                      <div className="cart-delivery-quote cart-delivery-fee-row">
+                        <span>Costo de envio</span>
+                        <strong>
+                          {isDeliveryOutOfZone
+                            ? "Fuera de zona"
+                            : `$${deliveryFee.toLocaleString("es-CL")}`}
+                        </strong>
+                      </div>
+                      {!meetsMinDelivery ? (
+                        <p className="cart-fulfillment-warn">
+                          El minimo para delivery es ${deliverySettings.min_order_subtotal.toLocaleString("es-CL")}.
+                        </p>
+                      ) : null}
+                      {isDeliveryOutOfZone ? (
+                        <p className="cart-fulfillment-warn">
+                          Tu ubicacion supera el radio de reparto de este local.
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              ) : deliverySettings.pickup_enabled ? (
+                <p className="cart-pickup-only-hint">
+                  Esta sucursal solo acepta retiro en el local.
+                </p>
+              ) : null}
             </>
           )}
         </div>
@@ -617,24 +897,29 @@ export function CartModal({
             {!viewState.showPaymentInfo ? (
               <>
                 <div className="total-row">
+                  <span>Subtotal</span>
+                  <span>${cartSubtotal.toLocaleString("es-CL")}</span>
+                </div>
+                {fulfillment === "delivery" && deliverySettings.enabled ? (
+                  <div className="total-row total-row-delivery">
+                    <span>Envio</span>
+                    <span>
+                      {isDeliveryOutOfZone
+                        ? "—"
+                        : `$${deliveryFee.toLocaleString("es-CL")}`}
+                    </span>
+                  </div>
+                ) : null}
+                <div className="total-row total-row-grand">
                   <span>Total</span>
-                  <span className="total-price">${cartTotal.toLocaleString("es-CL")}</span>
+                  <span className="total-price">${grandTotal.toLocaleString("es-CL")}</span>
                 </div>
 
                 {isShiftLoading ? (
                   <button className="btn btn-primary btn-block btn-lg" disabled>
                     Cargando...
                   </button>
-                ) : canCheckout ? (
-                  <button
-                    onClick={() => {
-                      setViewState((v) => ({ ...v, showPaymentInfo: true }));
-                    }}
-                    className="btn btn-primary btn-block btn-lg"
-                  >
-                    Ir a Pagar
-                  </button>
-                ) : (
+                ) : !canCheckout ? (
                   <div className="cash-closed-banner">
                     <AlertCircle size={16} />
                     <span>
@@ -643,6 +928,26 @@ export function CartModal({
                         : `Caja cerrada.${businessInfo?.schedule ? ` Horario: ${businessInfo.schedule}` : ""}`}
                     </span>
                   </div>
+                ) : !canProceedFulfillment ? (
+                  <div className="cash-closed-banner">
+                    <AlertCircle size={16} />
+                    <span>
+                      {isDeliveryOutOfZone
+                        ? "Tu ubicacion esta fuera del area de delivery de este local."
+                        : !meetsMinDelivery
+                          ? `Monto minimo para delivery: $${deliverySettings.min_order_subtotal.toLocaleString("es-CL")}.`
+                          : "Completa calle y comuna para continuar con delivery."}
+                    </span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setViewState((v) => ({ ...v, showPaymentInfo: true }));
+                    }}
+                    className="btn btn-primary btn-block btn-lg"
+                  >
+                    Ir a Pagar
+                  </button>
                 )}
               </>
             ) : (
@@ -665,7 +970,7 @@ export function CartModal({
                 validation={validation}
                 showFieldErrors={showFieldErrors}
                 setShowFieldErrors={setShowFieldErrors}
-                cartTotal={cartTotal}
+                cartTotal={grandTotal}
                 onBack={() => setViewState((v) => ({ ...v, showPaymentInfo: false }))}
                 activeInfo={activeInfo}
                 setViewState={setViewState}
@@ -719,8 +1024,8 @@ const PaymentFlow = ({
   cartTotal: number;
   onBack: () => void;
   activeInfo: ActiveSessionInfo;
-  setViewState: React.Dispatch<React.SetStateAction<{ showPaymentInfo: boolean; showForm: boolean; showSuccess: boolean; isSaving: boolean; error: string | null; receiptUploadFailed: boolean; }>>;
-  viewState: { showPaymentInfo: boolean; showForm: boolean; showSuccess: boolean; isSaving: boolean; error: string | null; receiptUploadFailed: boolean; };
+  setViewState: React.Dispatch<React.SetStateAction<CartModalViewState>>;
+  viewState: CartModalViewState;
 }) => {
   const isOnline = paymentMethodKey && PAYMENT_METHOD_CONFIG[paymentMethodKey]?.isOnline;
   const showNameError = showFieldErrors && !validation.name;
@@ -1017,40 +1322,102 @@ const SuccessView = ({
   onGoHome,
   receiptUploadFailed,
   activeInfo,
+  lastOrder,
 }: {
   onNewOrder: () => void;
   onGoHome: () => void;
   receiptUploadFailed: boolean;
   activeInfo: BusinessInfo;
-}) => (
-  <div className="cart-success-view animate-fade">
-    <div className="success-icon-circle">
-      <Check size={40} />
-    </div>
-    <h2 className="text-accent">¡Pedido Recibido!</h2>
-    <p className="success-description">
-      Estamos validando tu pago. Te contactaremos por WhatsApp.
-    </p>
-    {receiptUploadFailed ? (
-      <p className="cart-receipt-fallback cart-receipt-fallback-warning">
-        No se pudo subir el comprobante. Por favor envialo por WhatsApp cuando abras el chat.
+  lastOrder: {
+    id: number;
+    order_number: number | null;
+    handoff_code: string | null;
+    fulfillment: CartFulfillment;
+  } | null;
+}) => {
+  const copyText = (text: string) => {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).catch(() => {});
+    }
+  };
+  const showDeliveryCodes =
+    lastOrder?.fulfillment === "delivery" && Boolean(lastOrder?.handoff_code);
+  const orderLabel =
+    lastOrder?.order_number != null
+      ? `#${lastOrder.order_number}`
+      : lastOrder && lastOrder.id > 0
+        ? `#${lastOrder.id}`
+        : null;
+
+  return (
+    <div className="cart-success-view animate-fade">
+      <div className="success-icon-circle">
+        <Check size={40} />
+      </div>
+      <h2 className="text-accent">¡Pedido Recibido!</h2>
+      <p className="success-description">
+        Estamos validando tu pago. Te contactaremos por WhatsApp.
       </p>
-    ) : null}
-    <div className="order-summary-card">
-      <div className="summary-label">Retiro en</div>
-      <div className="summary-value">{activeInfo?.address || "Direccion no disponible"}</div>
-      <div className="text-xs text-muted">{activeInfo?.name || "Nombre del local"}</div>
+      {receiptUploadFailed ? (
+        <p className="cart-receipt-fallback cart-receipt-fallback-warning">
+          No se pudo subir el comprobante. Por favor envialo por WhatsApp cuando abras el chat.
+        </p>
+      ) : null}
+      {showDeliveryCodes ? (
+        <>
+          <div className="cart-success-codes-banner">
+            <p>
+              <strong>Guarda estos datos.</strong> Te los pediremos cuando te entreguemos el pedido en tu
+              domicilio (mostralo o dictalo al repartidor).
+            </p>
+          </div>
+          <div className="order-summary-card cart-success-codes-card">
+            {orderLabel ? (
+              <>
+                <div className="summary-label">Tu pedido</div>
+                <button
+                  type="button"
+                  className="summary-value summary-copy-row"
+                  onClick={() => copyText(orderLabel.replace("#", ""))}
+                >
+                  <b>{orderLabel}</b> <Copy size={14} />
+                </button>
+              </>
+            ) : null}
+            <div className="summary-label">Codigo de entrega</div>
+            <button
+              type="button"
+              className="summary-value summary-mono summary-copy-row"
+              onClick={() => copyText(lastOrder?.handoff_code ?? "")}
+            >
+              <b>{lastOrder?.handoff_code}</b> <Copy size={14} />
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="order-summary-card">
+          <div className="summary-label">Retiro en</div>
+          <div className="summary-value">{activeInfo?.address || "Direccion no disponible"}</div>
+          <div className="text-xs text-muted">{activeInfo?.name || "Nombre del local"}</div>
+          {orderLabel ? (
+            <>
+              <div className="summary-label">N° pedido</div>
+              <div className="summary-value">{orderLabel}</div>
+            </>
+          ) : null}
+        </div>
+      )}
+      <div className="success-actions">
+        <button className="btn btn-primary btn-block" onClick={onNewOrder}>
+          Nuevo Pedido
+        </button>
+        <button className="btn btn-secondary btn-block" onClick={onGoHome}>
+          Volver al Menu
+        </button>
+      </div>
     </div>
-    <div className="success-actions">
-      <button className="btn btn-primary btn-block" onClick={onNewOrder}>
-        Nuevo Pedido
-      </button>
-      <button className="btn btn-secondary btn-block" onClick={onGoHome}>
-        Volver al Menu
-      </button>
-    </div>
-  </div>
-);
+  );
+};
 
 const EmptyState = ({ onMenu }: { onMenu: () => void }) => (
   <div className="empty-state">

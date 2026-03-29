@@ -127,7 +127,7 @@ export default async function TenantMenuPage({ params, searchParams }: TenantMen
     ] = await Promise.all([
       supabase
         .from("branches")
-        .select("id,name,address,phone,schedule,company_id,payment_methods,pago_movil,zelle,transferencia_bancaria,stripe,mercadopago,paypal")
+        .select("id,name,address,phone,schedule,company_id,payment_methods,pago_movil,zelle,transferencia_bancaria,stripe,mercadopago,paypal,delivery_settings")
         .eq("company_id", company.id)
         .order("name"),
       supabase
