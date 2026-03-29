@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { createSupabasePublicServerClient } from "../../../utils/supabase/server";
 import { StoreUnavailable } from "../../../components/tenant/store-unavailable";
 import { MenuClient } from "../../../components/tenant/menu-client";
+import type { HeroBanner } from "../../../components/tenant/hero-carousel";
 
 // ==========================================
 // 1. INTERFACES DE PROPS Y OUTPUT CLIENTE
@@ -191,15 +192,25 @@ export default async function TenantMenuPage({ params, searchParams }: TenantMen
         : safeBranches[0] ?? null);
 
     let menuData: MenuDataResponse | null = null;
+    let heroBannerRows: HeroBanner[] = [];
 
     if (menuBranch) {
-      // --- D. Obtener Menú vía RPC ---
-      const { data, error: menuError } = await supabase.rpc("get_public_menu", {
-        p_company_slug: resolvedParams.subdomain,
-        p_branch_id: menuBranch.id,
-      });
+      // --- D. Obtener Menú + Banners en paralelo ---
+      const [menuResult, bannersResult] = await Promise.all([
+        supabase.rpc("get_public_menu", {
+          p_company_slug: resolvedParams.subdomain,
+          p_branch_id: menuBranch.id,
+        }),
+        supabase
+          .from("hero_banners")
+          .select("id, image_url")
+          .eq("branch_id", menuBranch.id)
+          .eq("is_active", true)
+          .gt("expires_at", new Date().toISOString())
+          .order("sort_order"),
+      ]);
 
-      if (menuError) {
+      if (menuResult.error) {
         if (resolvedSearchParams?.debug === "1") {
           return (
             <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
@@ -209,8 +220,8 @@ export default async function TenantMenuPage({ params, searchParams }: TenantMen
                   {
                     subdomain: resolvedParams.subdomain,
                     branchId: menuBranch.id,
-                    error: menuError.message ?? null,
-                    code: menuError.code ?? null,
+                    error: menuResult.error.message ?? null,
+                    code: menuResult.error.code ?? null,
                   },
                   null,
                   2
@@ -222,8 +233,12 @@ export default async function TenantMenuPage({ params, searchParams }: TenantMen
         return <StoreUnavailable />;
       }
 
-      // PostgREST puede devolver un array de una fila para RETURNS TABLE
-      menuData = Array.isArray(data) && data.length > 0 ? data[0] : data;
+      menuData = Array.isArray(menuResult.data) && menuResult.data.length > 0
+        ? menuResult.data[0]
+        : menuResult.data;
+      heroBannerRows = ((bannersResult.data ?? []) as { id: string; image_url: string }[]).filter(
+        (r) => typeof r.image_url === "string" && r.image_url.trim().length > 0
+      );
     }
 
     // --- E. Asignación de tipos fuertes (¡Adiós 'any'!) ---
@@ -269,6 +284,11 @@ export default async function TenantMenuPage({ params, searchParams }: TenantMen
       })
       .filter((p): p is MenuProduct => p !== null);
 
+    const heroBanners = heroBannerRows.map((row) => ({
+      id: row.id,
+      image_url: row.image_url.trim(),
+    }));
+
     // --- G. Casteo seguro de JSONB (Evita warnings silenciosos) ---
     const themeConfig = company.theme_config as Record<string, unknown> | null;
     const name = (themeConfig?.displayName as string) ?? company.name ?? "GodCode";
@@ -290,6 +310,7 @@ export default async function TenantMenuPage({ params, searchParams }: TenantMen
         categories={categories}
         products={products}
         selectedBranchId={selectedBranch?.id ?? null}
+        banners={heroBanners}
       />
     );
   }

@@ -49,8 +49,9 @@
 .tab-item {
     flex-shrink: 0;
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     gap: 6px;
+    line-height: 1.2;
     padding: 8px 14px;
     border-radius: 50px;
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -95,6 +96,9 @@
     height: 18px;
     object-fit: contain;
     pointer-events: none;
+    flex-shrink: 0;
+    display: block;
+    align-self: flex-end;
 }
 
 /* Buscador (pastilla a la derecha) */

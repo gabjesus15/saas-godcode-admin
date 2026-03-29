@@ -12,6 +12,8 @@ import { CartProvider } from "./cart-provider";
 import { CartFloat } from "./cart-float";
 import { CartModal } from "./cart-modal";
 import { ProductCard } from "./product-card";
+import { HeroCarousel } from "./hero-carousel";
+import type { HeroBanner } from "./hero-carousel";
 import { getTenantScopedPath } from "./utils/tenant-route";
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 
@@ -105,6 +107,11 @@ interface MenuClientProps {
   categories: MenuCategory[];
   products: MenuProduct[];
   selectedBranchId?: string | null;
+  banners?: HeroBanner[];
+}
+
+function isPromocionesCategoryName(name: string | null | undefined) {
+  return String(name || "").trim().toLowerCase() === "promociones";
 }
 
 export function MenuClient({
@@ -116,6 +123,7 @@ export function MenuClient({
   categories,
   products,
   selectedBranchId,
+  banners = [],
 }: MenuClientProps) {
   
   let priorityCounter = 0;
@@ -341,7 +349,7 @@ export function MenuClient({
   const { specialProducts, filteredBySearch, query } = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     const promoIds = categories
-      .filter((cat) => String(cat.name || "").trim().toLowerCase() === "promociones")
+      .filter((cat) => isPromocionesCategoryName(cat.name))
       .map((cat) => cat.id);
     return {
       specialProducts: products.filter(
@@ -506,7 +514,17 @@ export function MenuClient({
                 },
               ]
             : []),
-          ...visibleCategories,
+          ...visibleCategories.map((cat) => ({
+            id: cat.id,
+            name: isPromocionesCategoryName(cat.name) ? (
+              <>
+                <span>{cat.name}</span>
+                <Image src={FIRE_ICON} className="fire-inline-icon" alt="🔥" width={20} height={20} unoptimized />
+              </>
+            ) : (
+              cat.name
+            ),
+          })),
         ]}
         activeCategory={activeCategory}
         onCategoryClick={(id) => scrollToCategory(id)}
@@ -532,6 +550,8 @@ export function MenuClient({
           : navbar}
 
         <div className="menu-spacer" />
+
+        {banners.length > 0 && <HeroCarousel banners={banners} />}
 
         <main className="container">
           {query ? (
@@ -577,7 +597,16 @@ export function MenuClient({
                     id={`section-${category.id}`}
                     className="category-section"
                   >
-                    <h2 className="category-title">{category.name}</h2>
+                    <h2 className="category-title">
+                      {isPromocionesCategoryName(category.name) ? (
+                        <>
+                          {category.name}
+                          <Image src={FIRE_ICON} className="category-icon" alt="🔥" width={24} height={24} unoptimized />
+                        </>
+                      ) : (
+                        category.name
+                      )}
+                    </h2>
                     <div className="product-grid">
                       {categoryProducts.length > 0
                         ? categoryProducts.map((product) => (

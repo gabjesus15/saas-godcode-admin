@@ -1,0 +1,339 @@
+/* =========================================
+   HERO — slider limpio (estilo temas WP premium)
+   ========================================= */
+
+.hero-carousel {
+	position: relative;
+	width: 100%;
+	max-width: 100%;
+	margin-bottom: clamp(12px, 2.5vw, 22px);
+}
+
+.hero-carousel-frame {
+	width: 100%;
+	padding: 0 clamp(12px, 4vw, 36px);
+}
+
+/* Desktop ancho: no estirar de borde a borde; centrado y más aire */
+@media (min-width: 1024px) {
+	.hero-carousel-frame {
+		max-width: min(1220px, 100%);
+		margin-inline: auto;
+		padding: 0 clamp(16px, 3vw, 28px);
+	}
+}
+
+@media (min-width: 1440px) {
+	.hero-carousel-frame {
+		max-width: min(1360px, 100%);
+	}
+}
+
+.hero-carousel-shell {
+	position: relative;
+	border-radius: clamp(16px, 3.2vw, 24px);
+	overflow: hidden;
+	background: #0a0a0a;
+	box-shadow:
+		0 1px 2px rgba(0, 0, 0, 0.06),
+		0 12px 40px rgba(0, 0, 0, 0.12);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	transition:
+		box-shadow 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+		border-color 0.5s ease;
+}
+
+.hero-carousel-shell:hover {
+	box-shadow:
+		0 1px 3px rgba(0, 0, 0, 0.08),
+		0 20px 50px rgba(0, 0, 0, 0.16);
+	border-color: rgba(255, 255, 255, 0.1);
+}
+
+.hero-carousel-viewport {
+	overflow: hidden;
+	width: 100%;
+	touch-action: pan-y pinch-zoom;
+}
+
+.hero-carousel-container {
+	display: flex;
+	touch-action: pan-y pinch-zoom;
+}
+
+.hero-carousel-slide {
+	flex: 0 0 100%;
+	min-width: 0;
+	position: relative;
+}
+
+/* --- Slide / imagen --- */
+.hero-slide {
+	position: relative;
+	width: 100%;
+	height: max(9.5rem, min(42vw, 22rem));
+	max-height: min(42vh, 22rem);
+	overflow: hidden;
+}
+
+.hero-slide-media {
+	position: absolute;
+	inset: 0;
+	overflow: hidden;
+}
+
+.hero-slide--image-only .hero-slide-image {
+	object-fit: cover;
+	object-position: center;
+}
+
+.hero-slide-image {
+	width: 100%;
+	height: 100%;
+	transform: scale(1.001);
+	transition: transform 0.9s cubic-bezier(0.33, 0.11, 0.02, 1);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.hero-slide--active .hero-slide-image {
+		animation: hero-ken 16s ease-in-out infinite alternate;
+	}
+}
+
+@keyframes hero-ken {
+	from {
+		transform: scale(1);
+	}
+	to {
+		transform: scale(1.045);
+	}
+}
+
+@media (min-width: 768px) {
+	.hero-slide {
+		height: max(11rem, min(36vw, 24rem));
+		max-height: min(38vh, 24rem);
+	}
+}
+
+/* Pantallas grandes: más alto (antes el tope 24rem dejaba la franja muy baja) */
+@media (min-width: 1024px) {
+	.hero-slide {
+		height: max(15rem, min(26vw, 30rem));
+		max-height: min(52vh, 30rem);
+	}
+}
+
+@media (min-width: 1440px) {
+	.hero-slide {
+		height: max(16rem, min(24vw, 32rem));
+		max-height: min(50vh, 32rem);
+	}
+}
+
+/* --- Scrim suave --- */
+.hero-carousel-scrim {
+	pointer-events: none;
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: min(42%, 180px);
+	background: linear-gradient(
+		to top,
+		rgba(0, 0, 0, 0.5) 0%,
+		rgba(0, 0, 0, 0.12) 58%,
+		transparent 100%
+	);
+	z-index: 1;
+}
+
+/* --- Flechas: discretas; visibles al hover del bloque (desktop) --- */
+.hero-carousel-arrow {
+	position: absolute;
+	top: 50%;
+	z-index: 3;
+	transform: translateY(-50%);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	padding: 0;
+	border: none;
+	border-radius: 999px;
+	cursor: pointer;
+	color: rgba(255, 255, 255, 0.95);
+	background: rgba(255, 255, 255, 0.1);
+	backdrop-filter: blur(10px);
+	-webkit-backdrop-filter: blur(10px);
+	box-shadow: 0 1px 8px rgba(0, 0, 0, 0.15);
+	opacity: 0.55;
+	transition:
+		background 0.3s ease,
+		opacity 0.35s ease,
+		transform 0.2s ease;
+}
+
+.hero-carousel-shell:hover .hero-carousel-arrow {
+	opacity: 1;
+}
+
+.hero-carousel-arrow:hover {
+	background: rgba(255, 255, 255, 0.2);
+}
+
+.hero-carousel-arrow:active {
+	transform: translateY(-50%) scale(0.96);
+}
+
+.hero-carousel-arrow:focus-visible {
+	opacity: 1;
+	outline: 2px solid var(--tenant-primary, #fff);
+	outline-offset: 3px;
+}
+
+.hero-carousel-arrow--prev {
+	left: clamp(10px, 2.2vw, 18px);
+}
+
+.hero-carousel-arrow--next {
+	right: clamp(10px, 2.2vw, 18px);
+}
+
+@media (max-width: 767px) {
+	.hero-carousel-arrow {
+		width: 36px;
+		height: 36px;
+		opacity: 0.85;
+	}
+
+	.hero-carousel-arrow svg {
+		width: 17px;
+		height: 17px;
+	}
+}
+
+/* --- Barra + dots --- */
+.hero-carousel-chrome {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 2;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: clamp(12px, 2.8vw, 20px) clamp(14px, 3.5vw, 28px) clamp(14px, 3vw, 22px);
+	pointer-events: none;
+}
+
+.hero-carousel-chrome .hero-dots,
+.hero-carousel-chrome .hero-progress-track {
+	pointer-events: auto;
+}
+
+.hero-progress-track {
+	width: 100%;
+	max-width: min(88%, 380px);
+	height: 2px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.12);
+	overflow: hidden;
+	margin-bottom: 14px;
+}
+
+.hero-progress-fill {
+	display: block;
+	height: 100%;
+	width: 100%;
+	transform-origin: left center;
+	border-radius: inherit;
+	background: linear-gradient(
+		90deg,
+		var(--tenant-primary, #c4b5fd) 0%,
+		rgba(255, 255, 255, 0.92) 100%
+	);
+	animation-name: hero-autoplay-progress;
+	animation-timing-function: linear;
+	animation-fill-mode: forwards;
+}
+
+.hero-carousel-shell:hover .hero-progress-fill {
+	animation-play-state: paused;
+}
+
+@keyframes hero-autoplay-progress {
+	from {
+		transform: scaleX(0);
+	}
+	to {
+		transform: scaleX(1);
+	}
+}
+
+.hero-dots {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.hero-dot:focus-visible .hero-dot-pill {
+	outline: 2px solid var(--tenant-primary, #fff);
+	outline-offset: 3px;
+}
+
+.hero-dot {
+	min-width: 44px;
+	min-height: 36px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	border: none;
+	background: transparent;
+	cursor: pointer;
+}
+
+.hero-dot-pill {
+	display: block;
+	width: 6px;
+	height: 6px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.28);
+	transition:
+		width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+		background 0.35s ease,
+		opacity 0.3s ease;
+}
+
+.hero-dot--active .hero-dot-pill {
+	width: 26px;
+	height: 7px;
+	background: rgba(255, 255, 255, 0.92);
+	box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+@media (min-width: 768px) {
+	.hero-dot--active .hero-dot-pill {
+		background: linear-gradient(
+			90deg,
+			var(--tenant-primary, #e9d5ff) 0%,
+			rgba(255, 255, 255, 0.95) 100%
+		);
+		box-shadow: none;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.hero-slide--active .hero-slide-image {
+		animation: none;
+	}
+
+	.hero-progress-fill {
+		animation: none;
+		opacity: 0.45;
+	}
+}
