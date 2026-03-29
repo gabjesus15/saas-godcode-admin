@@ -466,14 +466,30 @@ export function CartModal({
       setGeoHint("Tu navegador no permite ubicacion. Escribi la direccion.");
       return;
     }
+    if (typeof window !== "undefined" && !window.isSecureContext) {
+      setGeoHint(
+        "La ubicacion solo funciona en HTTPS (o localhost). Abrí el sitio con https o desde produccion."
+      );
+      return;
+    }
     setGeoHint("Buscando ubicacion...");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setDeliveryCoords(pos.coords.latitude, pos.coords.longitude);
         setGeoHint("Ubicacion guardada. Revisa que el pin sea correcto.");
       },
-      () => {
-        setGeoHint("No pudimos leer tu ubicacion. Escribi calle y comuna.");
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) {
+          setGeoHint(
+            "Permiso denegado. En el candado del navegador, permiti ubicacion para este sitio."
+          );
+        } else if (err.code === err.POSITION_UNAVAILABLE) {
+          setGeoHint("No hay señal de ubicacion. Escribi calle y comuna.");
+        } else if (err.code === err.TIMEOUT) {
+          setGeoHint("Tiempo agotado. Proba de nuevo o escribi la direccion.");
+        } else {
+          setGeoHint("No pudimos leer tu ubicacion. Escribi calle y comuna.");
+        }
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
     );
