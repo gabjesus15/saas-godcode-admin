@@ -1,6 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
+const baseURL = (process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000").replace(/\/$/, "");
+/** Ruta sin SSR a Supabase: el readiness de webServer no debe depender de la home. */
+const webServerReadyURL = `${baseURL}/login`;
 
 export default defineConfig({
 	testDir: "e2e",
@@ -16,13 +18,13 @@ export default defineConfig({
 	webServer: process.env.CI
 		? {
 				command: "npm run build && npm run start",
-				url: baseURL,
+				url: webServerReadyURL,
 				timeout: 180_000,
 				reuseExistingServer: false,
 			}
 		: {
 				command: "npm run start",
-				url: baseURL,
+				url: webServerReadyURL,
 				timeout: 60_000,
 				reuseExistingServer: true,
 			},

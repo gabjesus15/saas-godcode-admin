@@ -8,6 +8,8 @@ const tenantBaseDomain = (process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN ?? "")
 
 function isMainDomain(host: string): boolean {
   const h = host.split(":")[0].toLowerCase();
+  // Playwright/CI y desarrollo local suelen usar 127.0.0.1 en lugar de localhost.
+  if (h === "127.0.0.1") return true;
   if (!tenantBaseDomain) return h === "localhost" || h === "www.localhost";
   // Siempre llevar godcode.me y www.godcode.me (o el dominio configurado) a /login
   if (h === tenantBaseDomain || h === `www.${tenantBaseDomain}`) return true;

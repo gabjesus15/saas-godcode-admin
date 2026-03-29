@@ -92,7 +92,11 @@ async function applySessionRefresh(
     },
   });
 
-  await supabase.auth.getUser();
+  try {
+    await supabase.auth.getUser();
+  } catch {
+    // Red o Supabase no disponible (p. ej. CI con URL placeholder): no tumbar la petición.
+  }
   return response;
 }
 
@@ -143,7 +147,11 @@ export async function proxy(req: NextRequest) {
       skipCustom = hostNoWww === baseNoWww;
     }
     if (!skipCustom) {
-      subdomain = await resolveTenantSlugFromCustomDomainHost(hostHeader);
+      try {
+        subdomain = await resolveTenantSlugFromCustomDomainHost(hostHeader);
+      } catch {
+        subdomain = null;
+      }
     }
   }
 

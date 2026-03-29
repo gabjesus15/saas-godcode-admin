@@ -75,6 +75,15 @@ jobs:
     timeout-minutes: 20
     needs: [lint, test]
 
+    env:
+      CI: true
+      NEXT_TELEMETRY_DISABLED: "1"
+      # Sin .env en el runner: valores placeholder para prerender/SSR que no cuelguen en red.
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.ci-build
+      SUPABASE_SERVICE_ROLE_KEY: ci-build-service-role-placeholder
+      NEXT_PUBLIC_TENANT_BASE_DOMAIN: localhost
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -101,8 +110,9 @@ jobs:
       CI: true
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: "1"
-      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholder
+      # 127.0.0.1:54321 sin Supabase local → fallo rápido (no timeout a un host inventado).
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.e2e
       SUPABASE_SERVICE_ROLE_KEY: test-service-role-placeholder
       NEXT_PUBLIC_TENANT_BASE_DOMAIN: localhost
 
