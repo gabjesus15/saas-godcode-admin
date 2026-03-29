@@ -10,7 +10,6 @@
     "lint:strict": "eslint app components utils lib --max-warnings=0",
     "lint:phase:core": "eslint app components/super-admin components/ui utils --max-warnings=0",
     "lint:phase:tenant": "eslint components/tenant --max-warnings=0",
-    "lint:phase:kit": "eslint components/tenant/admin/kit --max-warnings=0",
     "lint:phase:backup": "eslint supabase-functions-backup --max-warnings=0",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -227,7 +227,7 @@ Valoración de madurez: **no es un proyecto de “primer día”** (multi-tenant
 ### Ignorar al inicio
 
 - `supabase-functions-backup`
-- Detalle completo del **kit** bajo `components/tenant/admin/kit` hasta que domines el flujo general
+- Implementación del **panel del negocio** en la app de escritorio hasta que domines el flujo de este repo (home/menú tenant)
 - Carpeta `services/onboarding-billing` hasta que necesites despliegue separado o el flag externo
 
 ### Modificar sin romper todo

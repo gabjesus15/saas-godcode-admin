@@ -47,7 +47,7 @@ Conclusión: el plan sobre “dualidad JSON vs tablas normalizadas” queda **co
 ## Artefactos en el repo tras esta tarea
 
 - [`types/supabase-database.ts`](../../types/supabase-database.ts): tipos TypeScript generados por MCP (regenerar tras DDL). **No** están enlazados aún a `createClient<Database>` en toda la app: hacerlo de golpe rompe el tipado de `theme_config` (Json), respuestas RPC y varios `insert` dinámicos; conviene adoptar por módulo.
-- [`components/tenant/admin/kit/lib/supabaseTables.js`](../../components/tenant/admin/kit/lib/supabaseTables.js): constantes ampliadas con tablas SaaS/onboarding/pedidos normalizados para evitar strings sueltos.
+- Constantes de nombres de tabla que antes vivían en el kit admin del tenant ya no están en este repo; alinear strings con el esquema real y con [`types/supabase-database.ts`](../../types/supabase-database.ts).
 
 ## Próximos pasos (fuera de este PR)
 

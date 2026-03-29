@@ -1,12 +1,11 @@
 /**
- * Única fuente de verdad para las pestañas del panel admin del tenant.
- * Usado por:
- * - Panel de roles del SAAS (Permisos de panel por rol) para mostrar y guardar permisos.
- * - AdminProvider del tenant para validar y aplicar permisos por rol.
+ * Única fuente de verdad para los IDs de pestañas del panel del tenant (mismo contrato en todos los clientes).
+ * Usado por el panel de roles del SaaS (`company-global-form`: permisos por rol) para mostrar y guardar qué ve cada rol.
+ * El panel del tenant donde se apliquen esos permisos (p. ej. app de escritorio) debe usar los mismos `id`.
  *
- * Al agregar una nueva pestaña al admin del tenant:
- * 1. Añadirla aquí en TENANT_ADMIN_TAB_OPTIONS y en los defaults que correspondan.
- * 2. Añadirla en el sidebar del tenant (AdminSidebar) y en el contenido (Admin.jsx).
+ * Al agregar una pestaña nueva:
+ * 1. Añadirla en TENANT_ADMIN_TAB_OPTIONS y en DEFAULT_ROLE_NAV_PERMISSIONS si aplica.
+ * 2. Reflejarla en el cliente del panel tenant que corresponda (sidebar / navegación).
  */
 
 export const TENANT_ADMIN_TAB_OPTIONS = [

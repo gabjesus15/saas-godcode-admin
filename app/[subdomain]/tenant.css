@@ -6,28 +6,9 @@
 @import "./styles/ProductCard.css";
 @import "./styles/Navbar.css";
 @import "./styles/HeroCarousel.css";
-@import "./styles/BannerManager.css";
 @import "./styles/BranchSelectorModal.css";
-@import "./styles/Login.css";
-@import "./styles/AdminLayout.css";
-@import "./styles/AdminAnalytics.css";
-@import "./styles/AdminCategories.css";
-@import "./styles/AdminClientsTable.css";
-@import "./styles/AdminKanban.css";
-@import "./styles/AdminShared.css";
-@import "./styles/AdminSidebar.css";
-@import "./styles/AdminSettings.css";
-@import "./styles/AdminClients.css";
-@import "./styles/AdminInventory.css";
-@import "./styles/CashSystem.css";
-@import "./styles/InventoryCard.css";
-@import "./styles/ManualOrderModal.css";
-@import "./styles/OrderCard.css";
-@import "./styles/ProductModal.css";
-@import "./styles/CategoryModal.css";
-@import "./styles/CartFloat.css";
-@import "./styles/CartModal.css";
-@import "./styles/Modals.css";
+
+/* CartFloat / CartModal: importados desde los componentes (cart-float, cart-modal). */
 
 /* Info bar styles for menu */
 .menu-info-bar {

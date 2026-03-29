@@ -56,6 +56,8 @@ Configurar en Project Settings â†’ Environment Variables:
 ## Nota tÃ©cnica de build
 
 El build de Next excluye carpetas no-app (`supabase-functions-backup/**`) en `tsconfig.json` para evitar errores de tipado Deno durante deploy.
-## Panel de dueños (app separada)
+## Panel de dueños (fuera de este repo)
 
-El login y el panel operativo del negocio viven en services/tenant-panel (Next.js independiente, pensado para **otro repo y otro deploy**). En este proyecto publico (menu / home tenant) define NEXT_PUBLIC_TENANT_PANEL_URL con la URL de ese servicio para mostrar el acceso en la home del tenant. Ver services/tenant-panel/README.md.
+El login y el panel operativo del negocio viven en la **aplicación de escritorio** del tenant (otro repositorio y despliegue). Este proyecto publica la **home, el menú y el carrito** del tenant en el subdominio.
+
+Opcional: si hospedas un panel web aparte y quieres un enlace desde la home del tenant, define `NEXT_PUBLIC_TENANT_PANEL_URL` (URL base, sin barra final). Si está vacío, ese botón no se muestra (comportamiento actual en `components/tenant/home-client.tsx`). No existe carpeta `services/tenant-panel` en este árbol; el historial del antiguo kit admin queda solo en Git si lo necesitas.

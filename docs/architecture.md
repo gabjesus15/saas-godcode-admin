@@ -1,5 +1,7 @@
 # Arquitectura del monorepo
 
+*Versión en español (visión ampliada): [arquitectura.md](./arquitectura.md).*
+
 ## Visión general
 
 | Pieza | Ubicación | Responsabilidad |
@@ -34,7 +36,7 @@ Detalle en [`.env.example`](../.env.example) y en [fase7-cleanup-guide.md](./fas
 | Tickets SaaS (super-admin + tenant) | `app/api/tickets`, `app/api/tenant-tickets` |
 | Staff / equipo tenant | `app/api/tenant-staff` |
 | Broadcasts tenant | `app/api/tenant-broadcasts` |
-| Pagos conectados (Stripe/PayPal tenant) | `app/api/tenant-payment-methods/*` |
+| Pagos conectados del tenant (Stripe/PayPal) | **No** en rutas BFF de este repo: la gestión vive en el **panel tenant** (app de escritorio) o un futuro BFF dedicado; no usar `app/api/tenant-payment-methods/*` (eliminado). |
 | Validación de pagos manuales / activación | BFF `app/api/super-admin/payments/validate` + `lib/onboarding/billing-activation.ts` |
 | Cron suspensión suscripciones | BFF `app/api/cron/subscription-status` (proxy opcional al micro o lógica local según flag) |
 

@@ -1,5 +1,7 @@
 # Arquitectura del proyecto (saas-godcode-admin)
 
+*English / tablas de referencia rápida: [architecture.md](./architecture.md).*
+
 Documento complementario a la explicación en lenguaje general. Aquí se describe **cómo está organizado el sistema**, qué piezas hablan entre sí y qué decisiones de diseño se observan en el repositorio.
 
 ---
@@ -114,7 +116,7 @@ Si falta una integración, suele **degradarse** esa función, no necesariamente 
 
 ## 8. Calidad, build y exclusiones
 
-- **TypeScript** en gran parte del panel principal; el **kit admin del tenant** incluye mucho **JavaScript** heredado: dos estilos en convivencia.
+- **TypeScript** en el panel principal y en los componentes públicos del tenant (`components/tenant/*`). El antiguo kit admin del tenant se retiró de este repo (panel en cliente de escritorio).
 - **ESLint** y **Vitest** para calidad y pruebas puntuales (p. ej. comportamiento del reenvío al microservicio).
 - **Build**: se excluyen del tipado ciertas carpetas (`supabase-functions-backup`, etc.) para no mezclar entornos con el compilador de la app web.
 
