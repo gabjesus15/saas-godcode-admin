@@ -1,0 +1,16 @@
+/* Declarar fuentes locales; no enlazar .ttf/.otf como stylesheet en el HTML */
+@font-face {
+	font-family: "Nevis";
+	src: url("/fonts/nevis.ttf") format("truetype");
+	font-weight: 700;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Aleo-Light";
+	src: url("/fonts/Aleo-Light.otf") format("opentype");
+	font-weight: 300;
+	font-style: normal;
+	font-display: swap;
+}
