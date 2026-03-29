@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { AdminRoleProvider } from "../../components/super-admin/admin-role-context";
 import { AdminShell } from "../../components/super-admin/admin-shell";
 import { SaasThemeScope } from "../../components/theme/saas-theme-scope";
 import { ThemeToggle } from "../../components/theme/theme-toggle";
@@ -35,7 +36,7 @@ export default async function SuperAdminLayout({
 		.maybeSingle();
 
 	const role = String(adminUser?.role ?? "").toLowerCase();
-	const allowedRoles = new Set(["super_admin"]);
+	const allowedRoles = new Set(["super_admin", "support"]);
 
 	if (adminError || !adminUser || !allowedRoles.has(role)) {
 		redirect("/login");
@@ -45,7 +46,9 @@ export default async function SuperAdminLayout({
 		<>
 			<SaasThemeScope />
 			<ThemeToggle />
-			<AdminShell>{children}</AdminShell>
+			<AdminRoleProvider role={role}>
+				<AdminShell>{children}</AdminShell>
+			</AdminRoleProvider>
 		</>
 	);
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateAdminRolesOnServer } from "../../../../../utils/admin/server-auth";
-
+import { logAdminAudit } from "../../../../../lib/admin-audit";
 import { supabaseAdmin } from "../../../../../lib/supabase-admin";
+import { SAAS_MUTATE_ROLES, validateAdminRolesOnServer } from "../../../../../utils/admin/server-auth";
 
 type PatchBody = {
 	name?: string;
@@ -15,7 +15,7 @@ export async function PATCH(
 	req: NextRequest,
 	{ params }: { params: Promise<{ id: string }> }
 ) {
-	const permission = await validateAdminRolesOnServer(["super_admin"]);
+	const permission = await validateAdminRolesOnServer([...SAAS_MUTATE_ROLES]);
 	if (!permission.ok) {
 		return NextResponse.json({ error: permission.error ?? "No autorizado" }, { status: permission.status ?? 403 });
 	}
@@ -38,5 +38,13 @@ export async function PATCH(
 	if (error) {
 		return NextResponse.json({ error: error.message }, { status: 500 });
 	}
+	await logAdminAudit({
+		actorEmail: permission.email ?? "",
+		actorRole: permission.role,
+		action: "plan.update",
+		resourceType: "plan",
+		resourceId: id,
+		metadata: { fields: Object.keys(updates) },
+	});
 	return NextResponse.json({ ok: true });
 }

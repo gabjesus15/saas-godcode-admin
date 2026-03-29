@@ -43,6 +43,7 @@ import {
 } from "../../utils/chile-forms";
 import { sanitizeUserText } from "../../utils/sanitize-user-text";
 import { mergeCartWithBranchPrices } from "./utils/cart-pricing";
+import { formatCartMoney } from "./utils/format-cart-money";
 import type { Json } from "../../types/supabase-database";
 import type { CartFulfillment } from "./cart-context";
 import { parseDeliverySettings } from "../../lib/tenant-delivery-settings";
@@ -173,9 +174,9 @@ const generateWSMessage = (
       msg += `${meta.deliverySummary}\n`;
     }
     if (meta.fulfillment === "delivery" && meta.deliveryFee > 0) {
-      msg += `Envio: $${meta.deliveryFee.toLocaleString("es-CL")}\n`;
+      msg += `Envio: $${formatCartMoney(meta.deliveryFee)}\n`;
     }
-    msg += `Subtotal productos: $${meta.cartSubtotal.toLocaleString("es-CL")}\n`;
+    msg += `Subtotal productos: $${formatCartMoney(meta.cartSubtotal)}\n`;
     if (meta.orderNumber != null) msg += `N° pedido: #${meta.orderNumber}\n`;
     else if (meta.orderId != null) msg += `ID pedido: ${meta.orderId}\n`;
     if (meta.handoffCode) msg += `Codigo de entrega: ${meta.handoffCode}\n`;
@@ -188,7 +189,7 @@ const generateWSMessage = (
       msg += `   (Hacer: ${item.description})\n`;
     }
   });
-  msg += `\n*TOTAL: $${grandTotal.toLocaleString("es-CL")}*\n`;
+  msg += `\n*TOTAL: $${formatCartMoney(grandTotal)}*\n`;
   const methodLabel = paymentMethodKey && PAYMENT_METHOD_CONFIG[paymentMethodKey] ? PAYMENT_METHOD_CONFIG[paymentMethodKey].label : "Por definir";
   msg += `Pago: ${methodLabel}\n`;
   if (note && note.trim()) msg += `\nNota: ${note}\n`;
@@ -678,7 +679,10 @@ export function CartModal({
               reference: sanitizeUserText(deliveryReference),
               lat: deliveryLat,
               lng: deliveryLng,
-              distance_km_haversine: quotedRouteKm,
+              distance_km_haversine:
+                quotedRouteKm != null && quotedRouteKm > 0
+                  ? Math.round(quotedRouteKm)
+                  : quotedRouteKm,
               quote_method:
                 deliveryLat != null && deliveryLng != null ? "haversine" : "address_only",
             }
@@ -897,7 +901,7 @@ export function CartModal({
                       quotedRouteKm > 0 ? (
                         <div className="cart-delivery-quote">
                           <span>Distancia aprox. (linea recta)</span>
-                          <strong>{quotedRouteKm.toFixed(1)} km</strong>
+                          <strong>{Math.round(quotedRouteKm)} km</strong>
                         </div>
                       ) : null}
                       <div className="cart-delivery-quote cart-delivery-fee-row">
@@ -905,12 +909,12 @@ export function CartModal({
                         <strong>
                           {isDeliveryOutOfZone
                             ? "Fuera de zona"
-                            : `$${deliveryFee.toLocaleString("es-CL")}`}
+                            : `$${formatCartMoney(deliveryFee)}`}
                         </strong>
                       </div>
                       {!meetsMinDelivery ? (
                         <p className="cart-fulfillment-warn">
-                          El minimo para delivery es ${deliverySettings.min_order_subtotal.toLocaleString("es-CL")}.
+                          El minimo para delivery es ${formatCartMoney(deliverySettings.min_order_subtotal)}.
                         </p>
                       ) : null}
                       {isDeliveryOutOfZone ? (
@@ -936,7 +940,7 @@ export function CartModal({
               <>
                 <div className="total-row">
                   <span>Subtotal</span>
-                  <span>${cartSubtotal.toLocaleString("es-CL")}</span>
+                  <span>${formatCartMoney(cartSubtotal)}</span>
                 </div>
                 {fulfillment === "delivery" && deliverySettings.enabled ? (
                   <div className="total-row total-row-delivery">
@@ -944,13 +948,13 @@ export function CartModal({
                     <span>
                       {isDeliveryOutOfZone
                         ? "—"
-                        : `$${deliveryFee.toLocaleString("es-CL")}`}
+                        : `$${formatCartMoney(deliveryFee)}`}
                     </span>
                   </div>
                 ) : null}
                 <div className="total-row total-row-grand">
                   <span>Total</span>
-                  <span className="total-price">${grandTotal.toLocaleString("es-CL")}</span>
+                  <span className="total-price">${formatCartMoney(grandTotal)}</span>
                 </div>
 
                 {isShiftLoading ? (
@@ -973,7 +977,7 @@ export function CartModal({
                       {isDeliveryOutOfZone
                         ? "Tu ubicacion esta fuera del area de delivery de este local."
                         : !meetsMinDelivery
-                          ? `Monto minimo para delivery: $${deliverySettings.min_order_subtotal.toLocaleString("es-CL")}.`
+                          ? `Monto minimo para delivery: $${formatCartMoney(deliverySettings.min_order_subtotal)}.`
                           : "Completa calle y comuna para continuar con delivery."}
                     </span>
                   </div>
@@ -1199,7 +1203,7 @@ const PaymentFlow = ({
               <h4>{PAYMENT_METHOD_CONFIG[paymentMethodKey]?.label || "Pagar en Local"}</h4>
               <p className="text-muted">Pagas en efectivo o tarjeta al retirar.</p>
             </div>
-            <div className="pay-total">Total: ${cartTotal.toLocaleString("es-CL")}</div>
+            <div className="pay-total">Total: ${formatCartMoney(cartTotal)}</div>
           </div>
         )}
 
@@ -1350,7 +1354,7 @@ const OnlinePaymentDetails = ({ methodKey, cartTotal, activeInfo }: { methodKey:
     <div className="bank-info glass">
       <h4>Datos de Pago</h4>
       {renderDetails()}
-      <div className="pay-total">Total: ${cartTotal.toLocaleString("es-CL")}</div>
+      <div className="pay-total">Total: ${formatCartMoney(cartTotal)}</div>
     </div>
   );
 };
@@ -1519,7 +1523,7 @@ const CartItem = ({
 
       <div className="item-bottom item-bottom-tight">
         <span className="item-price item-price-strong">
-          ${(unitPrice * item.quantity).toLocaleString("es-CL")}
+          ${formatCartMoney(unitPrice * item.quantity)}
         </span>
         <div className="qty-control-sm">
           <button

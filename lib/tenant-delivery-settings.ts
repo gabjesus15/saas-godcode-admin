@@ -117,7 +117,7 @@ export function computeDeliveryFeeFromRouteKm(
 		return { fee: 0, out_of_zone: true };
 	}
 	if (settings.pricing_mode === "fixed") {
-		return { fee: settings.base_fee, out_of_zone: false };
+		return { fee: Math.round(Math.max(0, settings.base_fee)), out_of_zone: false };
 	}
 	if (settings.pricing_mode === "tiered_km" && settings.tiers.length > 0) {
 		const sorted = [...settings.tiers].sort((a, b) => a.up_to_km - b.up_to_km);
@@ -129,11 +129,11 @@ export function computeDeliveryFeeFromRouteKm(
 			}
 			fee = t.fee;
 		}
-		return { fee: Math.max(0, fee), out_of_zone: false };
+		return { fee: Math.round(Math.max(0, fee)), out_of_zone: false };
 	}
 	const extra = Math.max(0, routeKm - settings.included_km);
 	const fee = settings.base_fee + extra * settings.per_km;
-	return { fee: Math.max(0, fee), out_of_zone: false };
+	return { fee: Math.round(Math.max(0, fee)), out_of_zone: false };
 }
 
 export function haversineKm(

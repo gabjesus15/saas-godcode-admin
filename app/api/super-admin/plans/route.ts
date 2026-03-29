@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateAdminRolesOnServer } from "../../../../utils/admin/server-auth";
+import { SAAS_READ_ROLES, SAAS_MUTATE_ROLES, validateAdminRolesOnServer } from "../../../../utils/admin/server-auth";
 
+import { logAdminAudit } from "../../../../lib/admin-audit";
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
 
 export async function GET() {
-	const permission = await validateAdminRolesOnServer(["super_admin"]);
+	const permission = await validateAdminRolesOnServer([...SAAS_READ_ROLES]);
 	if (!permission.ok) {
 		return NextResponse.json({ error: permission.error ?? "No autorizado" }, { status: permission.status ?? 403 });
 	}
@@ -29,7 +30,7 @@ type CreateBody = {
 };
 
 export async function POST(req: NextRequest) {
-	const permission = await validateAdminRolesOnServer(["super_admin"]);
+	const permission = await validateAdminRolesOnServer([...SAAS_MUTATE_ROLES]);
 	if (!permission.ok) {
 		return NextResponse.json({ error: permission.error ?? "No autorizado" }, { status: permission.status ?? 403 });
 	}
@@ -52,5 +53,13 @@ export async function POST(req: NextRequest) {
 	if (error) {
 		return NextResponse.json({ error: error.message }, { status: 500 });
 	}
+	await logAdminAudit({
+		actorEmail: permission.email ?? "",
+		actorRole: permission.role,
+		action: "plan.create",
+		resourceType: "plan",
+		resourceId: data?.id ?? undefined,
+		metadata: { name },
+	});
 	return NextResponse.json({ ok: true, id: data?.id });
 }

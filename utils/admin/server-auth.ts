@@ -2,6 +2,12 @@ import { supabaseAdmin } from "../../lib/supabase-admin";
 
 const FALLBACK_ALLOWED_ROLES = new Set(["super_admin"]);
 
+/** Lectura (GET) en APIs super-admin: incluye soporte. */
+export const SAAS_READ_ROLES = ["super_admin", "support"] as const;
+
+/** Mutaciones (POST/PATCH/DELETE): solo super_admin. */
+export const SAAS_MUTATE_ROLES = ["super_admin"] as const;
+
 export interface ServerAdminPermissionResult {
 	ok: boolean;
 	status: number;

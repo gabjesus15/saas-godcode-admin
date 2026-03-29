@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { validateAdminRolesOnServer } from "../../../../utils/admin/server-auth";
+import { SAAS_READ_ROLES, validateAdminRolesOnServer } from "../../../../utils/admin/server-auth";
 
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
 
 export async function GET() {
-	const permission = await validateAdminRolesOnServer(["super_admin"]);
+	const permission = await validateAdminRolesOnServer([...SAAS_READ_ROLES]);
 	if (!permission.ok) {
 		return NextResponse.json(
 			{ error: permission.error ?? "No autorizado" },

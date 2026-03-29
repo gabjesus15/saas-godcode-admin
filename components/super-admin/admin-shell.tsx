@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 
 import { useAntiZoom } from "../tenant/use-anti-zoom";
+import { useAdminRole } from "./admin-role-context";
 import { Sidebar } from "./sidebar";
 
 interface AdminShellProps {
@@ -13,6 +14,7 @@ interface AdminShellProps {
 
 export function AdminShell({ children }: AdminShellProps) {
   const [open, setOpen] = useState(false);
+  const { readOnly } = useAdminRole();
   useAntiZoom();
 
   return (
@@ -45,7 +47,17 @@ export function AdminShell({ children }: AdminShellProps) {
             </div>
           </header>
 
-          <main className="min-w-0 flex-1 overflow-x-hidden">{children}</main>
+          <main className="min-w-0 flex-1 overflow-x-hidden">
+            {readOnly ? (
+              <div
+                className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
+                role="status"
+              >
+                Modo soporte: solo lectura. No puedes crear ni modificar datos desde este rol.
+              </div>
+            ) : null}
+            {children}
+          </main>
         </div>
       </div>
 

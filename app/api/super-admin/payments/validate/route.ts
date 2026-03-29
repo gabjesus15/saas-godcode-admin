@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { logAdminAudit } from "../../../../../lib/admin-audit";
 import { supabaseAdmin } from "../../../../../lib/supabase-admin";
 import { logger, createRequestContext } from "../../../../../lib/logger";
-import { validateAdminRolesOnServer } from "../../../../../utils/admin/server-auth";
+import { SAAS_MUTATE_ROLES, validateAdminRolesOnServer } from "../../../../../utils/admin/server-auth";
 import {
 	activateCompanyAddonsFromApplication,
 	activateCompanySubscription,
@@ -99,6 +100,14 @@ export async function POST(req: NextRequest) {
 			});
 		}
 
+		await logAdminAudit({
+			actorEmail: permission.email ?? "",
+			actorRole: permission.role,
+			action: "payment.validate",
+			resourceType: "payments_history",
+			resourceId: payment.id,
+			metadata: { company_id: payment.company_id, welcome_email_sent: welcomeSent },
+		});
 		logger.info("Pago validado", ctx, { companyId: payment.company_id, welcomeSent });
 		return NextResponse.json({
 			ok: true,

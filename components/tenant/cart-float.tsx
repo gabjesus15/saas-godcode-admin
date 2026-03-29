@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, ShoppingBag } from "lucide-react";
 import { useCart } from "./use-cart";
+import { formatCartMoney } from "./utils/format-cart-money";
 import "../../app/[subdomain]/styles/CartFloat.css";
 
 export function CartFloat() {
@@ -54,7 +55,7 @@ export function CartFloat() {
         <span className="cart-label-text">
           {hasItems ? (
             <>
-              <span className="cart-total-prefix">Total:</span> ${grandTotal.toLocaleString("es-CL")}
+              <span className="cart-total-prefix">Total:</span> ${formatCartMoney(grandTotal)}
             </>
           ) : (
             "Tu Bandeja"

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateAdminRolesOnServer } from "../../../../../../utils/admin/server-auth";
-
+import { logAdminAudit } from "../../../../../../lib/admin-audit";
 import { supabaseAdmin } from "../../../../../../lib/supabase-admin";
+import { SAAS_MUTATE_ROLES, validateAdminRolesOnServer } from "../../../../../../utils/admin/server-auth";
 
 /** PATCH { "config": { "phone": "...", "email": "...", "bank": "..." } }
  * Crea o actualiza las filas en plan_payment_method_config para el method_id.
@@ -52,5 +52,13 @@ export async function PATCH(
 		}
 	}
 
+	await logAdminAudit({
+		actorEmail: permission.email ?? "",
+		actorRole: permission.role,
+		action: "plan_payment_method.config_update",
+		resourceType: "plan_payment_method",
+		resourceId: methodId,
+		metadata: { keys: Object.keys(config) },
+	});
 	return NextResponse.json({ ok: true });
 }

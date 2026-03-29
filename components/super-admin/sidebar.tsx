@@ -3,13 +3,28 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Building2, ClipboardList, CreditCard, LayoutDashboard, LifeBuoy, LogOut, Package, Wrench } from "lucide-react";
+import {
+	Activity,
+	Building2,
+	ClipboardList,
+	CreditCard,
+	LayoutDashboard,
+	LifeBuoy,
+	LogOut,
+	Package,
+	ScrollText,
+	ShieldAlert,
+	Wrench,
+} from "lucide-react";
 import { AnimatedLogo } from "./AnimatedLogo";
 
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard/salud-pagos", label: "Salud de pagos", icon: ShieldAlert },
+  { href: "/dashboard/onboarding-embudo", label: "Embudo onboarding", icon: Activity },
+  { href: "/dashboard/auditoria", label: "Auditoría", icon: ScrollText },
   { href: "/companies", label: "Empresas", icon: Building2 },
   { href: "/onboarding/solicitudes", label: "Solicitudes", icon: ClipboardList },
   { href: "/plans", label: "Planes", icon: CreditCard },

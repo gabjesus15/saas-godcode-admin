@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { supabaseAdmin } from "../../../../../lib/supabase-admin";
-import { validateAdminRolesOnServer } from "../../../../../utils/admin/server-auth";
+import { SAAS_MUTATE_ROLES, SAAS_READ_ROLES, validateAdminRolesOnServer } from "../../../../../utils/admin/server-auth";
 
 type MessageRow = {
   id: string;
@@ -13,8 +13,20 @@ type MessageRow = {
   created_at: string;
 };
 
-async function validateSuperAdminAccess() {
-  const result = await validateAdminRolesOnServer(["super_admin"]);
+async function validateSuperAdminRead() {
+  const result = await validateAdminRolesOnServer([...SAAS_READ_ROLES]);
+  if (!result.ok) {
+    return {
+      ok: false as const,
+      response: NextResponse.json({ error: result.error ?? "No autorizado" }, { status: result.status }),
+    };
+  }
+
+  return { ok: true as const, email: result.email ?? null };
+}
+
+async function validateSuperAdminMutate() {
+  const result = await validateAdminRolesOnServer([...SAAS_MUTATE_ROLES]);
   if (!result.ok) {
     return {
       ok: false as const,
@@ -26,7 +38,7 @@ async function validateSuperAdminAccess() {
 }
 
 export async function GET(_: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const access = await validateSuperAdminAccess();
+  const access = await validateSuperAdminRead();
   if (!access.ok) return access.response;
 
   const params = await context.params;
@@ -45,7 +57,7 @@ export async function GET(_: NextRequest, context: { params: Promise<{ id: strin
 }
 
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const access = await validateSuperAdminAccess();
+  const access = await validateSuperAdminMutate();
   if (!access.ok) return access.response;
 
   const params = await context.params;

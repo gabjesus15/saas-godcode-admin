@@ -13,6 +13,7 @@ import {
 	haversineKm,
 	parseDeliverySettings,
 } from "../../lib/tenant-delivery-settings";
+import { formatCartMoney } from "./utils/format-cart-money";
 
 // --- TIPOS ---
 interface CartItem {
@@ -382,7 +383,7 @@ export function CartProvider({
       ? deliveryFeeComputed
       : 0;
 
-  const grandTotal = cartSubtotal + deliveryFee;
+  const grandTotal = Math.round(cartSubtotal + deliveryFee);
 
   const totalItems = useMemo(() => {
     if (!Array.isArray(store.cart)) return 0;
@@ -407,14 +408,14 @@ export function CartProvider({
       if (typeof item.description === "string" && item.description.trim()) {
         message += `   (Hacer: ${item.description})\n`;
       }
-      message += `   Subtotal: $${subtotal.toLocaleString("es-CL")}\n`;
+      message += `   Subtotal: $${formatCartMoney(subtotal)}\n`;
       message += "--------------------------------\n";
     });
 
     if (store.fulfillment === "delivery" && deliveryFee > 0) {
-      message += `\nEnvio: $${deliveryFee.toLocaleString("es-CL")}\n`;
+      message += `\nEnvio: $${formatCartMoney(deliveryFee)}\n`;
     }
-    message += `\n*TOTAL A PAGAR: $${grandTotal.toLocaleString("es-CL")}*\n`;
+    message += `\n*TOTAL A PAGAR: $${formatCartMoney(grandTotal)}*\n`;
     message += "================================\n";
 
     if (typeof store.orderNote === "string" && store.orderNote.trim()) {
