@@ -10,6 +10,7 @@ interface CompanyGlobalTabProps {
     phone: string | null;
     address: string | null;
     public_slug: string | null;
+    custom_domain?: string | null;
     plan_id: string | null;
     subscription_status: string | null;
     subscription_ends_at?: string | null;

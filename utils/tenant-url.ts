@@ -1,4 +1,4 @@
-const normalizeBaseDomain = (value: string) => {
+export const normalizeBaseDomain = (value: string) => {
   const trimmed = value.trim();
   if (!trimmed) return "";
 
@@ -85,10 +85,46 @@ export const getTenantBaseDomain = () => {
   return process.env.NEXT_PUBLIC_APP_DOMAIN?.trim() || "tuapp.com";
 };
 
-export const getTenantHost = (slug: string) => {
+/**
+ * Igual que la resolución de `getTenantBaseDomain` pero **sin** `window`.
+ * Para textos en componentes cliente con SSR y evitar errores de hidratación.
+ */
+export const getTenantBaseDomainStatic = () => {
+  const raw = process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN;
+  if (raw && raw.trim()) {
+    const normalizedRaw = normalizeBaseDomain(raw.trim());
+    const isProduction = process.env.NODE_ENV === "production";
+    if (!(isProduction && isLocalhostLike(normalizedRaw))) {
+      return normalizedRaw;
+    }
+  }
+
+  const vercelProdHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  if (vercelProdHost && vercelProdHost.trim()) {
+    return normalizeBaseDomain(vercelProdHost);
+  }
+
+  const vercelPreviewHost = process.env.VERCEL_URL;
+  if (vercelPreviewHost && vercelPreviewHost.trim()) {
+    return normalizeBaseDomain(vercelPreviewHost);
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    return "localhost:3000";
+  }
+
+  return process.env.NEXT_PUBLIC_APP_DOMAIN?.trim() || "tuapp.com";
+};
+
+export const getTenantHost = (slug: string, customDomain?: string | null) => {
   const safeSlug = slug.trim();
   if (!safeSlug) {
     return "";
+  }
+
+  const custom = customDomain?.trim();
+  if (custom) {
+    return normalizeBaseDomain(custom);
   }
 
   const baseDomain = getTenantBaseDomain();
@@ -99,10 +135,26 @@ export const getTenantHost = (slug: string) => {
   return `${safeSlug}.${baseDomain}`;
 };
 
-export const getTenantUrl = (slug: string) => {
+export const getTenantUrl = (slug: string, customDomain?: string | null) => {
   const safeSlug = slug.trim();
   if (!safeSlug) {
     return "";
+  }
+
+  const custom = customDomain?.trim();
+  if (custom) {
+    const host = normalizeBaseDomain(custom);
+    if (!host) {
+      return "";
+    }
+    const protocolOverride = process.env.NEXT_PUBLIC_TENANT_PROTOCOL;
+    const isLocal = host.includes("localhost") || host.startsWith("127.0.0.1");
+    const protocol = protocolOverride?.trim()
+      ? protocolOverride.trim()
+      : isLocal
+        ? "http"
+        : "https";
+    return `${protocol}://${host}/`;
   }
 
   const baseDomain = getTenantBaseDomain();
@@ -120,4 +172,13 @@ export const getTenantUrl = (slug: string) => {
 
   // Siempre formato dominio.com/negocio
   return `${protocol}://${baseDomain}/${safeSlug}`;
+};
+
+/** URL pública del menú (sin /slug en la ruta cuando hay dominio personalizado). */
+export const getTenantMenuUrl = (slug: string, customDomain?: string | null) => {
+  const base = getTenantUrl(slug, customDomain).replace(/\/$/, "");
+  if (!base) {
+    return "";
+  }
+  return `${base}/menu`;
 };

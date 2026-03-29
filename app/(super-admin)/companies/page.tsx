@@ -7,7 +7,7 @@ export default async function CompaniesPage() {
     const { data, error } = await supabase
       .from("companies")
       .select(
-        "id,name,public_slug,subscription_status,subscription_ends_at,plans(name,price,max_branches)"
+        "id,name,public_slug,custom_domain,subscription_status,subscription_ends_at,plans(name,price,max_branches)"
       )
       .order("name", { ascending: true });
 

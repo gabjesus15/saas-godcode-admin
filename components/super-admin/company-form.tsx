@@ -12,7 +12,7 @@ import { Input } from "../ui/input";
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 import { logAdminAction } from "../../utils/audit";
 import { requireAdminRole, roleSets } from "../../utils/admin";
-import { getTenantBaseDomain } from "../../utils/tenant-url";
+import { getTenantBaseDomainStatic } from "../../utils/tenant-url";
 import { slugify } from "../../utils/slugify";
 import { uploadImage } from "../tenant/utils/cloudinary";
 
@@ -35,7 +35,7 @@ export function CompanyForm({ plans }: CompanyFormProps) {
   // Importar validator solo en cliente
   // Validación manual para CI y rut.js para Chile
   const router = useRouter();
-  const baseDomain = useMemo(() => getTenantBaseDomain(), []);
+  const baseDomain = useMemo(() => getTenantBaseDomainStatic(), []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [slugTouched, setSlugTouched] = useState(false);

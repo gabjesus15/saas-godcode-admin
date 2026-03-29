@@ -1,3 +1,7 @@
+/**
+ * Copia alineada con `lib/onboarding/billing-activation.ts` (mismo contrato para el micro onboarding-billing).
+ * Ver comentario allí para el flujo cron / suspensión / tienda pública.
+ */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type PaymentStatusRow = {

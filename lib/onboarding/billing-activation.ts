@@ -1,3 +1,16 @@
+/**
+ * Activación de suscripción tras pago y suspensión automática por vencimiento.
+ *
+ * Flujo de impago / cierre:
+ * - `subscription_ends_at` es la fecha límite (meses × 30 días desde activación o extensión).
+ * - El cron `GET/POST /api/cron/subscription-status` (Vercel cron + CRON_SECRET) llama
+ *   `suspendExpiredSubscriptions`: pasa a `subscription_status = suspended` si sigue `active` y
+ *   `subscription_ends_at < ahora`.
+ * - Las páginas públicas del tenant (`/[subdomain]`, menú) muestran `StoreUnavailable` si el estado
+ *   es `suspended` o `cancelled`.
+ * - El dominio personalizado en el proxy usa la misma regla en SQL (`resolve_public_slug_by_custom_domain`):
+ *   no enruta si está suspendido/cancelado o si `subscription_ends_at` ya pasó (aunque el cron aún no corra).
+ */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type PaymentStatusRow = {

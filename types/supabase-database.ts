@@ -786,6 +786,7 @@ export type Database = {
           created_by: string
           currency: string | null
           custom_domain: string | null
+          custom_domain_expires_at: string | null
           email: string | null
           id: string
           legal_rut: string | null
@@ -805,6 +806,7 @@ export type Database = {
           created_by: string
           currency?: string | null
           custom_domain?: string | null
+          custom_domain_expires_at?: string | null
           email?: string | null
           id?: string
           legal_rut?: string | null
@@ -824,6 +826,7 @@ export type Database = {
           created_by?: string
           currency?: string | null
           custom_domain?: string | null
+          custom_domain_expires_at?: string | null
           email?: string | null
           id?: string
           legal_rut?: string | null

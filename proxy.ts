@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import type { SupabaseAuthScope } from "./utils/supabase/auth-scope";
 import { getAppUrl } from "./lib/app-url";
+import {
+  normalizeHostForLookup,
+  resolveTenantSlugFromCustomDomainHost,
+} from "./lib/custom-domain-resolve";
 
 const adminPaths = ["/dashboard", "/companies", "/login", "/plans", "/onboarding/solicitudes"];
 // /onboarding debe servirse en el dominio principal; no reescribir a /[subdomain]/onboarding
@@ -122,7 +126,21 @@ const resolveTenantSlugFromReferer = (refererHeader: string | null) => {
 export async function proxy(req: NextRequest) {
 
   const { pathname } = req.nextUrl;
-  const subdomain = extractSubdomain(req.headers.get("host"));
+  const hostHeader = req.headers.get("host");
+  let subdomain = extractSubdomain(hostHeader);
+  if (!subdomain) {
+    const normalized = normalizeHostForLookup(hostHeader);
+    const base = tenantBaseDomain;
+    let skipCustom = false;
+    if (normalized && base) {
+      const baseNoWww = base.replace(/^www\./, "");
+      const hostNoWww = normalized.replace(/^www\./, "");
+      skipCustom = hostNoWww === baseNoWww;
+    }
+    if (!skipCustom) {
+      subdomain = await resolveTenantSlugFromCustomDomainHost(hostHeader);
+    }
+  }
 
   if (pathname === "/favicon.ico") {
     const tenantSlug = subdomain ?? resolveTenantSlugFromReferer(req.headers.get("referer"));

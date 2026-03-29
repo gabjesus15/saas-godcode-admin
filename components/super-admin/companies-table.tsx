@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Badge } from "../ui/badge";
 import { CompanyStatusToggle } from "./company-status-toggle";
 import { getTenantHost, getTenantUrl } from "../../utils/tenant-url";
+import { getEffectiveCustomDomain } from "../../lib/tenant-effective-custom-domain";
 
 type PlanInfo = {
   name: string | null;
@@ -18,6 +19,7 @@ type CompanyRow = {
   phone?: string | null;
   address?: string | null;
   public_slug?: string | null;
+  custom_domain?: string | null;
   plan_id?: string | null;
   subscription_status: string | null;
   subscription_ends_at?: string | null;
@@ -67,10 +69,31 @@ const getExpiryBadge = (subscriptionEndsAt?: string | null) => {
 };
 
 export function CompaniesTable({ companies }: CompaniesTableProps) {
-  const buildTenantHost = (slug: string | null | undefined) =>
-    slug ? getTenantHost(slug) : "";
-  const buildTenantUrl = (slug: string | null | undefined) =>
-    slug ? getTenantUrl(slug) : "";
+  const buildTenantHost = (
+    slug: string | null | undefined,
+    customDomain?: string | null,
+    subscriptionEndsAt?: string | null,
+    subscriptionStatus?: string | null
+  ) =>
+    slug
+      ? getTenantHost(
+          slug,
+          getEffectiveCustomDomain(customDomain, subscriptionEndsAt, subscriptionStatus)
+        )
+      : "";
+  const buildTenantUrl = (
+    slug: string | null | undefined,
+    customDomain?: string | null,
+    subscriptionEndsAt?: string | null,
+    subscriptionStatus?: string | null
+  ) =>
+    slug
+      ? getTenantUrl(
+          slug,
+          getEffectiveCustomDomain(customDomain, subscriptionEndsAt, subscriptionStatus)
+        )
+      : "";
+
 
   return (
     <div className="flex flex-col gap-6">
@@ -96,12 +119,22 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
                         <p className="text-xs text-zinc-500 dark:text-zinc-400">ID: {company.id}</p>
                         {company.public_slug ? (
                           <Link
-                            href={buildTenantUrl(company.public_slug)}
+                            href={buildTenantUrl(
+                              company.public_slug,
+                              company.custom_domain,
+                              company.subscription_ends_at,
+                              company.subscription_status
+                            )}
                             className="mt-2 inline-flex items-center rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-semibold text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                             target="_blank"
                             rel="noreferrer"
                           >
-                            {buildTenantHost(company.public_slug)}
+                            {buildTenantHost(
+                              company.public_slug,
+                              company.custom_domain,
+                              company.subscription_ends_at,
+                              company.subscription_status
+                            )}
                           </Link>
                         ) : null}
                       </div>

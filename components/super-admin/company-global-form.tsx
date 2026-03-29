@@ -11,7 +11,7 @@ import { Input } from "../ui/input";
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 import { logAdminAction } from "../../utils/audit";
 import { requireAdminRole, roleSets } from "../../utils/admin";
-import { getTenantBaseDomain } from "../../utils/tenant-url";
+import { getTenantBaseDomainStatic, normalizeBaseDomain } from "../../utils/tenant-url";
 import { slugify } from "../../utils/slugify";
 import { uploadImage } from "../tenant/utils/cloudinary";
 import {
@@ -44,6 +44,7 @@ interface CompanyData {
   phone: string | null;
   address: string | null;
   public_slug: string | null;
+  custom_domain?: string | null;
   plan_id: string | null;
   subscription_status: string | null;
   country?: string | null;
@@ -551,6 +552,7 @@ export function CompanyGlobalForm({
     phone: company.phone ?? "",
     address: company.address ?? "",
     public_slug: company.public_slug ?? "",
+    custom_domain: company.custom_domain ?? "",
     plan_id: company.plan_id ?? "",
     subscription_status: company.subscription_status ?? "active",
     country: company.country ?? "",
@@ -585,7 +587,7 @@ export function CompanyGlobalForm({
   
   const initialPlanId = company.plan_id;
   const initialStatus = company.subscription_status;
-  const baseDomain = getTenantBaseDomain();
+  const baseDomain = getTenantBaseDomainStatic();
 
   // Utilidades y Formateadores
   const currency = useMemo(() => new Intl.NumberFormat("en-US", {
@@ -747,6 +749,9 @@ export function CompanyGlobalForm({
       const supabase = createSupabaseBrowserClient("super-admin");
       
       // Preparar data asegurando limpieza de strings
+      const normalizedCustomDomain = normalizeBaseDomain(companyForm.custom_domain);
+      let nextSubscriptionEnds: string | null = company.subscription_ends_at ?? null;
+
       const companyUpdate: Record<string, unknown> = {
         name: companyForm.name.trim(),
         legal_rut: companyForm.legal_rut.trim(),
@@ -754,6 +759,7 @@ export function CompanyGlobalForm({
         phone: companyForm.phone.trim(),
         address: companyForm.address.trim(),
         public_slug: companyForm.public_slug.trim(),
+        custom_domain: normalizedCustomDomain || null,
         plan_id: companyForm.plan_id || null,
         subscription_status: companyForm.subscription_status,
         country: companyForm.country || null,
@@ -763,9 +769,14 @@ export function CompanyGlobalForm({
 
       if (isDevPlan) {
         companyUpdate.subscription_ends_at = null;
+        nextSubscriptionEnds = null;
       } else if (isBetaPlan) {
-        companyUpdate.subscription_ends_at = addDays(new Date(), 30).toISOString();
+        const betaEnd = addDays(new Date(), 30).toISOString();
+        companyUpdate.subscription_ends_at = betaEnd;
+        nextSubscriptionEnds = betaEnd;
       }
+
+      companyUpdate.custom_domain_expires_at = normalizedCustomDomain ? nextSubscriptionEnds : null;
 
       // Guardar Empresa y Theme
       const { error: companyError } = await supabase
@@ -854,6 +865,9 @@ export function CompanyGlobalForm({
           subscription_ends_at: newEndsAt.toISOString(),
           subscription_status: "active",
           updated_at: now.toISOString(),
+          ...(company.custom_domain?.trim()
+            ? { custom_domain_expires_at: newEndsAt.toISOString() }
+            : {}),
         })
         .eq("id", company.id);
 
@@ -1033,10 +1047,30 @@ export function CompanyGlobalForm({
                 ))}
               </select>
             </label>
+
+            <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700 md:col-span-2">
+              Dominio personalizado (opcional)
+              <Input
+                value={companyForm.custom_domain}
+                onChange={(e) =>
+                  setCompanyForm((prev) => ({ ...prev, custom_domain: e.target.value }))
+                }
+                placeholder="menu.tunegocio.com (sin https://)"
+              />
+              <span className="text-xs font-normal text-zinc-500">
+                Si está vacío, el negocio sigue usando{" "}
+                <span className="font-medium">
+                  {companyForm.public_slug}.{baseDomain}
+                </span>
+                . Añade el mismo host en Vercel y en DNS. La vigencia del dominio personalizado sigue la{" "}
+                <span className="font-medium">fecha de vencimiento de la suscripción</span> (sección Suscripción):
+                si la suscripción vence o el estado pasa a suspendido/cancelado, el menú y el proxy vuelven al
+                dominio del SaaS hasta que reactivas y renuevas.
+              </span>
+            </label>
           </div>
         </Card>
-  {/* ...existing code... */}
-  <Card className="flex flex-col gap-6">
+        <Card className="flex flex-col gap-6">
           <div>
             <h3 className="text-lg font-semibold text-zinc-900">Branding</h3>
             <p className="text-sm text-zinc-500">Configura color y logo para el tenant.</p>
@@ -1226,7 +1260,11 @@ export function CompanyGlobalForm({
         <Card className="flex flex-col gap-6">
           <div>
             <h3 className="text-lg font-semibold text-zinc-900">Suscripción</h3>
-            <p className="text-sm text-zinc-500">Extiende el acceso manualmente usando meses de 30 días.</p>
+            <p className="text-sm text-zinc-500">
+              Extiende el acceso manualmente usando meses de 30 días. Esta fecha también limita el dominio
+              personalizado (si lo configuraste): al vencer, el cron puede marcar la cuenta como suspendida y
+              el menú público deja de mostrarse hasta renovar.
+            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-600">
