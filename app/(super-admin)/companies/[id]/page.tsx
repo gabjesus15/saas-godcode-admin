@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { BranchesCreateForm } from "../../../../components/super-admin/branches-create-form";
@@ -5,6 +6,27 @@ import { BranchesTable } from "../../../../components/super-admin/branches-table
 import { CompanyGlobalTab } from "../../../../components/super-admin/company-global-tab";
 import { CompanyTabs } from "../../../../components/super-admin/company-tabs";
 import { createSupabaseServerClient } from "../../../../utils/supabase/server";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const resolvedParams = await params;
+  const supabase = await createSupabaseServerClient();
+  const { data: company } = await supabase
+    .from("companies")
+    .select("name")
+    .eq("id", resolvedParams.id)
+    .maybeSingle();
+
+  const name = company?.name?.trim() || "Empresa";
+  return {
+    title: {
+      absolute: `${name} · Empresa`,
+    },
+  };
+}
 
 export default async function CompanyDetailPage({
   params,
