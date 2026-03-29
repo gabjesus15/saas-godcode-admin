@@ -25,8 +25,10 @@ function HeroSlide({
 	banner: HeroBanner;
 	isActive: boolean;
 }) {
+	const rawUrl = banner.image_url?.trim() ?? "";
+	const isCloudinary = rawUrl.includes("res.cloudinary.com");
 	const imageUrl =
-		getCloudinaryOptimizedUrl(banner.image_url, {
+		getCloudinaryOptimizedUrl(rawUrl, {
 			width: 1400,
 			height: 622,
 			crop: "fill",
@@ -39,15 +41,26 @@ function HeroSlide({
 			className={`hero-slide hero-slide--image-only${isActive ? " hero-slide--active" : ""}`}
 		>
 			<div className="hero-slide-media">
-				<Image
-					src={imageUrl}
-					alt="Promoción"
-					fill
-					sizes="100vw"
-					className="hero-slide-image"
-					priority
-					unoptimized
-				/>
+				{isCloudinary ? (
+					<Image
+						src={imageUrl}
+						alt="Promoción"
+						fill
+						sizes="100vw"
+						className="hero-slide-image"
+						priority
+						unoptimized
+					/>
+				) : (
+					// eslint-disable-next-line @next/next/no-img-element -- rutas /public y dominios del tenant no están en images.remotePatterns
+					<img
+						src={imageUrl || FALLBACK_IMAGE}
+						alt="Promoción"
+						className="hero-slide-image"
+						loading="eager"
+						decoding="async"
+					/>
+				)}
 			</div>
 		</div>
 	);

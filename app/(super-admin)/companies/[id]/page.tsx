@@ -23,7 +23,7 @@ export async function generateMetadata({
   const name = company?.name?.trim() || "Empresa";
   return {
     title: {
-      absolute: `${name} · Empresa`,
+      absolute: `${name} · GodCode`,
     },
   };
 }

@@ -54,12 +54,12 @@ export async function generateMetadata({
   const company = await getCachedCompany(resolvedParams.subdomain);
 
   if (!company) {
-    return { title: "GodCode" };
+    return { title: { absolute: "GodCode" } };
   }
 
   const status = company.subscription_status?.toLowerCase();
   if (status === "suspended" || status === "cancelled") {
-    return { title: "GodCode" };
+    return { title: { absolute: "GodCode" } };
   }
 
   const name = company.theme_config?.displayName ?? company.name ?? "GodCode";
@@ -67,7 +67,9 @@ export async function generateMetadata({
   const icon = `/${resolvedParams.subdomain}/tenant-favicon?v=${encodeURIComponent(versionSeed)}`;
 
   return {
-    title: name,
+    title: {
+      absolute: name,
+    },
     icons: {
       icon,
       shortcut: icon,

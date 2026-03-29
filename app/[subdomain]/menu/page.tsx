@@ -313,6 +313,4 @@ export default async function TenantMenuPage({ params, searchParams }: TenantMen
         banners={heroBanners}
       />
     );
-  }
-  
-// ...existing code...
+}

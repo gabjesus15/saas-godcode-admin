@@ -19,8 +19,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "SaaS Super Admin",
-    template: "%s · SaaS Super Admin",
+    default: "GodCode",
+    template: "%s · GodCode",
   },
   description:
     "Panel de administración multi-tenant: empresas, planes, onboarding y soporte.",
