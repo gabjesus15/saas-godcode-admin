@@ -9,7 +9,7 @@ import {
 
 const adminPaths = ["/dashboard", "/companies", "/login", "/plans", "/onboarding/solicitudes"];
 // /onboarding debe servirse en el dominio principal; no reescribir a /[subdomain]/onboarding
-const tenantBypassPaths = ["/api", "/_next", "/favicon.ico", "/onboarding"];
+const tenantBypassPaths = ["/api", "/_next", "/favicon.ico", "/onboarding", "/saas-admin"];
 const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "");
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const tenantBaseDomain = (process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN ?? "")
@@ -115,6 +115,11 @@ const resolveTenantSlugFromReferer = (refererHeader: string | null) => {
       "api",
       "_next",
       "favicon.ico",
+      "saas-admin",
+      "addons",
+      "plan-payment-methods",
+      "herramientas",
+      "tickets",
     ]);
 
     return reserved.has(first) ? null : segments[0];

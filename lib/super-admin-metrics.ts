@@ -1,5 +1,4 @@
 import { supabaseAdmin } from "./supabase-admin";
-import type { DashboardPeriod } from "./super-admin-dashboard-shared";
 
 export type { DashboardPeriod } from "./super-admin-dashboard-shared";
 export { DASHBOARD_PERIODS, periodStartIso } from "./super-admin-dashboard-shared";

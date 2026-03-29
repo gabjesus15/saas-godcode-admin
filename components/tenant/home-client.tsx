@@ -25,7 +25,8 @@ interface HomeClientProps {
   branches: BranchInfo[];
 }
 
-export function HomeClient({ name, logoUrl, schedule, branches, publicSlug }: HomeClientProps) {
+export function HomeClient(props: HomeClientProps) {
+  const { name, logoUrl, schedule, branches } = props;
     // Estado para detectar mobile
     const [showQR, setShowQR] = useState(true);
 

@@ -460,7 +460,6 @@ export function CartModal({
   const canProceedFulfillment =
     fulfillment !== "delivery" ||
     (deliveryAddressOk && meetsMinDelivery && !isDeliveryOutOfZone);
-  const canOpenPay = canCheckout && canProceedFulfillment;
 
   const requestDeliveryGeo = useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {

@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
 	const proxied = await proxyToOnboardingBilling(req, "/api/super-admin/payments/validate");
 	if (proxied) return proxied;
 	const ctx = createRequestContext("/api/super-admin/payments/validate", "POST");
-	const permission = await validateAdminRolesOnServer(["super_admin"]);
+	const permission = await validateAdminRolesOnServer([...SAAS_MUTATE_ROLES]);
 	if (!permission.ok) {
 		return NextResponse.json({ error: permission.error ?? "No autorizado" }, { status: permission.status ?? 403 });
 	}

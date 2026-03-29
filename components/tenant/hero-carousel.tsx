@@ -67,9 +67,8 @@ function HeroSlide({
 }
 
 export function HeroCarousel({ banners }: { banners: HeroBanner[] }) {
-	if (!banners || banners.length === 0) return null;
-
-	const multi = banners.length > 1;
+	const safeBanners = banners?.length ? banners : [];
+	const multi = safeBanners.length > 1;
 
 	const [emblaRef, emblaApi] = useEmblaCarousel(
 		{ loop: multi, align: "center", duration: 24 },
@@ -108,6 +107,8 @@ export function HeroCarousel({ banners }: { banners: HeroBanner[] }) {
 	const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
 	const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
 
+	if (safeBanners.length === 0) return null;
+
 	return (
 		<section className="hero-carousel" aria-label="Promociones">
 			<div className="hero-carousel-frame">
@@ -135,7 +136,7 @@ export function HeroCarousel({ banners }: { banners: HeroBanner[] }) {
 
 					<div className="hero-carousel-viewport" ref={emblaRef}>
 						<div className="hero-carousel-container">
-							{banners.map((banner, i) => (
+							{safeBanners.map((banner, i) => (
 								<div className="hero-carousel-slide" key={banner.id}>
 									<HeroSlide banner={banner} isActive={i === selectedIndex} />
 								</div>
@@ -161,7 +162,7 @@ export function HeroCarousel({ banners }: { banners: HeroBanner[] }) {
 								/>
 							</div>
 							<div className="hero-dots">
-								{banners.map((_, i) => (
+								{safeBanners.map((_, i) => (
 									<button
 										key={i}
 										type="button"
