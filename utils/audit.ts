@@ -1,28 +1,32 @@
+import { buildAdminAuditLogRow } from "../lib/admin-audit-row";
 import { createSupabaseBrowserClient } from "./supabase/client";
 
 interface AuditPayload {
-  action: string;
-  targetType: string;
-  targetId?: string | null;
-  companyId?: string | null;
-  metadata?: Record<string, unknown>;
+	action: string;
+	targetType: string;
+	targetId?: string | null;
+	companyId?: string | null;
+	metadata?: Record<string, unknown>;
 }
 
 export async function logAdminAction(payload: AuditPayload) {
-  try {
-    const supabase = createSupabaseBrowserClient("super-admin");
-    const { data: userData } = await supabase.auth.getUser();
+	try {
+		const supabase = createSupabaseBrowserClient("super-admin");
+		const { data: userData } = await supabase.auth.getUser();
+		const user = userData.user;
 
-    await supabase.from("admin_audit_logs").insert({
-      actor_id: userData.user?.id ?? null,
-      actor_email: userData.user?.email ?? null,
-      company_id: payload.companyId ?? null,
-      action: payload.action,
-      target_type: payload.targetType,
-      target_id: payload.targetId ?? null,
-      metadata: payload.metadata ?? {},
-    });
-  } catch {
-    // Comentario: el logging no debe bloquear la accion principal.
-  }
+		const row = buildAdminAuditLogRow({
+			actorEmail: user?.email ?? null,
+			actorId: user?.id ?? null,
+			companyId: payload.companyId ?? null,
+			action: payload.action,
+			targetType: payload.targetType,
+			targetId: payload.targetId ?? null,
+			metadata: payload.metadata ?? null,
+		});
+
+		await supabase.from("admin_audit_logs").insert(row);
+	} catch {
+		// El logging no debe bloquear la accion principal.
+	}
 }

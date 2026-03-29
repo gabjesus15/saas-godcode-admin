@@ -4,6 +4,7 @@ import { Badge } from "../ui/badge";
 import { CompanyStatusToggle } from "./company-status-toggle";
 import { getTenantHost, getTenantUrl } from "../../utils/tenant-url";
 import { getEffectiveCustomDomain } from "../../lib/tenant-effective-custom-domain";
+import { CopyFieldButton } from "./copy-field-button";
 
 type PlanInfo = {
   name: string | null;
@@ -37,11 +38,17 @@ interface CompaniesTableProps {
   companies: CompanyRow[];
 }
 
-const statusMap: Record<string, { label: string; variant: "success" | "warning" }>
-  = {
-    active: { label: "Activo", variant: "success" },
-    suspended: { label: "Suspendido", variant: "warning" },
-  };
+type StatusVariant = "success" | "warning" | "destructive" | "neutral";
+const statusMap: Record<string, { label: string; variant: StatusVariant }> = {
+  active: { label: "Activo", variant: "success" },
+  suspended: { label: "Suspendido", variant: "warning" },
+  trial: { label: "Trial", variant: "neutral" },
+  cancelled: { label: "Cancelado", variant: "warning" },
+  canceled: { label: "Cancelado", variant: "warning" },
+  past_due: { label: "Pago atrasado", variant: "destructive" },
+  unpaid: { label: "Sin pago", variant: "warning" },
+  incomplete: { label: "Incompleto", variant: "neutral" },
+};
 
 const dayMs = 1000 * 60 * 60 * 24;
 
@@ -117,6 +124,13 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
                           {company.name ?? "Sin nombre"}
                         </Link>
                         <p className="text-xs text-zinc-500 dark:text-zinc-400">ID: {company.id}</p>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          <CopyFieldButton value={company.id} label="ID" />
+                          {company.public_slug ? (
+                            <CopyFieldButton value={company.public_slug} label="Slug" />
+                          ) : null}
+                          {company.email ? <CopyFieldButton value={company.email} label="Email" /> : null}
+                        </div>
                         {company.public_slug ? (
                           <Link
                             href={buildTenantUrl(
@@ -178,6 +192,12 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
                           companyId={company.id}
                           currentStatus={company.subscription_status}
                         />
+                        <Link
+                          href="/dashboard/salud-pagos"
+                          className="inline-flex h-9 min-w-0 items-center rounded-xl border border-violet-200 bg-violet-50/80 px-3 text-xs font-semibold text-violet-800 transition hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-200 dark:hover:bg-violet-900/40"
+                        >
+                          Salud pagos
+                        </Link>
                         <Link
                           href={`/companies/${company.id}`}
                           className="inline-flex h-9 min-w-0 items-center rounded-xl border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"

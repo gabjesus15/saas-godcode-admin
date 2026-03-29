@@ -7,6 +7,7 @@ import { Button } from "../ui/button";
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 import { logAdminAction } from "../../utils/audit";
 import { requireAdminRole, roleSets } from "../../utils/admin";
+import { useAdminRole } from "./admin-role-context";
 
 interface CompanyStatusToggleProps {
   companyId: string;
@@ -20,6 +21,18 @@ export function CompanyStatusToggle({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { readOnly } = useAdminRole();
+
+  if (readOnly) {
+    return (
+      <div className="text-xs text-zinc-500 dark:text-zinc-400">
+        Estado:{" "}
+        <span className="font-medium text-zinc-700 dark:text-zinc-300">
+          {String(currentStatus ?? "—")}
+        </span>
+      </div>
+    );
+  }
 
   const nextStatus = currentStatus === "active" ? "suspended" : "active";
 

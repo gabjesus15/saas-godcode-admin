@@ -1,0 +1,38 @@
+/**
+ * Rutas de navegación del panel super-admin (sidebar + paleta de comandos).
+ */
+
+import type { LucideIcon } from "lucide-react";
+import {
+	Activity,
+	Building2,
+	ClipboardList,
+	CreditCard,
+	LayoutDashboard,
+	LifeBuoy,
+	Package,
+	ScrollText,
+	ShieldAlert,
+	Wrench,
+} from "lucide-react";
+
+export type SuperAdminNavItem = {
+	href: string;
+	label: string;
+	icon: LucideIcon;
+	keywords?: string;
+};
+
+export const SUPER_ADMIN_NAV: SuperAdminNavItem[] = [
+	{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, keywords: "inicio resumen" },
+	{ href: "/dashboard/salud-pagos", label: "Salud de pagos", icon: ShieldAlert, keywords: "pagos cobros" },
+	{ href: "/dashboard/onboarding-embudo", label: "Embudo onboarding", icon: Activity, keywords: "funnel" },
+	{ href: "/dashboard/auditoria", label: "Auditoría", icon: ScrollText, keywords: "logs mutaciones" },
+	{ href: "/companies", label: "Empresas", icon: Building2, keywords: "tenant negocios" },
+	{ href: "/onboarding/solicitudes", label: "Solicitudes", icon: ClipboardList, keywords: "onboarding" },
+	{ href: "/plans", label: "Planes", icon: CreditCard, keywords: "precios" },
+	{ href: "/addons", label: "Servicios extra", icon: Package, keywords: "addons" },
+	{ href: "/plan-payment-methods", label: "Métodos de pago (plan)", icon: CreditCard, keywords: "planes pago" },
+	{ href: "/tickets", label: "Tickets", icon: LifeBuoy, keywords: "soporte" },
+	{ href: "/herramientas", label: "Herramientas", icon: Wrench, keywords: "tools" },
+];

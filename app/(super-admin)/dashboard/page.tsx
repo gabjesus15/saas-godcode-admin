@@ -100,6 +100,7 @@ export default async function DashboardPage({
 							? mrrRes.error
 							: `${mrrRes.activeWithPlan} empresas activas con plan asignado. Sin add-ons recurrentes.`
 					}
+					href="/plans"
 				/>
 				<MetricCardClient
 					label={`Ingresos cobrados (${DASHBOARD_PERIODS.find((p) => p.value === period)?.label ?? period})`}
@@ -109,16 +110,19 @@ export default async function DashboardPage({
 							? revRes.error
 							: `${revRes.count} pagos con estado pagado/aprobado en el periodo.`
 					}
+					href="/dashboard/salud-pagos"
 				/>
 				<MetricCardClient
 					label="Empresas nuevas (periodo)"
 					value={newCo.error ? "—" : `${newCo.count}`}
 					helper={newCo.error ? newCo.error : "Altas registradas en companies.created_at."}
+					href="/companies"
 				/>
 				<MetricCardClient
 					label="Tickets sin resolver"
 					value={tickets.error ? "—" : `${tickets.count}`}
 					helper={tickets.error ? tickets.error : "resolved_at vacío en saas_tickets."}
+					href="/tickets"
 				/>
 				<MetricCardClient
 					label="Conversión a activo (embudo)"
@@ -128,6 +132,7 @@ export default async function DashboardPage({
 							? `${funnel.counts.active ?? 0} activos de ${funnel.total} solicitudes totales.`
 							: "Sin solicitudes en base."
 					}
+					href="/dashboard/onboarding-embudo"
 				/>
 				<MetricCardClient
 					label="Empresas activas / suspendidas"
@@ -141,6 +146,7 @@ export default async function DashboardPage({
 							? statusCo.error
 							: "Totales por subscription_status en companies."
 					}
+					href="/companies"
 				/>
 			</div>
 

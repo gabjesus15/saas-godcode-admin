@@ -3,36 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import {
-	Activity,
-	Building2,
-	ClipboardList,
-	CreditCard,
-	LayoutDashboard,
-	LifeBuoy,
-	LogOut,
-	Package,
-	ScrollText,
-	ShieldAlert,
-	Wrench,
-} from "lucide-react";
+import { LogOut } from "lucide-react";
 import { AnimatedLogo } from "./AnimatedLogo";
 
+import { SUPER_ADMIN_NAV } from "../../lib/super-admin-nav";
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
-
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/salud-pagos", label: "Salud de pagos", icon: ShieldAlert },
-  { href: "/dashboard/onboarding-embudo", label: "Embudo onboarding", icon: Activity },
-  { href: "/dashboard/auditoria", label: "Auditoría", icon: ScrollText },
-  { href: "/companies", label: "Empresas", icon: Building2 },
-  { href: "/onboarding/solicitudes", label: "Solicitudes", icon: ClipboardList },
-  { href: "/plans", label: "Planes", icon: CreditCard },
-  { href: "/addons", label: "Servicios extra", icon: Package },
-  { href: "/plan-payment-methods", label: "Métodos de pago (plan)", icon: CreditCard },
-  { href: "/tickets", label: "Tickets", icon: LifeBuoy },
-  { href: "/herramientas", label: "Herramientas", icon: Wrench },
-];
 
 export function Sidebar() {
   const router = useRouter();
@@ -56,7 +31,7 @@ export function Sidebar() {
         <AnimatedLogo />
       </div>
       <nav className="flex flex-col gap-1 sm:gap-2">
-        {navItems.map((item) => {
+        {SUPER_ADMIN_NAV.map((item) => {
           const Icon = item.icon;
           return (
             <Link

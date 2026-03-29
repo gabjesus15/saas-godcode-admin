@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateAdminRolesOnServer } from "../../../utils/admin/server-auth";
+import { SAAS_MUTATE_ROLES, validateAdminRolesOnServer } from "../../../utils/admin/server-auth";
 
 import { supabaseAdmin } from "../../../lib/supabase-admin";
 
@@ -28,7 +28,7 @@ async function isAllowedTenantRole(role: string) {
 }
 
 async function validateSuperAdminAccess() {
-	const result = await validateAdminRolesOnServer(["super_admin"]);
+	const result = await validateAdminRolesOnServer([...SAAS_MUTATE_ROLES]);
 	if (!result.ok) {
 		return {
 			ok: false as const,

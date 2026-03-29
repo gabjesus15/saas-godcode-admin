@@ -6,6 +6,7 @@ import { Blocks, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useAdminRole } from "./admin-role-context";
 
 type NavGroup = "root" | "sales" | "menu";
 type RoleName = "admin" | "ceo" | "cashier";
@@ -40,6 +41,7 @@ const emptyForm = {
 };
 
 export default function AdminModulesManager() {
+  const { readOnly } = useAdminRole();
   const [modules, setModules] = useState<AdminModule[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -84,6 +86,13 @@ export default function AdminModulesManager() {
     setEditingId(null);
   };
 
+  useEffect(() => {
+    if (readOnly) {
+      setForm(emptyForm);
+      setEditingId(null);
+    }
+  }, [readOnly]);
+
   const normalizeTabId = (value: string) => {
     const base = value.trim().toLowerCase().replace(/\s+/g, "-");
     if (!base) return "";
@@ -91,6 +100,7 @@ export default function AdminModulesManager() {
   };
 
   const submit = async () => {
+    if (readOnly) return;
     const tabId = normalizeTabId(form.tabId);
     if (!tabId) {
       setMessage({ type: "error", text: "Debes indicar una clave de módulo" });
@@ -134,6 +144,7 @@ export default function AdminModulesManager() {
   };
 
   const startEdit = (module: AdminModule) => {
+    if (readOnly) return;
     setEditingId(module.id);
     setForm({
       tabId: module.tabId,
@@ -147,6 +158,7 @@ export default function AdminModulesManager() {
   };
 
   const handleDelete = async (module: AdminModule) => {
+    if (readOnly) return;
     if (!confirm(`¿Eliminar el módulo "${module.label}"?`)) return;
 
     setSaving(true);
@@ -168,6 +180,7 @@ export default function AdminModulesManager() {
   };
 
   const toggleRole = (role: RoleName) => {
+    if (readOnly) return;
     setForm((prev) => {
       const exists = prev.allowedRoles.includes(role);
       const next = exists ? prev.allowedRoles.filter((item) => item !== role) : [...prev.allowedRoles, role];
@@ -197,6 +210,7 @@ export default function AdminModulesManager() {
           </div>
         )}
 
+        {!readOnly ? (
         <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-900">
           <div className="grid gap-3 sm:grid-cols-2">
             <Input
@@ -283,6 +297,7 @@ export default function AdminModulesManager() {
             ) : null}
           </div>
         </div>
+        ) : null}
 
         <div className="space-y-2">
           <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Módulos actuales ({modules.length})</h4>
@@ -313,6 +328,7 @@ export default function AdminModulesManager() {
                   </p>
                 </div>
 
+                {!readOnly ? (
                 <div className="flex gap-2">
                   <Button size="sm" variant="ghost" onClick={() => startEdit(module)}>
                     <Pencil className="h-4 w-4" />
@@ -326,6 +342,7 @@ export default function AdminModulesManager() {
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
+                ) : null}
               </div>
             ))}
           </div>

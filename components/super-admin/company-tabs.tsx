@@ -3,6 +3,11 @@
 import { useState } from "react";
 
 import { cn } from "../../utils/cn";
+import {
+	adminSegmentedTabActive,
+	adminSegmentedTabBase,
+	adminSegmentedTabInactive,
+} from "./admin-tab-styles";
 
 interface TabItem {
   id: string;
@@ -30,10 +35,8 @@ export function CompanyTabs({ tabs, initialId }: CompanyTabsProps) {
               type="button"
               onClick={() => setActiveId(tab.id)}
               className={cn(
-                "shrink-0 rounded-xl px-3 py-2 text-sm font-semibold transition sm:px-4",
-                activeId === tab.id
-                  ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                  : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                adminSegmentedTabBase,
+                activeId === tab.id ? adminSegmentedTabActive : adminSegmentedTabInactive
               )}
             >
               {tab.label}

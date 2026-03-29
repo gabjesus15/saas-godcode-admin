@@ -5,6 +5,11 @@ import { useSearchParams } from "next/navigation";
 
 import type { DashboardPeriod } from "../../lib/super-admin-dashboard-shared";
 import { DASHBOARD_PERIODS } from "../../lib/super-admin-dashboard-shared";
+import {
+	adminSegmentedTabActive,
+	adminSegmentedTabBase,
+	adminSegmentedTabInactive,
+} from "./admin-tab-styles";
 
 export function DashboardPeriodTabs({ current }: { current: DashboardPeriod }) {
 	const searchParams = useSearchParams();
@@ -21,10 +26,8 @@ export function DashboardPeriodTabs({ current }: { current: DashboardPeriod }) {
 				<Link
 					key={value}
 					href={hrefFor(value)}
-					className={`rounded-full px-3 py-1.5 text-xs font-semibold transition sm:text-sm ${
-						current === value
-							? "bg-violet-600 text-white shadow-sm"
-							: "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+					className={`${adminSegmentedTabBase} ${
+						current === value ? adminSegmentedTabActive : adminSegmentedTabInactive
 					}`}
 				>
 					{label}

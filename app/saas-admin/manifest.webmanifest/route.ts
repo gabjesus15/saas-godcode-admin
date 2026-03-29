@@ -9,7 +9,9 @@ export async function GET(req: Request) {
 		origin = "";
 	}
 
-	const icon = origin ? `${origin}/globe.svg` : "/globe.svg";
+	const svgIcon = origin ? `${origin}/globe.svg` : "/globe.svg";
+	const png192 = origin ? `${origin}/saas-admin/icon-192.png` : "/saas-admin/icon-192.png";
+	const png512 = origin ? `${origin}/saas-admin/icon-512.png` : "/saas-admin/icon-512.png";
 
 	const manifest = {
 		id: "/dashboard",
@@ -26,16 +28,28 @@ export async function GET(req: Request) {
 		theme_color: "#111827",
 		icons: [
 			{
-				src: icon,
-				sizes: "any",
-				type: "image/svg+xml",
+				src: png192,
+				sizes: "192x192",
+				type: "image/png",
 				purpose: "any",
 			},
 			{
-				src: icon,
+				src: png512,
 				sizes: "512x512",
-				type: "image/svg+xml",
+				type: "image/png",
+				purpose: "any",
+			},
+			{
+				src: png512,
+				sizes: "512x512",
+				type: "image/png",
 				purpose: "maskable",
+			},
+			{
+				src: svgIcon,
+				sizes: "any",
+				type: "image/svg+xml",
+				purpose: "any",
 			},
 		],
 	};

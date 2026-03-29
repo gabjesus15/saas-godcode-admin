@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Download } from "lucide-react";
 
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
 import type { Json } from "../../../../types/supabase-database";
@@ -34,18 +35,28 @@ export default async function AuditoriaPage() {
 
 	return (
 		<div className="min-w-0 space-y-6">
-			<div>
-				<Link
-					href="/dashboard"
-					className="text-sm font-medium text-violet-600 hover:underline dark:text-violet-400"
+			<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+				<div className="min-w-0 flex-1">
+					<Link
+						href="/dashboard"
+						className="text-sm font-medium text-violet-600 hover:underline dark:text-violet-400"
+					>
+						← Volver al dashboard
+					</Link>
+					<h2 className="mt-2 text-xl font-semibold text-zinc-900 dark:text-zinc-100">Auditoría de mutaciones</h2>
+					<p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+						Registro de mutaciones del API super-admin (tabla <code className="rounded bg-zinc-100 px-1 text-xs dark:bg-zinc-800">admin_audit_logs</code>
+						). El rol del actor se guarda dentro de <code className="rounded bg-zinc-100 px-1 text-xs dark:bg-zinc-800">metadata</code>.
+					</p>
+				</div>
+				<a
+					href="/api/super-admin/audit-log?format=csv&limit=2000"
+					className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-medium text-violet-800 shadow-sm hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-950/50 dark:text-violet-200 dark:hover:bg-violet-900/40"
+					download
 				>
-					← Volver al dashboard
-				</Link>
-				<h2 className="mt-2 text-xl font-semibold text-zinc-900 dark:text-zinc-100">Auditoría de mutaciones</h2>
-				<p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-					Registro de mutaciones del API super-admin (tabla <code className="rounded bg-zinc-100 px-1 text-xs dark:bg-zinc-800">admin_audit_logs</code>
-					). El rol del actor se guarda dentro de <code className="rounded bg-zinc-100 px-1 text-xs dark:bg-zinc-800">metadata</code>.
-				</p>
+					<Download className="h-4 w-4" aria-hidden />
+					Descargar CSV
+				</a>
 			</div>
 
 			{error ? (

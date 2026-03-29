@@ -7,7 +7,17 @@ import {
   resolveTenantSlugFromCustomDomainHost,
 } from "./lib/custom-domain-resolve";
 
-const adminPaths = ["/dashboard", "/companies", "/login", "/plans", "/onboarding/solicitudes"];
+const adminPaths = [
+  "/dashboard",
+  "/companies",
+  "/login",
+  "/plans",
+  "/onboarding/solicitudes",
+  "/addons",
+  "/plan-payment-methods",
+  "/tickets",
+  "/herramientas",
+];
 // /onboarding debe servirse en el dominio principal; no reescribir a /[subdomain]/onboarding
 const tenantBypassPaths = ["/api", "/_next", "/favicon.ico", "/onboarding", "/saas-admin"];
 const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "");

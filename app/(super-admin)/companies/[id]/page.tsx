@@ -137,7 +137,9 @@ export default async function CompanyDetailPage({
         />
       </div>
     );
-  } catch {
+  } catch (err) {
+    console.error("[super-admin/companies/[id]]", err);
+  
     return (
       <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300">
         No se pudo cargar la empresa.
