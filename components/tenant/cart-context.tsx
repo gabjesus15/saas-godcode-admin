@@ -44,6 +44,9 @@ interface CartContextType {
   setDeliveryLine1: (value: string) => void;
   deliveryCommune: string;
   setDeliveryCommune: (value: string) => void;
+  /** Región de Chile para sesgar búsqueda de dirección (modo distancia). Vacío = todas. */
+  deliveryRegion: string;
+  setDeliveryRegion: (value: string) => void;
   deliveryReference: string;
   setDeliveryReference: (value: string) => void;
   deliveryLat: number | null;

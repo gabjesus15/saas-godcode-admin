@@ -18,9 +18,9 @@ import {
   MessageCircle,
   Minus,
   Plus,
+  MapPin,
   // ShoppingBag,
   Store,
-  Search,
   Trash2,
   Truck,
   Upload,
@@ -29,6 +29,7 @@ import {
 import type { ComponentType } from "react";
 import type { LucideProps } from "lucide-react";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 
 import { useCart } from "./use-cart";
 import { ordersService } from "./orders-service";
@@ -51,6 +52,12 @@ import {
   effectiveDeliveryPricingMode,
   normalizeDeliverySettings,
 } from "../../lib/delivery-settings";
+import { parseUnifiedAddressSearch } from "../../lib/address-search-query";
+const DeliveryPreviewMap = dynamic(
+  () =>
+    import("./delivery-preview-map").then((mod) => mod.DeliveryPreviewMap),
+  { ssr: false },
+);
 
 import "../../app/[subdomain]/styles/CartModal.css";
 import "../../app/[subdomain]/styles/CartModal.custom.css";
@@ -70,13 +77,15 @@ type CartModalViewState = {
   } | null;
 };
 
-/** Coincide con `PhotonAddressHit` en `lib/delivery-area-resolve` / `GET /api/address-search`. */
+/** Coincide con `AddressGeocodeHit` / `GET /api/address-search` (Mapbox). */
 type AddressSearchHit = {
   lat: number;
   lng: number;
   label: string;
   line1: string;
   commune: string;
+  /** Resto de la dirección (región, CP, país). */
+  detailLine?: string;
   /** Viene del servidor; sin valor se trata como aproximado. */
   precision?: "exact" | "approx";
 };
@@ -178,6 +187,7 @@ const generateWSMessage = (
   paymentMethodKey: string | null,
   note: string,
   businessName?: string | null,
+  paymentData?: unknown,
   meta?: WsFulfillmentMeta
 ) => {
   let msg = `*NUEVO PEDIDO WEB - ${businessName || "RESTAURANTE"}*\n`;
@@ -209,6 +219,21 @@ const generateWSMessage = (
   msg += `\n*TOTAL: $${formatCartMoney(grandTotal)}*\n`;
   const methodLabel = paymentMethodKey && PAYMENT_METHOD_CONFIG[paymentMethodKey] ? PAYMENT_METHOD_CONFIG[paymentMethodKey].label : "Por definir";
   msg += `Pago: ${methodLabel}\n`;
+
+  if (paymentMethodKey === "transferencia_bancaria" && paymentData) {
+    const td = paymentData as Record<string, unknown>;
+    const banco = typeof td.banco === "string" ? td.banco : "";
+    const nroCuenta = typeof td.nro_cuenta === "string" ? td.nro_cuenta : "";
+    const tipoCuenta = typeof td.tipo_cuenta === "string" ? td.tipo_cuenta : "";
+    const titular = typeof td.titular === "string" ? td.titular : "";
+    msg += `\n*Transferencia bancaria*\n`;
+    if (banco) msg += `Banco: ${banco}\n`;
+    if (tipoCuenta) msg += `Tipo: ${tipoCuenta}\n`;
+    if (nroCuenta) msg += `Cuenta: ${nroCuenta}\n`;
+    if (titular) msg += `Titular: ${titular}\n`;
+    msg += `\nCuando completes la transferencia, respondé este WhatsApp con el monto y la hora (no hace falta enviar comprobante).\n`;
+  }
+
   if (note && note.trim()) msg += `\nNota: ${note}\n`;
   return msg;
 };
@@ -295,10 +320,14 @@ export function CartModal({
     );
 
     const [geoHint, setGeoHint] = useState<string | null>(null);
+    // Modo simple: no mostramos autocompletado visual de direcciones.
+    // Aun así, geocodificamos en background para obtener lat/lng.
+    const SHOW_ADDRESS_SUGGESTIONS = false;
 
-    const [addressSearchInput, setAddressSearchInput] = useState("");
-    const [debouncedAddressQ, setDebouncedAddressQ] = useState("");
     const [addressHits, setAddressHits] = useState<AddressSearchHit[]>([]);
+    const [addressSearchConfigError, setAddressSearchConfigError] = useState<
+      string | null
+    >(null);
     const [addressSearchLoading, setAddressSearchLoading] = useState(false);
     const [addressHitsOpen, setAddressHitsOpen] = useState(false);
     const addressSearchWrapRef = useRef<HTMLDivElement>(null);
@@ -314,6 +343,66 @@ export function CartModal({
       commune: "",
     });
 
+    /** Un solo campo: búsqueda + relleno de calle/comuna al elegir sugerencia. */
+    const [unifiedAddressSearch, setUnifiedAddressSearch] = useState("");
+    const [debouncedLookup, setDebouncedLookup] = useState("");
+    const cartWasOpenRef = useRef(false);
+
+    // 3 campos separados: Comuna + Calle + Número.
+    // `deliveryLine1` en el store se compone como: `${street} ${number}`.
+    const [streetInput, setStreetInput] = useState("");
+    const [streetNumberInput, setStreetNumberInput] = useState("");
+
+    function splitLine1IntoStreetAndNumber(line1: string): {
+      street: string;
+      number: string;
+    } {
+      const t = line1.trim();
+      if (!t) return { street: "", number: "" };
+      // Si viene con cosas tipo "..., depto 4", nos quedamos con lo antes de la coma.
+      const beforeComma = t.split(",")[0].trim();
+      // Toma el último número al final de la cadena.
+      const m = beforeComma.match(/^(.*?)(\d+[A-Za-z]?)\s*$/);
+      if (!m) return { street: t, number: "" };
+      return { street: (m[1] ?? "").trim(), number: (m[2] ?? "").trim() };
+    }
+
+    // Mantener inputs sincronizados si `deliveryLine1` se setea desde GPS / geocoding.
+    useEffect(() => {
+      const { street, number } = splitLine1IntoStreetAndNumber(deliveryLine1);
+      setStreetInput(street);
+      setStreetNumberInput(number);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [deliveryLine1]);
+
+    useEffect(() => {
+      const wasOpen = cartWasOpenRef.current;
+      cartWasOpenRef.current = isCartOpen;
+      if (!isCartOpen || deliveryPriceMode !== "distance") return;
+      if (wasOpen) return;
+      const merged = [deliveryLine1.trim(), deliveryCommune.trim()]
+        .filter(Boolean)
+        .join(", ");
+      setUnifiedAddressSearch(merged);
+    }, [isCartOpen, deliveryPriceMode, deliveryLine1, deliveryCommune]);
+
+    useEffect(() => {
+      if (!isCartOpen) return;
+      const t = window.setTimeout(() => {
+        const v = unifiedAddressSearch.trim();
+        setDebouncedLookup(v);
+        const { line1, commune } = parseUnifiedAddressSearch(unifiedAddressSearch);
+        setDeliveryLine1(line1);
+        setDeliveryCommune(commune);
+      }, 420);
+      return () => window.clearTimeout(t);
+    }, [
+      unifiedAddressSearch,
+      isCartOpen,
+      setDeliveryLine1,
+      setDeliveryCommune,
+    ]);
+
     useEffect(() => {
       const t = window.setTimeout(() => {
         setDebouncedDeliveryLine({
@@ -325,19 +414,12 @@ export function CartModal({
     }, [deliveryLine1, deliveryCommune]);
 
     useEffect(() => {
-      const t = window.setTimeout(
-        () => setDebouncedAddressQ(addressSearchInput.trim()),
-        380
-      );
-      return () => clearTimeout(t);
-    }, [addressSearchInput]);
-
-    useEffect(() => {
       if (deliveryPriceMode !== "distance") return;
-      const q = debouncedAddressQ;
+      const q = debouncedLookup.trim();
       if (q.length < 3) {
         const clearT = window.setTimeout(() => {
           setAddressHits([]);
+          setAddressSearchConfigError(null);
           setAddressSearchLoading(false);
         }, 0);
         return () => clearTimeout(clearT);
@@ -347,6 +429,10 @@ export function CartModal({
         if (!cancelled) setAddressSearchLoading(true);
       }, 0);
       const params = new URLSearchParams({ q });
+      const { commune: hint } = parseUnifiedAddressSearch(q);
+      if (hint.length >= 2) {
+        params.set("communeHint", hint);
+      }
       if (selectedBranch?.id) {
         params.set("branchId", selectedBranch.id);
       }
@@ -359,13 +445,42 @@ export function CartModal({
         }
       }
       fetch(`/api/address-search?${params}`)
-        .then((r) => r.json())
-        .then((j: { ok?: boolean; results?: AddressSearchHit[] }) => {
+        .then(async (r) => {
           if (cancelled) return;
-          setAddressHits(Array.isArray(j.results) ? j.results : []);
+          const j = (await r.json().catch(() => ({}))) as {
+            ok?: boolean;
+            results?: AddressSearchHit[];
+            code?: string;
+          };
+          if (r.status === 503) {
+            setAddressSearchConfigError(
+              "Servicio de direcciones no disponible. Intenta más tarde."
+            );
+            setAddressHits([]);
+            return;
+          }
+          const results = Array.isArray(j.results) ? j.results : [];
+          setAddressSearchConfigError(null);
+          setAddressHits(results);
+
+          if (!SHOW_ADDRESS_SUGGESTIONS && results[0]) {
+            const first = results[0];
+            if (Date.now() >= suppressLineGeocodeUntilRef.current) {
+              suppressLineGeocodeUntilRef.current = Date.now() + 850;
+              setDeliveryCoords(first.lat, first.lng);
+              setDeliveryAddressPrecision(
+                first.precision === "exact" ? "exact" : "approx"
+              );
+              setGeoHint("Dirección encontrada. Revisa el costo de envío.");
+              setShowDeliveryReference(true);
+            }
+          }
         })
         .catch(() => {
-          if (!cancelled) setAddressHits([]);
+          if (!cancelled) {
+            setAddressHits([]);
+            setAddressSearchConfigError(null);
+          }
         })
         .finally(() => {
           if (!cancelled) setAddressSearchLoading(false);
@@ -375,7 +490,7 @@ export function CartModal({
         clearTimeout(loadT);
       };
     }, [
-      debouncedAddressQ,
+      debouncedLookup,
       deliveryPriceMode,
       selectedBranch?.id,
       selectedBranch?.origin_lat,
@@ -398,20 +513,26 @@ export function CartModal({
       if (fulfillment !== "delivery") return;
       if (Date.now() < suppressLineGeocodeUntilRef.current) return;
 
-      const line1 = debouncedDeliveryLine.line1;
-      const commune = debouncedDeliveryLine.commune;
-      if (line1.length < 4 || commune.length < 2) return;
-      if (!/\d/.test(line1)) return;
+      const rawLine = debouncedDeliveryLine.line1;
+      const rawCommune = debouncedDeliveryLine.commune;
+      if (rawLine.length < 4 || rawCommune.length < 2) return;
+      if (!/\d/.test(rawLine)) return;
 
-      const full = `${line1}, ${commune}`.trim();
-      if (full.length < 8) return;
+      const q =
+        rawLine.trim().length >= 3
+          ? rawLine.trim()
+          : [rawLine.trim(), rawCommune.trim()].filter(Boolean).join(", ");
+      if (q.length < 4) return;
 
       let cancelled = false;
       const loadT = window.setTimeout(() => {
         if (!cancelled) setLineGeocodeLoading(true);
       }, 0);
 
-      const params = new URLSearchParams({ q: full });
+      const params = new URLSearchParams({ q });
+      if (rawCommune.length >= 2) {
+        params.set("communeHint", rawCommune.trim());
+      }
       if (selectedBranch?.id) {
         params.set("branchId", selectedBranch.id);
       }
@@ -645,9 +766,15 @@ export function CartModal({
   const MIN_DRIVER_REFERENCE_LEN = 6;
   const meetsMinDelivery =
     fulfillment !== "delivery" || cartSubtotal + 1e-9 >= minOrder;
+  const hasDeliveryCoords =
+    deliveryLat != null &&
+    deliveryLng != null &&
+    Number.isFinite(deliveryLat) &&
+    Number.isFinite(deliveryLng);
   const deliveryAddressOk =
     fulfillment !== "delivery" ||
-    (deliveryLine1.trim().length >= 4 && deliveryCommune.trim().length >= 2);
+    (deliveryLine1.trim().length >= 4 &&
+      (deliveryCommune.trim().length >= 2 || hasDeliveryCoords));
   const deliveryReferenceOk =
     fulfillment !== "delivery" ||
     deliveryReference.trim().length >= MIN_DRIVER_REFERENCE_LEN;
@@ -722,8 +849,13 @@ export function CartModal({
         )
           .then((r) => (r.ok ? r.json() : null))
           .then((data: { line1?: string; commune?: string } | null) => {
-            if (data?.line1?.trim()) setDeliveryLine1(data.line1.trim());
-            if (data?.commune?.trim()) setDeliveryCommune(data.commune.trim());
+            const l1 = data?.line1?.trim() ?? "";
+            const com = data?.commune?.trim() ?? "";
+            if (l1) setDeliveryLine1(l1);
+            if (com) setDeliveryCommune(com);
+            if (l1 || com) {
+              setUnifiedAddressSearch([l1, com].filter(Boolean).join(", "));
+            }
             suppressLineGeocodeUntilRef.current = Date.now() + 1200;
             setGeoHint(
               "Ubicacion guardada. Revisa calle, comuna y el costo de envio."
@@ -758,20 +890,63 @@ export function CartModal({
     setDeliveryLine1,
     setDeliveryCommune,
     setShowDeliveryReference,
+    setUnifiedAddressSearch,
   ]);
 
   const selectAddressSearchHit = useCallback(
     (hit: AddressSearchHit) => {
       suppressLineGeocodeUntilRef.current = Date.now() + 850;
+      const { commune: userCommuneFromField } = parseUnifiedAddressSearch(
+        unifiedAddressSearch,
+      );
+      const communeFromDetail = (): string => {
+        const d = hit.detailLine?.trim();
+        if (!d) return "";
+        const parts = d.split(",").map((s) => s.trim());
+        const first = parts[0] ?? "";
+        if (/^región\b/i.test(first)) {
+          return (parts[1] ?? "").slice(0, 120);
+        }
+        return first.length >= 2 ? first.slice(0, 120) : "";
+      };
+      const comFromHit = hit.commune?.trim() || communeFromDetail();
+      const com =
+        userCommuneFromField.trim().length >= 2
+          ? userCommuneFromField.trim().slice(0, 120)
+          : comFromHit;
+      const pickStreetLineFromLabel = (label: string | undefined): string => {
+        if (!label?.trim()) return "";
+        const parts = label.split(",").map((s) => s.trim());
+        for (const p of parts) {
+          if (
+            /\d/.test(p) &&
+            /(av|avenida|calle|pasaje|vicuña|paseo|camino|n°|número)/i.test(p)
+          ) {
+            return p.slice(0, 200);
+          }
+        }
+        for (const p of parts) {
+          if (/\d/.test(p) && p.length >= 4) return p.slice(0, 200);
+        }
+        return "";
+      };
+      const userTypedDigits = /\d/.test(unifiedAddressSearch);
+      let line1 =
+        hit.line1?.trim() ||
+        (hit.label?.split(",")[0]?.trim() ?? "").slice(0, 200);
+      if (userTypedDigits && !/\d/.test(line1)) {
+        const fromLabel = pickStreetLineFromLabel(hit.label);
+        if (fromLabel) line1 = fromLabel;
+      }
       setDeliveryCoords(hit.lat, hit.lng);
-      setDeliveryLine1(hit.line1);
-      setDeliveryCommune(hit.commune);
+      setDeliveryLine1(line1);
+      setDeliveryCommune(com);
+      setUnifiedAddressSearch([line1, com].filter(Boolean).join(", "));
       setDeliveryKmManual("");
-      setAddressSearchInput(hit.label);
       setAddressHitsOpen(false);
       setDeliveryAddressPrecision(hit.precision === "exact" ? "exact" : "approx");
       setGeoHint(
-        "Direccion encontrada. Revisa calle, comuna y el costo de envio abajo."
+        "Direccion encontrada. Revisa calle, comuna y el costo de envio."
       );
       setShowDeliveryReference(true);
     },
@@ -781,6 +956,8 @@ export function CartModal({
       setDeliveryKmManual,
       setDeliveryLine1,
       setShowDeliveryReference,
+      setUnifiedAddressSearch,
+      unifiedAddressSearch,
     ]
   );
 
@@ -818,8 +995,13 @@ export function CartModal({
     const nameValue = (values.name || "").trim();
     const namePattern = /^[\p{L} .'-]+$/u;
     const isNameValid = nameValue.length > 2 && namePattern.test(nameValue);
-    const isOnline = paymentMethodKey && PAYMENT_METHOD_CONFIG[paymentMethodKey]?.isOnline;
-    const isReceiptValid = isOnline ? !!values.receiptFile : true;
+    const requiresReceipt =
+      Boolean(
+        paymentMethodKey &&
+          PAYMENT_METHOD_CONFIG[paymentMethodKey]?.isOnline &&
+          paymentMethodKey !== "transferencia_bancaria"
+      );
+    const isReceiptValid = requiresReceipt ? !!values.receiptFile : true;
 
     return {
       rut: isRutValid,
@@ -922,7 +1104,9 @@ export function CartModal({
     }
     setViewState((v) => ({ ...v, isSaving: true, error: null }));
     try {
-      const itemsForOrder = (cart as CartLineItem[]).map((item) => ({
+      // Usar `filteredCart` (ya tiene precios/activos validados contra la sucursal).
+      // Evita errores `invalid_item_price` / productos no disponibles al RPC.
+      const itemsForOrder = (filteredCart as CartLineItem[]).map((item) => ({
         id: item.id,
         name: String(item.name ?? ""),
         quantity: Number(item.quantity) || 1,
@@ -1016,6 +1200,9 @@ export function CartModal({
           ? `Direccion: ${deliverySnapshot.line1}, ${deliverySnapshot.commune}`
           : undefined;
       setTimeout(() => {
+        const paymentData = paymentMethodKey
+          ? (activeInfo as Record<string, unknown>)[paymentMethodKey]
+          : undefined;
         const message = generateWSMessage(
           data,
           cart,
@@ -1023,6 +1210,7 @@ export function CartModal({
           paymentMethodKey,
           orderNote,
           activeInfo.name,
+          paymentData,
           {
             fulfillment: snapFulfillment,
             cartSubtotal: snapSubtotal,
@@ -1188,82 +1376,15 @@ export function CartModal({
                           </button>
                           {geoHint ? <p className="cart-geo-hint">{geoHint}</p> : null}
                           <p className="cart-delivery-note">
-                            Buscá con <strong>calle y número</strong> (ej. Vicuña Mackenna 3322,
-                            Macul). En comunas grandes, solo la ciudad o la comuna deja el pin
-                            lejos de tu casa; las filas marcadas{" "}
-                            <strong>Con número</strong> son las más precisas, como el GPS.
+                            Escribí tu dirección completa (calle y número y, si puedes,
+                            la comuna). Con eso te cotizamos el envío y coordinamos
+                            el pedido por WhatsApp.
                           </p>
-                          <label className="cart-field-label" htmlFor="cart-address-search">
-                            Buscar dirección
-                          </label>
-                          <div
-                            className="cart-address-search-wrap"
-                            ref={addressSearchWrapRef}
-                          >
-                            <div className="cart-address-search-input-row">
-                              <Search
-                                size={18}
-                                className="cart-address-search-icon"
-                                aria-hidden
-                              />
-                              <input
-                                id="cart-address-search"
-                                className="form-input cart-address-search-input"
-                                autoComplete="street-address"
-                                value={addressSearchInput}
-                                onChange={(e) => {
-                                  setAddressSearchInput(e.target.value);
-                                  setAddressHitsOpen(true);
-                                  setDeliveryAddressPrecision(null);
-                                }}
-                                onFocus={() => setAddressHitsOpen(true)}
-                                placeholder="Ej: Vicuña Mackenna 3322, Macul"
-                              />
-                            </div>
-                            {addressSearchLoading ? (
-                              <p className="cart-geo-hint">Buscando direcciones…</p>
-                            ) : null}
-                            {addressHitsOpen && addressHits.length > 0 ? (
-                              <ul
-                                className="cart-address-hits"
-                                aria-label="Sugerencias de dirección"
-                              >
-                                {addressHits.map((hit, idx) => {
-                                  const precise = hit.precision === "exact";
-                                  return (
-                                    <li key={`${hit.lat}-${hit.lng}-${idx}`}>
-                                      <button
-                                        type="button"
-                                        className="cart-address-hit-btn"
-                                        onClick={() => selectAddressSearchHit(hit)}
-                                      >
-                                        <span className="cart-address-hit-row">
-                                          <span
-                                            className={
-                                              precise
-                                                ? "cart-address-hit-badge cart-address-hit-badge-exact"
-                                                : "cart-address-hit-badge cart-address-hit-badge-approx"
-                                            }
-                                          >
-                                            {precise ? "Con número" : "Zona"}
-                                          </span>
-                                          <span className="cart-address-hit-text">
-                                            {hit.label}
-                                          </span>
-                                        </span>
-                                      </button>
-                                    </li>
-                                  );
-                                })}
-                              </ul>
-                            ) : null}
-                          </div>
                           {deliveryAddressPrecision === "approx" ? (
                             <p className="cart-fulfillment-warn">
                               Esta sugerencia es solo zona o ciudad: el mapa puede quedar lejos de
-                              tu puerta. Preferí otra fila con <strong>Con número</strong>, escribí
-                              calle y número en los campos de abajo, o usá{" "}
-                              <strong>Usar mi ubicación</strong>.
+                              tu puerta. Preferí otra opción con dirección más específica, ajustá
+                              calle o comuna, o usá <strong>Usar mi ubicación</strong>.
                             </p>
                           ) : null}
                           <details className="cart-delivery-km-fallback">
@@ -1290,26 +1411,173 @@ export function CartModal({
                         </>
                       ) : null}
 
-                      <label className="cart-field-label">Calle y número</label>
-                      <input
-                        className="form-input"
-                        value={deliveryLine1}
-                        onChange={(e) => setDeliveryLine1(e.target.value)}
-                        placeholder="Ej: Av. Principal 123, depto 4"
-                      />
-                      <label className="cart-field-label">Comuna o ciudad</label>
-                      <input
-                        className="form-input"
-                        value={deliveryCommune}
-                        onChange={(e) => setDeliveryCommune(e.target.value)}
-                        placeholder="Ej: Santiago"
-                      />
+                      <div
+                        className={
+                          deliveryPriceMode === "distance"
+                            ? "cart-address-search-wrap"
+                            : undefined
+                        }
+                        ref={
+                          deliveryPriceMode === "distance"
+                            ? addressSearchWrapRef
+                            : undefined
+                        }
+                      >
+                        {deliveryPriceMode === "distance" ? (
+                          <>
+                          <label
+                            className="cart-field-label"
+                            htmlFor="cart-delivery-commune"
+                          >
+                            Comuna o ciudad
+                          </label>
+                          <input
+                            id="cart-delivery-commune"
+                            className="form-input"
+                            value={deliveryCommune}
+                            onChange={(e) => {
+                              const nextCommune = e.target.value;
+                              setDeliveryCommune(nextCommune);
+                              setDeliveryAddressPrecision(null);
+                              const streetPart = [
+                                streetInput.trim(),
+                                streetNumberInput.trim(),
+                              ]
+                                .filter(Boolean)
+                                .join(" ");
+                              const merged = [
+                                streetPart,
+                                nextCommune.trim(),
+                              ]
+                                .filter(Boolean)
+                                .join(", ");
+                              setUnifiedAddressSearch(merged);
+                            }}
+                            placeholder="Ej: Ñuñoa"
+                          />
+
+                          <label
+                            className="cart-field-label"
+                            htmlFor="cart-delivery-street"
+                          >
+                            Calle
+                          </label>
+                          <input
+                            id="cart-delivery-street"
+                            className="form-input"
+                            value={streetInput}
+                            onChange={(e) => {
+                              const nextStreet = e.target.value;
+                              setStreetInput(nextStreet);
+                              setDeliveryAddressPrecision(null);
+                              const streetPart = [
+                                nextStreet.trim(),
+                                streetNumberInput.trim(),
+                              ]
+                                .filter(Boolean)
+                                .join(" ");
+                              setDeliveryLine1(streetPart);
+                              const merged = [streetPart, deliveryCommune.trim()]
+                                .filter(Boolean)
+                                .join(", ");
+                              setUnifiedAddressSearch(merged);
+                            }}
+                            placeholder="Ej: Avenida Vicuña Mackenna"
+                          />
+
+                          <label
+                            className="cart-field-label"
+                            htmlFor="cart-delivery-number"
+                          >
+                            Número
+                          </label>
+                          <input
+                            id="cart-delivery-number"
+                            className="form-input"
+                            value={streetNumberInput}
+                            onChange={(e) => {
+                              const nextNumber = e.target.value;
+                              setStreetNumberInput(nextNumber);
+                              setDeliveryAddressPrecision(null);
+                              const streetPart = [
+                                streetInput.trim(),
+                                nextNumber.trim(),
+                              ]
+                                .filter(Boolean)
+                                .join(" ");
+                              setDeliveryLine1(streetPart);
+                              const merged = [streetPart, deliveryCommune.trim()]
+                                .filter(Boolean)
+                                .join(", ");
+                              setUnifiedAddressSearch(merged);
+                            }}
+                            inputMode="numeric"
+                            placeholder="Ej: 1432"
+                          />
+                          </>
+                        ) : null}
+                    {SHOW_ADDRESS_SUGGESTIONS &&
+                    deliveryPriceMode === "distance" &&
+                        addressSearchLoading ? (
+                          <p className="cart-geo-hint">Buscando direcciones…</p>
+                        ) : null}
+                    {SHOW_ADDRESS_SUGGESTIONS &&
+                    deliveryPriceMode === "distance" &&
+                        addressSearchConfigError ? (
+                          <p className="cart-fulfillment-warn">
+                            {addressSearchConfigError}
+                          </p>
+                        ) : null}
+                    {SHOW_ADDRESS_SUGGESTIONS &&
+                    deliveryPriceMode === "distance" &&
+                        addressHitsOpen &&
+                        addressHits.length > 0 ? (
+                          <ul
+                            className="cart-address-hits"
+                            aria-label="Sugerencias de dirección"
+                          >
+                            {addressHits.map((hit, idx) => {
+                              const subtitle = hit.commune?.trim() || "";
+                              return (
+                                <li key={`${hit.lat}-${hit.lng}-${idx}`}>
+                                  <button
+                                    type="button"
+                                    className="cart-address-hit-btn"
+                                    onClick={() => selectAddressSearchHit(hit)}
+                                  >
+                                    <MapPin
+                                      className="cart-address-hit-pin"
+                                      size={18}
+                                      aria-hidden
+                                    />
+                                    <span className="cart-address-hit-body">
+                                      <span className="cart-address-hit-primary">
+                                        {hit.line1 || hit.label}
+                                      </span>
+                                      {subtitle ? (
+                                        <span className="cart-address-hit-detail">
+                                          {subtitle}
+                                        </span>
+                                      ) : null}
+                                    </span>
+                                  </button>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        ) : null}
+                      </div>
                       {fulfillment === "delivery" &&
                       deliveryPriceMode === "distance" &&
                       lineGeocodeLoading ? (
                         <p className="cart-geo-hint">
                           Actualizando ubicación con calle y número (recalculamos envío)…
                         </p>
+                      ) : null}
+
+                      {fulfillment === "delivery" &&
+                      deliveryPriceMode === "distance" ? (
+                        <DeliveryPreviewMap lat={deliveryLat} lng={deliveryLng} />
                       ) : null}
 
                       <label className="cart-field-label">
@@ -1525,10 +1793,15 @@ const PaymentFlow = ({
   viewState: CartModalViewState;
 }) => {
   const isOnline = paymentMethodKey && PAYMENT_METHOD_CONFIG[paymentMethodKey]?.isOnline;
+  const requiresReceipt = Boolean(
+    paymentMethodKey &&
+      PAYMENT_METHOD_CONFIG[paymentMethodKey]?.isOnline &&
+      paymentMethodKey !== "transferencia_bancaria"
+  );
   const showNameError = showFieldErrors && !validation.name;
   const showRutError = showFieldErrors && !validation.rut;
   const showPhoneError = showFieldErrors && !validation.phone;
-  const showReceiptError = showFieldErrors && isOnline && !validation.receipt;
+  const showReceiptError = showFieldErrors && requiresReceipt && !validation.receipt;
   const topValidationMessage = showFieldErrors
     ? [
         showNameError ? "nombre válido" : null,
@@ -1592,7 +1865,7 @@ const PaymentFlow = ({
           </div>
         </div>
 
-        {isOnline ? (
+        {requiresReceipt ? (
           <div className="form-group">
             <label>
               Comprobante {validation.receipt ? <CheckCircle2 size={14} color="#25d366" /> : <span className="text-accent">*</span>}
@@ -1630,7 +1903,7 @@ const PaymentFlow = ({
                 if (!validation.name) errors.push("nombre");
                 if (!validation.rut) errors.push("RUT");
                 if (!validation.phone) errors.push("teléfono");
-                if (!validation.receipt && isOnline) errors.push("comprobante");
+                if (!validation.receipt && requiresReceipt) errors.push("comprobante");
                 if (errors.length > 0) errorMsg += " " + errors.join(", ");
                 setViewState((prev) => ({ ...prev, error: errorMsg }));
               }
@@ -1853,7 +2126,7 @@ const SuccessView = ({
       </div>
       <h2 className="text-accent">¡Pedido Recibido!</h2>
       <p className="success-description">
-        Estamos validando tu pago. Te contactaremos por WhatsApp.
+        Listo. Te contactaremos por WhatsApp para coordinar tu pago.
       </p>
       {receiptUploadFailed ? (
         <p className="cart-receipt-fallback cart-receipt-fallback-warning">

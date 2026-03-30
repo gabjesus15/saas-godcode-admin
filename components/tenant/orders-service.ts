@@ -374,11 +374,13 @@ export const ordersService = {
       }
     }
 
+    const paymentRefFromReceipt = receiptUrl || orderData.payment_ref;
     const paymentRef =
-      receiptUrl ||
-      orderData.payment_ref ||
+      paymentRefFromReceipt ||
       (orderData.payment_type === "online"
-        ? "Comprobante pendiente por WhatsApp"
+        ? orderData.payment_method_specific === "transferencia_bancaria"
+          ? "Transferencia pendiente por WhatsApp"
+          : "Comprobante pendiente por WhatsApp"
         : "Pago Presencial");
 
     let finalNote = orderData.note || "";

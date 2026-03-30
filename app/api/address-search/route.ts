@@ -14,8 +14,7 @@ function clientKey(req: NextRequest): string {
 }
 
 /**
- * Si el local no define tope de km, igual acotamos sugerencias para no listar otros países
- * (Photon puede devolver coincidencias globales).
+ * Si el local no define tope de km, igual acotamos sugerencias para no listar coincidencias muy lejanas.
  */
 const DEFAULT_SUGGESTION_RADIUS_KM = 420;
 
@@ -32,7 +31,8 @@ function filterHitsInRadius(
 }
 
 /**
- * Autocompletado de direcciones vía Photon (OSM), mismo backend que la resolución de zonas.
+ * Autocompletado de direcciones (OpenStreetMap/Nominatim).
+ * Mismo backend que resolución de zonas por nombre.
  * Público, con rate limit.
  * Con `branchId`, solo se devuelven puntos dentro del radio de delivery de la sucursal
  * (o un radio por defecto si no hay tope configurado).
@@ -40,6 +40,9 @@ function filterHitsInRadius(
 export async function GET(req: NextRequest) {
 	try {
 		const raw = req.nextUrl.searchParams.get("q")?.trim() ?? "";
+		const communeHintRaw =
+			req.nextUrl.searchParams.get("communeHint")?.trim() ?? "";
+		const regionRaw = req.nextUrl.searchParams.get("region")?.trim() ?? "";
 		if (raw.length < 3) {
 			return NextResponse.json({ ok: true as const, results: [] });
 		}
@@ -109,7 +112,13 @@ export async function GET(req: NextRequest) {
 					? { nearLat, nearLon }
 					: undefined;
 
-		const rawHits = await photonSearchAddressHits(raw, bias);
+		const rawHits = await photonSearchAddressHits(raw, {
+			...bias,
+			communeHint:
+				communeHintRaw.length >= 2 ? communeHintRaw : undefined,
+			regionHint:
+				regionRaw.length >= 2 ? regionRaw : undefined,
+		});
 		let hits = rawHits ?? [];
 
 		if (origin) {

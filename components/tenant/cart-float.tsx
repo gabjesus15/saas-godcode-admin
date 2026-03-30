@@ -10,13 +10,36 @@ export function CartFloat() {
   const { totalItems, grandTotal, toggleCart } = useCart();
   const hasItems = totalItems > 0;
   const [isIdle, setIsIdle] = useState(false);
+  const userInteractedRef = useRef(false);
   const prevCountRef = useRef(totalItems);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    // Evita warnings/bloqueos de Chrome: vibrate solo está permitido luego
+    // de una interacción del usuario.
+    const markInteracted = () => {
+      userInteractedRef.current = true;
+    };
+    window.addEventListener("touchstart", markInteracted, { once: true });
+    window.addEventListener("click", markInteracted, { once: true });
+    return () => {
+      window.removeEventListener("touchstart", markInteracted);
+      window.removeEventListener("click", markInteracted);
+    };
+  }, []);
+
+  useEffect(() => {
     if (totalItems > prevCountRef.current) {
-      if (typeof navigator !== "undefined" && navigator.vibrate) {
-        navigator.vibrate(50);
+      if (
+        userInteractedRef.current &&
+        typeof navigator !== "undefined" &&
+        navigator.vibrate
+      ) {
+        try {
+          navigator.vibrate(50);
+        } catch {
+          // Ignorar: vibrate puede estar bloqueado por el navegador.
+        }
       }
     }
     prevCountRef.current = totalItems;

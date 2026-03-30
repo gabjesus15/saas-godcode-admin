@@ -1,15 +1,19 @@
 /**
- * Resolución de dirección → zona con nombre (namedAreas) vía Photon (OSM), gratis.
+ * Resolución de dirección → zona con nombre (namedAreas) vía OpenStreetMap/Nominatim.
  * Usado en APIs públicas con rate limit; la lógica de tarifa sigue en computeDeliveryFee.
  */
 
+import {
+	openstreetForwardGeocodeFeatures,
+	openstreetSearchAddressHits,
+	type AddressGeocodeHit,
+} from "./openstreet-geocoding";
 import {
 	computeDeliveryFee,
 	type DeliveryNamedArea,
 	type DeliverySettingsNormalized,
 } from "./delivery-settings";
 
-const PHOTON = "https://photon.komoot.io/api/";
 const MIN_ADDRESS_LEN = 8;
 
 export type ResolveNamedAreaResult =
@@ -25,6 +29,9 @@ export type ResolveNamedAreaResult =
 			code: "short_address" | "geocode_failed" | "no_match" | "ambiguous";
 			message: string;
 	  };
+
+/** Alias histórico (checkout / APIs). */
+export type PhotonAddressHit = AddressGeocodeHit;
 
 function norm(s: string): string {
 	return s
@@ -89,42 +96,6 @@ function scoreAreaAgainstBlob(
 	return best;
 }
 
-export async function photonForwardGeocode(address: string): Promise<
-	Record<string, unknown>[] | null
-> {
-	const q = address.trim();
-	if (q.length < MIN_ADDRESS_LEN) return null;
-	const url = new URL(PHOTON);
-	url.searchParams.set("q", q.slice(0, 200));
-	url.searchParams.set("lang", "default");
-	url.searchParams.set("limit", "8");
-	const ctrl = new AbortController();
-	const t = setTimeout(() => ctrl.abort(), 12_000);
-	try {
-		const res = await fetch(url.toString(), {
-			signal: ctrl.signal,
-			cache: "no-store",
-			headers: { Accept: "application/json" },
-		});
-		clearTimeout(t);
-		if (!res.ok) return null;
-		const data = (await res.json()) as { features?: unknown[] };
-		const feats = Array.isArray(data.features) ? data.features : [];
-		const props: Record<string, unknown>[] = [];
-		for (const f of feats) {
-			if (!f || typeof f !== "object") continue;
-			const p = (f as { properties?: unknown }).properties;
-			if (p && typeof p === "object" && !Array.isArray(p)) {
-				props.push(p as Record<string, unknown>);
-			}
-		}
-		return props.length > 0 ? props : null;
-	} catch {
-		clearTimeout(t);
-		return null;
-	}
-}
-
 /**
  * Intenta mapear una dirección en texto a una fila de namedAreas y calcular tarifa.
  */
@@ -151,7 +122,7 @@ export async function resolveNamedAreaFromAddress(
 		};
 	}
 
-	const geoPropsList = await photonForwardGeocode(trimmed);
+	const geoPropsList = await openstreetForwardGeocodeFeatures(trimmed);
 	if (!geoPropsList || geoPropsList.length === 0) {
 		return {
 			ok: false,
@@ -216,178 +187,7 @@ export async function resolveNamedAreaFromAddress(
 	};
 }
 
-/** Resultado de búsqueda (Photon) para autocompletar dirección en checkout público. */
-export type PhotonAddressHit = {
-	lat: number;
-	lng: number;
-	label: string;
-	line1: string;
-	commune: string;
-	/**
-	 * `exact`: calle + número u hogar en OSM — comparable a usar GPS.
-	 * `approx`: solo comuna, barrio o calle sin número — el punto puede estar lejos en comunas grandes.
-	 */
-	precision: "exact" | "approx";
-};
-
-const PHOTON_SEARCH_MIN_LEN = 3;
-const PHOTON_SEARCH_FETCH_LIMIT = 22;
-const PHOTON_SEARCH_RETURN_LIMIT = 10;
-
-function buildLine1FromPhotonProps(p: Record<string, unknown>): string {
-	const street = typeof p.street === "string" ? p.street.trim() : "";
-	const hn = typeof p.housenumber === "string" ? p.housenumber.trim() : "";
-	const joined = [street, hn].filter(Boolean).join(" ").trim();
-	if (joined) return joined.slice(0, 200);
-	const name = typeof p.name === "string" ? p.name.trim() : "";
-	return name.slice(0, 200);
-}
-
-function buildCommuneFromPhotonProps(p: Record<string, unknown>): string {
-	const city =
-		(typeof p.city === "string" && p.city.trim()) ||
-		(typeof p.town === "string" && p.town.trim()) ||
-		(typeof p.district === "string" && p.district.trim()) ||
-		(typeof p.locality === "string" && p.locality.trim()) ||
-		(typeof p.county === "string" && p.county.trim()) ||
-		"";
-	return city.slice(0, 120);
-}
-
-/** Puntuación alta = conviene mostrar primero (calle+número antes que solo ciudad). */
-function photonResultSortScore(props: Record<string, unknown>, query: string): number {
-	const type = String(props.type || "").toLowerCase();
-	const hasHn =
-		typeof props.housenumber === "string" && props.housenumber.trim().length > 0;
-	const hasStreet =
-		typeof props.street === "string" && props.street.trim().length > 0;
-	const name = typeof props.name === "string" ? props.name.trim() : "";
-	const nameHasNumber = /\d/.test(name);
-	/** Nombre completo tipo "Avenida X 1234" sin housenumber separado en OSM. */
-	const nameLooksLikeStreetWithNum =
-		nameHasNumber &&
-		(hasStreet ||
-			type === "street" ||
-			(name.length >= 10 && /\s/.test(name)));
-
-	let score = 0;
-	if (type === "house") score = 100;
-	else if (hasHn && hasStreet) score = 95;
-	else if (type === "street" && hasStreet) score = 72;
-	else if (hasStreet) score = 65;
-	else if (nameLooksLikeStreetWithNum) score = 60;
-	else if (
-		["district", "neighbourhood", "suburb", "quarter", "borough"].includes(type)
-	)
-		score = 38;
-	else if (["locality", "village", "hamlet"].includes(type)) score = 32;
-	else if (["city", "town", "county", "state", "country", "region"].includes(type))
-		score = 12;
-	else if (type === "administrative") score = 10;
-	else score = 25;
-
-	const qHasDigit = /\d/.test(query);
-	if (qHasDigit && hasHn) score += 8;
-	if (qHasDigit && (hasHn || nameLooksLikeStreetWithNum)) score += 4;
-
-	return score;
-}
-
-function classifyPhotonPrecision(props: Record<string, unknown>): "exact" | "approx" {
-	const type = String(props.type || "").toLowerCase();
-	const hasHn =
-		typeof props.housenumber === "string" && props.housenumber.trim().length > 0;
-	const hasStreet =
-		typeof props.street === "string" && props.street.trim().length > 0;
-	const name = typeof props.name === "string" ? props.name.trim() : "";
-	const nameHasNumber = /\d/.test(name);
-
-	if (type === "house") return "exact";
-	if (hasHn && hasStreet) return "exact";
-	if (nameHasNumber && name.length >= 8) {
-		if (hasStreet || type === "street") return "exact";
-		const parts = name.trim().split(/\s+/);
-		const last = parts[parts.length - 1] ?? "";
-		if (parts.length >= 2 && /^\d+[A-Za-z]?$/.test(last)) return "exact";
-	}
-	return "approx";
-}
-
 /**
- * Búsqueda directa en Photon (mismo origen que la resolución de zonas por dirección).
- * Opcional: `nearLat`/`nearLon` para sesgar resultados hacia la sucursal.
+ * Sugerencias de dirección para el checkout (OpenStreetMap/Nominatim).
  */
-export async function photonSearchAddressHits(
-	address: string,
-	options?: { nearLat?: number | null; nearLon?: number | null },
-): Promise<PhotonAddressHit[] | null> {
-	const q = address.trim();
-	if (q.length < PHOTON_SEARCH_MIN_LEN) return null;
-
-	const url = new URL(PHOTON);
-	url.searchParams.set("q", q.slice(0, 200));
-	url.searchParams.set("lang", "default");
-	url.searchParams.set("limit", String(PHOTON_SEARCH_FETCH_LIMIT));
-	const nLat = options?.nearLat != null ? Number(options.nearLat) : NaN;
-	const nLon = options?.nearLon != null ? Number(options.nearLon) : NaN;
-	if (Number.isFinite(nLat) && Number.isFinite(nLon)) {
-		url.searchParams.set("lat", String(nLat));
-		url.searchParams.set("lon", String(nLon));
-	}
-
-	const ctrl = new AbortController();
-	const t = setTimeout(() => ctrl.abort(), 12_000);
-	try {
-		const res = await fetch(url.toString(), {
-			signal: ctrl.signal,
-			cache: "no-store",
-			headers: { Accept: "application/json" },
-		});
-		clearTimeout(t);
-		if (!res.ok) return null;
-		const data = (await res.json()) as { features?: unknown[] };
-		const feats = Array.isArray(data.features) ? data.features : [];
-		const rows: { hit: PhotonAddressHit; score: number }[] = [];
-		for (const f of feats) {
-			if (!f || typeof f !== "object") continue;
-			const feat = f as {
-				geometry?: { type?: string; coordinates?: unknown };
-				properties?: unknown;
-			};
-			if (feat.geometry?.type !== "Point") continue;
-			const coords = feat.geometry?.coordinates;
-			if (!Array.isArray(coords) || coords.length < 2) continue;
-			const lng = Number(coords[0]);
-			const lat = Number(coords[1]);
-			if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
-			const pr = feat.properties;
-			if (!pr || typeof pr !== "object" || Array.isArray(pr)) continue;
-			const props = pr as Record<string, unknown>;
-			const line1 = buildLine1FromPhotonProps(props);
-			const commune = buildCommuneFromPhotonProps(props);
-			const label =
-				[line1, commune].filter(Boolean).join(", ").trim() ||
-				(typeof props.name === "string" ? props.name.trim() : "") ||
-				"Ubicación";
-			const precision = classifyPhotonPrecision(props);
-			const hit: PhotonAddressHit = {
-				lat,
-				lng,
-				label: label.slice(0, 220),
-				line1: line1 || label.slice(0, 200),
-				commune,
-				precision,
-			};
-			rows.push({
-				hit,
-				score: photonResultSortScore(props, q),
-			});
-		}
-		if (rows.length === 0) return null;
-		rows.sort((a, b) => b.score - a.score);
-		return rows.slice(0, PHOTON_SEARCH_RETURN_LIMIT).map((r) => r.hit);
-	} catch {
-		clearTimeout(t);
-		return null;
-	}
-}
+export const photonSearchAddressHits = openstreetSearchAddressHits;

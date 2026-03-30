@@ -21,6 +21,12 @@ export function haversineKm(a: GeoPoint, b: GeoPoint): number {
 }
 
 export function isValidLatLng(lat: unknown, lng: unknown): lat is number {
+	// `Number(null) === 0` hace que null se considere válido incorrectamente.
+	// Queremos que `null/undefined` (y strings vacías) sean inválidos.
+	if (lat == null || lng == null) return false;
+	if (typeof lat === "string" && lat.trim() === "") return false;
+	if (typeof lng === "string" && lng.trim() === "") return false;
+
 	const la = Number(lat);
 	const ln = Number(lng);
 	return (

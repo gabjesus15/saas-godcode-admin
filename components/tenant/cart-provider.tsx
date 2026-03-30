@@ -47,6 +47,8 @@ interface CartState {
   fulfillment: CartFulfillment;
   deliveryLine1: string;
   deliveryCommune: string;
+  /** Región (Chile) para geocodificación; vacío = sin filtro. */
+  deliveryRegion: string;
   deliveryReference: string;
   deliveryLat: number | null;
   deliveryLng: number | null;
@@ -64,6 +66,7 @@ interface CartState {
   setFulfillment?: (value: CartFulfillment) => void;
   setDeliveryLine1?: (value: string) => void;
   setDeliveryCommune?: (value: string) => void;
+  setDeliveryRegion?: (value: string) => void;
   setDeliveryReference?: (value: string) => void;
   setDeliveryCoords?: (lat: number | null, lng: number | null) => void;
   setDeliveryNamedAreaId?: (id: string | null) => void;
@@ -81,6 +84,7 @@ const useCartStore = create<CartState>()(
       fulfillment: "pickup",
       deliveryLine1: "",
       deliveryCommune: "",
+      deliveryRegion: "",
       deliveryReference: "",
       deliveryLat: null,
       deliveryLng: null,
@@ -136,6 +140,7 @@ const useCartStore = create<CartState>()(
           fulfillment: "pickup",
           deliveryLine1: "",
           deliveryCommune: "",
+          deliveryRegion: "",
           deliveryReference: "",
           deliveryLat: null,
           deliveryLng: null,
@@ -155,6 +160,8 @@ const useCartStore = create<CartState>()(
       setDeliveryLine1: (value) => set({ deliveryLine1: value }),
 
       setDeliveryCommune: (value) => set({ deliveryCommune: value }),
+
+      setDeliveryRegion: (value) => set({ deliveryRegion: value }),
 
       setDeliveryReference: (value) => set({ deliveryReference: value }),
 
@@ -790,6 +797,8 @@ export function CartProvider({
       setDeliveryLine1: typeof store.setDeliveryLine1 === "function" ? store.setDeliveryLine1 : () => {},
       deliveryCommune: store.deliveryCommune,
       setDeliveryCommune: typeof store.setDeliveryCommune === "function" ? store.setDeliveryCommune : () => {},
+      deliveryRegion: store.deliveryRegion,
+      setDeliveryRegion: typeof store.setDeliveryRegion === "function" ? store.setDeliveryRegion : () => {},
       deliveryReference: store.deliveryReference,
       setDeliveryReference: typeof store.setDeliveryReference === "function" ? store.setDeliveryReference : () => {},
       deliveryLat: store.deliveryLat,
