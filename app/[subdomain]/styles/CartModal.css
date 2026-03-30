@@ -799,6 +799,33 @@
     cursor: pointer;
     transition: background 0.12s ease;
 }
+.cart-address-hit-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+.cart-address-hit-badge {
+    flex-shrink: 0;
+    margin-top: 2px;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.cart-address-hit-badge-exact {
+    background: rgba(37, 211, 102, 0.2);
+    color: #7bed9f;
+}
+.cart-address-hit-badge-approx {
+    background: rgba(255, 193, 7, 0.15);
+    color: #ffd88a;
+}
+.cart-address-hit-text {
+    flex: 1;
+    min-width: 0;
+}
 .cart-address-hit-btn:hover,
 .cart-address-hit-btn:focus-visible {
     background: rgba(255, 255, 255, 0.08);

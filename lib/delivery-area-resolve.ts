@@ -223,9 +223,16 @@ export type PhotonAddressHit = {
 	label: string;
 	line1: string;
 	commune: string;
+	/**
+	 * `exact`: calle + número u hogar en OSM — comparable a usar GPS.
+	 * `approx`: solo comuna, barrio o calle sin número — el punto puede estar lejos en comunas grandes.
+	 */
+	precision: "exact" | "approx";
 };
 
 const PHOTON_SEARCH_MIN_LEN = 3;
+const PHOTON_SEARCH_FETCH_LIMIT = 22;
+const PHOTON_SEARCH_RETURN_LIMIT = 10;
 
 function buildLine1FromPhotonProps(p: Record<string, unknown>): string {
 	const street = typeof p.street === "string" ? p.street.trim() : "";
@@ -247,6 +254,65 @@ function buildCommuneFromPhotonProps(p: Record<string, unknown>): string {
 	return city.slice(0, 120);
 }
 
+/** Puntuación alta = conviene mostrar primero (calle+número antes que solo ciudad). */
+function photonResultSortScore(props: Record<string, unknown>, query: string): number {
+	const type = String(props.type || "").toLowerCase();
+	const hasHn =
+		typeof props.housenumber === "string" && props.housenumber.trim().length > 0;
+	const hasStreet =
+		typeof props.street === "string" && props.street.trim().length > 0;
+	const name = typeof props.name === "string" ? props.name.trim() : "";
+	const nameHasNumber = /\d/.test(name);
+	/** Nombre completo tipo "Avenida X 1234" sin housenumber separado en OSM. */
+	const nameLooksLikeStreetWithNum =
+		nameHasNumber &&
+		(hasStreet ||
+			type === "street" ||
+			(name.length >= 10 && /\s/.test(name)));
+
+	let score = 0;
+	if (type === "house") score = 100;
+	else if (hasHn && hasStreet) score = 95;
+	else if (type === "street" && hasStreet) score = 72;
+	else if (hasStreet) score = 65;
+	else if (nameLooksLikeStreetWithNum) score = 60;
+	else if (
+		["district", "neighbourhood", "suburb", "quarter", "borough"].includes(type)
+	)
+		score = 38;
+	else if (["locality", "village", "hamlet"].includes(type)) score = 32;
+	else if (["city", "town", "county", "state", "country", "region"].includes(type))
+		score = 12;
+	else if (type === "administrative") score = 10;
+	else score = 25;
+
+	const qHasDigit = /\d/.test(query);
+	if (qHasDigit && hasHn) score += 8;
+	if (qHasDigit && (hasHn || nameLooksLikeStreetWithNum)) score += 4;
+
+	return score;
+}
+
+function classifyPhotonPrecision(props: Record<string, unknown>): "exact" | "approx" {
+	const type = String(props.type || "").toLowerCase();
+	const hasHn =
+		typeof props.housenumber === "string" && props.housenumber.trim().length > 0;
+	const hasStreet =
+		typeof props.street === "string" && props.street.trim().length > 0;
+	const name = typeof props.name === "string" ? props.name.trim() : "";
+	const nameHasNumber = /\d/.test(name);
+
+	if (type === "house") return "exact";
+	if (hasHn && hasStreet) return "exact";
+	if (nameHasNumber && name.length >= 8) {
+		if (hasStreet || type === "street") return "exact";
+		const parts = name.trim().split(/\s+/);
+		const last = parts[parts.length - 1] ?? "";
+		if (parts.length >= 2 && /^\d+[A-Za-z]?$/.test(last)) return "exact";
+	}
+	return "approx";
+}
+
 /**
  * Búsqueda directa en Photon (mismo origen que la resolución de zonas por dirección).
  * Opcional: `nearLat`/`nearLon` para sesgar resultados hacia la sucursal.
@@ -261,7 +327,7 @@ export async function photonSearchAddressHits(
 	const url = new URL(PHOTON);
 	url.searchParams.set("q", q.slice(0, 200));
 	url.searchParams.set("lang", "default");
-	url.searchParams.set("limit", "8");
+	url.searchParams.set("limit", String(PHOTON_SEARCH_FETCH_LIMIT));
 	const nLat = options?.nearLat != null ? Number(options.nearLat) : NaN;
 	const nLon = options?.nearLon != null ? Number(options.nearLon) : NaN;
 	if (Number.isFinite(nLat) && Number.isFinite(nLon)) {
@@ -281,7 +347,7 @@ export async function photonSearchAddressHits(
 		if (!res.ok) return null;
 		const data = (await res.json()) as { features?: unknown[] };
 		const feats = Array.isArray(data.features) ? data.features : [];
-		const hits: PhotonAddressHit[] = [];
+		const rows: { hit: PhotonAddressHit; score: number }[] = [];
 		for (const f of feats) {
 			if (!f || typeof f !== "object") continue;
 			const feat = f as {
@@ -303,15 +369,23 @@ export async function photonSearchAddressHits(
 				[line1, commune].filter(Boolean).join(", ").trim() ||
 				(typeof props.name === "string" ? props.name.trim() : "") ||
 				"Ubicación";
-			hits.push({
+			const precision = classifyPhotonPrecision(props);
+			const hit: PhotonAddressHit = {
 				lat,
 				lng,
 				label: label.slice(0, 220),
 				line1: line1 || label.slice(0, 200),
 				commune,
+				precision,
+			};
+			rows.push({
+				hit,
+				score: photonResultSortScore(props, q),
 			});
 		}
-		return hits.length > 0 ? hits : null;
+		if (rows.length === 0) return null;
+		rows.sort((a, b) => b.score - a.score);
+		return rows.slice(0, PHOTON_SEARCH_RETURN_LIMIT).map((r) => r.hit);
 	} catch {
 		clearTimeout(t);
 		return null;

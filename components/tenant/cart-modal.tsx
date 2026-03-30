@@ -77,6 +77,8 @@ type AddressSearchHit = {
   label: string;
   line1: string;
   commune: string;
+  /** Viene del servidor; sin valor se trata como aproximado. */
+  precision?: "exact" | "approx";
 };
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80";
@@ -300,6 +302,10 @@ export function CartModal({
     const [addressSearchLoading, setAddressSearchLoading] = useState(false);
     const [addressHitsOpen, setAddressHitsOpen] = useState(false);
     const addressSearchWrapRef = useRef<HTMLDivElement>(null);
+    /** Precisión del punto de entrega (búsqueda vs GPS). */
+    const [deliveryAddressPrecision, setDeliveryAddressPrecision] = useState<
+      "exact" | "approx" | null
+    >(null);
 
     useEffect(() => {
       const t = window.setTimeout(
@@ -624,6 +630,7 @@ export function CartModal({
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
         setDeliveryCoords(lat, lng);
+        setDeliveryAddressPrecision("exact");
         setGeoHint("Buscando direccion...");
         fetch(
           `/api/reverse-geocode?lat=${encodeURIComponent(String(lat))}&lng=${encodeURIComponent(String(lng))}`
@@ -674,6 +681,7 @@ export function CartModal({
       setDeliveryKmManual("");
       setAddressSearchInput(hit.label);
       setAddressHitsOpen(false);
+      setDeliveryAddressPrecision(hit.precision === "exact" ? "exact" : "approx");
       setGeoHint(
         "Direccion encontrada. Revisa calle, comuna y el costo de envio abajo."
       );
@@ -1092,9 +1100,10 @@ export function CartModal({
                           </button>
                           {geoHint ? <p className="cart-geo-hint">{geoHint}</p> : null}
                           <p className="cart-delivery-note">
-                            O buscá tu calle (mismo buscador OpenStreetMap / Photon que usamos
-                            para ubicar direcciones). Elegí un resultado y calculamos la distancia
-                            y el envío.
+                            Buscá con <strong>calle y número</strong> (ej. Vicuña Mackenna 3322,
+                            Macul). En comunas grandes, solo la ciudad o la comuna deja el pin
+                            lejos de tu casa; las filas marcadas{" "}
+                            <strong>Con número</strong> son las más precisas, como el GPS.
                           </p>
                           <label className="cart-field-label" htmlFor="cart-address-search">
                             Buscar dirección
@@ -1117,9 +1126,10 @@ export function CartModal({
                                 onChange={(e) => {
                                   setAddressSearchInput(e.target.value);
                                   setAddressHitsOpen(true);
+                                  setDeliveryAddressPrecision(null);
                                 }}
                                 onFocus={() => setAddressHitsOpen(true)}
-                                placeholder="Ej: Av. Principal 123, Las Condes"
+                                placeholder="Ej: Vicuña Mackenna 3322, Macul"
                               />
                             </div>
                             {addressSearchLoading ? (
@@ -1130,20 +1140,44 @@ export function CartModal({
                                 className="cart-address-hits"
                                 aria-label="Sugerencias de dirección"
                               >
-                                {addressHits.map((hit, idx) => (
-                                  <li key={`${hit.lat}-${hit.lng}-${idx}`}>
-                                    <button
-                                      type="button"
-                                      className="cart-address-hit-btn"
-                                      onClick={() => selectAddressSearchHit(hit)}
-                                    >
-                                      {hit.label}
-                                    </button>
-                                  </li>
-                                ))}
+                                {addressHits.map((hit, idx) => {
+                                  const precise = hit.precision === "exact";
+                                  return (
+                                    <li key={`${hit.lat}-${hit.lng}-${idx}`}>
+                                      <button
+                                        type="button"
+                                        className="cart-address-hit-btn"
+                                        onClick={() => selectAddressSearchHit(hit)}
+                                      >
+                                        <span className="cart-address-hit-row">
+                                          <span
+                                            className={
+                                              precise
+                                                ? "cart-address-hit-badge cart-address-hit-badge-exact"
+                                                : "cart-address-hit-badge cart-address-hit-badge-approx"
+                                            }
+                                          >
+                                            {precise ? "Con número" : "Zona"}
+                                          </span>
+                                          <span className="cart-address-hit-text">
+                                            {hit.label}
+                                          </span>
+                                        </span>
+                                      </button>
+                                    </li>
+                                  );
+                                })}
                               </ul>
                             ) : null}
                           </div>
+                          {deliveryAddressPrecision === "approx" ? (
+                            <p className="cart-fulfillment-warn">
+                              Esta sugerencia es solo zona o ciudad: el mapa puede quedar lejos de
+                              tu puerta. Preferí otra fila con <strong>Con número</strong>, escribí
+                              calle y número en los campos de abajo, o usá{" "}
+                              <strong>Usar mi ubicación</strong>.
+                            </p>
+                          ) : null}
                           <details className="cart-delivery-km-fallback">
                             <summary className="cart-delivery-km-fallback-summary">
                               No aparece mi dirección — indicar km aproximados
@@ -1156,7 +1190,12 @@ export function CartModal({
                               className="form-input"
                               inputMode="decimal"
                               value={deliveryKmManual}
-                              onChange={(e) => setDeliveryKmManual(e.target.value)}
+                              onChange={(e) => {
+                                setDeliveryKmManual(e.target.value);
+                                if (e.target.value.trim()) {
+                                  setDeliveryAddressPrecision(null);
+                                }
+                              }}
                               placeholder="Ej: 3,5"
                             />
                           </details>
