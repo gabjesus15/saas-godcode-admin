@@ -171,18 +171,26 @@ export async function POST(req: NextRequest) {
 			} else {
 				const olat = Number(branch.origin_lat);
 				const olng = Number(branch.origin_lng);
-				let kmForFee =
+				let preciseKm =
 					Number.isFinite(deliveryKm) && deliveryKm >= 0 ? deliveryKm : 0;
 				if (
 					isValidLatLng(deliveryLat, deliveryLng) &&
 					isValidLatLng(olat, olng)
 				) {
-					kmForFee = haversineKm(
+					preciseKm = haversineKm(
 						{ lat: olat, lng: olng },
 						{ lat: deliveryLat, lng: deliveryLng },
 					);
 				}
-				r = computeDeliveryFee(settings, kmForFee, subtotal);
+				if (
+					settings.maxDeliveryKm != null &&
+					preciseKm > settings.maxDeliveryKm + 1e-9
+				) {
+					r = { fee: -1, waivedFreeShipping: false };
+				} else {
+					const billedKm = Math.max(0, Math.round(preciseKm));
+					r = computeDeliveryFee(settings, billedKm, subtotal);
+				}
 			}
 
 			if (!r || r.fee < 0) {
@@ -197,7 +205,7 @@ export async function POST(req: NextRequest) {
 								: "Zona de entrega no válida";
 				return NextResponse.json({ error: msg }, { status: 400 });
 			}
-			expectedFee = r.fee;
+			expectedFee = Math.round(r.fee);
 		} else {
 			expectedFee = 0;
 		}
@@ -209,7 +217,7 @@ export async function POST(req: NextRequest) {
 			return NextResponse.json({ error: "Tarifa de envío no válida" }, { status: 400 });
 		}
 
-		const expectedTotal = Math.round((subtotal + expectedFee) * 100) / 100;
+		const expectedTotal = Math.round(subtotal + expectedFee);
 		const orderTotal = Number(order.total) || 0;
 		if (Math.abs(orderTotal - expectedTotal) > TOTAL_EPS) {
 			return NextResponse.json(

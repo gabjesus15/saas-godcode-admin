@@ -189,14 +189,16 @@ export const ordersService = {
       );
     }
 
-    const calculatedItemsTotal = normalizedItems.reduce((sum, item) => {
-      const price =
-        item.has_discount && item.discount_price && Number(item.discount_price) > 0
-          ? Number(item.discount_price)
-          : Number(item.price || 0);
-      const qty = Math.max(1, Number(item.quantity) || 1);
-      return sum + price * qty;
-    }, 0);
+    const calculatedItemsTotal = Math.round(
+      normalizedItems.reduce((sum, item) => {
+        const price =
+          item.has_discount && item.discount_price && Number(item.discount_price) > 0
+            ? Number(item.discount_price)
+            : Number(item.price || 0);
+        const qty = Math.max(1, Number(item.quantity) || 1);
+        return sum + price * qty;
+      }, 0)
+    );
 
     const { data: branchCfg, error: branchCfgError } = await supabase
       .from("branches")
@@ -326,9 +328,18 @@ export const ordersService = {
                 "No se pudo validar el envio por distancia. Verifica que estes dentro del area de reparto.",
             );
           }
-          deliveryFee = Math.max(0, Number(qJson.fee) || 0);
+          deliveryFee = Math.round(Math.max(0, Number(qJson.fee) || 0));
         } else {
-          const r = computeDeliveryFee(deliverySettings, safeKm, calculatedItemsTotal);
+          if (
+            deliverySettings.maxDeliveryKm != null &&
+            safeKm > deliverySettings.maxDeliveryKm + 1e-9
+          ) {
+            throw new Error(
+              "La distancia indicada supera el maximo permitido para delivery en esta sucursal.",
+            );
+          }
+          const kmBilled = Math.max(0, Math.round(safeKm));
+          const r = computeDeliveryFee(deliverySettings, kmBilled, calculatedItemsTotal);
           if (r.fee === -1) {
             throw new Error(
               "La distancia indicada supera el maximo permitido para delivery en esta sucursal.",
@@ -343,12 +354,13 @@ export const ordersService = {
           if (r.fee === -4) {
             throw new Error("La zona de entrega seleccionada no es valida.");
           }
-          deliveryFee = r.fee < 0 ? 0 : r.fee;
+          deliveryFee = Math.round(r.fee < 0 ? 0 : r.fee);
         }
       }
     }
 
-    const grandTotal = Math.round((calculatedItemsTotal + deliveryFee) * 100) / 100;
+    deliveryFee = Math.round(deliveryFee);
+    const grandTotal = calculatedItemsTotal + deliveryFee;
     const totalToUse = grandTotal;
 
     let receiptUrl: string | null = null;

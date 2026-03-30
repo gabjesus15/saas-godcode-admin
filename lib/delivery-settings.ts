@@ -505,5 +505,5 @@ export function orderItemsSubtotalFromPayload(
 		const q = Math.max(1, Number(it.quantity) || 1);
 		sum += p * q;
 	}
-	return Math.round(sum * 100) / 100;
+	return Math.round(sum);
 }

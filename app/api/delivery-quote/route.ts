@@ -9,6 +9,10 @@ import {
 import { haversineKm, isValidLatLng } from "../../../lib/geo";
 import { supabaseAdmin } from "../../../lib/supabase-admin";
 
+function roundMoney(n: number): number {
+	return Math.round(Number(n) || 0);
+}
+
 /**
  * Cotización pública de delivery (sin auth).
  * - Estrategia `distance`: coordenadas de entrega vs origen de la sucursal.
@@ -80,7 +84,7 @@ export async function POST(req: NextRequest) {
 					namedAreaResolution: "address_matched",
 					namedAreaId: resolved.namedAreaId,
 					label: resolved.label,
-					fee: resolved.fee,
+					fee: roundMoney(resolved.fee),
 					waivedFreeShipping: resolved.waivedFreeShipping,
 				});
 			}
@@ -108,7 +112,7 @@ export async function POST(req: NextRequest) {
 				mode: "named_area",
 				namedAreaResolution: "manual_select",
 				namedAreaId,
-				fee: r.fee,
+				fee: roundMoney(r.fee),
 				waivedFreeShipping: r.waivedFreeShipping,
 			});
 		}
@@ -129,8 +133,21 @@ export async function POST(req: NextRequest) {
 			);
 		}
 
-		const distanceKm = haversineKm({ lat: olat, lng: olng }, { lat, lng });
-		const r = computeDeliveryFee(settings, distanceKm, subtotal);
+		const preciseKm = haversineKm({ lat: olat, lng: olng }, { lat, lng });
+		if (
+			settings.maxDeliveryKm != null &&
+			preciseKm > settings.maxDeliveryKm + 1e-9
+		) {
+			return NextResponse.json(
+				{
+					error: "Distancia fuera del máximo permitido",
+					code: -1,
+				},
+				{ status: 400 },
+			);
+		}
+		const billedKm = Math.max(0, Math.round(preciseKm));
+		const r = computeDeliveryFee(settings, billedKm, subtotal);
 
 		if (r.fee < 0) {
 			return NextResponse.json(
@@ -148,8 +165,8 @@ export async function POST(req: NextRequest) {
 		return NextResponse.json({
 			ok: true,
 			mode: "distance",
-			distanceKm,
-			fee: r.fee,
+			distanceKm: billedKm,
+			fee: roundMoney(r.fee),
 			waivedFreeShipping: r.waivedFreeShipping,
 		});
 	} catch (err) {

@@ -943,8 +943,8 @@ export function CartModal({
         deliverySettings.enabled &&
         deliveryPriceMode === "distance"
           ? quotedRouteKm != null && Number(quotedRouteKm) > 0
-            ? Number(quotedRouteKm)
-            : Number(String(deliveryKmManual).replace(",", ".")) || 0
+            ? Math.round(Number(quotedRouteKm))
+            : Math.round(Number(String(deliveryKmManual).replace(",", ".")) || 0)
           : 0;
       const deliverySnapshot =
         snapFulfillment === "delivery" && deliverySettings.enabled
@@ -1344,7 +1344,7 @@ export function CartModal({
                       quotedRouteKm > 0 ? (
                         <div className="cart-delivery-quote">
                           <span>Distancia aprox. (línea recta)</span>
-                          <strong>{Math.round(Number(quotedRouteKm) * 10) / 10} km</strong>
+                          <strong>{Math.round(Number(quotedRouteKm))} km</strong>
                         </div>
                       ) : null}
                       <div className="cart-delivery-quote cart-delivery-fee-row">

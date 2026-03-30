@@ -337,11 +337,12 @@ export function CartProvider({
 
     const cartTotal = useMemo(() => {
       if (!Array.isArray(store.cart)) return 0;
-      return store.cart.reduce((acc, item) => {
+      const raw = store.cart.reduce((acc, item) => {
         const price = getPrice(item);
         if (typeof item.quantity !== "number" || item.quantity < 1) return acc;
         return acc + price * item.quantity;
       }, 0);
+      return Math.round(raw);
     }, [store.cart, getPrice]);
 
     const cartSubtotal = cartTotal;
@@ -454,7 +455,7 @@ export function CartProvider({
               return;
             }
             setAddrQuote({
-              fee: Number(j.fee) || 0,
+              fee: Math.round(Number(j.fee) || 0),
               label: String(j.label || ""),
               waived: Boolean(j.waivedFreeShipping),
             });
@@ -546,8 +547,8 @@ export function CartProvider({
               return;
             }
             setDistQuote({
-              fee: Number(j.fee) || 0,
-              distanceKm: Number(j.distanceKm) || 0,
+              fee: Math.round(Number(j.fee) || 0),
+              distanceKm: Math.round(Number(j.distanceKm) || 0),
               waived: Boolean(j.waivedFreeShipping),
             });
           })
@@ -606,7 +607,7 @@ export function CartProvider({
         if (pricingMode === "named") {
           if (parsedDelivery.namedAreaResolution === "address_matched") {
             return {
-              deliveryFee: addrQuote?.fee ?? 0,
+              deliveryFee: Math.round(addrQuote?.fee ?? 0),
               waivedFree: addrQuote?.waived ?? false,
               namedLabel: addrQuote?.label ?? null,
               quotedRouteKm: null,
@@ -620,7 +621,7 @@ export function CartProvider({
             namedAreaId: id,
           });
           return {
-            deliveryFee: r.fee < 0 ? 0 : r.fee,
+            deliveryFee: Math.round(r.fee < 0 ? 0 : r.fee),
             waivedFree: r.waivedFreeShipping,
             namedLabel:
               id != null
@@ -640,10 +641,10 @@ export function CartProvider({
         if (hasGps && selectedBranchId) {
           if (distQuote) {
             return {
-              deliveryFee: distQuote.fee,
+              deliveryFee: Math.round(distQuote.fee),
               waivedFree: distQuote.waived,
               namedLabel: null,
-              quotedRouteKm: distQuote.distanceKm,
+              quotedRouteKm: Math.round(distQuote.distanceKm),
               outOfZone: false,
               quoteLoading: false,
               quoteError: null,
@@ -658,7 +659,8 @@ export function CartProvider({
               deliveryFee: 0,
               waivedFree: false,
               namedLabel: null,
-              quotedRouteKm: haversineKmVal,
+              quotedRouteKm:
+                haversineKmVal != null ? Math.round(haversineKmVal) : null,
               outOfZone: apiOutOfZone,
               quoteLoading: false,
               quoteError: distError,
@@ -668,27 +670,38 @@ export function CartProvider({
             deliveryFee: 0,
             waivedFree: false,
             namedLabel: null,
-            quotedRouteKm: haversineKmVal,
+            quotedRouteKm:
+              haversineKmVal != null ? Math.round(haversineKmVal) : null,
             outOfZone: false,
             quoteLoading: true,
             quoteError: null,
           };
         }
 
-        const kmLocal =
+        const kmRaw =
           haversineKmVal ??
           (Number.isFinite(manualKmParsed) ? manualKmParsed : 0);
-        const r = computeDeliveryFee(parsedDelivery, kmLocal, cartSubtotal);
+        if (
+          parsedDelivery.maxDeliveryKm != null &&
+          kmRaw > parsedDelivery.maxDeliveryKm + 1e-9
+        ) {
+          return {
+            deliveryFee: 0,
+            waivedFree: false,
+            namedLabel: null,
+            quotedRouteKm: Math.max(0, Math.round(kmRaw)),
+            outOfZone: true,
+            quoteLoading: false,
+            quoteError: null,
+          };
+        }
+        const kmBilled = Math.max(0, Math.round(kmRaw));
+        const r = computeDeliveryFee(parsedDelivery, kmBilled, cartSubtotal);
         return {
-          deliveryFee: r.fee < 0 ? 0 : r.fee,
+          deliveryFee: Math.round(r.fee < 0 ? 0 : r.fee),
           waivedFree: r.waivedFreeShipping,
           namedLabel: null,
-          quotedRouteKm:
-            haversineKmVal != null
-              ? haversineKmVal
-              : Number.isFinite(manualKmParsed)
-                ? manualKmParsed
-                : null,
+          quotedRouteKm: kmBilled,
           outOfZone: r.fee === -1,
           quoteLoading: false,
           quoteError: null,
@@ -711,7 +724,7 @@ export function CartProvider({
         store.deliveryLng,
       ]);
 
-    const grandTotal = Math.round(cartSubtotal + deliveryFee);
+    const grandTotal = Math.round(cartSubtotal) + Math.round(deliveryFee);
 
     const totalItems = useMemo(() => {
       if (!Array.isArray(store.cart)) return 0;
@@ -731,7 +744,7 @@ export function CartProvider({
         const price = getPrice(item);
         const qty = typeof item.quantity === "number" && item.quantity > 0 ? item.quantity : 1;
         const name = typeof item.name === "string" ? item.name : "Producto";
-        const subtotal = price * qty;
+        const subtotal = Math.round(price * qty);
         message += `+ ${qty} x ${name.toUpperCase()}\n`;
         if (typeof item.description === "string" && item.description.trim()) {
           message += `   (Hacer: ${item.description})\n`;
