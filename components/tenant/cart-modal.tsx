@@ -306,6 +306,23 @@ export function CartModal({
     const [deliveryAddressPrecision, setDeliveryAddressPrecision] = useState<
       "exact" | "approx" | null
     >(null);
+    /** Evita geocodificar por calle/comuna justo después de elegir sugerencia o GPS. */
+    const suppressLineGeocodeUntilRef = useRef(0);
+    const [lineGeocodeLoading, setLineGeocodeLoading] = useState(false);
+    const [debouncedDeliveryLine, setDebouncedDeliveryLine] = useState({
+      line1: "",
+      commune: "",
+    });
+
+    useEffect(() => {
+      const t = window.setTimeout(() => {
+        setDebouncedDeliveryLine({
+          line1: deliveryLine1.trim(),
+          commune: deliveryCommune.trim(),
+        });
+      }, 520);
+      return () => clearTimeout(t);
+    }, [deliveryLine1, deliveryCommune]);
 
     useEffect(() => {
       const t = window.setTimeout(
@@ -330,6 +347,9 @@ export function CartModal({
         if (!cancelled) setAddressSearchLoading(true);
       }, 0);
       const params = new URLSearchParams({ q });
+      if (selectedBranch?.id) {
+        params.set("branchId", selectedBranch.id);
+      }
       if (selectedBranch?.origin_lat != null && selectedBranch?.origin_lng != null) {
         const olat = Number(selectedBranch.origin_lat);
         const olng = Number(selectedBranch.origin_lng);
@@ -357,6 +377,7 @@ export function CartModal({
     }, [
       debouncedAddressQ,
       deliveryPriceMode,
+      selectedBranch?.id,
       selectedBranch?.origin_lat,
       selectedBranch?.origin_lng,
     ]);
@@ -370,6 +391,70 @@ export function CartModal({
       document.addEventListener("mousedown", onDoc);
       return () => document.removeEventListener("mousedown", onDoc);
     }, [addressHitsOpen]);
+
+    /** Si el cliente completa el número en calle/comuna, recalculamos coordenadas y el envío. */
+    useEffect(() => {
+      if (deliveryPriceMode !== "distance") return;
+      if (fulfillment !== "delivery") return;
+      if (Date.now() < suppressLineGeocodeUntilRef.current) return;
+
+      const line1 = debouncedDeliveryLine.line1;
+      const commune = debouncedDeliveryLine.commune;
+      if (line1.length < 4 || commune.length < 2) return;
+      if (!/\d/.test(line1)) return;
+
+      const full = `${line1}, ${commune}`.trim();
+      if (full.length < 8) return;
+
+      let cancelled = false;
+      const loadT = window.setTimeout(() => {
+        if (!cancelled) setLineGeocodeLoading(true);
+      }, 0);
+
+      const params = new URLSearchParams({ q: full });
+      if (selectedBranch?.id) {
+        params.set("branchId", selectedBranch.id);
+      }
+      if (selectedBranch?.origin_lat != null && selectedBranch?.origin_lng != null) {
+        const olat = Number(selectedBranch.origin_lat);
+        const olng = Number(selectedBranch.origin_lng);
+        if (Number.isFinite(olat) && Number.isFinite(olng)) {
+          params.set("nearLat", String(olat));
+          params.set("nearLon", String(olng));
+        }
+      }
+
+      fetch(`/api/address-search?${params}`)
+        .then((r) => r.json())
+        .then((j: { results?: AddressSearchHit[] }) => {
+          if (cancelled) return;
+          const first = Array.isArray(j.results) ? j.results[0] : undefined;
+          if (!first) return;
+          setDeliveryCoords(first.lat, first.lng);
+          setDeliveryAddressPrecision(
+            first.precision === "exact" ? "exact" : "approx"
+          );
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (!cancelled) {
+            window.setTimeout(() => setLineGeocodeLoading(false), 0);
+          }
+        });
+
+      return () => {
+        cancelled = true;
+        clearTimeout(loadT);
+      };
+    }, [
+      debouncedDeliveryLine,
+      deliveryPriceMode,
+      fulfillment,
+      selectedBranch?.id,
+      selectedBranch?.origin_lat,
+      selectedBranch?.origin_lng,
+      setDeliveryCoords,
+    ]);
 
     // --- Lógica para filtrar productos desactivados y actualizar precios ---
     const [filteredCart, setFilteredCart] = useState<CartLineItem[]>(cart);
@@ -639,12 +724,14 @@ export function CartModal({
           .then((data: { line1?: string; commune?: string } | null) => {
             if (data?.line1?.trim()) setDeliveryLine1(data.line1.trim());
             if (data?.commune?.trim()) setDeliveryCommune(data.commune.trim());
+            suppressLineGeocodeUntilRef.current = Date.now() + 1200;
             setGeoHint(
               "Ubicacion guardada. Revisa calle, comuna y el costo de envio."
             );
             setShowDeliveryReference(true);
           })
           .catch(() => {
+            suppressLineGeocodeUntilRef.current = Date.now() + 1200;
             setGeoHint(
               "Ubicacion guardada. Completa calle y comuna a mano si no se rellenaron."
             );
@@ -675,6 +762,7 @@ export function CartModal({
 
   const selectAddressSearchHit = useCallback(
     (hit: AddressSearchHit) => {
+      suppressLineGeocodeUntilRef.current = Date.now() + 850;
       setDeliveryCoords(hit.lat, hit.lng);
       setDeliveryLine1(hit.line1);
       setDeliveryCommune(hit.commune);
@@ -1216,6 +1304,13 @@ export function CartModal({
                         onChange={(e) => setDeliveryCommune(e.target.value)}
                         placeholder="Ej: Santiago"
                       />
+                      {fulfillment === "delivery" &&
+                      deliveryPriceMode === "distance" &&
+                      lineGeocodeLoading ? (
+                        <p className="cart-geo-hint">
+                          Actualizando ubicación con calle y número (recalculamos envío)…
+                        </p>
+                      ) : null}
 
                       <label className="cart-field-label">
                         Indicaciones para el repartidor (obligatorio)
