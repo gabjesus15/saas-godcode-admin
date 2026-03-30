@@ -392,7 +392,6 @@ export function CartProvider({
       distanceKm: number;
       waived: boolean;
     } | null>(null);
-    const [distLoading, setDistLoading] = useState(false);
     const [distError, setDistError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -494,7 +493,6 @@ export function CartProvider({
           if (!cancelled) {
             setDistQuote(null);
             setDistError(null);
-            setDistLoading(false);
           }
         }, 0);
       };
@@ -520,7 +518,8 @@ export function CartProvider({
         };
       }
       const t = window.setTimeout(() => {
-        setDistLoading(true);
+        if (cancelled) return;
+        setDistQuote(null);
         setDistError(null);
         fetch("/api/delivery-quote", {
           method: "POST",
@@ -557,11 +556,8 @@ export function CartProvider({
               setDistQuote(null);
               setDistError("Error de red al cotizar.");
             }
-          })
-          .finally(() => {
-            if (!cancelled) setDistLoading(false);
           });
-      }, 320);
+      }, 0);
 
       return () => {
         cancelled = true;
@@ -637,15 +633,45 @@ export function CartProvider({
           };
         }
 
-        if (distQuote) {
+        // Modo distancia: con coordenadas GPS la tarifa debe venir solo del servidor
+        // (/api/delivery-quote). Antes se mezclaba haversine local y podía mostrar $0 o un
+        // monto distinto al que valida el checkout.
+        const hasGps = isValidLatLng(store.deliveryLat, store.deliveryLng);
+        if (hasGps && selectedBranchId) {
+          if (distQuote) {
+            return {
+              deliveryFee: distQuote.fee,
+              waivedFree: distQuote.waived,
+              namedLabel: null,
+              quotedRouteKm: distQuote.distanceKm,
+              outOfZone: false,
+              quoteLoading: false,
+              quoteError: null,
+            };
+          }
+          if (distError) {
+            const apiOutOfZone =
+              /distancia fuera|fuera del m[aá]ximo|m[aá]ximo permitido/i.test(
+                distError,
+              );
+            return {
+              deliveryFee: 0,
+              waivedFree: false,
+              namedLabel: null,
+              quotedRouteKm: haversineKmVal,
+              outOfZone: apiOutOfZone,
+              quoteLoading: false,
+              quoteError: distError,
+            };
+          }
           return {
-            deliveryFee: distQuote.fee,
-            waivedFree: distQuote.waived,
+            deliveryFee: 0,
+            waivedFree: false,
             namedLabel: null,
-            quotedRouteKm: distQuote.distanceKm,
+            quotedRouteKm: haversineKmVal,
             outOfZone: false,
-            quoteLoading: distLoading,
-            quoteError: distError,
+            quoteLoading: true,
+            quoteError: null,
           };
         }
 
@@ -664,11 +690,8 @@ export function CartProvider({
                 ? manualKmParsed
                 : null,
           outOfZone: r.fee === -1,
-          quoteLoading:
-            distLoading &&
-            isValidLatLng(store.deliveryLat, store.deliveryLng) &&
-            haversineKmVal != null,
-          quoteError: distError,
+          quoteLoading: false,
+          quoteError: null,
         };
       }, [
         store.fulfillment,
@@ -676,11 +699,11 @@ export function CartProvider({
         parsedDelivery,
         pricingMode,
         cartSubtotal,
+        selectedBranchId,
         addrQuote,
         addrLoading,
         addrError,
         distQuote,
-        distLoading,
         distError,
         haversineKmVal,
         manualKmParsed,

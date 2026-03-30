@@ -215,3 +215,105 @@ export async function resolveNamedAreaFromAddress(
 		waivedFreeShipping: r.waivedFreeShipping,
 	};
 }
+
+/** Resultado de búsqueda (Photon) para autocompletar dirección en checkout público. */
+export type PhotonAddressHit = {
+	lat: number;
+	lng: number;
+	label: string;
+	line1: string;
+	commune: string;
+};
+
+const PHOTON_SEARCH_MIN_LEN = 3;
+
+function buildLine1FromPhotonProps(p: Record<string, unknown>): string {
+	const street = typeof p.street === "string" ? p.street.trim() : "";
+	const hn = typeof p.housenumber === "string" ? p.housenumber.trim() : "";
+	const joined = [street, hn].filter(Boolean).join(" ").trim();
+	if (joined) return joined.slice(0, 200);
+	const name = typeof p.name === "string" ? p.name.trim() : "";
+	return name.slice(0, 200);
+}
+
+function buildCommuneFromPhotonProps(p: Record<string, unknown>): string {
+	const city =
+		(typeof p.city === "string" && p.city.trim()) ||
+		(typeof p.town === "string" && p.town.trim()) ||
+		(typeof p.district === "string" && p.district.trim()) ||
+		(typeof p.locality === "string" && p.locality.trim()) ||
+		(typeof p.county === "string" && p.county.trim()) ||
+		"";
+	return city.slice(0, 120);
+}
+
+/**
+ * Búsqueda directa en Photon (mismo origen que la resolución de zonas por dirección).
+ * Opcional: `nearLat`/`nearLon` para sesgar resultados hacia la sucursal.
+ */
+export async function photonSearchAddressHits(
+	address: string,
+	options?: { nearLat?: number | null; nearLon?: number | null },
+): Promise<PhotonAddressHit[] | null> {
+	const q = address.trim();
+	if (q.length < PHOTON_SEARCH_MIN_LEN) return null;
+
+	const url = new URL(PHOTON);
+	url.searchParams.set("q", q.slice(0, 200));
+	url.searchParams.set("lang", "default");
+	url.searchParams.set("limit", "8");
+	const nLat = options?.nearLat != null ? Number(options.nearLat) : NaN;
+	const nLon = options?.nearLon != null ? Number(options.nearLon) : NaN;
+	if (Number.isFinite(nLat) && Number.isFinite(nLon)) {
+		url.searchParams.set("lat", String(nLat));
+		url.searchParams.set("lon", String(nLon));
+	}
+
+	const ctrl = new AbortController();
+	const t = setTimeout(() => ctrl.abort(), 12_000);
+	try {
+		const res = await fetch(url.toString(), {
+			signal: ctrl.signal,
+			cache: "no-store",
+			headers: { Accept: "application/json" },
+		});
+		clearTimeout(t);
+		if (!res.ok) return null;
+		const data = (await res.json()) as { features?: unknown[] };
+		const feats = Array.isArray(data.features) ? data.features : [];
+		const hits: PhotonAddressHit[] = [];
+		for (const f of feats) {
+			if (!f || typeof f !== "object") continue;
+			const feat = f as {
+				geometry?: { type?: string; coordinates?: unknown };
+				properties?: unknown;
+			};
+			if (feat.geometry?.type !== "Point") continue;
+			const coords = feat.geometry?.coordinates;
+			if (!Array.isArray(coords) || coords.length < 2) continue;
+			const lng = Number(coords[0]);
+			const lat = Number(coords[1]);
+			if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+			const pr = feat.properties;
+			if (!pr || typeof pr !== "object" || Array.isArray(pr)) continue;
+			const props = pr as Record<string, unknown>;
+			const line1 = buildLine1FromPhotonProps(props);
+			const commune = buildCommuneFromPhotonProps(props);
+			const label =
+				[line1, commune].filter(Boolean).join(", ").trim() ||
+				(typeof props.name === "string" ? props.name.trim() : "") ||
+				"Ubicación";
+			hits.push({
+				lat,
+				lng,
+				label: label.slice(0, 220),
+				line1: line1 || label.slice(0, 200),
+				commune,
+			});
+		}
+		return hits.length > 0 ? hits : null;
+	} catch {
+		clearTimeout(t);
+		return null;
+	}
+}

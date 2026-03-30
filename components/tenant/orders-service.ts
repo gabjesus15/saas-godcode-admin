@@ -211,6 +211,8 @@ export const ordersService = {
     const deliverySettings = normalizeDeliverySettings(branchCfg?.delivery_settings);
     const deliveryMode = isDeliveryOrderType(orderData.order_type);
 
+    const MIN_DRIVER_REFERENCE_LEN = 6;
+
     let deliveryFee = 0;
     let namedId: string | null =
       typeof orderData.delivery_named_area_id === "string" && orderData.delivery_named_area_id.trim()
@@ -223,6 +225,18 @@ export const ordersService = {
       if (!deliverySettings.enabled) {
         throw new Error("El delivery no esta habilitado para esta sucursal.");
       }
+
+      const daRef = orderData.delivery_address;
+      const refForDriver =
+        daRef && typeof daRef === "object"
+          ? String((daRef as Record<string, unknown>).reference ?? "").trim()
+          : "";
+      if (refForDriver.length < MIN_DRIVER_REFERENCE_LEN) {
+        throw new Error(
+          "Agrega indicaciones para el repartidor (depto, timbre, color de porton, etc.). Minimo 6 caracteres.",
+        );
+      }
+
       const km = Number(orderData.delivery_km);
       const safeKm = Number.isFinite(km) && km >= 0 ? km : 0;
       const priceMode = effectiveDeliveryPricingMode(deliverySettings);
@@ -267,25 +281,71 @@ export const ordersService = {
         }
       }
 
-      const r =
-        priceMode === "named"
-          ? computeDeliveryFee(deliverySettings, 0, calculatedItemsTotal, {
-              namedAreaId: namedId,
-            })
-          : computeDeliveryFee(deliverySettings, safeKm, calculatedItemsTotal);
-      if (r.fee === -1) {
-        throw new Error("La distancia indicada supera el maximo permitido para delivery en esta sucursal.");
+      if (priceMode === "named") {
+        const r = computeDeliveryFee(deliverySettings, 0, calculatedItemsTotal, {
+          namedAreaId: namedId,
+        });
+        if (r.fee === -2) {
+          throw new Error("El subtotal del pedido no alcanza el minimo requerido para delivery.");
+        }
+        if (r.fee === -3) {
+          throw new Error("Debes elegir una zona de entrega.");
+        }
+        if (r.fee === -4) {
+          throw new Error("La zona de entrega seleccionada no es valida.");
+        }
+        deliveryFee = r.fee < 0 ? 0 : r.fee;
+      } else {
+        const dlat = orderData.delivery_lat;
+        const dlng = orderData.delivery_lng;
+        const hasLatLng =
+          typeof dlat === "number" &&
+          typeof dlng === "number" &&
+          Number.isFinite(dlat) &&
+          Number.isFinite(dlng);
+
+        if (hasLatLng && typeof window !== "undefined") {
+          const qRes = await fetch(`${window.location.origin}/api/delivery-quote`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              branchId: orderData.branch_id,
+              subtotal: calculatedItemsTotal,
+              lat: dlat,
+              lng: dlng,
+            }),
+          });
+          const qJson = (await qRes.json().catch(() => ({}))) as {
+            ok?: boolean;
+            fee?: number;
+            error?: string;
+          };
+          if (!qRes.ok || !qJson.ok) {
+            throw new Error(
+              qJson.error ||
+                "No se pudo validar el envio por distancia. Verifica que estes dentro del area de reparto.",
+            );
+          }
+          deliveryFee = Math.max(0, Number(qJson.fee) || 0);
+        } else {
+          const r = computeDeliveryFee(deliverySettings, safeKm, calculatedItemsTotal);
+          if (r.fee === -1) {
+            throw new Error(
+              "La distancia indicada supera el maximo permitido para delivery en esta sucursal.",
+            );
+          }
+          if (r.fee === -2) {
+            throw new Error("El subtotal del pedido no alcanza el minimo requerido para delivery.");
+          }
+          if (r.fee === -3) {
+            throw new Error("Debes elegir una zona de entrega.");
+          }
+          if (r.fee === -4) {
+            throw new Error("La zona de entrega seleccionada no es valida.");
+          }
+          deliveryFee = r.fee < 0 ? 0 : r.fee;
+        }
       }
-      if (r.fee === -2) {
-        throw new Error("El subtotal del pedido no alcanza el minimo requerido para delivery.");
-      }
-      if (r.fee === -3) {
-        throw new Error("Debes elegir una zona de entrega.");
-      }
-      if (r.fee === -4) {
-        throw new Error("La zona de entrega seleccionada no es valida.");
-      }
-      deliveryFee = r.fee;
     }
 
     const grandTotal = Math.round((calculatedItemsTotal + deliveryFee) * 100) / 100;

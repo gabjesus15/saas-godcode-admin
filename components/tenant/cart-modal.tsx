@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,6 +20,7 @@ import {
   Plus,
   // ShoppingBag,
   Store,
+  Search,
   Trash2,
   Truck,
   Upload,
@@ -67,6 +68,15 @@ type CartModalViewState = {
     handoff_code: string | null;
     fulfillment: CartFulfillment;
   } | null;
+};
+
+/** Coincide con `PhotonAddressHit` en `lib/delivery-area-resolve` / `GET /api/address-search`. */
+type AddressSearchHit = {
+  lat: number;
+  lng: number;
+  label: string;
+  line1: string;
+  commune: string;
 };
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80";
@@ -265,7 +275,6 @@ export function CartModal({
       setDeliveryNamedAreaId,
       deliveryKmManual,
       setDeliveryKmManual,
-      showDeliveryReference,
       setShowDeliveryReference,
       deliveryWaivedFree,
       deliveryNamedAreaLabel,
@@ -285,6 +294,76 @@ export function CartModal({
 
     const [geoHint, setGeoHint] = useState<string | null>(null);
 
+    const [addressSearchInput, setAddressSearchInput] = useState("");
+    const [debouncedAddressQ, setDebouncedAddressQ] = useState("");
+    const [addressHits, setAddressHits] = useState<AddressSearchHit[]>([]);
+    const [addressSearchLoading, setAddressSearchLoading] = useState(false);
+    const [addressHitsOpen, setAddressHitsOpen] = useState(false);
+    const addressSearchWrapRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+      const t = window.setTimeout(
+        () => setDebouncedAddressQ(addressSearchInput.trim()),
+        380
+      );
+      return () => clearTimeout(t);
+    }, [addressSearchInput]);
+
+    useEffect(() => {
+      if (deliveryPriceMode !== "distance") return;
+      const q = debouncedAddressQ;
+      if (q.length < 3) {
+        const clearT = window.setTimeout(() => {
+          setAddressHits([]);
+          setAddressSearchLoading(false);
+        }, 0);
+        return () => clearTimeout(clearT);
+      }
+      let cancelled = false;
+      const loadT = window.setTimeout(() => {
+        if (!cancelled) setAddressSearchLoading(true);
+      }, 0);
+      const params = new URLSearchParams({ q });
+      if (selectedBranch?.origin_lat != null && selectedBranch?.origin_lng != null) {
+        const olat = Number(selectedBranch.origin_lat);
+        const olng = Number(selectedBranch.origin_lng);
+        if (Number.isFinite(olat) && Number.isFinite(olng)) {
+          params.set("nearLat", String(olat));
+          params.set("nearLon", String(olng));
+        }
+      }
+      fetch(`/api/address-search?${params}`)
+        .then((r) => r.json())
+        .then((j: { ok?: boolean; results?: AddressSearchHit[] }) => {
+          if (cancelled) return;
+          setAddressHits(Array.isArray(j.results) ? j.results : []);
+        })
+        .catch(() => {
+          if (!cancelled) setAddressHits([]);
+        })
+        .finally(() => {
+          if (!cancelled) setAddressSearchLoading(false);
+        });
+      return () => {
+        cancelled = true;
+        clearTimeout(loadT);
+      };
+    }, [
+      debouncedAddressQ,
+      deliveryPriceMode,
+      selectedBranch?.origin_lat,
+      selectedBranch?.origin_lng,
+    ]);
+
+    useEffect(() => {
+      function onDoc(e: MouseEvent) {
+        if (!addressHitsOpen) return;
+        const el = addressSearchWrapRef.current;
+        if (el && !el.contains(e.target as Node)) setAddressHitsOpen(false);
+      }
+      document.addEventListener("mousedown", onDoc);
+      return () => document.removeEventListener("mousedown", onDoc);
+    }, [addressHitsOpen]);
 
     // --- Lógica para filtrar productos desactivados y actualizar precios ---
     const [filteredCart, setFilteredCart] = useState<CartLineItem[]>(cart);
@@ -472,11 +551,15 @@ export function CartModal({
   const canCheckout = isShiftOpen;
 
   const minOrder = deliverySettings.minOrderSubtotal ?? 0;
+  const MIN_DRIVER_REFERENCE_LEN = 6;
   const meetsMinDelivery =
     fulfillment !== "delivery" || cartSubtotal + 1e-9 >= minOrder;
   const deliveryAddressOk =
     fulfillment !== "delivery" ||
     (deliveryLine1.trim().length >= 4 && deliveryCommune.trim().length >= 2);
+  const deliveryReferenceOk =
+    fulfillment !== "delivery" ||
+    deliveryReference.trim().length >= MIN_DRIVER_REFERENCE_LEN;
 
   const namedManualOk =
     deliveryPriceMode !== "named" ||
@@ -510,13 +593,16 @@ export function CartModal({
   const distanceReady =
     deliveryPriceMode !== "distance" ||
     (!isDeliveryOutOfZone &&
-      (kmManualValid() || isValidCoordsForQuote()) &&
-      !deliveryQuoteError);
+      !deliveryQuoteError &&
+      (isValidCoordsForQuote()
+        ? !deliveryQuoteLoading
+        : kmManualValid()));
 
   const canProceedFulfillment =
     fulfillment !== "delivery" ||
     (deliveryAddressOk &&
       meetsMinDelivery &&
+      deliveryReferenceOk &&
       namedManualOk &&
       addressMatchedOk &&
       distanceReady);
@@ -549,11 +635,13 @@ export function CartModal({
             setGeoHint(
               "Ubicacion guardada. Revisa calle, comuna y el costo de envio."
             );
+            setShowDeliveryReference(true);
           })
           .catch(() => {
             setGeoHint(
               "Ubicacion guardada. Completa calle y comuna a mano si no se rellenaron."
             );
+            setShowDeliveryReference(true);
           });
       },
       (err) => {
@@ -575,7 +663,30 @@ export function CartModal({
     setDeliveryCoords,
     setDeliveryLine1,
     setDeliveryCommune,
+    setShowDeliveryReference,
   ]);
+
+  const selectAddressSearchHit = useCallback(
+    (hit: AddressSearchHit) => {
+      setDeliveryCoords(hit.lat, hit.lng);
+      setDeliveryLine1(hit.line1);
+      setDeliveryCommune(hit.commune);
+      setDeliveryKmManual("");
+      setAddressSearchInput(hit.label);
+      setAddressHitsOpen(false);
+      setGeoHint(
+        "Direccion encontrada. Revisa calle, comuna y el costo de envio abajo."
+      );
+      setShowDeliveryReference(true);
+    },
+    [
+      setDeliveryCoords,
+      setDeliveryCommune,
+      setDeliveryKmManual,
+      setDeliveryLine1,
+      setShowDeliveryReference,
+    ]
+  );
 
   const activeInfo = useMemo<ActiveSessionInfo>(() => {
     const info = businessInfo || {};
@@ -746,7 +857,7 @@ export function CartModal({
               formatted_address: sanitizeUserText(addrFull),
               line1: sanitizeUserText(deliveryLine1),
               commune: sanitizeUserText(deliveryCommune),
-              ...(showDeliveryReference && deliveryReference.trim()
+              ...(deliveryReference.trim()
                 ? { reference: sanitizeUserText(deliveryReference) }
                 : {}),
               lat: deliveryLat,
@@ -980,14 +1091,75 @@ export function CartModal({
                             Usar mi ubicación (recomendado)
                           </button>
                           {geoHint ? <p className="cart-geo-hint">{geoHint}</p> : null}
-                          <label className="cart-field-label">O indicá la distancia en km</label>
-                          <input
-                            className="form-input"
-                            inputMode="decimal"
-                            value={deliveryKmManual}
-                            onChange={(e) => setDeliveryKmManual(e.target.value)}
-                            placeholder="Ej: 3,5"
-                          />
+                          <p className="cart-delivery-note">
+                            O buscá tu calle (mismo buscador OpenStreetMap / Photon que usamos
+                            para ubicar direcciones). Elegí un resultado y calculamos la distancia
+                            y el envío.
+                          </p>
+                          <label className="cart-field-label" htmlFor="cart-address-search">
+                            Buscar dirección
+                          </label>
+                          <div
+                            className="cart-address-search-wrap"
+                            ref={addressSearchWrapRef}
+                          >
+                            <div className="cart-address-search-input-row">
+                              <Search
+                                size={18}
+                                className="cart-address-search-icon"
+                                aria-hidden
+                              />
+                              <input
+                                id="cart-address-search"
+                                className="form-input cart-address-search-input"
+                                autoComplete="street-address"
+                                value={addressSearchInput}
+                                onChange={(e) => {
+                                  setAddressSearchInput(e.target.value);
+                                  setAddressHitsOpen(true);
+                                }}
+                                onFocus={() => setAddressHitsOpen(true)}
+                                placeholder="Ej: Av. Principal 123, Las Condes"
+                              />
+                            </div>
+                            {addressSearchLoading ? (
+                              <p className="cart-geo-hint">Buscando direcciones…</p>
+                            ) : null}
+                            {addressHitsOpen && addressHits.length > 0 ? (
+                              <ul
+                                className="cart-address-hits"
+                                aria-label="Sugerencias de dirección"
+                              >
+                                {addressHits.map((hit, idx) => (
+                                  <li key={`${hit.lat}-${hit.lng}-${idx}`}>
+                                    <button
+                                      type="button"
+                                      className="cart-address-hit-btn"
+                                      onClick={() => selectAddressSearchHit(hit)}
+                                    >
+                                      {hit.label}
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : null}
+                          </div>
+                          <details className="cart-delivery-km-fallback">
+                            <summary className="cart-delivery-km-fallback-summary">
+                              No aparece mi dirección — indicar km aproximados
+                            </summary>
+                            <label className="cart-field-label" htmlFor="cart-km-manual">
+                              Distancia aproximada (km)
+                            </label>
+                            <input
+                              id="cart-km-manual"
+                              className="form-input"
+                              inputMode="decimal"
+                              value={deliveryKmManual}
+                              onChange={(e) => setDeliveryKmManual(e.target.value)}
+                              placeholder="Ej: 3,5"
+                            />
+                          </details>
                         </>
                       ) : null}
 
@@ -1006,26 +1178,21 @@ export function CartModal({
                         placeholder="Ej: Santiago"
                       />
 
-                      {!showDeliveryReference ? (
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-block cart-geo-btn"
-                          onClick={() => setShowDeliveryReference(true)}
-                        >
-                          Añadir indicaciones (opcional)
-                        </button>
-                      ) : (
-                        <>
-                          <label className="cart-field-label">Indicaciones para el repartidor</label>
-                          <textarea
-                            className="form-input"
-                            rows={2}
-                            value={deliveryReference}
-                            onChange={(e) => setDeliveryReference(e.target.value)}
-                            placeholder="Portón verde, timbre 402…"
-                          />
-                        </>
-                      )}
+                      <label className="cart-field-label">
+                        Indicaciones para el repartidor (obligatorio)
+                      </label>
+                      <textarea
+                        className="form-input"
+                        rows={2}
+                        value={deliveryReference}
+                        onChange={(e) => setDeliveryReference(e.target.value)}
+                        placeholder="Depto, timbre, color de portón, referencias…"
+                      />
+                      {!deliveryReferenceOk && fulfillment === "delivery" ? (
+                        <p className="cart-geo-hint">
+                          Minimo {MIN_DRIVER_REFERENCE_LEN} caracteres para que el repartidor te encuentre.
+                        </p>
+                      ) : null}
 
                       {deliveryQuoteLoading ? (
                         <p className="cart-geo-hint">Calculando envío…</p>
@@ -1120,13 +1287,19 @@ export function CartModal({
                   <div className="cash-closed-banner">
                     <AlertCircle size={16} />
                     <span>
-                      {isDeliveryOutOfZone
-                        ? "Tu ubicacion esta fuera del area de delivery de este local."
-                        : !meetsMinDelivery
-                          ? `Monto minimo para delivery: $${formatCartMoney(minOrder)}.`
-                          : deliveryQuoteError
-                            ? deliveryQuoteError
-                            : "Completa los datos de envío para continuar."}
+                      {fulfillment === "delivery" && !deliveryReferenceOk
+                        ? `Agrega indicaciones para el repartidor (minimo ${MIN_DRIVER_REFERENCE_LEN} caracteres).`
+                        : isDeliveryOutOfZone
+                          ? "Tu ubicacion esta fuera del area de delivery de este local."
+                          : !meetsMinDelivery
+                            ? `Monto minimo para delivery: $${formatCartMoney(minOrder)}.`
+                            : deliveryQuoteLoading &&
+                                deliveryPriceMode === "distance" &&
+                                isValidCoordsForQuote()
+                              ? "Calculando envio con tu ubicacion…"
+                              : deliveryQuoteError
+                                ? deliveryQuoteError
+                                : "Completa los datos de envio para continuar."}
                     </span>
                   </div>
                 ) : (
