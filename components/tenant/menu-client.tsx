@@ -54,6 +54,8 @@ interface BranchInfo {
   paypal?: { [key: string]: string } | null;
   /** ADMIN-HOOK: reglas de delivery por sucursal */
   delivery_settings?: Json | null;
+  origin_lat?: number | null;
+  origin_lng?: number | null;
 }
 
 interface BranchModalItem {
@@ -549,6 +551,16 @@ export function MenuClient({
     <CartProvider
       selectedBranchId={selectedBranch?.id ?? null}
       branchDeliverySettings={selectedBranch?.delivery_settings ?? null}
+      branchOriginLat={
+        selectedBranch?.origin_lat != null && Number.isFinite(Number(selectedBranch.origin_lat))
+          ? Number(selectedBranch.origin_lat)
+          : null
+      }
+      branchOriginLng={
+        selectedBranch?.origin_lng != null && Number.isFinite(Number(selectedBranch.origin_lng))
+          ? Number(selectedBranch.origin_lng)
+          : null
+      }
     >
       <div className="page-wrapper">
         {typeof document !== "undefined" && document.getElementById("navbar-portal-root")

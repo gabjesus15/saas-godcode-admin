@@ -248,6 +248,8 @@ export type Database = {
           map_url: string | null
           mercadopago: string | null
           name: string
+          origin_lat: number | null
+          origin_lng: number | null
           pago_movil: string | null
           payment_methods: string[] | null
           paypal: string | null
@@ -281,6 +283,8 @@ export type Database = {
           map_url?: string | null
           mercadopago?: string | null
           name: string
+          origin_lat?: number | null
+          origin_lng?: number | null
           pago_movil?: string | null
           payment_methods?: string[] | null
           paypal?: string | null
@@ -314,6 +318,8 @@ export type Database = {
           map_url?: string | null
           mercadopago?: string | null
           name?: string
+          origin_lat?: number | null
+          origin_lng?: number | null
           pago_movil?: string | null
           payment_methods?: string[] | null
           paypal?: string | null

@@ -9,13 +9,13 @@ import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 import { filterValidProductIds, isValidBranchId } from "./utils/safe-ids";
 import { mergeCartWithBranchPrices } from "./utils/cart-pricing";
 import {
-	computeDeliveryFeeFromRouteKm,
-	haversineKm,
-	parseDeliverySettings,
-} from "../../lib/tenant-delivery-settings";
+	computeDeliveryFee,
+	effectiveDeliveryPricingMode,
+	normalizeDeliverySettings,
+} from "../../lib/delivery-settings";
+import { haversineKm, isValidLatLng } from "../../lib/geo";
 import { formatCartMoney } from "./utils/format-cart-money";
 
-// --- TIPOS ---
 interface CartItem {
   id: string;
   name?: string | null;
@@ -39,20 +39,20 @@ interface CartProduct {
   is_active?: boolean | null;
 }
 
-// --- ZUSTAND STORE DEFINITION ---
-// Definimos el estado y las acciones en un store atómico
 interface CartState {
   cart: CartItem[];
   isCartOpen: boolean;
   orderNote: string;
-  storedBranchId?: string | null; // Guardamos el branchId en el store para validar persistencia
+  storedBranchId?: string | null;
   fulfillment: CartFulfillment;
   deliveryLine1: string;
   deliveryCommune: string;
   deliveryReference: string;
   deliveryLat: number | null;
   deliveryLng: number | null;
-  // Acciones
+  deliveryNamedAreaId: string | null;
+  deliveryKmManual: string;
+  showDeliveryReference: boolean;
   toggleCart?: () => void;
   addToCart?: (product: CartProduct) => void;
   decreaseQuantity?: (productId: string) => void;
@@ -66,6 +66,9 @@ interface CartState {
   setDeliveryCommune?: (value: string) => void;
   setDeliveryReference?: (value: string) => void;
   setDeliveryCoords?: (lat: number | null, lng: number | null) => void;
+  setDeliveryNamedAreaId?: (id: string | null) => void;
+  setDeliveryKmManual?: (value: string) => void;
+  setShowDeliveryReference?: (value: boolean) => void;
 }
 
 const useCartStore = create<CartState>()(
@@ -81,6 +84,9 @@ const useCartStore = create<CartState>()(
       deliveryReference: "",
       deliveryLat: null,
       deliveryLng: null,
+      deliveryNamedAreaId: null,
+      deliveryKmManual: "",
+      showDeliveryReference: false,
 
       toggleCart: () => set((state) => ({ isCartOpen: !state.isCartOpen })),
 
@@ -133,12 +139,15 @@ const useCartStore = create<CartState>()(
           deliveryReference: "",
           deliveryLat: null,
           deliveryLng: null,
+          deliveryNamedAreaId: null,
+          deliveryKmManual: "",
+          showDeliveryReference: false,
         }),
 
       setOrderNote: (note) => set({ orderNote: note }),
 
       setCart: (newCart) => set({ cart: newCart }),
-      
+
       setStoredBranchId: (id) => set({ storedBranchId: id }),
 
       setFulfillment: (value) => set({ fulfillment: value }),
@@ -150,44 +159,52 @@ const useCartStore = create<CartState>()(
       setDeliveryReference: (value) => set({ deliveryReference: value }),
 
       setDeliveryCoords: (lat, lng) => set({ deliveryLat: lat, deliveryLng: lng }),
+
+      setDeliveryNamedAreaId: (id) => set({ deliveryNamedAreaId: id }),
+
+      setDeliveryKmManual: (value) => set({ deliveryKmManual: value }),
+
+      setShowDeliveryReference: (value) => set({ showDeliveryReference: value }),
     }),
     {
-      name: "tenant_cart_storage", // Nombre único para localStorage
+      name: "tenant_cart_storage",
       storage: createJSONStorage(() => localStorage),
-      // Solo persistimos lo necesario
-      partialize: (state) => ({ 
-        cart: state.cart, 
-        orderNote: state.orderNote, 
-        storedBranchId: state.storedBranchId 
+      partialize: (state) => ({
+        cart: state.cart,
+        orderNote: state.orderNote,
+        storedBranchId: state.storedBranchId,
       }),
     }
   )
 );
 
-// --- PROVIDER COMPONENT ---
-// Mantenemos el Provider para compatibilidad con el resto de la app y para manejar
-// la lógica de validación de precios (side-effects) que requiere props del servidor.
 export function CartProvider({
   children,
   selectedBranchId,
   branchDeliverySettings,
+  branchOriginLat,
+  branchOriginLng,
 }: {
   children: React.ReactNode;
   selectedBranchId?: string | null;
-  /** Raw `branches.delivery_settings` (ADMIN-HOOK). */
   branchDeliverySettings?: unknown;
+  branchOriginLat?: number | null;
+  branchOriginLng?: number | null;
 }) {
-    // Conectamos con el store
     const store = useCartStore();
     const [isHydrated, setIsHydrated] = useState(false);
     const supabase = useMemo(() => createSupabaseBrowserClient("tenant"), []);
 
     const parsedDelivery = useMemo(
-      () => parseDeliverySettings(branchDeliverySettings),
+      () => normalizeDeliverySettings(branchDeliverySettings),
       [branchDeliverySettings]
     );
 
-    // Hidratación: marcar listo en cliente. Fallback por si persist no expone API o tarda.
+    const pricingMode = useMemo(
+      () => effectiveDeliveryPricingMode(parsedDelivery),
+      [parsedDelivery]
+    );
+
     useEffect(() => {
       if (typeof window === "undefined") return;
       const setHydrated = () => setIsHydrated(true);
@@ -211,7 +228,6 @@ export function CartProvider({
       return () => window.clearTimeout(fallback);
     }, []);
 
-    // Sincronizar branch guardado con branch actual al hidratar
     useEffect(() => {
       if (!isHydrated) return;
       const { setStoredBranchId, storedBranchId, clearCart } = useCartStore.getState();
@@ -222,7 +238,6 @@ export function CartProvider({
         }
         return;
       }
-      // Si el branch_id almacenado es diferente al seleccionado, limpiar el carrito y actualizar branch
       if (storedBranchId !== selectedBranchId) {
         if (typeof clearCart === "function") clearCart();
         if (typeof setStoredBranchId === "function") setStoredBranchId(selectedBranchId);
@@ -231,245 +246,548 @@ export function CartProvider({
 
     useEffect(() => {
       if (!isHydrated || !selectedBranchId) return;
-      const s = parseDeliverySettings(branchDeliverySettings);
       const st = useCartStore.getState();
       const setF = st.setFulfillment;
       if (typeof setF !== "function") return;
-      if (s.enabled && !s.pickup_enabled) setF("delivery");
-      else if (!s.enabled) setF("pickup");
-    }, [isHydrated, selectedBranchId, branchDeliverySettings]);
+      if (!parsedDelivery.enabled && st.fulfillment === "delivery") {
+        setF("pickup");
+      }
+    }, [isHydrated, selectedBranchId, parsedDelivery.enabled]);
 
-  // Validación de precios desde product_prices (por branch_id).
-  // En BD algunas sucursales pueden tener 0 precios (ej. branch "GA"); los ítems se mantienen en carrito con datos actuales.
-  const cartProductIds = useMemo(
-    () => isHydrated ? store.cart.map((item) => item.id).join(",") : "",
-    [store.cart, isHydrated]
-  );
+    const cartProductIds = useMemo(
+      () => isHydrated ? store.cart.map((item) => item.id).join(",") : "",
+      [store.cart, isHydrated]
+    );
 
-  useEffect(() => {
-    if (!isHydrated || !cartProductIds || !selectedBranchId) return;
-    if (!isValidBranchId(selectedBranchId)) return;
+    useEffect(() => {
+      if (!isHydrated || !cartProductIds || !selectedBranchId) return;
+      if (!isValidBranchId(selectedBranchId)) return;
 
-    let cancelled = false;
+      let cancelled = false;
 
-    type PriceRow = {
-      product_id: string;
-      price: number;
-      has_discount: boolean;
-      discount_price: number;
-      products?: {
-        id: string;
-        name?: string | null;
-        is_active?: boolean | null;
-        description?: string | null;
+      type PriceRow = {
+        product_id: string;
+        price: number;
+        has_discount: boolean;
+        discount_price: number;
+        products?: {
+          id: string;
+          name?: string | null;
+          is_active?: boolean | null;
+          description?: string | null;
+        };
       };
-    };
 
-    const validatePrices = async () => {
-      const ids = filterValidProductIds(cartProductIds.split(","));
-      if (ids.length === 0) return;
+      const validatePrices = async () => {
+        const ids = filterValidProductIds(cartProductIds.split(","));
+        if (ids.length === 0) return;
 
-      try {
-        const { data, error } = await supabase
-          .from("product_prices")
-          .select(
-            "product_id, price, has_discount, discount_price, products(id,name,is_active,description)"
-          )
-          .in("product_id", ids)
-          .eq("branch_id", selectedBranchId);
+        try {
+          const { data, error } = await supabase
+            .from("product_prices")
+            .select(
+              "product_id, price, has_discount, discount_price, products(id,name,is_active,description)"
+            )
+            .in("product_id", ids)
+            .eq("branch_id", selectedBranchId);
 
-        if (cancelled || error) return;
+          if (cancelled || error) return;
 
-        const rows = (data || []).map((row: PriceRow) => ({
-          product_id: String(row.product_id),
-          price: Number(row.price),
-          has_discount: Boolean(row.has_discount),
-          discount_price: Number(row.discount_price),
-          products: row.products
-            ? {
-                id: String(row.products.id),
-                name: row.products.name ?? null,
-                is_active: row.products.is_active ?? null,
-                description: row.products.description ?? null,
-              }
-            : undefined,
-        }));
-        const currentCart = useCartStore.getState().cart;
-        const nextCart = mergeCartWithBranchPrices(currentCart, rows, {
-          omitLinesWithoutPriceWhenBranchHasData: false,
-        });
+          const rows = (data || []).map((row: PriceRow) => ({
+            product_id: String(row.product_id),
+            price: Number(row.price),
+            has_discount: Boolean(row.has_discount),
+            discount_price: Number(row.discount_price),
+            products: row.products
+              ? {
+                  id: String(row.products.id),
+                  name: row.products.name ?? null,
+                  is_active: row.products.is_active ?? null,
+                  description: row.products.description ?? null,
+                }
+              : undefined,
+          }));
+          const currentCart = useCartStore.getState().cart;
+          const nextCart = mergeCartWithBranchPrices(currentCart, rows, {
+            omitLinesWithoutPriceWhenBranchHasData: false,
+          });
 
-        const isSame = JSON.stringify(currentCart) === JSON.stringify(nextCart);
-        // No vaciar el carrito si la API devolvió 0 filas (sucursal sin precios en BD o error RLS)
-        const wouldClear = (data?.length === 0 || !data) && currentCart.length > 0 && nextCart.length < currentCart.length;
-        if (!isSame && !wouldClear && typeof store.setCart === "function") {
-          store.setCart(nextCart);
+          const isSame = JSON.stringify(currentCart) === JSON.stringify(nextCart);
+          const wouldClear = (data?.length === 0 || !data) && currentCart.length > 0 && nextCart.length < currentCart.length;
+          if (!isSame && !wouldClear && typeof store.setCart === "function") {
+            store.setCart(nextCart);
+          }
+        } catch (err) {
+          console.error("Error validando precios:", err);
         }
-      } catch (err) {
-        console.error("Error validando precios:", err);
+      };
+
+      validatePrices();
+      return () => { cancelled = true; };
+    }, [selectedBranchId, cartProductIds, supabase, isHydrated, store]);
+
+    const getPrice = useCallback((product: CartProduct | CartItem) => {
+      if (typeof product !== "object" || product == null) return 0;
+      if (product.has_discount && typeof product.discount_price === "number" && product.discount_price > 0) {
+        return product.discount_price;
       }
-    };
+      if (typeof product.price === "number") return product.price;
+      return 0;
+    }, []);
 
-    validatePrices();
-    return () => { cancelled = true; };
-  }, [selectedBranchId, cartProductIds, supabase, isHydrated, store]);
+    const cartTotal = useMemo(() => {
+      if (!Array.isArray(store.cart)) return 0;
+      return store.cart.reduce((acc, item) => {
+        const price = getPrice(item);
+        if (typeof item.quantity !== "number" || item.quantity < 1) return acc;
+        return acc + price * item.quantity;
+      }, 0);
+    }, [store.cart, getPrice]);
 
-  // Helper de precio
-  const getPrice = useCallback((product: CartProduct | CartItem) => {
-    // Validación robusta de tipos y valores
-    if (typeof product !== "object" || product == null) return 0;
-    if (product.has_discount && typeof product.discount_price === "number" && product.discount_price > 0) {
-      return product.discount_price;
-    }
-    if (typeof product.price === "number") return product.price;
-    return 0;
-  }, []);
+    const cartSubtotal = cartTotal;
 
-  // Helper de WhatsApp
-  const cartTotal = useMemo(() => {
-    if (!Array.isArray(store.cart)) return 0;
-    return store.cart.reduce((acc, item) => {
-      const price = getPrice(item);
-      if (typeof item.quantity !== "number" || item.quantity < 1) return acc;
-      return acc + price * item.quantity;
-    }, 0);
-  }, [store.cart, getPrice]);
-
-  const cartSubtotal = cartTotal;
-
-  const quotedRouteKm = useMemo(() => {
-    if (store.fulfillment !== "delivery" || !parsedDelivery.enabled) return null;
-    const olat = parsedDelivery.origin_lat;
-    const olng = parsedDelivery.origin_lng;
-    const dlat = store.deliveryLat;
-    const dlng = store.deliveryLng;
-    if (
-      olat != null &&
-      olng != null &&
-      dlat != null &&
-      dlng != null &&
-      Number.isFinite(olat) &&
-      Number.isFinite(olng) &&
-      Number.isFinite(dlat) &&
-      Number.isFinite(dlng)
-    ) {
-      return haversineKm(olat, olng, dlat, dlng);
-    }
-    return 0;
-  }, [
-    store.fulfillment,
-    store.deliveryLat,
-    store.deliveryLng,
-    parsedDelivery.enabled,
-    parsedDelivery.origin_lat,
-    parsedDelivery.origin_lng,
-  ]);
-
-  const { fee: deliveryFeeComputed, out_of_zone: routeOutOfMaxKm } = useMemo(() => {
-    if (store.fulfillment !== "delivery" || !parsedDelivery.enabled) {
-      return { fee: 0, out_of_zone: false };
-    }
-    const km = quotedRouteKm ?? 0;
-    return computeDeliveryFeeFromRouteKm(parsedDelivery, km);
-  }, [store.fulfillment, parsedDelivery, quotedRouteKm]);
-
-  const isDeliveryOutOfZone =
-    store.fulfillment === "delivery" &&
-    parsedDelivery.enabled &&
-    routeOutOfMaxKm;
-
-  const deliveryFee =
-    store.fulfillment === "delivery" && parsedDelivery.enabled && !routeOutOfMaxKm
-      ? deliveryFeeComputed
-      : 0;
-
-  const grandTotal = Math.round(cartSubtotal + deliveryFee);
-
-  const totalItems = useMemo(() => {
-    if (!Array.isArray(store.cart)) return 0;
-    return store.cart.reduce((acc, item) => {
-      if (typeof item.quantity !== "number" || item.quantity < 1) return acc;
-      return acc + item.quantity;
-    }, 0);
-  }, [store.cart]);
-
-  const generateWhatsAppMessage = useCallback(() => {
-    if (!Array.isArray(store.cart) || store.cart.length === 0) return "";
-
-    let message = "*NUEVO PEDIDO WEB - CLIENTE*\n";
-    message += "================================\n\n";
-
-    store.cart.forEach((item) => {
-      const price = getPrice(item);
-      const qty = typeof item.quantity === "number" && item.quantity > 0 ? item.quantity : 1;
-      const name = typeof item.name === "string" ? item.name : "Producto";
-      const subtotal = price * qty;
-      message += `+ ${qty} x ${name.toUpperCase()}\n`;
-      if (typeof item.description === "string" && item.description.trim()) {
-        message += `   (Hacer: ${item.description})\n`;
+    const haversineKmVal = useMemo(() => {
+      if (
+        pricingMode !== "distance" ||
+        store.fulfillment !== "delivery" ||
+        !parsedDelivery.enabled
+      ) {
+        return null;
       }
-      message += `   Subtotal: $${formatCartMoney(subtotal)}\n`;
-      message += "--------------------------------\n";
-    });
+      if (
+        !isValidLatLng(branchOriginLat, branchOriginLng) ||
+        !isValidLatLng(store.deliveryLat, store.deliveryLng)
+      ) {
+        return null;
+      }
+      return haversineKm(
+        { lat: branchOriginLat as number, lng: branchOriginLng as number },
+        { lat: store.deliveryLat as number, lng: store.deliveryLng as number }
+      );
+    }, [
+      pricingMode,
+      store.fulfillment,
+      store.deliveryLat,
+      store.deliveryLng,
+      branchOriginLat,
+      branchOriginLng,
+      parsedDelivery.enabled,
+    ]);
 
-    if (store.fulfillment === "delivery" && deliveryFee > 0) {
-      message += `\nEnvio: $${formatCartMoney(deliveryFee)}\n`;
-    }
-    message += `\n*TOTAL A PAGAR: $${formatCartMoney(grandTotal)}*\n`;
-    message += "================================\n";
+    const manualKmParsed = useMemo(() => {
+      const n = Number(String(store.deliveryKmManual).replace(",", "."));
+      return Number.isFinite(n) && n >= 0 ? n : NaN;
+    }, [store.deliveryKmManual]);
 
-    if (typeof store.orderNote === "string" && store.orderNote.trim()) {
-      message += "\nNOTA DE COCINA:\n";
-      message += `${store.orderNote}\n`;
-    }
+    const [addrQuote, setAddrQuote] = useState<{
+      fee: number;
+      label: string;
+      waived: boolean;
+    } | null>(null);
+    const [addrLoading, setAddrLoading] = useState(false);
+    const [addrError, setAddrError] = useState<string | null>(null);
 
-    return encodeURIComponent(message);
-  }, [store.cart, store.orderNote, store.fulfillment, grandTotal, deliveryFee, getPrice]);
+    const [distQuote, setDistQuote] = useState<{
+      fee: number;
+      distanceKm: number;
+      waived: boolean;
+    } | null>(null);
+    const [distLoading, setDistLoading] = useState(false);
+    const [distError, setDistError] = useState<string | null>(null);
 
-  // Adaptador de Contexto para mantener compatibilidad
-  const contextValue = useMemo(() => ({
-    cart: isHydrated && Array.isArray(store.cart) ? store.cart : [],
-    isCartOpen: !!store.isCartOpen,
-    toggleCart: typeof store.toggleCart === "function" ? store.toggleCart : () => {},
-    addToCart: typeof store.addToCart === "function" ? store.addToCart : () => {},
-    decreaseQuantity: typeof store.decreaseQuantity === "function" ? store.decreaseQuantity : () => {},
-    removeFromCart: typeof store.removeFromCart === "function" ? store.removeFromCart : () => {},
-    clearCart: typeof store.clearCart === "function" ? store.clearCart : () => {},
-    orderNote: typeof store.orderNote === "string" ? store.orderNote : "",
-    setOrderNote: typeof store.setOrderNote === "function" ? store.setOrderNote : () => {},
-    cartTotal: isHydrated ? cartTotal : 0,
-    cartSubtotal: isHydrated ? cartSubtotal : 0,
-    grandTotal: isHydrated ? grandTotal : 0,
-    deliveryFee: isHydrated ? deliveryFee : 0,
-    totalItems: isHydrated ? totalItems : 0,
-    getPrice,
-    generateWhatsAppMessage,
-    fulfillment: store.fulfillment,
-    setFulfillment: typeof store.setFulfillment === "function" ? store.setFulfillment : () => {},
-    deliveryLine1: store.deliveryLine1,
-    setDeliveryLine1: typeof store.setDeliveryLine1 === "function" ? store.setDeliveryLine1 : () => {},
-    deliveryCommune: store.deliveryCommune,
-    setDeliveryCommune: typeof store.setDeliveryCommune === "function" ? store.setDeliveryCommune : () => {},
-    deliveryReference: store.deliveryReference,
-    setDeliveryReference: typeof store.setDeliveryReference === "function" ? store.setDeliveryReference : () => {},
-    deliveryLat: store.deliveryLat,
-    deliveryLng: store.deliveryLng,
-    setDeliveryCoords: typeof store.setDeliveryCoords === "function" ? store.setDeliveryCoords : () => {},
-    isDeliveryOutOfZone: isHydrated ? isDeliveryOutOfZone : false,
-    quotedRouteKm: isHydrated ? quotedRouteKm : null,
-  }), [
-    store,
-    isHydrated,
-    cartTotal,
-    cartSubtotal,
-    grandTotal,
-    deliveryFee,
-    totalItems,
-    getPrice,
-    generateWhatsAppMessage,
-    isDeliveryOutOfZone,
-    quotedRouteKm,
-  ]);
+    useEffect(() => {
+      let cancelled = false;
+
+      const clearAddr = () => {
+        window.setTimeout(() => {
+          if (!cancelled) {
+            setAddrQuote(null);
+            setAddrError(null);
+            setAddrLoading(false);
+          }
+        }, 0);
+      };
+
+      if (
+        store.fulfillment !== "delivery" ||
+        !parsedDelivery.enabled ||
+        pricingMode !== "named" ||
+        parsedDelivery.namedAreaResolution !== "address_matched" ||
+        !selectedBranchId
+      ) {
+        clearAddr();
+        return () => {
+          cancelled = true;
+        };
+      }
+
+      const addr = `${store.deliveryLine1}, ${store.deliveryCommune}`.trim();
+      if (addr.length < 8) {
+        clearAddr();
+        return () => {
+          cancelled = true;
+        };
+      }
+      const t = window.setTimeout(() => {
+        setAddrLoading(true);
+        setAddrError(null);
+        fetch("/api/delivery-quote", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            branchId: selectedBranchId,
+            subtotal: cartSubtotal,
+            address: addr,
+          }),
+        })
+          .then(async (r) => {
+            const j = (await r.json()) as {
+              ok?: boolean;
+              fee?: number;
+              label?: string;
+              waivedFreeShipping?: boolean;
+              error?: string;
+            };
+            if (cancelled) return;
+            if (!r.ok || !j.ok) {
+              setAddrQuote(null);
+              setAddrError(j.error || "No se pudo cotizar el envio.");
+              return;
+            }
+            setAddrQuote({
+              fee: Number(j.fee) || 0,
+              label: String(j.label || ""),
+              waived: Boolean(j.waivedFreeShipping),
+            });
+          })
+          .catch(() => {
+            if (!cancelled) {
+              setAddrQuote(null);
+              setAddrError("Error de red al cotizar.");
+            }
+          })
+          .finally(() => {
+            if (!cancelled) setAddrLoading(false);
+          });
+      }, 420);
+
+      return () => {
+        cancelled = true;
+        clearTimeout(t);
+      };
+    }, [
+      store.fulfillment,
+      store.deliveryLine1,
+      store.deliveryCommune,
+      parsedDelivery.enabled,
+      parsedDelivery.namedAreaResolution,
+      pricingMode,
+      selectedBranchId,
+      cartSubtotal,
+    ]);
+
+    useEffect(() => {
+      let cancelled = false;
+
+      const clearDist = () => {
+        window.setTimeout(() => {
+          if (!cancelled) {
+            setDistQuote(null);
+            setDistError(null);
+            setDistLoading(false);
+          }
+        }, 0);
+      };
+
+      if (
+        store.fulfillment !== "delivery" ||
+        !parsedDelivery.enabled ||
+        pricingMode !== "distance" ||
+        !selectedBranchId
+      ) {
+        clearDist();
+        return () => {
+          cancelled = true;
+        };
+      }
+
+      if (
+        !isValidLatLng(store.deliveryLat, store.deliveryLng)
+      ) {
+        clearDist();
+        return () => {
+          cancelled = true;
+        };
+      }
+      const t = window.setTimeout(() => {
+        setDistLoading(true);
+        setDistError(null);
+        fetch("/api/delivery-quote", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            branchId: selectedBranchId,
+            subtotal: cartSubtotal,
+            lat: store.deliveryLat,
+            lng: store.deliveryLng,
+          }),
+        })
+          .then(async (r) => {
+            const j = (await r.json()) as {
+              ok?: boolean;
+              fee?: number;
+              distanceKm?: number;
+              waivedFreeShipping?: boolean;
+              error?: string;
+            };
+            if (cancelled) return;
+            if (!r.ok || !j.ok) {
+              setDistQuote(null);
+              setDistError(j.error || "No se pudo cotizar por distancia.");
+              return;
+            }
+            setDistQuote({
+              fee: Number(j.fee) || 0,
+              distanceKm: Number(j.distanceKm) || 0,
+              waived: Boolean(j.waivedFreeShipping),
+            });
+          })
+          .catch(() => {
+            if (!cancelled) {
+              setDistQuote(null);
+              setDistError("Error de red al cotizar.");
+            }
+          })
+          .finally(() => {
+            if (!cancelled) setDistLoading(false);
+          });
+      }, 320);
+
+      return () => {
+        cancelled = true;
+        clearTimeout(t);
+      };
+    }, [
+      store.fulfillment,
+      store.deliveryLat,
+      store.deliveryLng,
+      parsedDelivery.enabled,
+      pricingMode,
+      selectedBranchId,
+      cartSubtotal,
+    ]);
+
+    const { deliveryFee, waivedFree, namedLabel, quotedRouteKm, outOfZone, quoteLoading, quoteError } =
+      useMemo(() => {
+        if (store.fulfillment !== "delivery" || !parsedDelivery.enabled) {
+          return {
+            deliveryFee: 0,
+            waivedFree: false,
+            namedLabel: null as string | null,
+            quotedRouteKm: null as number | null,
+            outOfZone: false,
+            quoteLoading: false,
+            quoteError: null as string | null,
+          };
+        }
+
+        const minOk =
+          parsedDelivery.minOrderSubtotal == null ||
+          cartSubtotal + 1e-9 >= parsedDelivery.minOrderSubtotal;
+
+        if (!minOk) {
+          return {
+            deliveryFee: 0,
+            waivedFree: false,
+            namedLabel: null,
+            quotedRouteKm: null,
+            outOfZone: false,
+            quoteLoading: false,
+            quoteError: null,
+          };
+        }
+
+        if (pricingMode === "named") {
+          if (parsedDelivery.namedAreaResolution === "address_matched") {
+            return {
+              deliveryFee: addrQuote?.fee ?? 0,
+              waivedFree: addrQuote?.waived ?? false,
+              namedLabel: addrQuote?.label ?? null,
+              quotedRouteKm: null,
+              outOfZone: false,
+              quoteLoading: addrLoading,
+              quoteError: addrError,
+            };
+          }
+          const id = store.deliveryNamedAreaId;
+          const r = computeDeliveryFee(parsedDelivery, 0, cartSubtotal, {
+            namedAreaId: id,
+          });
+          return {
+            deliveryFee: r.fee < 0 ? 0 : r.fee,
+            waivedFree: r.waivedFreeShipping,
+            namedLabel:
+              id != null
+                ? parsedDelivery.namedAreas.find((a) => a.id === id)?.name ?? null
+                : null,
+            quotedRouteKm: null,
+            outOfZone: false,
+            quoteLoading: false,
+            quoteError: r.fee === -4 ? "Zona no valida." : null,
+          };
+        }
+
+        if (distQuote) {
+          return {
+            deliveryFee: distQuote.fee,
+            waivedFree: distQuote.waived,
+            namedLabel: null,
+            quotedRouteKm: distQuote.distanceKm,
+            outOfZone: false,
+            quoteLoading: distLoading,
+            quoteError: distError,
+          };
+        }
+
+        const kmLocal =
+          haversineKmVal ??
+          (Number.isFinite(manualKmParsed) ? manualKmParsed : 0);
+        const r = computeDeliveryFee(parsedDelivery, kmLocal, cartSubtotal);
+        return {
+          deliveryFee: r.fee < 0 ? 0 : r.fee,
+          waivedFree: r.waivedFreeShipping,
+          namedLabel: null,
+          quotedRouteKm:
+            haversineKmVal != null
+              ? haversineKmVal
+              : Number.isFinite(manualKmParsed)
+                ? manualKmParsed
+                : null,
+          outOfZone: r.fee === -1,
+          quoteLoading:
+            distLoading &&
+            isValidLatLng(store.deliveryLat, store.deliveryLng) &&
+            haversineKmVal != null,
+          quoteError: distError,
+        };
+      }, [
+        store.fulfillment,
+        store.deliveryNamedAreaId,
+        parsedDelivery,
+        pricingMode,
+        cartSubtotal,
+        addrQuote,
+        addrLoading,
+        addrError,
+        distQuote,
+        distLoading,
+        distError,
+        haversineKmVal,
+        manualKmParsed,
+        store.deliveryLat,
+        store.deliveryLng,
+      ]);
+
+    const grandTotal = Math.round(cartSubtotal + deliveryFee);
+
+    const totalItems = useMemo(() => {
+      if (!Array.isArray(store.cart)) return 0;
+      return store.cart.reduce((acc, item) => {
+        if (typeof item.quantity !== "number" || item.quantity < 1) return acc;
+        return acc + item.quantity;
+      }, 0);
+    }, [store.cart]);
+
+    const generateWhatsAppMessage = useCallback(() => {
+      if (!Array.isArray(store.cart) || store.cart.length === 0) return "";
+
+      let message = "*NUEVO PEDIDO WEB - CLIENTE*\n";
+      message += "================================\n\n";
+
+      store.cart.forEach((item) => {
+        const price = getPrice(item);
+        const qty = typeof item.quantity === "number" && item.quantity > 0 ? item.quantity : 1;
+        const name = typeof item.name === "string" ? item.name : "Producto";
+        const subtotal = price * qty;
+        message += `+ ${qty} x ${name.toUpperCase()}\n`;
+        if (typeof item.description === "string" && item.description.trim()) {
+          message += `   (Hacer: ${item.description})\n`;
+        }
+        message += `   Subtotal: $${formatCartMoney(subtotal)}\n`;
+        message += "--------------------------------\n";
+      });
+
+      if (store.fulfillment === "delivery" && deliveryFee > 0) {
+        message += `\nEnvio: $${formatCartMoney(deliveryFee)}\n`;
+      }
+      message += `\n*TOTAL A PAGAR: $${formatCartMoney(grandTotal)}*\n`;
+      message += "================================\n";
+
+      if (typeof store.orderNote === "string" && store.orderNote.trim()) {
+        message += "\nNOTA DE COCINA:\n";
+        message += `${store.orderNote}\n`;
+      }
+
+      return encodeURIComponent(message);
+    }, [store.cart, store.orderNote, store.fulfillment, grandTotal, deliveryFee, getPrice]);
+
+    const contextValue = useMemo(() => ({
+      cart: isHydrated && Array.isArray(store.cart) ? store.cart : [],
+      isCartOpen: !!store.isCartOpen,
+      toggleCart: typeof store.toggleCart === "function" ? store.toggleCart : () => {},
+      addToCart: typeof store.addToCart === "function" ? store.addToCart : () => {},
+      decreaseQuantity: typeof store.decreaseQuantity === "function" ? store.decreaseQuantity : () => {},
+      removeFromCart: typeof store.removeFromCart === "function" ? store.removeFromCart : () => {},
+      clearCart: typeof store.clearCart === "function" ? store.clearCart : () => {},
+      orderNote: typeof store.orderNote === "string" ? store.orderNote : "",
+      setOrderNote: typeof store.setOrderNote === "function" ? store.setOrderNote : () => {},
+      cartTotal: isHydrated ? cartTotal : 0,
+      cartSubtotal: isHydrated ? cartSubtotal : 0,
+      grandTotal: isHydrated ? grandTotal : 0,
+      deliveryFee: isHydrated ? deliveryFee : 0,
+      totalItems: isHydrated ? totalItems : 0,
+      getPrice,
+      generateWhatsAppMessage,
+      fulfillment: store.fulfillment,
+      setFulfillment: typeof store.setFulfillment === "function" ? store.setFulfillment : () => {},
+      deliveryLine1: store.deliveryLine1,
+      setDeliveryLine1: typeof store.setDeliveryLine1 === "function" ? store.setDeliveryLine1 : () => {},
+      deliveryCommune: store.deliveryCommune,
+      setDeliveryCommune: typeof store.setDeliveryCommune === "function" ? store.setDeliveryCommune : () => {},
+      deliveryReference: store.deliveryReference,
+      setDeliveryReference: typeof store.setDeliveryReference === "function" ? store.setDeliveryReference : () => {},
+      deliveryLat: store.deliveryLat,
+      deliveryLng: store.deliveryLng,
+      setDeliveryCoords: typeof store.setDeliveryCoords === "function" ? store.setDeliveryCoords : () => {},
+      deliveryNamedAreaId: store.deliveryNamedAreaId,
+      setDeliveryNamedAreaId: typeof store.setDeliveryNamedAreaId === "function" ? store.setDeliveryNamedAreaId : () => {},
+      deliveryKmManual: store.deliveryKmManual,
+      setDeliveryKmManual: typeof store.setDeliveryKmManual === "function" ? store.setDeliveryKmManual : () => {},
+      showDeliveryReference: store.showDeliveryReference,
+      setShowDeliveryReference: typeof store.setShowDeliveryReference === "function" ? store.setShowDeliveryReference : () => {},
+      deliveryWaivedFree: isHydrated ? waivedFree : false,
+      deliveryNamedAreaLabel: isHydrated ? namedLabel : null,
+      deliveryQuoteLoading: isHydrated ? quoteLoading : false,
+      deliveryQuoteError: isHydrated ? quoteError : null,
+      isDeliveryOutOfZone: isHydrated ? outOfZone : false,
+      quotedRouteKm: isHydrated ? quotedRouteKm : null,
+    }), [
+      store,
+      isHydrated,
+      cartTotal,
+      cartSubtotal,
+      grandTotal,
+      deliveryFee,
+      totalItems,
+      getPrice,
+      generateWhatsAppMessage,
+      waivedFree,
+      namedLabel,
+      quoteLoading,
+      quoteError,
+      outOfZone,
+      quotedRouteKm,
+    ]);
 
   return (
     <CartContext.Provider value={contextValue}>

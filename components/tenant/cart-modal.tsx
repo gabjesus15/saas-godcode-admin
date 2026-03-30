@@ -46,7 +46,10 @@ import { mergeCartWithBranchPrices } from "./utils/cart-pricing";
 import { formatCartMoney } from "./utils/format-cart-money";
 import type { Json } from "../../types/supabase-database";
 import type { CartFulfillment } from "./cart-context";
-import { parseDeliverySettings } from "../../lib/tenant-delivery-settings";
+import {
+  effectiveDeliveryPricingMode,
+  normalizeDeliverySettings,
+} from "../../lib/delivery-settings";
 
 import "../../app/[subdomain]/styles/CartModal.css";
 import "../../app/[subdomain]/styles/CartModal.custom.css";
@@ -102,6 +105,8 @@ interface BranchInfo {
   mercadopago?: { [key: string]: string } | null;
   paypal?: { [key: string]: string } | null;
   delivery_settings?: Json | null;
+  origin_lat?: number | null;
+  origin_lng?: number | null;
 }
 
 interface BusinessInfo {
@@ -256,11 +261,26 @@ export function CartModal({
       deliveryLng,
       isDeliveryOutOfZone,
       quotedRouteKm,
+      deliveryNamedAreaId,
+      setDeliveryNamedAreaId,
+      deliveryKmManual,
+      setDeliveryKmManual,
+      showDeliveryReference,
+      setShowDeliveryReference,
+      deliveryWaivedFree,
+      deliveryNamedAreaLabel,
+      deliveryQuoteLoading,
+      deliveryQuoteError,
     } = useCart();
 
     const deliverySettings = useMemo(
-      () => parseDeliverySettings(selectedBranch?.delivery_settings),
+      () => normalizeDeliverySettings(selectedBranch?.delivery_settings),
       [selectedBranch?.delivery_settings]
+    );
+
+    const deliveryPriceMode = useMemo(
+      () => effectiveDeliveryPricingMode(deliverySettings),
+      [deliverySettings]
     );
 
     const [geoHint, setGeoHint] = useState<string | null>(null);
@@ -451,15 +471,55 @@ export function CartModal({
 
   const canCheckout = isShiftOpen;
 
+  const minOrder = deliverySettings.minOrderSubtotal ?? 0;
   const meetsMinDelivery =
-    fulfillment !== "delivery" ||
-    cartSubtotal >= deliverySettings.min_order_subtotal;
+    fulfillment !== "delivery" || cartSubtotal + 1e-9 >= minOrder;
   const deliveryAddressOk =
     fulfillment !== "delivery" ||
     (deliveryLine1.trim().length >= 4 && deliveryCommune.trim().length >= 2);
+
+  const namedManualOk =
+    deliveryPriceMode !== "named" ||
+    deliverySettings.namedAreaResolution !== "manual_select" ||
+    Boolean(deliveryNamedAreaId?.trim());
+
+  const addressMatchedOk =
+    deliveryPriceMode !== "named" ||
+    deliverySettings.namedAreaResolution !== "address_matched" ||
+    (deliveryAddressOk &&
+      !deliveryQuoteLoading &&
+      !deliveryQuoteError &&
+      deliveryNamedAreaLabel != null);
+
+  function isValidCoordsForQuote() {
+    const lat = deliveryLat;
+    const lng = deliveryLng;
+    return (
+      typeof lat === "number" &&
+      typeof lng === "number" &&
+      Number.isFinite(lat) &&
+      Number.isFinite(lng)
+    );
+  }
+
+  function kmManualValid() {
+    const n = Number(String(deliveryKmManual).replace(",", "."));
+    return Number.isFinite(n) && n >= 0;
+  }
+
+  const distanceReady =
+    deliveryPriceMode !== "distance" ||
+    (!isDeliveryOutOfZone &&
+      (kmManualValid() || isValidCoordsForQuote()) &&
+      !deliveryQuoteError);
+
   const canProceedFulfillment =
     fulfillment !== "delivery" ||
-    (deliveryAddressOk && meetsMinDelivery && !isDeliveryOutOfZone);
+    (deliveryAddressOk &&
+      meetsMinDelivery &&
+      namedManualOk &&
+      addressMatchedOk &&
+      distanceReady);
 
   const requestDeliveryGeo = useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -670,20 +730,33 @@ export function CartModal({
       const snapFee =
         snapFulfillment === "delivery" && deliverySettings.enabled ? deliveryFee : 0;
       const snapGrand = grandTotal;
+      const addrFull = `${deliveryLine1}, ${deliveryCommune}`.trim();
+      const kmForOrder =
+        snapFulfillment === "delivery" &&
+        deliverySettings.enabled &&
+        deliveryPriceMode === "distance"
+          ? quotedRouteKm != null && Number(quotedRouteKm) > 0
+            ? Number(quotedRouteKm)
+            : Number(String(deliveryKmManual).replace(",", ".")) || 0
+          : 0;
       const deliverySnapshot =
         snapFulfillment === "delivery" && deliverySettings.enabled
           ? {
+              address: sanitizeUserText(addrFull),
+              formatted_address: sanitizeUserText(addrFull),
               line1: sanitizeUserText(deliveryLine1),
               commune: sanitizeUserText(deliveryCommune),
-              reference: sanitizeUserText(deliveryReference),
+              ...(showDeliveryReference && deliveryReference.trim()
+                ? { reference: sanitizeUserText(deliveryReference) }
+                : {}),
               lat: deliveryLat,
               lng: deliveryLng,
-              distance_km_haversine:
-                quotedRouteKm != null && quotedRouteKm > 0
-                  ? Math.round(quotedRouteKm)
-                  : quotedRouteKm,
-              quote_method:
-                deliveryLat != null && deliveryLng != null ? "haversine" : "address_only",
+              ...(deliveryNamedAreaId?.trim()
+                ? { named_area_id: deliveryNamedAreaId.trim() }
+                : {}),
+              ...(deliveryNamedAreaLabel
+                ? { named_area_label: deliveryNamedAreaLabel }
+                : {}),
             }
           : null;
       const orderPayload = {
@@ -706,6 +779,10 @@ export function CartModal({
             : ("pickup" as const),
         delivery_address: deliverySnapshot,
         delivery_fee: snapFee,
+        delivery_km: kmForOrder,
+        delivery_lat: deliveryLat,
+        delivery_lng: deliveryLng,
+        delivery_named_area_id: deliveryNamedAreaId?.trim() || null,
       };
       const { order: newOrder, receiptUploadFailed } = await ordersService.createOrder(
         orderPayload,
@@ -836,99 +913,167 @@ export function CartModal({
               {deliverySettings.enabled ? (
                 <div className="cart-fulfillment-block glass">
                   <div className="cart-fulfillment-title">Como recibis tu pedido</div>
-                  {deliverySettings.pickup_enabled ? (
-                    <div className="cart-fulfillment-choice">
-                      <button
-                        type="button"
-                        className={`cart-fulfill-option ${fulfillment === "pickup" ? "is-active" : ""}`}
-                        onClick={() => setFulfillment("pickup")}
-                      >
-                        <Store size={18} />
-                        Retiro en local
-                      </button>
-                      <button
-                        type="button"
-                        className={`cart-fulfill-option ${fulfillment === "delivery" ? "is-active" : ""}`}
-                        onClick={() => setFulfillment("delivery")}
-                      >
-                        <Truck size={18} />
-                        Delivery
-                      </button>
-                    </div>
-                  ) : (
-                    <p className="cart-fulfillment-hint">Este local envia a domicilio.</p>
-                  )}
+                  <div className="cart-fulfillment-choice">
+                    <button
+                      type="button"
+                      className={`cart-fulfill-option ${fulfillment === "pickup" ? "is-active" : ""}`}
+                      onClick={() => setFulfillment("pickup")}
+                    >
+                      <Store size={18} />
+                      Retiro en local
+                    </button>
+                    <button
+                      type="button"
+                      className={`cart-fulfill-option ${fulfillment === "delivery" ? "is-active" : ""}`}
+                      onClick={() => setFulfillment("delivery")}
+                    >
+                      <Truck size={18} />
+                      Delivery
+                    </button>
+                  </div>
                   {fulfillment === "delivery" && deliverySettings.enabled ? (
                     <div className="cart-delivery-fields">
-                      {deliverySettings.customer_note ? (
-                        <p className="cart-delivery-note">{deliverySettings.customer_note}</p>
+                      {deliverySettings.customerNotes ? (
+                        <p className="cart-delivery-note">{deliverySettings.customerNotes}</p>
                       ) : null}
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-block cart-geo-btn"
-                        onClick={requestDeliveryGeo}
-                      >
-                        Usar mi ubicacion
-                      </button>
-                      {geoHint ? <p className="cart-geo-hint">{geoHint}</p> : null}
-                      <label className="cart-field-label">Calle y numero</label>
+
+                      {deliveryPriceMode === "named" &&
+                      deliverySettings.namedAreaResolution === "manual_select" ? (
+                        <>
+                          <label className="cart-field-label">Zona de entrega</label>
+                          <select
+                            className="form-input"
+                            value={deliveryNamedAreaId ?? ""}
+                            onChange={(e) => {
+                              const id = e.target.value ? e.target.value : null;
+                              setDeliveryNamedAreaId(id);
+                              if (id) {
+                                const area = deliverySettings.namedAreas.find((a) => a.id === id);
+                                if (area?.name) setDeliveryCommune(area.name);
+                              }
+                            }}
+                          >
+                            <option value="">Elegi una zona</option>
+                            {deliverySettings.namedAreas.map((a) => (
+                              <option key={a.id} value={a.id}>
+                                {a.name} — ${formatCartMoney(a.feeFlat)}
+                              </option>
+                            ))}
+                          </select>
+                        </>
+                      ) : null}
+
+                      {deliveryPriceMode === "named" &&
+                      deliverySettings.namedAreaResolution === "address_matched" ? (
+                        <p className="cart-delivery-note">
+                          Escribi calle, número y comuna; calculamos la tarifa según las zonas del local.
+                        </p>
+                      ) : null}
+
+                      {deliveryPriceMode === "distance" ? (
+                        <>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-block cart-geo-btn"
+                            onClick={requestDeliveryGeo}
+                          >
+                            Usar mi ubicación (recomendado)
+                          </button>
+                          {geoHint ? <p className="cart-geo-hint">{geoHint}</p> : null}
+                          <label className="cart-field-label">O indicá la distancia en km</label>
+                          <input
+                            className="form-input"
+                            inputMode="decimal"
+                            value={deliveryKmManual}
+                            onChange={(e) => setDeliveryKmManual(e.target.value)}
+                            placeholder="Ej: 3,5"
+                          />
+                        </>
+                      ) : null}
+
+                      <label className="cart-field-label">Calle y número</label>
                       <input
                         className="form-input"
                         value={deliveryLine1}
                         onChange={(e) => setDeliveryLine1(e.target.value)}
                         placeholder="Ej: Av. Principal 123, depto 4"
                       />
-                      <label className="cart-field-label">Comuna / ciudad</label>
+                      <label className="cart-field-label">Comuna o ciudad</label>
                       <input
                         className="form-input"
                         value={deliveryCommune}
                         onChange={(e) => setDeliveryCommune(e.target.value)}
                         placeholder="Ej: Santiago"
                       />
-                      <label className="cart-field-label">Referencia para el repartidor</label>
-                      <textarea
-                        className="form-input"
-                        rows={2}
-                        value={deliveryReference}
-                        onChange={(e) => setDeliveryReference(e.target.value)}
-                        placeholder="Porton verde, timbre 402..."
-                      />
+
+                      {!showDeliveryReference ? (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-block cart-geo-btn"
+                          onClick={() => setShowDeliveryReference(true)}
+                        >
+                          Añadir indicaciones (opcional)
+                        </button>
+                      ) : (
+                        <>
+                          <label className="cart-field-label">Indicaciones para el repartidor</label>
+                          <textarea
+                            className="form-input"
+                            rows={2}
+                            value={deliveryReference}
+                            onChange={(e) => setDeliveryReference(e.target.value)}
+                            placeholder="Portón verde, timbre 402…"
+                          />
+                        </>
+                      )}
+
+                      {deliveryQuoteLoading ? (
+                        <p className="cart-geo-hint">Calculando envío…</p>
+                      ) : null}
+                      {deliveryQuoteError ? (
+                        <p className="cart-fulfillment-warn">{deliveryQuoteError}</p>
+                      ) : null}
+                      {deliveryNamedAreaLabel ? (
+                        <p className="cart-geo-hint">Zona detectada: {deliveryNamedAreaLabel}</p>
+                      ) : null}
+
                       {fulfillment === "delivery" &&
-                      deliveryLat != null &&
-                      deliveryLng != null &&
+                      deliveryPriceMode === "distance" &&
                       quotedRouteKm != null &&
                       quotedRouteKm > 0 ? (
                         <div className="cart-delivery-quote">
-                          <span>Distancia aprox. (linea recta)</span>
-                          <strong>{Math.round(quotedRouteKm)} km</strong>
+                          <span>Distancia aprox. (línea recta)</span>
+                          <strong>{Math.round(Number(quotedRouteKm) * 10) / 10} km</strong>
                         </div>
                       ) : null}
                       <div className="cart-delivery-quote cart-delivery-fee-row">
-                        <span>Costo de envio</span>
+                        <span>Costo de envío</span>
                         <strong>
-                          {isDeliveryOutOfZone
-                            ? "Fuera de zona"
-                            : `$${formatCartMoney(deliveryFee)}`}
+                          {deliveryWaivedFree
+                            ? "Gratis"
+                            : isDeliveryOutOfZone
+                              ? "Fuera de zona"
+                              : `$${formatCartMoney(deliveryFee)}`}
                         </strong>
                       </div>
                       {!meetsMinDelivery ? (
                         <p className="cart-fulfillment-warn">
-                          El minimo para delivery es ${formatCartMoney(deliverySettings.min_order_subtotal)}.
+                          El mínimo para delivery es ${formatCartMoney(minOrder)}.
                         </p>
                       ) : null}
                       {isDeliveryOutOfZone ? (
                         <p className="cart-fulfillment-warn">
-                          Tu ubicacion supera el radio de reparto de este local.
+                          Tu ubicación supera el máximo de kilómetros de este local.
                         </p>
                       ) : null}
                     </div>
                   ) : null}
                 </div>
-              ) : deliverySettings.pickup_enabled ? (
+              ) : (
                 <p className="cart-pickup-only-hint">
                   Esta sucursal solo acepta retiro en el local.
                 </p>
-              ) : null}
+              )}
             </>
           )}
         </div>
@@ -945,9 +1090,11 @@ export function CartModal({
                   <div className="total-row total-row-delivery">
                     <span>Envio</span>
                     <span>
-                      {isDeliveryOutOfZone
-                        ? "—"
-                        : `$${formatCartMoney(deliveryFee)}`}
+                      {deliveryWaivedFree
+                        ? "Gratis"
+                        : isDeliveryOutOfZone
+                          ? "—"
+                          : `$${formatCartMoney(deliveryFee)}`}
                     </span>
                   </div>
                 ) : null}
@@ -976,8 +1123,10 @@ export function CartModal({
                       {isDeliveryOutOfZone
                         ? "Tu ubicacion esta fuera del area de delivery de este local."
                         : !meetsMinDelivery
-                          ? `Monto minimo para delivery: $${formatCartMoney(deliverySettings.min_order_subtotal)}.`
-                          : "Completa calle y comuna para continuar con delivery."}
+                          ? `Monto minimo para delivery: $${formatCartMoney(minOrder)}.`
+                          : deliveryQuoteError
+                            ? deliveryQuoteError
+                            : "Completa los datos de envío para continuar."}
                     </span>
                   </div>
                 ) : (

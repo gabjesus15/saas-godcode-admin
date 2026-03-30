@@ -49,9 +49,24 @@ interface CartContextType {
   deliveryLat: number | null;
   deliveryLng: number | null;
   setDeliveryCoords: (lat: number | null, lng: number | null) => void;
-  /** Delivery activo y km excede max_delivery_km. */
+  /** Zona por nombre (modo manual). */
+  deliveryNamedAreaId: string | null;
+  setDeliveryNamedAreaId: (id: string | null) => void;
+  /** Km manual si no hay GPS (modo distancia). */
+  deliveryKmManual: string;
+  setDeliveryKmManual: (value: string) => void;
+  showDeliveryReference: boolean;
+  setShowDeliveryReference: (value: boolean) => void;
+  /** Envío gratis por subtotal (reglas del local). */
+  deliveryWaivedFree: boolean;
+  /** Etiqueta de zona resuelta (dirección automática). */
+  deliveryNamedAreaLabel: string | null;
+  /** Cotización en curso o error de API. */
+  deliveryQuoteLoading: boolean;
+  deliveryQuoteError: string | null;
+  /** Delivery activo y km excede máximo o fuera de zona. */
   isDeliveryOutOfZone: boolean;
-  /** Km usados para cotizar (haversine si hay GPS + origen; si no, 0). */
+  /** Km en línea recta cliente–local o último km cotizado en servidor. */
   quotedRouteKm: number | null;
 }
 

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { haversineKm } from "../../../lib/tenant-delivery-settings";
+import { haversineKm } from "../../../lib/geo";
 
 /**
- * Quote route km (v1: haversine straight-line). ADMIN-HOOK: swap for Mapbox/Google driving when key is set.
+ * Quote route km (v1: haversine straight-line). LEGACY: preferir POST /api/delivery-quote con branchId.
  */
 export async function POST(request: Request) {
 	try {
@@ -14,7 +14,10 @@ export async function POST(request: Request) {
 		if (![oLat, oLng, dLat, dLng].every((n) => Number.isFinite(n))) {
 			return NextResponse.json({ error: "invalid_coordinates" }, { status: 400 });
 		}
-		const route_km = haversineKm(oLat, oLng, dLat, dLng);
+		const route_km = haversineKm(
+			{ lat: oLat, lng: oLng },
+			{ lat: dLat, lng: dLng },
+		);
 		return NextResponse.json({
 			route_km,
 			source: "haversine",
