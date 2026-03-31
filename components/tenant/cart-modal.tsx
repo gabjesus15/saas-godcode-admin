@@ -462,12 +462,15 @@ export function CartModal({
             table: "branches",
             filter: `id=eq.${selectedBranch.id}`,
           },
-          (payload) => {
+          (payload: unknown) => {
             const next = (payload as { new?: unknown }).new;
             if (!next || typeof next !== "object") return;
             const row = next as Record<string, unknown>;
             setCheckoutLiveBranch({
-              payment_methods: row.payment_methods as string[] | null | undefined,
+              payment_methods:
+                row.payment_methods === null
+                  ? undefined
+                  : (row.payment_methods as string[] | undefined),
               delivery_settings: row.delivery_settings as Json | null | undefined,
               efectivo: row.efectivo,
               tarjeta: row.tarjeta,
@@ -495,7 +498,7 @@ export function CartModal({
         : [];
 
       const hasEfectivo = (() => {
-        const v = (selectedBranchForCheckout as Record<string, unknown>)?.efectivo;
+        const v = selectedBranchForCheckout?.efectivo;
         if (v == null) return false;
         if (typeof v === "string") {
           const t = v.trim();
@@ -517,7 +520,7 @@ export function CartModal({
       })();
 
       const hasTarjeta = (() => {
-        const v = (selectedBranchForCheckout as Record<string, unknown>)?.tarjeta;
+        const v = selectedBranchForCheckout?.tarjeta;
         if (v == null) return false;
         if (typeof v === "string") {
           const t = v.trim();
@@ -961,11 +964,14 @@ export function CartModal({
     return () => unlockScroll();
   }, [isCartOpen]);
 
-  useEffect(() => {
-    if (!isCartOpen) return;
-    setIsClosing(false);
-    setDragOffsetY(0);
-  }, [isCartOpen]);
+  // Evitar setState sincronamente dentro de effect (regla react-hooks/set-state-in-effect).
+  // Este reset solo importa cuando se abre el carrito.
+  if (isCartOpen && (isClosing || dragOffsetY !== 0)) {
+    queueMicrotask(() => {
+      setIsClosing(false);
+      setDragOffsetY(0);
+    });
+  }
 
   useEffect(() => {
     if (!isCartOpen || typeof window === "undefined") return;

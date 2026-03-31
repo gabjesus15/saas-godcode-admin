@@ -7,17 +7,14 @@ import "leaflet/dist/leaflet.css";
 import { isValidLatLng } from "../../lib/geo";
 
 // Fix para el ícono por defecto de Leaflet con bundlers.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const markerIcon2x = require("leaflet/dist/images/marker-icon-2x.png");
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const markerIcon = require("leaflet/dist/images/marker-icon.png");
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const markerShadow = require("leaflet/dist/images/marker-shadow.png");
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x?.src ?? markerIcon2x,
-  iconUrl: markerIcon?.src ?? markerIcon,
-  shadowUrl: markerShadow?.src ?? markerShadow,
+  iconRetinaUrl: (markerIcon2x as unknown as { src?: string })?.src ?? (markerIcon2x as unknown as string),
+  iconUrl: (markerIcon as unknown as { src?: string })?.src ?? (markerIcon as unknown as string),
+  shadowUrl: (markerShadow as unknown as { src?: string })?.src ?? (markerShadow as unknown as string),
 });
 
 type DeliveryPreviewMapProps = {
