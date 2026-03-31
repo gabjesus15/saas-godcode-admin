@@ -53,6 +53,12 @@ export type DeliverySettingsNormalized = {
 	customerNotes: string;
 	zones: DeliveryZoneNormalized[];
 	namedAreas: DeliveryNamedArea[];
+	/**
+	 * Claves de método (`payment_methods` de sucursal) permitidas solo en delivery.
+	 * `null` = sin restricción extra (todos los activos de la sucursal).
+	 * `[]` = ningún método pasa el filtro (checkout sin opciones).
+	 */
+	allowedPaymentMethodsForDelivery: string[] | null;
 };
 
 export type DeliverySettingsPublic = DeliverySettingsNormalized;
@@ -71,6 +77,7 @@ const DEFAULTS: DeliverySettingsNormalized = {
 	customerNotes: "",
 	zones: [],
 	namedAreas: [],
+	allowedPaymentMethodsForDelivery: null,
 };
 
 function clampNonNeg(n: number, max: number): number {
@@ -93,6 +100,56 @@ function parseBool(raw: unknown, defaultVal: boolean): boolean {
 function parseNotes(raw: unknown): string {
 	if (typeof raw !== "string") return "";
 	return raw.trim().slice(0, 2000);
+}
+
+/** Claves internas que no deben persistir en cliente público (panel admin). */
+const STAFF_ONLY_DELIVERY_KEYS = [
+	"trustedDriverWhatsApp",
+	"trusted_driver_whatsapp",
+	"driverWhatsAppInternal",
+	"driver_whatsapp_internal",
+] as const;
+
+/**
+ * Quita datos solo personal/repartidor del JSON de `delivery_settings` antes de usarlo en tienda pública.
+ */
+export function stripStaffOnlyDeliverySettings(raw: unknown): unknown {
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
+	const o = { ...(raw as Record<string, unknown>) };
+	for (const k of STAFF_ONLY_DELIVERY_KEYS) {
+		delete o[k];
+	}
+	return o;
+}
+
+function parseAllowedPaymentMethodsForDelivery(raw: unknown): string[] | null {
+	if (raw === null || raw === undefined) return null;
+	if (!Array.isArray(raw)) return null;
+	const out: string[] = [];
+	const canonical = (value: string): string[] => {
+		const k = value.trim().toLowerCase().replace(/-/g, "_");
+		// Alias históricos del panel/admin hacia claves reales de checkout.
+		if (k === "tienda" || k === "presencial" || k === "cash_on_delivery") {
+			// `tienda` representa pago presencial en efectivo.
+			// `tarjeta` se controla con su propia clave/chip.
+			return ["efectivo"];
+		}
+		if (k === "transferencia") {
+			return ["transferencia_bancaria"];
+		}
+		return [k];
+	};
+	for (const x of raw) {
+		if (typeof x !== "string") continue;
+		const keys = canonical(x).map((k) => k.slice(0, 48)).filter(Boolean);
+		for (const k of keys) {
+			if (!out.includes(k)) out.push(k);
+			if (out.length >= 32) break;
+		}
+		if (out.length >= 32) break;
+	}
+	// Ojo: `[]` es un estado válido (significa "no permitir ninguno").
+	return out;
 }
 
 function parseZones(raw: unknown): DeliveryZoneNormalized[] {
@@ -204,6 +261,8 @@ export function normalizeDeliverySettings(raw: unknown): DeliverySettingsNormali
 	const freeFrom = o.freeDeliveryFromSubtotal ?? o.free_delivery_from_subtotal;
 	const minOrder = o.minOrderSubtotal ?? o.min_order_subtotal;
 	const notes = o.customerNotes ?? o.customer_notes ?? o.notes ?? o.customer_note;
+	const allowedPayRaw =
+		o.allowedPaymentMethodsForDelivery ?? o.allowed_payment_methods_for_delivery;
 	const zonesRaw = o.zones ?? o.delivery_zones;
 	const namedRaw =
 		o.namedAreas ?? o.named_areas ?? o.delivery_places ?? o.places;
@@ -278,6 +337,11 @@ export function normalizeDeliverySettings(raw: unknown): DeliverySettingsNormali
 			return Math.min(DELIVERY_MAX_FEE_CAP, n);
 		})(),
 		customerNotes: parseNotes(notes),
+		allowedPaymentMethodsForDelivery: (() => {
+			const p = parseAllowedPaymentMethodsForDelivery(allowedPayRaw);
+			if (p === null) return null;
+			return p;
+		})(),
 	};
 }
 
@@ -369,6 +433,16 @@ export function mergeDeliverySettingsJson(
 		const v = patch.namedAreaResolution;
 		if (v === "manual_select" || v === "address_matched") {
 			next.namedAreaResolution = v;
+		}
+	}
+	if ("allowedPaymentMethodsForDelivery" in patch) {
+		const v = patch.allowedPaymentMethodsForDelivery;
+		if (v === null || v === undefined) {
+			next.allowedPaymentMethodsForDelivery = null;
+		} else if (Array.isArray(v)) {
+			const parsed = parseAllowedPaymentMethodsForDelivery(v);
+			next.allowedPaymentMethodsForDelivery =
+				parsed && parsed.length > 0 ? parsed : null;
 		}
 	}
 
@@ -492,6 +566,42 @@ export function computeDeliveryFee(
 	if (settings.maxFee != null) fee = Math.min(fee, settings.maxFee);
 	if (!Number.isFinite(fee) || fee < 0) fee = 0;
 	return { fee: Math.round(fee * 100) / 100, waivedFreeShipping: false };
+}
+
+export type CheckoutFulfillment = "pickup" | "delivery";
+
+/**
+ * Lista de métodos de pago a mostrar en checkout: activos en sucursal ∩ restricción delivery (si aplica).
+ */
+export function resolveDeliveryPaymentMethodsForCheckout(
+	branchPaymentMethods: string[],
+	settings: DeliverySettingsNormalized,
+	fulfillment: CheckoutFulfillment,
+): string[] {
+	const base = Array.isArray(branchPaymentMethods)
+		? branchPaymentMethods.filter((m) => typeof m === "string" && m.trim())
+		: [];
+	if (fulfillment !== "delivery" || !settings.enabled) {
+		return base;
+	}
+	const list = settings.allowedPaymentMethodsForDelivery;
+	if (list == null) {
+		return base;
+	}
+	const allowed = new Set(list);
+	return base.filter((m) => allowed.has(m));
+}
+
+/** Valida si el método elegido está permitido para delivery según reglas de sucursal. */
+export function isOrderPaymentAllowedForDelivery(
+	methodKey: string,
+	settings: DeliverySettingsNormalized,
+): boolean {
+	const list = settings.allowedPaymentMethodsForDelivery;
+	if (list == null) {
+		return true;
+	}
+	return list.includes(methodKey);
 }
 
 /** Suma ítems del pedido (precio efectivo × cantidad). */

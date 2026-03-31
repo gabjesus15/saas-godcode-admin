@@ -50,7 +50,10 @@ import type { Json } from "../../types/supabase-database";
 import type { CartFulfillment } from "./cart-context";
 import {
   effectiveDeliveryPricingMode,
+  isOrderPaymentAllowedForDelivery,
   normalizeDeliverySettings,
+  resolveDeliveryPaymentMethodsForCheckout,
+  stripStaffOnlyDeliverySettings,
 } from "../../lib/delivery-settings";
 import { parseUnifiedAddressSearch } from "../../lib/address-search-query";
 const DeliveryPreviewMap = dynamic(
@@ -126,6 +129,9 @@ interface BranchInfo {
   mercadopago?: { [key: string]: string } | null;
   paypal?: { [key: string]: string } | null;
   delivery_settings?: Json | null;
+  /** Flags/objetos configurados en admin para métodos presenciales. */
+  efectivo?: unknown;
+  tarjeta?: unknown;
   origin_lat?: number | null;
   origin_lng?: number | null;
 }
@@ -309,9 +315,127 @@ export function CartModal({
       deliveryQuoteError,
     } = useCart();
 
+    type CheckoutLiveBranch = Pick<
+      BranchInfo,
+      "payment_methods" | "delivery_settings" | "efectivo" | "tarjeta"
+    >;
+
+    const [checkoutLiveBranch, setCheckoutLiveBranch] = useState<CheckoutLiveBranch | null>(
+      null,
+    );
+
+    const selectedBranchForCheckout = useMemo<BranchInfo | null>(() => {
+      if (!selectedBranch) return null;
+      if (!checkoutLiveBranch) return selectedBranch;
+      return { ...selectedBranch, ...checkoutLiveBranch } as BranchInfo;
+    }, [selectedBranch, checkoutLiveBranch]);
+
+    // Real-time: mantener actualizados los métodos de pago (y restricción delivery) del checkout
+    // cuando el admin edita la sucursal en el panel.
+    useEffect(() => {
+      if (!selectedBranch?.id) {
+        queueMicrotask(() => setCheckoutLiveBranch(null));
+        return;
+      }
+
+      const channel = supabase
+        .channel(`tenant-cart-checkout-branch:${selectedBranch.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "branches",
+            filter: `id=eq.${selectedBranch.id}`,
+          },
+          (payload) => {
+            const next = (payload as { new?: unknown }).new;
+            if (!next || typeof next !== "object") return;
+            const row = next as Record<string, unknown>;
+            setCheckoutLiveBranch({
+              payment_methods: row.payment_methods as string[] | null | undefined,
+              delivery_settings: row.delivery_settings as Json | null | undefined,
+              efectivo: row.efectivo,
+              tarjeta: row.tarjeta,
+            });
+          },
+        );
+
+      channel.subscribe();
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }, [supabase, selectedBranch?.id]);
+
     const deliverySettings = useMemo(
-      () => normalizeDeliverySettings(selectedBranch?.delivery_settings),
-      [selectedBranch?.delivery_settings]
+      () =>
+        normalizeDeliverySettings(
+          stripStaffOnlyDeliverySettings(selectedBranchForCheckout?.delivery_settings),
+        ),
+      [selectedBranchForCheckout]
+    );
+
+    const branchPaymentMethods = useMemo(() => {
+      const base = Array.isArray(selectedBranchForCheckout?.payment_methods)
+        ? [...selectedBranchForCheckout!.payment_methods]
+        : [];
+
+      const hasEfectivo = (() => {
+        const v = (selectedBranchForCheckout as Record<string, unknown>)?.efectivo;
+        if (v == null) return false;
+        if (typeof v === "string") {
+          const t = v.trim();
+          if (!t) return false;
+          // Si viene serializado como JSON vacío "{}", no lo consideramos activo.
+          try {
+            const parsed = JSON.parse(t);
+            if (parsed && typeof parsed === "object" && Object.keys(parsed as Record<string, unknown>).length === 0) {
+              return false;
+            }
+          } catch {
+            // Si no es JSON, al menos que no sea el string "{}".
+            if (t === "{}") return false;
+          }
+          return true;
+        }
+        if (typeof v === "object") return Object.keys(v as Record<string, unknown>).length > 0;
+        return true;
+      })();
+
+      const hasTarjeta = (() => {
+        const v = (selectedBranchForCheckout as Record<string, unknown>)?.tarjeta;
+        if (v == null) return false;
+        if (typeof v === "string") {
+          const t = v.trim();
+          if (!t) return false;
+          try {
+            const parsed = JSON.parse(t);
+            if (parsed && typeof parsed === "object" && Object.keys(parsed as Record<string, unknown>).length === 0) {
+              return false;
+            }
+          } catch {
+            if (t === "{}") return false;
+          }
+          return true;
+        }
+        if (typeof v === "object") return Object.keys(v as Record<string, unknown>).length > 0;
+        return true;
+      })();
+
+      if (hasEfectivo && !base.includes("efectivo")) base.push("efectivo");
+      if (hasTarjeta && !base.includes("tarjeta")) base.push("tarjeta");
+
+      return Array.from(new Set(base));
+    }, [selectedBranchForCheckout]);
+
+    const checkoutPaymentMethods = useMemo(
+      () =>
+        resolveDeliveryPaymentMethodsForCheckout(
+          branchPaymentMethods,
+          deliverySettings,
+          fulfillment,
+        ),
+      [branchPaymentMethods, deliverySettings, fulfillment],
     );
 
     const deliveryPriceMode = useMemo(
@@ -370,9 +494,10 @@ export function CartModal({
     // Mantener inputs sincronizados si `deliveryLine1` se setea desde GPS / geocoding.
     useEffect(() => {
       const { street, number } = splitLine1IntoStreetAndNumber(deliveryLine1);
-      setStreetInput(street);
-      setStreetNumberInput(number);
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+      queueMicrotask(() => {
+        setStreetInput(street);
+        setStreetNumberInput(number);
+      });
     }, [deliveryLine1]);
 
     useEffect(() => {
@@ -383,7 +508,7 @@ export function CartModal({
       const merged = [deliveryLine1.trim(), deliveryCommune.trim()]
         .filter(Boolean)
         .join(", ");
-      setUnifiedAddressSearch(merged);
+      queueMicrotask(() => setUnifiedAddressSearch(merged));
     }, [isCartOpen, deliveryPriceMode, deliveryLine1, deliveryCommune]);
 
     useEffect(() => {
@@ -495,6 +620,9 @@ export function CartModal({
       selectedBranch?.id,
       selectedBranch?.origin_lat,
       selectedBranch?.origin_lng,
+      SHOW_ADDRESS_SUGGESTIONS,
+      setDeliveryCoords,
+      setShowDeliveryReference,
     ]);
 
     useEffect(() => {
@@ -656,6 +784,17 @@ export function CartModal({
   const [showFieldErrors, setShowFieldErrors] = useState(false);
 
   const [paymentMethodKey, setPaymentMethodKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!paymentMethodKey) return;
+    if (checkoutPaymentMethods.length === 0) {
+      queueMicrotask(() => setPaymentMethodKey(null));
+      return;
+    }
+    if (!checkoutPaymentMethods.includes(paymentMethodKey)) {
+      queueMicrotask(() => setPaymentMethodKey(null));
+    }
+  }, [paymentMethodKey, checkoutPaymentMethods]);
 
   // Zod schema para validación robusta
     const clientSchema = z.object({
@@ -1099,6 +1238,20 @@ export function CartModal({
         ...v,
         isSaving: false,
         error: "Completa la direccion de delivery o revisa el monto minimo.",
+      }));
+      return;
+    }
+    if (
+      paymentMethodKey &&
+      fulfillment === "delivery" &&
+      deliverySettings.enabled &&
+      !isOrderPaymentAllowedForDelivery(paymentMethodKey, deliverySettings)
+    ) {
+      setViewState((v) => ({
+        ...v,
+        isSaving: false,
+        error:
+          "El metodo de pago no esta permitido para delivery en esta sucursal. Elige otro.",
       }));
       return;
     }
@@ -1719,6 +1872,7 @@ export function CartModal({
               <PaymentFlow
                 paymentMethodKey={paymentMethodKey}
                 setPaymentMethodKey={setPaymentMethodKey}
+                paymentMethodsForCheckout={checkoutPaymentMethods}
                 showForm={viewState.showForm}
                 setShowForm={(value: boolean) => setViewState((v) => ({ ...v, showForm: value }))}
                 formData={{
@@ -1752,6 +1906,7 @@ export function CartModal({
 const PaymentFlow = ({
   paymentMethodKey,
   setPaymentMethodKey,
+  paymentMethodsForCheckout,
   showForm,
   setShowForm,
   formData,
@@ -1770,6 +1925,7 @@ const PaymentFlow = ({
 }: {
   paymentMethodKey: string | null;
   setPaymentMethodKey: (value: string | null) => void;
+  paymentMethodsForCheckout: string[];
   showForm: boolean;
   setShowForm: (value: boolean) => void;
   formData: {
@@ -1946,14 +2102,13 @@ const PaymentFlow = ({
     );
   }
 
-  // Mostrar lista de métodos activos de la sucursal
-  const activeMethods = activeInfo.payment_methods || [];
+  const activeMethods = paymentMethodsForCheckout;
 
   return (
     <div className="payment-options animate-fade">
       <h4 className="text-center mb-15 text-white">Metodo de Pago</h4>
       {activeMethods.length === 0 ? (
-        <div className="text-center text-sm text-gray-400 py-4">No hay métodos de pago configurados en esta sucursal.</div>
+        <div className="text-center text-sm text-gray-400 py-4">No hay métodos de pago disponibles para esta forma de entrega.</div>
       ) : (
         activeMethods.map(methodKey => {
           const config = PAYMENT_METHOD_CONFIG[methodKey];

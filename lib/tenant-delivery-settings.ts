@@ -8,8 +8,12 @@ export {
 	computeDeliveryFee,
 	effectiveDeliveryPricingMode,
 	orderItemsSubtotalFromPayload,
+	stripStaffOnlyDeliverySettings,
+	resolveDeliveryPaymentMethodsForCheckout,
+	isOrderPaymentAllowedForDelivery,
 	type DeliverySettingsNormalized,
 	type DeliveryNamedArea,
 	type DeliveryPricingStrategy,
 	type NamedAreaResolution,
+	type CheckoutFulfillment,
 } from "./delivery-settings";

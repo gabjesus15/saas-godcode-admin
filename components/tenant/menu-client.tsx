@@ -32,6 +32,9 @@ interface BranchInfo {
   account_email?: string | null;
   account_holder?: string | null;
   payment_methods?: string[];
+  /** Flags/objetos configurados en admin para métodos presenciales. */
+  efectivo?: unknown;
+  tarjeta?: unknown;
   pago_movil?: {
     banco?: string;
     telefono?: string;

@@ -12,6 +12,7 @@ import {
 	computeDeliveryFee,
 	effectiveDeliveryPricingMode,
 	normalizeDeliverySettings,
+	stripStaffOnlyDeliverySettings,
 } from "../../lib/delivery-settings";
 import { haversineKm, isValidLatLng } from "../../lib/geo";
 import { formatCartMoney } from "./utils/format-cart-money";
@@ -203,7 +204,10 @@ export function CartProvider({
     const supabase = useMemo(() => createSupabaseBrowserClient("tenant"), []);
 
     const parsedDelivery = useMemo(
-      () => normalizeDeliverySettings(branchDeliverySettings),
+      () =>
+        normalizeDeliverySettings(
+          stripStaffOnlyDeliverySettings(branchDeliverySettings),
+        ),
       [branchDeliverySettings]
     );
 
@@ -402,6 +406,13 @@ export function CartProvider({
     } | null>(null);
     const [distError, setDistError] = useState<string | null>(null);
 
+    const [namedManualQuote, setNamedManualQuote] = useState<{
+      fee: number;
+      waived: boolean;
+    } | null>(null);
+    const [namedManualLoading, setNamedManualLoading] = useState(false);
+    const [namedManualError, setNamedManualError] = useState<string | null>(null);
+
     useEffect(() => {
       let cancelled = false;
 
@@ -565,7 +576,7 @@ export function CartProvider({
               setDistError("Error de red al cotizar.");
             }
           });
-      }, 0);
+      }, 320);
 
       return () => {
         cancelled = true;
@@ -576,6 +587,95 @@ export function CartProvider({
       store.deliveryLat,
       store.deliveryLng,
       parsedDelivery.enabled,
+      pricingMode,
+      selectedBranchId,
+      cartSubtotal,
+    ]);
+
+    useEffect(() => {
+      let cancelled = false;
+
+      const clearNamed = () => {
+        window.setTimeout(() => {
+          if (!cancelled) {
+            setNamedManualQuote(null);
+            setNamedManualError(null);
+            setNamedManualLoading(false);
+          }
+        }, 0);
+      };
+
+      if (
+        store.fulfillment !== "delivery" ||
+        !parsedDelivery.enabled ||
+        pricingMode !== "named" ||
+        parsedDelivery.namedAreaResolution !== "manual_select" ||
+        !selectedBranchId
+      ) {
+        clearNamed();
+        return () => {
+          cancelled = true;
+        };
+      }
+
+      const areaId = store.deliveryNamedAreaId?.trim();
+      if (!areaId) {
+        clearNamed();
+        return () => {
+          cancelled = true;
+        };
+      }
+
+      const timer = window.setTimeout(() => {
+        setNamedManualLoading(true);
+        setNamedManualError(null);
+        fetch("/api/delivery-quote", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            branchId: selectedBranchId,
+            subtotal: cartSubtotal,
+            namedAreaId: areaId,
+          }),
+        })
+          .then(async (r) => {
+            const j = (await r.json()) as {
+              ok?: boolean;
+              fee?: number;
+              waivedFreeShipping?: boolean;
+              error?: string;
+            };
+            if (cancelled) return;
+            if (!r.ok || !j.ok) {
+              setNamedManualQuote(null);
+              setNamedManualError(j.error || "No se pudo cotizar el envío.");
+              return;
+            }
+            setNamedManualQuote({
+              fee: Math.round(Number(j.fee) || 0),
+              waived: Boolean(j.waivedFreeShipping),
+            });
+          })
+          .catch(() => {
+            if (!cancelled) {
+              setNamedManualQuote(null);
+              setNamedManualError("Error de red al cotizar.");
+            }
+          })
+          .finally(() => {
+            if (!cancelled) setNamedManualLoading(false);
+          });
+      }, 400);
+
+      return () => {
+        cancelled = true;
+        clearTimeout(timer);
+      };
+    }, [
+      store.fulfillment,
+      store.deliveryNamedAreaId,
+      parsedDelivery.enabled,
+      parsedDelivery.namedAreaResolution,
       pricingMode,
       selectedBranchId,
       cartSubtotal,
@@ -623,17 +723,51 @@ export function CartProvider({
               quoteError: addrError,
             };
           }
-          const id = store.deliveryNamedAreaId;
+          const id = store.deliveryNamedAreaId?.trim() || null;
+          const areaName =
+            id != null
+              ? parsedDelivery.namedAreas.find((a) => a.id === id)?.name ?? null
+              : null;
+          if (namedManualLoading && !namedManualQuote && !namedManualError) {
+            return {
+              deliveryFee: 0,
+              waivedFree: false,
+              namedLabel: areaName,
+              quotedRouteKm: null,
+              outOfZone: false,
+              quoteLoading: true,
+              quoteError: null,
+            };
+          }
+          if (namedManualError) {
+            return {
+              deliveryFee: 0,
+              waivedFree: false,
+              namedLabel: areaName,
+              quotedRouteKm: null,
+              outOfZone: false,
+              quoteLoading: false,
+              quoteError: namedManualError,
+            };
+          }
+          if (namedManualQuote) {
+            return {
+              deliveryFee: Math.round(namedManualQuote.fee),
+              waivedFree: namedManualQuote.waived,
+              namedLabel: areaName,
+              quotedRouteKm: null,
+              outOfZone: false,
+              quoteLoading: false,
+              quoteError: null,
+            };
+          }
           const r = computeDeliveryFee(parsedDelivery, 0, cartSubtotal, {
             namedAreaId: id,
           });
           return {
             deliveryFee: Math.round(r.fee < 0 ? 0 : r.fee),
             waivedFree: r.waivedFreeShipping,
-            namedLabel:
-              id != null
-                ? parsedDelivery.namedAreas.find((a) => a.id === id)?.name ?? null
-                : null,
+            namedLabel: areaName,
             quotedRouteKm: null,
             outOfZone: false,
             quoteLoading: false,
@@ -729,6 +863,9 @@ export function CartProvider({
         manualKmParsed,
         store.deliveryLat,
         store.deliveryLng,
+        namedManualQuote,
+        namedManualLoading,
+        namedManualError,
       ]);
 
     const grandTotal = Math.round(cartSubtotal) + Math.round(deliveryFee);
