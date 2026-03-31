@@ -951,19 +951,11 @@ export function CartModal({
   const fulfillmentChoiceRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (!isCartOpen || typeof window === "undefined") return;
-    const root = document.documentElement;
-    const setViewportVar = () => {
-      const visualHeight = window.visualViewport?.height ?? window.innerHeight;
-      root.style.setProperty("--cart-visual-vh", `${Math.round(visualHeight)}px`);
-    };
-    setViewportVar();
-    window.visualViewport?.addEventListener("resize", setViewportVar);
-    window.addEventListener("resize", setViewportVar);
+    if (!isCartOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     return () => {
-      window.visualViewport?.removeEventListener("resize", setViewportVar);
-      window.removeEventListener("resize", setViewportVar);
-      root.style.removeProperty("--cart-visual-vh");
+      document.body.style.overflow = prevOverflow;
     };
   }, [isCartOpen]);
 
