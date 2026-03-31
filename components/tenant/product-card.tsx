@@ -32,8 +32,15 @@ export const ProductCard = React.memo(function ProductCard({ product, priority =
   const [isBumping, setIsBumping] = useState(false);
   // Removed unused failedSrc and setFailedSrc
 
-  const cartItem = useMemo(() => cart.find((item: { id: string }) => item.id === product.id), [cart, product.id]);
-  const quantity = cartItem ? cartItem.quantity : 0;
+  const quantity = useMemo(
+    () =>
+      cart.reduce(
+        (sum: number, item: { id: string; quantity: number }) =>
+          item.id === product.id ? sum + (Number(item.quantity) || 0) : sum,
+        0,
+      ),
+    [cart, product.id],
+  );
 
   const isLongDesc = (product.description || "").length > 60;
   // Restaurar carga progresiva y rápida

@@ -25,6 +25,9 @@ import {
   Truck,
   Upload,
   X,
+  CupSoda,
+  Sparkles,
+  ChevronDown,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import type { LucideProps } from "lucide-react";
@@ -46,14 +49,16 @@ import {
 import { sanitizeUserText } from "../../utils/sanitize-user-text";
 import { mergeCartWithBranchPrices } from "./utils/cart-pricing";
 import { formatCartMoney } from "./utils/format-cart-money";
+import { lockScroll, unlockScroll } from "./utils/scroll-lock";
 import type { Json } from "../../types/supabase-database";
-import type { CartFulfillment } from "./cart-context";
+import { type CartFulfillment, isUpsellBeverageLineId } from "./cart-context";
 import {
   effectiveDeliveryPricingMode,
   isOrderPaymentAllowedForDelivery,
   normalizeDeliverySettings,
   resolveDeliveryPaymentMethodsForCheckout,
   stripStaffOnlyDeliverySettings,
+  type DeliveryNamedArea,
 } from "../../lib/delivery-settings";
 import { parseUnifiedAddressSearch } from "../../lib/address-search-query";
 const DeliveryPreviewMap = dynamic(
@@ -67,6 +72,7 @@ import "../../app/[subdomain]/styles/CartModal.custom.css";
 
 type CartModalViewState = {
   showPaymentInfo: boolean;
+  showPaymentMethods: boolean;
   showForm: boolean;
   showSuccess: boolean;
   isSaving: boolean;
@@ -94,6 +100,13 @@ type AddressSearchHit = {
 };
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80";
+
+/** Fallback catálogo carrito: bebidas (sin imagen propia) */
+const ENHANCE_CATALOG_BEVERAGE_FALLBACK =
+  "https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=200&q=80";
+/** Fallback catálogo carrito: extras globales (sin imagen propia) */
+const ENHANCE_CATALOG_EXTRA_FALLBACK =
+  "https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=200&q=80";
 
 interface BranchInfo {
   id: string;
@@ -151,6 +164,7 @@ interface BusinessInfo {
 
 interface CartLineItem {
   id: string;
+  lineId?: string;
   name?: string | null;
   image_url?: string | null;
   quantity: number;
@@ -159,6 +173,9 @@ interface CartLineItem {
   discount_price?: number | null;
   description?: string | null;
   is_active?: boolean | null;
+  selected_extras?: Array<{ id: string; name: string; price: number; qty: number }>;
+  selected_beverages?: Array<{ id: string; name: string; price: number; qty: number }>;
+  line_summary?: string | null;
 }
 
 // Tipo unificado para manejar la información activa
@@ -265,6 +282,99 @@ function parseOrderRpcPayload(data: unknown): {
   };
 }
 
+/** Listbox temático: el `<select>` nativo no permite teñir el highlight del OS (azul). */
+function CartNamedAreaSelect({
+  areas,
+  value,
+  onPick,
+  formatMoney,
+}: {
+  areas: DeliveryNamedArea[];
+  value: string | null;
+  onPick: (id: string | null) => void;
+  formatMoney: (n: number) => string;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, []);
+
+  const selected = value ? areas.find((a) => a.id === value) : undefined;
+
+  return (
+    <div className={`cart-named-area-select${open ? " is-open" : ""}`} ref={rootRef}>
+      <button
+        type="button"
+        className={`cart-named-area-select-trigger form-input ${open ? "is-open" : ""}`}
+        aria-labelledby="cart-named-area-label"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className="cart-named-area-select-value">
+          {selected
+            ? `${selected.name} — $${formatMoney(selected.feeFlat)}`
+            : "Elegi una zona"}
+        </span>
+        <ChevronDown
+          size={18}
+          className="cart-named-area-select-chevron"
+          aria-hidden
+        />
+      </button>
+      {open ? (
+        <ul className="cart-named-area-select-list" role="listbox">
+          <li role="presentation">
+            <button
+              type="button"
+              role="option"
+              aria-selected={!value}
+              className={`cart-named-area-select-option ${!value ? "is-active" : ""}`}
+              onClick={() => {
+                onPick(null);
+                setOpen(false);
+              }}
+            >
+              Elegi una zona
+            </button>
+          </li>
+          {areas.map((a) => (
+            <li key={a.id} role="presentation">
+              <button
+                type="button"
+                role="option"
+                aria-selected={value === a.id}
+                className={`cart-named-area-select-option ${
+                  value === a.id ? "is-active" : ""
+                }`}
+                onClick={() => {
+                  onPick(a.id);
+                  setOpen(false);
+                }}
+              >
+                {a.name} — ${formatMoney(a.feeFlat)}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 export function CartModal({
   businessInfo,
   selectedBranch,
@@ -313,6 +423,10 @@ export function CartModal({
       deliveryNamedAreaLabel,
       deliveryQuoteLoading,
       deliveryQuoteError,
+      globalExtras,
+      setGlobalExtras,
+      extrasEnabledByBranch,
+      beveragesUpsellEnabledByBranch,
     } = useCart();
 
     type CheckoutLiveBranch = Pick<
@@ -443,6 +557,43 @@ export function CartModal({
       [deliverySettings]
     );
 
+    const [activeEnhancePanel, setActiveEnhancePanel] = useState<
+      "none" | "beverages" | "extras"
+    >("none");
+
+    const enhancementCatalogs = useMemo(() => {
+      const raw =
+        selectedBranchForCheckout?.delivery_settings &&
+        typeof selectedBranchForCheckout.delivery_settings === "object" &&
+        !Array.isArray(selectedBranchForCheckout.delivery_settings)
+          ? (selectedBranchForCheckout.delivery_settings as Record<string, unknown>)
+          : {};
+      const parseRows = (x: unknown) =>
+        Array.isArray(x)
+          ? x
+              .filter((r) => r && typeof r === "object")
+              .map((r) => {
+                const o = r as Record<string, unknown>;
+                const rawImg = o.image_url ?? o.imageUrl;
+                const imageUrl =
+                  typeof rawImg === "string" && rawImg.trim().length > 0
+                    ? rawImg.trim()
+                    : null;
+                return {
+                  id: String(o.id ?? ""),
+                  name: String(o.name ?? ""),
+                  price: Math.max(0, Math.round(Number(o.price) || 0)),
+                  image_url: imageUrl,
+                };
+              })
+              .filter((r) => r.id && r.name)
+          : [];
+      return {
+        beverages: parseRows(raw.cartBeveragesCatalog ?? raw.beveragesCatalog),
+        globalExtras: parseRows(raw.cartGlobalExtrasCatalog ?? raw.globalExtrasCatalog),
+      };
+    }, [selectedBranchForCheckout]);
+
     const [geoHint, setGeoHint] = useState<string | null>(null);
     // Modo simple: no mostramos autocompletado visual de direcciones.
     // Aun así, geocodificamos en background para obtener lat/lng.
@@ -516,6 +667,12 @@ export function CartModal({
       const t = window.setTimeout(() => {
         const v = unifiedAddressSearch.trim();
         setDebouncedLookup(v);
+        // En modo distancia con campos separados (comuna/calle/número),
+        // no volver a parsear el string unificado para evitar "pisar" inputs.
+        // Caso típico: escribir solo "Ñuñoa" en comuna terminaba moviéndolo a calle.
+        if (deliveryPriceMode === "distance" && !SHOW_ADDRESS_SUGGESTIONS) {
+          return;
+        }
         const { line1, commune } = parseUnifiedAddressSearch(unifiedAddressSearch);
         setDeliveryLine1(line1);
         setDeliveryCommune(commune);
@@ -524,6 +681,8 @@ export function CartModal({
     }, [
       unifiedAddressSearch,
       isCartOpen,
+      deliveryPriceMode,
+      SHOW_ADDRESS_SUGGESTIONS,
       setDeliveryLine1,
       setDeliveryCommune,
     ]);
@@ -774,6 +933,7 @@ export function CartModal({
 
   const [viewState, setViewState] = useState<CartModalViewState>({
     showPaymentInfo: false,
+    showPaymentMethods: false,
     showForm: false,
     showSuccess: false,
     isSaving: false,
@@ -781,9 +941,48 @@ export function CartModal({
     receiptUploadFailed: false,
     lastOrderSuccess: null,
   });
+
   const [showFieldErrors, setShowFieldErrors] = useState(false);
 
   const [paymentMethodKey, setPaymentMethodKey] = useState<string | null>(null);
+  const [isClosing, setIsClosing] = useState(false);
+  const [dragOffsetY, setDragOffsetY] = useState(0);
+  const closeTimerRef = useRef<number | null>(null);
+  const swipeStartYRef = useRef<number | null>(null);
+  const fulfillmentScrollRef = useRef<HTMLDivElement | null>(null);
+  const fulfillmentChoiceRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isCartOpen) {
+      unlockScroll();
+      return;
+    }
+    lockScroll();
+    return () => unlockScroll();
+  }, [isCartOpen]);
+
+  useEffect(() => {
+    if (!isCartOpen) return;
+    setIsClosing(false);
+    setDragOffsetY(0);
+  }, [isCartOpen]);
+
+  useEffect(() => {
+    if (!isCartOpen || typeof window === "undefined") return;
+    const root = document.documentElement;
+    const setViewportVar = () => {
+      const visualHeight = window.visualViewport?.height ?? window.innerHeight;
+      root.style.setProperty("--cart-visual-vh", `${Math.round(visualHeight)}px`);
+    };
+    setViewportVar();
+    window.visualViewport?.addEventListener("resize", setViewportVar);
+    window.addEventListener("resize", setViewportVar);
+    return () => {
+      window.visualViewport?.removeEventListener("resize", setViewportVar);
+      window.removeEventListener("resize", setViewportVar);
+      root.style.removeProperty("--cart-visual-vh");
+    };
+  }, [isCartOpen]);
 
   useEffect(() => {
     if (!paymentMethodKey) return;
@@ -963,6 +1162,18 @@ export function CartModal({
       namedManualOk &&
       addressMatchedOk &&
       distanceReady);
+
+  const checkoutPhase = useMemo((): "summary" | "fulfillment" | "payment" => {
+    if (!viewState.showPaymentInfo) return "summary";
+    if (!viewState.showPaymentMethods) return "fulfillment";
+    return "payment";
+  }, [viewState.showPaymentInfo, viewState.showPaymentMethods]);
+
+  const isDeliveryFulfillmentFocus =
+    viewState.showPaymentInfo &&
+    !viewState.showPaymentMethods &&
+    fulfillment === "delivery" &&
+    deliverySettings.enabled;
 
   const requestDeliveryGeo = useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -1184,6 +1395,7 @@ export function CartModal({
   const resetFlow = useCallback(() => {
     setViewState({
       showPaymentInfo: false,
+      showPaymentMethods: false,
       showForm: false,
       showSuccess: false,
       isSaving: false,
@@ -1208,6 +1420,115 @@ export function CartModal({
     toggleCart();
     setTimeout(resetFlow, 300);
   }, [viewState.showSuccess, toggleCart, resetFlow]);
+
+  const triggerHaptic = useCallback((duration = 8) => {
+    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+      navigator.vibrate(duration);
+    }
+  }, []);
+
+  const handleFulfillmentChange = useCallback(
+    (next: CartFulfillment) => {
+      if (fulfillment === next) return;
+      const scroller = fulfillmentScrollRef.current;
+      const choice = fulfillmentChoiceRef.current;
+      const prevScrollTop = scroller?.scrollTop ?? 0;
+      const prevChoiceTop = choice?.getBoundingClientRect().top ?? 0;
+      setFulfillment(next);
+      requestAnimationFrame(() => {
+        if (!scroller) return;
+        const nextChoiceTop = choice?.getBoundingClientRect().top ?? prevChoiceTop;
+        const delta = nextChoiceTop - prevChoiceTop;
+        scroller.scrollTop = Math.max(0, prevScrollTop + delta);
+      });
+    },
+    [fulfillment, setFulfillment],
+  );
+
+  const requestCloseCart = useCallback(() => {
+    if (isClosing) return;
+    triggerHaptic(10);
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+    setIsClosing(true);
+    setDragOffsetY(0);
+    closeTimerRef.current = window.setTimeout(() => {
+      handleCloseCart();
+      setIsClosing(false);
+      closeTimerRef.current = null;
+    }, 180);
+  }, [isClosing, handleCloseCart, triggerHaptic]);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleHeaderTouchStart = useCallback((event: React.TouchEvent<HTMLElement>) => {
+    swipeStartYRef.current = event.touches[0]?.clientY ?? null;
+  }, []);
+
+  const handleHeaderTouchMove = useCallback((event: React.TouchEvent<HTMLElement>) => {
+    if (swipeStartYRef.current == null) return;
+    const currentY = event.touches[0]?.clientY ?? swipeStartYRef.current;
+    const delta = currentY - swipeStartYRef.current;
+    if (delta <= 0) return;
+    const nextOffset = Math.min(140, delta);
+    setDragOffsetY(nextOffset);
+    if (nextOffset > 6) event.preventDefault();
+  }, []);
+
+  const handleHeaderTouchEnd = useCallback(() => {
+    const shouldClose = dragOffsetY > 90;
+    swipeStartYRef.current = null;
+    if (shouldClose) {
+      requestCloseCart();
+      return;
+    }
+    setDragOffsetY(0);
+  }, [dragOffsetY, requestCloseCart]);
+
+  const toggleGlobalExtra = useCallback(
+    (extra: { id: string; name: string; price: number }) => {
+      const current = Array.isArray(globalExtras) ? globalExtras : [];
+      const exists = current.some((x) => x.id === extra.id);
+      if (exists) {
+        setGlobalExtras(current.filter((x) => x.id !== extra.id));
+      } else {
+        setGlobalExtras([
+          ...current,
+          { id: extra.id, name: extra.name, price: extra.price, qty: 1 },
+        ]);
+      }
+    },
+    [globalExtras, setGlobalExtras],
+  );
+
+  const addUpsellBeverage = useCallback(
+    (bev: { id: string; name: string; price: number }) => {
+      addToCart(
+        {
+          id: `upsell_beverage_${bev.id}`,
+          name: bev.name,
+          description: "Bebida sugerida",
+          image_url: null,
+          price: bev.price,
+          has_discount: false,
+          discount_price: null,
+          is_active: true,
+        },
+        {
+          selectedBeverages: [{ id: bev.id, name: bev.name, price: bev.price, qty: 1 }],
+        },
+      );
+    },
+    [addToCart],
+  );
 
   const handleSendOrder = handleSubmit(async (data) => {
     // ...existing code...
@@ -1259,15 +1580,68 @@ export function CartModal({
     try {
       // Usar `filteredCart` (ya tiene precios/activos validados contra la sucursal).
       // Evita errores `invalid_item_price` / productos no disponibles al RPC.
-      const itemsForOrder = (filteredCart as CartLineItem[]).map((item) => ({
-        id: item.id,
-        name: String(item.name ?? ""),
-        quantity: Number(item.quantity) || 1,
-        price: Number(item.price) || 0,
-        has_discount: Boolean(item.has_discount),
-        discount_price: item.has_discount && item.discount_price != null ? Number(item.discount_price) : null,
-        description: item.description ? sanitizeUserText(item.description) : null,
+      const itemsForOrder = (filteredCart as CartLineItem[]).map((item) => {
+        const selectedExtras = (item.selected_extras ?? [])
+          .map((ex) => ({
+            id: String(ex.id),
+            name: String(ex.name),
+            price: Math.max(0, Number(ex.price) || 0),
+            qty: Math.max(1, Number(ex.qty) || 1),
+          }))
+          .filter((ex) => ex.id);
+        const selectedBeverages = (
+          isUpsellBeverageLineId(item.id) ? [] : (item.selected_beverages ?? [])
+        )
+          .map((bev) => ({
+            id: String(bev.id),
+            name: String(bev.name),
+            price: Math.max(0, Number(bev.price) || 0),
+            qty: Math.max(1, Number(bev.qty) || 1),
+          }))
+          .filter((bev) => bev.id);
+        const extrasTotal = [...selectedExtras, ...selectedBeverages].reduce(
+          (sum, x) => sum + x.price * x.qty,
+          0,
+        );
+        const extrasDesc = [
+          selectedExtras.length
+            ? `Extras: ${selectedExtras.map((x) => `${x.qty}x ${x.name}`).join(", ")}`
+            : "",
+          selectedBeverages.length
+            ? `Bebidas: ${selectedBeverages.map((x) => `${x.qty}x ${x.name}`).join(", ")}`
+            : "",
+        ]
+          .filter(Boolean)
+          .join(" | ");
+        const fullDesc = [item.description ?? "", item.line_summary ?? "", extrasDesc]
+          .filter(Boolean)
+          .join(" | ");
+        return {
+          id: item.id,
+          name: String(item.name ?? ""),
+          quantity: Number(item.quantity) || 1,
+          price: Number(item.price) || 0,
+          has_discount: Boolean(item.has_discount),
+          discount_price: item.has_discount && item.discount_price != null ? Number(item.discount_price) : null,
+          description: fullDesc ? sanitizeUserText(fullDesc) : null,
+          extras_total: Math.round(extrasTotal),
+          extras: [...selectedExtras, ...selectedBeverages],
+          custom_item: String(item.id ?? "").startsWith("upsell_beverage_"),
+        };
+      });
+      const globalExtrasLines = (globalExtras ?? []).map((ex, idx) => ({
+        id: `global_extra_${idx}_${ex.id}`,
+        name: String(ex.name ?? "Extra global"),
+        quantity: Math.max(1, Number(ex.qty) || 1),
+        price: Math.max(0, Number(ex.price) || 0),
+        has_discount: false,
+        discount_price: null,
+        description: "Extra global del pedido",
+        extras_total: 0,
+        extras: [],
+        custom_item: true,
       }));
+      const mergedItemsForOrder = [...itemsForOrder, ...globalExtrasLines];
       const isOnline = paymentMethodKey && PAYMENT_METHOD_CONFIG[paymentMethodKey]?.isOnline;
       const snapFulfillment = fulfillment;
       const snapSubtotal = cartSubtotal;
@@ -1310,7 +1684,7 @@ export function CartModal({
         payment_type: isOnline ? ('online' as const) : ('tienda' as const),
         payment_method_specific: paymentMethodKey,
         total: Number(snapGrand) || 0,
-        items: itemsForOrder,
+        items: mergedItemsForOrder,
         note: sanitizeUserText(orderNote),
         status: "pending",
         receiptFile: data.receiptFile,
@@ -1389,19 +1763,26 @@ export function CartModal({
     }
   });
 
+  const enhanceTabCount =
+    (beveragesUpsellEnabledByBranch ? 1 : 0) + (extrasEnabledByBranch ? 1 : 0);
+
   if (!isCartOpen) return null;
 
   if (viewState.showSuccess) {
     return (
-      <div className="modal-overlay cart-overlay" onClick={handleCloseCart}>
-        <div className="cart-panel" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-overlay cart-overlay" onClick={requestCloseCart}>
+        <div
+          className={`cart-panel${isClosing ? " is-closing" : ""}${dragOffsetY > 0 ? " is-dragging" : ""}`}
+          style={{ "--cart-sheet-offset-y": `${dragOffsetY}px` } as React.CSSProperties}
+          onClick={(e) => e.stopPropagation()}
+        >
           <header className="cart-header">
             <h3>¡Pedido Enviado!</h3>
-            <button onClick={handleCloseCart} className="btn-close-cart" aria-label="Cerrar"><X size={20} /></button>
+            <button onClick={requestCloseCart} className="btn-close-cart" aria-label="Cerrar"><X size={20} /></button>
           </header>
           <SuccessView
             onNewOrder={resetFlow}
-            onGoHome={handleCloseCart}
+            onGoHome={requestCloseCart}
             receiptUploadFailed={viewState.receiptUploadFailed}
             activeInfo={activeInfo}
             lastOrder={viewState.lastOrderSuccess}
@@ -1412,17 +1793,33 @@ export function CartModal({
   }
 
   return (
-    <div className="modal-overlay cart-overlay" onClick={handleCloseCart}>
-      <div className="cart-panel" onClick={(e) => e.stopPropagation()}>
-        <header className="cart-header">
+    <div className="modal-overlay cart-overlay" onClick={requestCloseCart}>
+      <div
+        className={`cart-panel${isClosing ? " is-closing" : ""}${dragOffsetY > 0 ? " is-dragging" : ""}`}
+        style={{ "--cart-sheet-offset-y": `${dragOffsetY}px` } as React.CSSProperties}
+        data-checkout-phase={checkoutPhase}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header
+          className="cart-header"
+          onTouchStart={handleHeaderTouchStart}
+          onTouchMove={handleHeaderTouchMove}
+          onTouchEnd={handleHeaderTouchEnd}
+          onTouchCancel={handleHeaderTouchEnd}
+        >
           <div className="cart-header-main">
             <div className="cart-header-title-row">
               <h3>Tu Pedido</h3>
               <span className="cart-count-badge">{filteredCart.length}</span>
             </div>
-            {selectedBranch ? <span className="cart-branch-name">{selectedBranch.name}</span> : null}
+            {selectedBranch ? (
+              <div className="cart-branch-row">
+                <MapPin size={13} className="cart-branch-icon" aria-hidden />
+                <span className="cart-branch-name">{selectedBranch.name}</span>
+              </div>
+            ) : null}
           </div>
-          <button onClick={handleCloseCart} className="btn-close-cart" aria-label="Cerrar"><X size={20} /></button>
+          <button onClick={requestCloseCart} className="btn-close-cart" aria-label="Cerrar"><X size={20} /></button>
         </header>
 
         {viewState.error ? (
@@ -1431,15 +1828,21 @@ export function CartModal({
           </div>
         ) : null}
 
-        <div className="cart-body">
+        <div
+          className={`cart-body cart-checkout-phase--${checkoutPhase}${
+            isDeliveryFulfillmentFocus ? " cart-body--delivery-step" : ""
+          }`}
+        >
           {cart.length === 0 ? (
-            <EmptyState onMenu={handleCloseCart} />
+            <EmptyState onMenu={requestCloseCart} />
           ) : (
             <>
+              {!isDeliveryFulfillmentFocus ? (
+                <>
               <div className="cart-items-list">
                 {(filteredCart as CartLineItem[]).map((item) => (
                   <CartItem
-                    key={item.id}
+                    key={item.lineId ?? item.id}
                     item={item}
                     unitPrice={getPrice(item)}
                     onRemove={removeFromCart}
@@ -1458,350 +1861,193 @@ export function CartModal({
                   rows={2}
                 />
               </div>
-              {deliverySettings.enabled ? (
-                <div className="cart-fulfillment-block glass">
-                  <div className="cart-fulfillment-title">Como recibis tu pedido</div>
-                  <div className="cart-fulfillment-choice">
-                    <button
-                      type="button"
-                      className={`cart-fulfill-option ${fulfillment === "pickup" ? "is-active" : ""}`}
-                      onClick={() => setFulfillment("pickup")}
-                    >
-                      <Store size={18} />
-                      Retiro en local
-                    </button>
-                    <button
-                      type="button"
-                      className={`cart-fulfill-option ${fulfillment === "delivery" ? "is-active" : ""}`}
-                      onClick={() => setFulfillment("delivery")}
-                    >
-                      <Truck size={18} />
-                      Delivery
-                    </button>
-                  </div>
-                  {fulfillment === "delivery" && deliverySettings.enabled ? (
-                    <div className="cart-delivery-fields">
-                      {deliverySettings.customerNotes ? (
-                        <p className="cart-delivery-note">{deliverySettings.customerNotes}</p>
-                      ) : null}
-
-                      {deliveryPriceMode === "named" &&
-                      deliverySettings.namedAreaResolution === "manual_select" ? (
-                        <>
-                          <label className="cart-field-label">Zona de entrega</label>
-                          <select
-                            className="form-input"
-                            value={deliveryNamedAreaId ?? ""}
-                            onChange={(e) => {
-                              const id = e.target.value ? e.target.value : null;
-                              setDeliveryNamedAreaId(id);
-                              if (id) {
-                                const area = deliverySettings.namedAreas.find((a) => a.id === id);
-                                if (area?.name) setDeliveryCommune(area.name);
-                              }
-                            }}
-                          >
-                            <option value="">Elegi una zona</option>
-                            {deliverySettings.namedAreas.map((a) => (
-                              <option key={a.id} value={a.id}>
-                                {a.name} — ${formatCartMoney(a.feeFlat)}
-                              </option>
-                            ))}
-                          </select>
-                        </>
-                      ) : null}
-
-                      {deliveryPriceMode === "named" &&
-                      deliverySettings.namedAreaResolution === "address_matched" ? (
-                        <p className="cart-delivery-note">
-                          Escribi calle, número y comuna; calculamos la tarifa según las zonas del local.
-                        </p>
-                      ) : null}
-
-                      {deliveryPriceMode === "distance" ? (
-                        <>
-                          <button
-                            type="button"
-                            className="btn btn-secondary btn-block cart-geo-btn"
-                            onClick={requestDeliveryGeo}
-                          >
-                            Usar mi ubicación (recomendado)
-                          </button>
-                          {geoHint ? <p className="cart-geo-hint">{geoHint}</p> : null}
-                          <p className="cart-delivery-note">
-                            Escribí tu dirección completa (calle y número y, si puedes,
-                            la comuna). Con eso te cotizamos el envío y coordinamos
-                            el pedido por WhatsApp.
-                          </p>
-                          {deliveryAddressPrecision === "approx" ? (
-                            <p className="cart-fulfillment-warn">
-                              Esta sugerencia es solo zona o ciudad: el mapa puede quedar lejos de
-                              tu puerta. Preferí otra opción con dirección más específica, ajustá
-                              calle o comuna, o usá <strong>Usar mi ubicación</strong>.
-                            </p>
-                          ) : null}
-                          <details className="cart-delivery-km-fallback">
-                            <summary className="cart-delivery-km-fallback-summary">
-                              No aparece mi dirección — indicar km aproximados
-                            </summary>
-                            <label className="cart-field-label" htmlFor="cart-km-manual">
-                              Distancia aproximada (km)
-                            </label>
-                            <input
-                              id="cart-km-manual"
-                              className="form-input"
-                              inputMode="decimal"
-                              value={deliveryKmManual}
-                              onChange={(e) => {
-                                setDeliveryKmManual(e.target.value);
-                                if (e.target.value.trim()) {
-                                  setDeliveryAddressPrecision(null);
-                                }
-                              }}
-                              placeholder="Ej: 3,5"
-                            />
-                          </details>
-                        </>
-                      ) : null}
-
-                      <div
-                        className={
-                          deliveryPriceMode === "distance"
-                            ? "cart-address-search-wrap"
-                            : undefined
-                        }
-                        ref={
-                          deliveryPriceMode === "distance"
-                            ? addressSearchWrapRef
-                            : undefined
-                        }
-                      >
-                        {deliveryPriceMode === "distance" ? (
-                          <>
-                          <label
-                            className="cart-field-label"
-                            htmlFor="cart-delivery-commune"
-                          >
-                            Comuna o ciudad
-                          </label>
-                          <input
-                            id="cart-delivery-commune"
-                            className="form-input"
-                            value={deliveryCommune}
-                            onChange={(e) => {
-                              const nextCommune = e.target.value;
-                              setDeliveryCommune(nextCommune);
-                              setDeliveryAddressPrecision(null);
-                              const streetPart = [
-                                streetInput.trim(),
-                                streetNumberInput.trim(),
-                              ]
-                                .filter(Boolean)
-                                .join(" ");
-                              const merged = [
-                                streetPart,
-                                nextCommune.trim(),
-                              ]
-                                .filter(Boolean)
-                                .join(", ");
-                              setUnifiedAddressSearch(merged);
-                            }}
-                            placeholder="Ej: Ñuñoa"
-                          />
-
-                          <label
-                            className="cart-field-label"
-                            htmlFor="cart-delivery-street"
-                          >
-                            Calle
-                          </label>
-                          <input
-                            id="cart-delivery-street"
-                            className="form-input"
-                            value={streetInput}
-                            onChange={(e) => {
-                              const nextStreet = e.target.value;
-                              setStreetInput(nextStreet);
-                              setDeliveryAddressPrecision(null);
-                              const streetPart = [
-                                nextStreet.trim(),
-                                streetNumberInput.trim(),
-                              ]
-                                .filter(Boolean)
-                                .join(" ");
-                              setDeliveryLine1(streetPart);
-                              const merged = [streetPart, deliveryCommune.trim()]
-                                .filter(Boolean)
-                                .join(", ");
-                              setUnifiedAddressSearch(merged);
-                            }}
-                            placeholder="Ej: Avenida Vicuña Mackenna"
-                          />
-
-                          <label
-                            className="cart-field-label"
-                            htmlFor="cart-delivery-number"
-                          >
-                            Número
-                          </label>
-                          <input
-                            id="cart-delivery-number"
-                            className="form-input"
-                            value={streetNumberInput}
-                            onChange={(e) => {
-                              const nextNumber = e.target.value;
-                              setStreetNumberInput(nextNumber);
-                              setDeliveryAddressPrecision(null);
-                              const streetPart = [
-                                streetInput.trim(),
-                                nextNumber.trim(),
-                              ]
-                                .filter(Boolean)
-                                .join(" ");
-                              setDeliveryLine1(streetPart);
-                              const merged = [streetPart, deliveryCommune.trim()]
-                                .filter(Boolean)
-                                .join(", ");
-                              setUnifiedAddressSearch(merged);
-                            }}
-                            inputMode="numeric"
-                            placeholder="Ej: 1432"
-                          />
-                          </>
-                        ) : null}
-                    {SHOW_ADDRESS_SUGGESTIONS &&
-                    deliveryPriceMode === "distance" &&
-                        addressSearchLoading ? (
-                          <p className="cart-geo-hint">Buscando direcciones…</p>
-                        ) : null}
-                    {SHOW_ADDRESS_SUGGESTIONS &&
-                    deliveryPriceMode === "distance" &&
-                        addressSearchConfigError ? (
-                          <p className="cart-fulfillment-warn">
-                            {addressSearchConfigError}
-                          </p>
-                        ) : null}
-                    {SHOW_ADDRESS_SUGGESTIONS &&
-                    deliveryPriceMode === "distance" &&
-                        addressHitsOpen &&
-                        addressHits.length > 0 ? (
-                          <ul
-                            className="cart-address-hits"
-                            aria-label="Sugerencias de dirección"
-                          >
-                            {addressHits.map((hit, idx) => {
-                              const subtitle = hit.commune?.trim() || "";
-                              return (
-                                <li key={`${hit.lat}-${hit.lng}-${idx}`}>
-                                  <button
-                                    type="button"
-                                    className="cart-address-hit-btn"
-                                    onClick={() => selectAddressSearchHit(hit)}
-                                  >
-                                    <MapPin
-                                      className="cart-address-hit-pin"
-                                      size={18}
-                                      aria-hidden
-                                    />
-                                    <span className="cart-address-hit-body">
-                                      <span className="cart-address-hit-primary">
-                                        {hit.line1 || hit.label}
-                                      </span>
-                                      {subtitle ? (
-                                        <span className="cart-address-hit-detail">
-                                          {subtitle}
-                                        </span>
-                                      ) : null}
-                                    </span>
-                                  </button>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        ) : null}
-                      </div>
-                      {fulfillment === "delivery" &&
-                      deliveryPriceMode === "distance" &&
-                      lineGeocodeLoading ? (
-                        <p className="cart-geo-hint">
-                          Actualizando ubicación con calle y número (recalculamos envío)…
-                        </p>
-                      ) : null}
-
-                      {fulfillment === "delivery" &&
-                      deliveryPriceMode === "distance" ? (
-                        <DeliveryPreviewMap lat={deliveryLat} lng={deliveryLng} />
-                      ) : null}
-
-                      <label className="cart-field-label">
-                        Indicaciones para el repartidor (obligatorio)
-                      </label>
-                      <textarea
-                        className="form-input"
-                        rows={2}
-                        value={deliveryReference}
-                        onChange={(e) => setDeliveryReference(e.target.value)}
-                        placeholder="Depto, timbre, color de portón, referencias…"
-                      />
-                      {!deliveryReferenceOk && fulfillment === "delivery" ? (
-                        <p className="cart-geo-hint">
-                          Minimo {MIN_DRIVER_REFERENCE_LEN} caracteres para que el repartidor te encuentre.
-                        </p>
-                      ) : null}
-
-                      {deliveryQuoteLoading ? (
-                        <p className="cart-geo-hint">Calculando envío…</p>
-                      ) : null}
-                      {deliveryQuoteError ? (
-                        <p className="cart-fulfillment-warn">{deliveryQuoteError}</p>
-                      ) : null}
-                      {deliveryNamedAreaLabel ? (
-                        <p className="cart-geo-hint">Zona detectada: {deliveryNamedAreaLabel}</p>
-                      ) : null}
-
-                      {fulfillment === "delivery" &&
-                      deliveryPriceMode === "distance" &&
-                      quotedRouteKm != null &&
-                      quotedRouteKm > 0 ? (
-                        <div className="cart-delivery-quote">
-                          <span>Distancia aprox. (línea recta)</span>
-                          <strong>{Math.round(Number(quotedRouteKm))} km</strong>
-                        </div>
-                      ) : null}
-                      <div className="cart-delivery-quote cart-delivery-fee-row">
-                        <span>Costo de envío</span>
-                        <strong>
-                          {deliveryWaivedFree
-                            ? "Gratis"
-                            : isDeliveryOutOfZone
-                              ? "Fuera de zona"
-                              : `$${formatCartMoney(deliveryFee)}`}
-                        </strong>
-                      </div>
-                      {!meetsMinDelivery ? (
-                        <p className="cart-fulfillment-warn">
-                          El mínimo para delivery es ${formatCartMoney(minOrder)}.
-                        </p>
-                      ) : null}
-                      {isDeliveryOutOfZone ? (
-                        <p className="cart-fulfillment-warn">
-                          Tu ubicación supera el máximo de kilómetros de este local.
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              ) : (
-                <p className="cart-pickup-only-hint">
-                  Esta sucursal solo acepta retiro en el local.
-                </p>
-              )}
+                </>
+              ) : null}
             </>
           )}
         </div>
 
         {cart.length > 0 ? (
-          <footer className="cart-footer">
+          <>
+            {!viewState.showPaymentInfo &&
+            !viewState.showPaymentMethods &&
+            !viewState.showForm &&
+            (beveragesUpsellEnabledByBranch || extrasEnabledByBranch) ? (
+              <div className="cart-footer-enhance-container">
+                <div
+                  className={`cart-footer-enhance-rail${
+                    enhanceTabCount === 1 ? " cart-footer-enhance-rail--single" : ""
+                  }`}
+                >
+                <div
+                  className={`cart-footer-enhance-expand${
+                    activeEnhancePanel !== "none" ? " is-open" : ""
+                  }`}
+                  aria-hidden={activeEnhancePanel === "none"}
+                >
+                  <div className="cart-footer-enhance-scroll">
+                    <div className="cart-enhance-panel glass cart-enhance-panel--in-footer">
+                      {activeEnhancePanel === "beverages" ? (
+                        <div className="cart-enhance-grid cart-enhance-grid--tiles">
+                          {enhancementCatalogs.beverages.map((bev) => (
+                            <div
+                              key={bev.id}
+                              className="cart-enhance-tile cart-enhance-tile--drink"
+                            >
+                              <button
+                                type="button"
+                                className="cart-enhance-tile-body"
+                                onClick={() => addUpsellBeverage(bev)}
+                              >
+                                <CartEnhanceCatalogGlyph
+                                  key={`${bev.id}-${bev.image_url ?? ""}`}
+                                  imageUrl={bev.image_url}
+                                  fallbackSrc={ENHANCE_CATALOG_BEVERAGE_FALLBACK}
+                                />
+                                <span className="cart-enhance-tile-main">
+                                  <span className="cart-enhance-tile-title">{bev.name}</span>
+                                  <span className="cart-enhance-tile-sub">
+                                    ${formatCartMoney(bev.price)}
+                                  </span>
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                className="cart-enhance-tile-plus"
+                                onClick={() => addUpsellBeverage(bev)}
+                                aria-label={`Agregar ${bev.name}`}
+                              >
+                                <Plus size={18} strokeWidth={2.5} aria-hidden />
+                              </button>
+                            </div>
+                          ))}
+                          {enhancementCatalogs.beverages.length === 0 ? (
+                            <p className="cart-geo-hint">No hay bebidas configuradas para upsell.</p>
+                          ) : null}
+                        </div>
+                      ) : activeEnhancePanel === "extras" ? (
+                        <div className="cart-enhance-grid cart-enhance-grid--tiles">
+                          {enhancementCatalogs.globalExtras.map((extra) => {
+                            const active = (globalExtras ?? []).some((x) => x.id === extra.id);
+                            return (
+                              <div
+                                key={extra.id}
+                                className={`cart-enhance-tile cart-enhance-tile--extra${
+                                  active ? " is-selected" : ""
+                                }`}
+                              >
+                                <button
+                                  type="button"
+                                  className="cart-enhance-tile-body"
+                                  onClick={() => toggleGlobalExtra(extra)}
+                                >
+                                  <CartEnhanceCatalogGlyph
+                                    key={`${extra.id}-${extra.image_url ?? ""}`}
+                                    imageUrl={extra.image_url}
+                                    fallbackSrc={ENHANCE_CATALOG_EXTRA_FALLBACK}
+                                  />
+                                  <span className="cart-enhance-tile-main">
+                                    <span className="cart-enhance-tile-title">{extra.name}</span>
+                                    <span className="cart-enhance-tile-sub">
+                                      {active ? (
+                                        <span className="cart-enhance-tile-pill">En tu pedido</span>
+                                      ) : (
+                                        `$${formatCartMoney(extra.price)}`
+                                      )}
+                                    </span>
+                                  </span>
+                                </button>
+                                {active ? (
+                                  <span className="cart-enhance-tile-check" aria-hidden>
+                                    <Check size={18} strokeWidth={2.5} />
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="cart-enhance-tile-plus"
+                                    onClick={() => toggleGlobalExtra(extra)}
+                                    aria-label={`Agregar ${extra.name}`}
+                                  >
+                                    <Plus size={18} strokeWidth={2.5} aria-hidden />
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                          {enhancementCatalogs.globalExtras.length === 0 ? (
+                            <p className="cart-geo-hint">No hay extras globales configurados.</p>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+                <div className="cart-enhance-segmented-wrap">
+                  <div
+                    className={`cart-enhance-segmented${
+                      enhanceTabCount === 1 ? " cart-enhance-segmented--single" : ""
+                    }`}
+                    role="tablist"
+                    aria-label={
+                      beveragesUpsellEnabledByBranch && extrasEnabledByBranch
+                        ? "Agregar bebidas o extras al pedido"
+                        : beveragesUpsellEnabledByBranch
+                          ? "Bebidas para tu pedido"
+                          : "Extras globales del pedido"
+                    }
+                  >
+                    {beveragesUpsellEnabledByBranch ? (
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={activeEnhancePanel === "beverages"}
+                        className={`cart-enhance-seg ${
+                          activeEnhancePanel === "beverages" ? "is-active" : ""
+                        }`}
+                        onClick={() => {
+                          triggerHaptic();
+                          setActiveEnhancePanel((v) => (v === "beverages" ? "none" : "beverages"));
+                        }}
+                      >
+                        <CupSoda size={17} aria-hidden />
+                        <span>Bebidas</span>
+                      </button>
+                    ) : null}
+                    {extrasEnabledByBranch ? (
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={activeEnhancePanel === "extras"}
+                        className={`cart-enhance-seg ${
+                          activeEnhancePanel === "extras" ? "is-active" : ""
+                        }`}
+                        onClick={() => {
+                          triggerHaptic();
+                          setActiveEnhancePanel((v) => (v === "extras" ? "none" : "extras"));
+                        }}
+                      >
+                        <Sparkles size={17} aria-hidden />
+                        <span>Extras</span>
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+
+                </div>
+              </div>
+            ) : null}
+            <div className="cart-footer-stack cart-footer-stack--solo">
+            <footer
+              className={`cart-footer cart-footer--sheet${
+                viewState.showPaymentInfo && !viewState.showPaymentMethods
+                  ? " cart-footer--checkout-fulfillment"
+                  : ""
+              }`}
+            >
+            <div
+              key={viewState.showPaymentInfo ? "checkout" : "summary"}
+              className="cart-footer-pane"
+            >
             {!viewState.showPaymentInfo ? (
               <>
                 <div className="total-row">
@@ -1838,7 +2084,356 @@ export function CartModal({
                         : `Caja cerrada.${businessInfo?.schedule ? ` Horario: ${businessInfo.schedule}` : ""}`}
                     </span>
                   </div>
-                ) : !canProceedFulfillment ? (
+                ) : (
+                  <button
+                    onClick={() => {
+                      triggerHaptic(12);
+                      setActiveEnhancePanel("none");
+                      setViewState((v) => ({
+                        ...v,
+                        showPaymentInfo: true,
+                        showPaymentMethods: false,
+                      }));
+                    }}
+                    className="btn btn-primary btn-block btn-lg"
+                  >
+                    Ir a Pagar
+                  </button>
+                )}
+              </>
+            ) : !viewState.showPaymentMethods ? (
+              <>
+                <div className="cart-footer-fulfillment-expand">
+                  <div className="cart-footer-fulfillment-scroll" ref={fulfillmentScrollRef}>
+                    {deliverySettings.enabled ? (
+                      <div
+                        className={`cart-fulfillment-block cart-fulfillment-block--in-footer ${
+                          isDeliveryFulfillmentFocus
+                            ? "cart-fulfillment-block--focus"
+                            : "glass"
+                        } ${fulfillment === "delivery" ? "cart-fulfillment-block--delivery-open" : ""}`}
+                      >
+                      <div className="cart-fulfillment-title">Como quieres recibir tu pedido</div>
+                      <p className="cart-fulfillment-subtitle">
+                        Elige una opcion para continuar con el checkout.
+                      </p>
+                      <div className="cart-fulfillment-choice" ref={fulfillmentChoiceRef}>
+                        <button
+                          type="button"
+                          className={`cart-fulfill-option ${fulfillment === "pickup" ? "is-active" : ""}`}
+                          onClick={() => handleFulfillmentChange("pickup")}
+                        >
+                          <Store size={18} />
+                          Retiro
+                        </button>
+                        <button
+                          type="button"
+                          className={`cart-fulfill-option ${fulfillment === "delivery" ? "is-active" : ""}`}
+                          onClick={() => handleFulfillmentChange("delivery")}
+                        >
+                          <Truck size={18} />
+                          Delivery
+                        </button>
+                      </div>
+                      {fulfillment === "delivery" && deliverySettings.enabled ? (
+                        <div className="cart-delivery-fields">
+                          {deliverySettings.customerNotes ? (
+                            <p className="cart-delivery-note">{deliverySettings.customerNotes}</p>
+                          ) : null}
+
+                          {deliveryPriceMode === "named" &&
+                          deliverySettings.namedAreaResolution === "manual_select" ? (
+                            <>
+                              <label className="cart-field-label" id="cart-named-area-label">
+                                Zona de entrega
+                              </label>
+                              <CartNamedAreaSelect
+                                areas={deliverySettings.namedAreas}
+                                value={deliveryNamedAreaId}
+                                formatMoney={formatCartMoney}
+                                onPick={(id) => {
+                                  setDeliveryNamedAreaId(id);
+                                  if (id) {
+                                    const area = deliverySettings.namedAreas.find((a) => a.id === id);
+                                    if (area?.name) setDeliveryCommune(area.name);
+                                  }
+                                }}
+                              />
+                            </>
+                          ) : null}
+
+                          {deliveryPriceMode === "named" &&
+                          deliverySettings.namedAreaResolution === "address_matched" ? (
+                            <p className="cart-delivery-note">
+                              Escribi calle, número y comuna; calculamos la tarifa según las zonas del local.
+                            </p>
+                          ) : null}
+
+                          {deliveryPriceMode === "distance" ? (
+                            <>
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-block cart-geo-btn"
+                                onClick={requestDeliveryGeo}
+                              >
+                                <MapPin size={17} aria-hidden />
+                                <span className="cart-geo-btn-copy">Usar ubicación actual</span>
+                              </button>
+                              <p className="cart-geo-helper">
+                                Calculamos el envío con mayor precisión.
+                              </p>
+                              {geoHint ? <p className="cart-geo-hint">{geoHint}</p> : null}
+                              <p className="cart-delivery-note">
+                                Escribí tu dirección completa (calle y número y, si puedes,
+                                la comuna). Con eso te cotizamos el envío y coordinamos
+                                el pedido por WhatsApp.
+                              </p>
+                              {deliveryAddressPrecision === "approx" ? (
+                                <p className="cart-fulfillment-warn">
+                                  Esta sugerencia es solo zona o ciudad: el mapa puede quedar lejos de
+                                  tu puerta. Preferí otra opción con dirección más específica, ajustá
+                                  calle o comuna, o usá <strong>Usar mi ubicación</strong>.
+                                </p>
+                              ) : null}
+                            </>
+                          ) : null}
+
+                          <div
+                            className={
+                              deliveryPriceMode === "distance"
+                                ? "cart-address-search-wrap"
+                                : undefined
+                            }
+                            ref={
+                              deliveryPriceMode === "distance"
+                                ? addressSearchWrapRef
+                                : undefined
+                            }
+                          >
+                            {deliveryPriceMode === "distance" ? (
+                              <>
+                              <label
+                                className="cart-field-label"
+                                htmlFor="cart-delivery-commune"
+                              >
+                                Comuna o ciudad
+                              </label>
+                              <input
+                                id="cart-delivery-commune"
+                                className="form-input"
+                                value={deliveryCommune}
+                                onChange={(e) => {
+                                  const nextCommune = e.target.value;
+                                  setDeliveryCommune(nextCommune);
+                                  setDeliveryAddressPrecision(null);
+                                  const streetPart = [
+                                    streetInput.trim(),
+                                    streetNumberInput.trim(),
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" ");
+                                  const merged = [
+                                    streetPart,
+                                    nextCommune.trim(),
+                                  ]
+                                    .filter(Boolean)
+                                    .join(", ");
+                                  setUnifiedAddressSearch(merged);
+                                }}
+                                placeholder="Ej: Ñuñoa"
+                              />
+
+                              <label
+                                className="cart-field-label"
+                                htmlFor="cart-delivery-street"
+                              >
+                                Calle
+                              </label>
+                              <input
+                                id="cart-delivery-street"
+                                className="form-input"
+                                value={streetInput}
+                                onChange={(e) => {
+                                  const nextStreet = e.target.value;
+                                  setStreetInput(nextStreet);
+                                  setDeliveryAddressPrecision(null);
+                                  const streetPart = [
+                                    nextStreet.trim(),
+                                    streetNumberInput.trim(),
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" ");
+                                  setDeliveryLine1(streetPart);
+                                  const merged = [streetPart, deliveryCommune.trim()]
+                                    .filter(Boolean)
+                                    .join(", ");
+                                  setUnifiedAddressSearch(merged);
+                                }}
+                                placeholder="Ej: Avenida Vicuña Mackenna"
+                              />
+
+                              <label
+                                className="cart-field-label"
+                                htmlFor="cart-delivery-number"
+                              >
+                                Número
+                              </label>
+                              <input
+                                id="cart-delivery-number"
+                                className="form-input"
+                                value={streetNumberInput}
+                                onChange={(e) => {
+                                  const nextNumber = e.target.value;
+                                  setStreetNumberInput(nextNumber);
+                                  setDeliveryAddressPrecision(null);
+                                  const streetPart = [
+                                    streetInput.trim(),
+                                    nextNumber.trim(),
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" ");
+                                  setDeliveryLine1(streetPart);
+                                  const merged = [streetPart, deliveryCommune.trim()]
+                                    .filter(Boolean)
+                                    .join(", ");
+                                  setUnifiedAddressSearch(merged);
+                                }}
+                                inputMode="numeric"
+                                placeholder="Ej: 1432"
+                              />
+                              </>
+                            ) : null}
+                        {SHOW_ADDRESS_SUGGESTIONS &&
+                        deliveryPriceMode === "distance" &&
+                            addressSearchLoading ? (
+                              <p className="cart-geo-hint">Buscando direcciones…</p>
+                            ) : null}
+                        {SHOW_ADDRESS_SUGGESTIONS &&
+                        deliveryPriceMode === "distance" &&
+                            addressSearchConfigError ? (
+                              <p className="cart-fulfillment-warn">
+                                {addressSearchConfigError}
+                              </p>
+                            ) : null}
+                        {SHOW_ADDRESS_SUGGESTIONS &&
+                        deliveryPriceMode === "distance" &&
+                            addressHitsOpen &&
+                            addressHits.length > 0 ? (
+                              <ul
+                                className="cart-address-hits"
+                                aria-label="Sugerencias de dirección"
+                              >
+                                {addressHits.map((hit, idx) => {
+                                  const subtitle = hit.commune?.trim() || "";
+                                  return (
+                                    <li key={`${hit.lat}-${hit.lng}-${idx}`}>
+                                      <button
+                                        type="button"
+                                        className="cart-address-hit-btn"
+                                        onClick={() => selectAddressSearchHit(hit)}
+                                      >
+                                        <MapPin
+                                          className="cart-address-hit-pin"
+                                          size={18}
+                                          aria-hidden
+                                        />
+                                        <span className="cart-address-hit-body">
+                                          <span className="cart-address-hit-primary">
+                                            {hit.line1 || hit.label}
+                                          </span>
+                                          {subtitle ? (
+                                            <span className="cart-address-hit-detail">
+                                              {subtitle}
+                                            </span>
+                                          ) : null}
+                                        </span>
+                                      </button>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            ) : null}
+                          </div>
+                          {fulfillment === "delivery" &&
+                          deliveryPriceMode === "distance" &&
+                          lineGeocodeLoading ? (
+                            <p className="cart-geo-hint">
+                              Actualizando ubicación con calle y número (recalculamos envío)…
+                            </p>
+                          ) : null}
+
+                          {fulfillment === "delivery" &&
+                          deliveryPriceMode === "distance" ? (
+                            <DeliveryPreviewMap lat={deliveryLat} lng={deliveryLng} />
+                          ) : null}
+
+                          <label className="cart-field-label">
+                            Indicaciones para el repartidor (obligatorio)
+                          </label>
+                          <textarea
+                            className="form-input"
+                            rows={2}
+                            value={deliveryReference}
+                            onChange={(e) => setDeliveryReference(e.target.value)}
+                            placeholder="Depto, timbre, color de portón, referencias…"
+                          />
+                          {!deliveryReferenceOk && fulfillment === "delivery" ? (
+                            <p className="cart-geo-hint">
+                              Minimo {MIN_DRIVER_REFERENCE_LEN} caracteres para que el repartidor te encuentre.
+                            </p>
+                          ) : null}
+
+                          {deliveryQuoteLoading ? (
+                            <p className="cart-geo-hint">Calculando envío…</p>
+                          ) : null}
+                          {deliveryQuoteError ? (
+                            <p className="cart-fulfillment-warn">{deliveryQuoteError}</p>
+                          ) : null}
+                          {deliveryNamedAreaLabel ? (
+                            <p className="cart-geo-hint">Zona detectada: {deliveryNamedAreaLabel}</p>
+                          ) : null}
+
+                          {fulfillment === "delivery" &&
+                          deliveryPriceMode === "distance" &&
+                          quotedRouteKm != null &&
+                          quotedRouteKm > 0 ? (
+                            <div className="cart-delivery-quote">
+                              <span>Distancia aprox. (línea recta)</span>
+                              <strong>{Math.round(Number(quotedRouteKm))} km</strong>
+                            </div>
+                          ) : null}
+                          <div className="cart-delivery-quote cart-delivery-fee-row">
+                            <span>Costo de envío</span>
+                            <strong>
+                              {deliveryWaivedFree
+                                ? "Gratis"
+                                : isDeliveryOutOfZone
+                                  ? "Fuera de zona"
+                                  : `$${formatCartMoney(deliveryFee)}`}
+                            </strong>
+                          </div>
+                          {!meetsMinDelivery ? (
+                            <p className="cart-fulfillment-warn">
+                              El mínimo para delivery es ${formatCartMoney(minOrder)}.
+                            </p>
+                          ) : null}
+                          {isDeliveryOutOfZone ? (
+                            <p className="cart-fulfillment-warn">
+                              Tu ubicación supera el máximo de kilómetros de este local.
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                    ) : (
+                      <p className="cart-pickup-only-hint cart-pickup-only-hint--in-footer">
+                        Esta sucursal solo acepta retiro en el local.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {!canProceedFulfillment ? (
                   <div className="cash-closed-banner">
                     <AlertCircle size={16} />
                     <span>
@@ -1860,13 +2455,27 @@ export function CartModal({
                 ) : (
                   <button
                     onClick={() => {
-                      setViewState((v) => ({ ...v, showPaymentInfo: true }));
+                      triggerHaptic(12);
+                      setViewState((v) => ({ ...v, showPaymentMethods: true }));
                     }}
                     className="btn btn-primary btn-block btn-lg"
                   >
-                    Ir a Pagar
+                    Continuar a métodos de pago
                   </button>
                 )}
+                <button
+                  onClick={() =>
+                    setViewState((v) => ({
+                      ...v,
+                      showPaymentInfo: false,
+                      showPaymentMethods: false,
+                    }))
+                  }
+                  className="btn btn-text btn-block mt-2"
+                >
+                  <ArrowLeft size={16} className="mr-5" />
+                  Volver al resumen
+                </button>
               </>
             ) : (
               <PaymentFlow
@@ -1890,13 +2499,22 @@ export function CartModal({
                 showFieldErrors={showFieldErrors}
                 setShowFieldErrors={setShowFieldErrors}
                 cartTotal={grandTotal}
-                onBack={() => setViewState((v) => ({ ...v, showPaymentInfo: false }))}
+                onBack={() =>
+                  setViewState((v) => ({
+                    ...v,
+                    showPaymentMethods: false,
+                    showForm: false,
+                  }))
+                }
                 activeInfo={activeInfo}
                 setViewState={setViewState}
                 viewState={viewState}
               />
             )}
+            </div>
           </footer>
+          </div>
+          </>
         ) : null}
       </div>
     </div>
@@ -1971,7 +2589,12 @@ const PaymentFlow = ({
 
   if (paymentMethodKey && showForm) {
     return (
-      <form onSubmit={onSubmit} className="checkout-form animate-fade">
+      <div className="payment-flow">
+        <form
+          key={`form-${paymentMethodKey}`}
+          onSubmit={onSubmit}
+          className="checkout-form payment-flow-surface payment-flow-surface--form"
+        >
         <h4 className="form-title">
           <MessageCircle size={18} /> Datos del Cliente
         </h4>
@@ -2072,16 +2695,21 @@ const PaymentFlow = ({
           </button>
         </div>
       </form>
+      </div>
     );
   }
 
   if (paymentMethodKey) {
     return (
-      <div className="payment-details animate-fade">
+      <div className="payment-flow">
+        <div
+          key={`detail-${paymentMethodKey}`}
+          className="payment-details payment-flow-surface payment-flow-surface--detail"
+        >
         {isOnline ? (
           <OnlinePaymentDetails methodKey={paymentMethodKey} cartTotal={cartTotal} activeInfo={activeInfo} />
         ) : (
-          <div className="store-pay-info glass mb-20">
+          <div key={paymentMethodKey} className="store-pay-info glass mb-20 payment-method-store-card">
             <Store size={32} className="text-accent" />
             <div>
               <h4>{PAYMENT_METHOD_CONFIG[paymentMethodKey]?.label || "Pagar en Local"}</h4>
@@ -2099,25 +2727,29 @@ const PaymentFlow = ({
           <ArrowLeft size={16} className="mr-5" /> Elegir otro metodo
         </button>
       </div>
+      </div>
     );
   }
 
   const activeMethods = paymentMethodsForCheckout;
 
   return (
-    <div className="payment-options animate-fade">
+    <div className="payment-flow">
+      <div key="pick" className="payment-options payment-flow-surface payment-flow-surface--pick">
       <h4 className="text-center mb-15 text-white">Metodo de Pago</h4>
       {activeMethods.length === 0 ? (
         <div className="text-center text-sm text-gray-400 py-4">No hay métodos de pago disponibles para esta forma de entrega.</div>
       ) : (
-        activeMethods.map(methodKey => {
+        activeMethods.map((methodKey, idx) => {
           const config = PAYMENT_METHOD_CONFIG[methodKey];
           if (!config) return null;
           const Icon = config.icon;
           return (
             <button 
               key={methodKey} 
+              type="button"
               className="btn btn-secondary btn-block payment-opt" 
+              style={{ animationDelay: `${Math.min(idx, 10) * 0.045}s` }}
               onClick={() => setPaymentMethodKey(methodKey)}
             >
               {Icon && <Icon size={20} className="mr-5" />} {config.label}
@@ -2129,10 +2761,11 @@ const PaymentFlow = ({
         Cancelar
       </button>
     </div>
+    </div>
   );
 };
 
-const OnlinePaymentDetails = ({ methodKey, cartTotal, activeInfo }: { methodKey: string, cartTotal: number; activeInfo: ActiveSessionInfo }) => {
+const OnlinePaymentDetails = ({ methodKey, cartTotal, activeInfo }: { methodKey: string; cartTotal: number; activeInfo: ActiveSessionInfo }) => {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
   };
@@ -2234,7 +2867,7 @@ const OnlinePaymentDetails = ({ methodKey, cartTotal, activeInfo }: { methodKey:
   };
 
   return (
-    <div className="bank-info glass">
+    <div className="bank-info glass payment-method-bank-card" key={methodKey}>
       <h4>Datos de Pago</h4>
       {renderDetails()}
       <div className="pay-total">Total: ${formatCartMoney(cartTotal)}</div>
@@ -2344,6 +2977,44 @@ const SuccessView = ({
   );
 };
 
+function CartEnhanceCatalogGlyph({
+  imageUrl,
+  fallbackSrc,
+}: {
+  imageUrl: string | null | undefined;
+  fallbackSrc: string;
+}) {
+  const resolved = useMemo(() => {
+    const raw = typeof imageUrl === "string" && imageUrl.trim() ? imageUrl.trim() : null;
+    if (!raw) return null;
+    const o = getCloudinaryOptimizedUrl(raw, {
+      width: 88,
+      height: 88,
+      crop: "fill",
+      gravity: "auto",
+    });
+    if (typeof o === "string" && o.trim()) return o.trim();
+    return raw;
+  }, [imageUrl]);
+
+  const primary = resolved ?? fallbackSrc;
+  const [src, setSrc] = useState(primary);
+
+  return (
+    <span className="cart-enhance-tile-glyph cart-enhance-tile-glyph--media" aria-hidden>
+      <Image
+        src={src}
+        alt=""
+        width={44}
+        height={44}
+        unoptimized
+        className="cart-enhance-tile-img"
+        onError={() => setSrc(fallbackSrc)}
+      />
+    </span>
+  );
+}
+
 const EmptyState = ({ onMenu }: { onMenu: () => void }) => (
   <div className="empty-state">
     <span className="empty-emoji">🍽️</span>
@@ -2364,7 +3035,13 @@ const CartItem = ({
   item: CartLineItem;
   unitPrice: number;
   onRemove: (id: string) => void;
-  onAdd: (item: CartLineItem) => void;
+  onAdd: (
+    item: CartLineItem,
+    options?: {
+      selectedExtras?: Array<{ id: string; name: string; price: number; qty: number }>;
+      selectedBeverages?: Array<{ id: string; name: string; price: number; qty: number }>;
+    },
+  ) => void;
   onDecrease: (id: string) => void;
 }) => {
   const optimizedSrc = getCloudinaryOptimizedUrl(item.image_url ?? null, {
@@ -2377,25 +3054,51 @@ const CartItem = ({
     typeof optimizedSrc === "string" && optimizedSrc.trim().length > 0
       ? optimizedSrc
       : FALLBACK_IMAGE;
+  const upsellBevOnly = isUpsellBeverageLineId(item.id);
+  const extrasText = (item.selected_extras ?? [])
+    .map((ex) => `${ex.qty}x ${ex.name}`)
+    .join(", ");
+  const beveragesText = upsellBevOnly
+    ? ""
+    : (item.selected_beverages ?? [])
+        .map((bev) => `${bev.qty}x ${bev.name}`)
+        .join(", ");
+  const extrasTotal = (item.selected_extras ?? []).reduce(
+    (sum, ex) => sum + (Number(ex.price) || 0) * (Number(ex.qty) || 1),
+    0,
+  );
+  const beveragesTotal = upsellBevOnly
+    ? 0
+    : (item.selected_beverages ?? []).reduce(
+        (sum, bev) => sum + (Number(bev.price) || 0) * (Number(bev.qty) || 1),
+        0,
+      );
+  const lineUnitTotal = Math.max(0, unitPrice + extrasTotal + beveragesTotal);
 
   return (
     <div className="cart-item">
-      <Image
-      src={imageSrc}
-      alt={item.name ?? "Producto"}
-      width={65}
-      height={65}
-      unoptimized
-      className="item-thumb"
-      onError={(event) => {
-        event.currentTarget.src = FALLBACK_IMAGE;
-      }}
-    />
+      {upsellBevOnly ? (
+        <div className="item-thumb item-thumb--upsell-drink" aria-hidden>
+          <CupSoda size={24} strokeWidth={2} />
+        </div>
+      ) : (
+        <Image
+          src={imageSrc}
+          alt={item.name ?? "Producto"}
+          width={65}
+          height={65}
+          unoptimized
+          className="item-thumb"
+          onError={(event) => {
+            event.currentTarget.src = FALLBACK_IMAGE;
+          }}
+        />
+      )}
     <div className="item-details item-details-tight">
       <div className="item-top">
         <h4 className="item-title">{item.name}</h4>
         <button
-          onClick={() => onRemove(item.id)}
+          onClick={() => onRemove(item.lineId ?? item.id)}
           className="btn-trash"
           aria-label="Quitar producto"
           title="Quitar producto"
@@ -2406,11 +3109,11 @@ const CartItem = ({
 
       <div className="item-bottom item-bottom-tight">
         <span className="item-price item-price-strong">
-          ${formatCartMoney(unitPrice * item.quantity)}
+          ${formatCartMoney(lineUnitTotal * item.quantity)}
         </span>
         <div className="qty-control-sm">
           <button
-            onClick={() => onDecrease(item.id)}
+            onClick={() => onDecrease(item.lineId ?? item.id)}
             aria-label="Disminuir cantidad"
             title="Disminuir cantidad"
           >
@@ -2418,7 +3121,12 @@ const CartItem = ({
           </button>
           <span>{item.quantity}</span>
           <button
-            onClick={() => onAdd(item)}
+            onClick={() =>
+              onAdd(item, {
+                selectedExtras: item.selected_extras ?? [],
+                selectedBeverages: item.selected_beverages ?? [],
+              })
+            }
             aria-label="Aumentar cantidad"
             title="Aumentar cantidad"
           >
@@ -2426,6 +3134,9 @@ const CartItem = ({
           </button>
         </div>
       </div>
+      {extrasText ? <p className="cart-geo-hint">Extras: {extrasText}</p> : null}
+      {beveragesText ? <p className="cart-geo-hint">Bebidas: {beveragesText}</p> : null}
+      {item.line_summary ? <p className="cart-geo-hint">{item.line_summary}</p> : null}
     </div>
   </div>
   );

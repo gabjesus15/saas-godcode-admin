@@ -15,6 +15,9 @@ interface OrderItem {
   has_discount?: boolean;
   discount_price?: number | null;
   description?: string | null;
+  extras_total?: number;
+  extras?: Array<{ id: string; name: string; price: number; qty: number }>;
+  custom_item?: boolean;
 }
 
 interface CreateOrderPayload {
@@ -75,6 +78,30 @@ function isDeliveryOrderType(raw: unknown): boolean {
   return t === "delivery" || t === "envio" || t === "envío" || t === "despacho";
 }
 
+function isUuidLike(v: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    v,
+  );
+}
+
+function normalizeExtrasPayload(
+  raw: unknown,
+): Array<{ id: string; name: string; price: number; qty: number }> {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((x) => x && typeof x === "object")
+    .map((x) => {
+      const o = x as Record<string, unknown>;
+      return {
+        id: String(o.id ?? ""),
+        name: String(o.name ?? "Extra"),
+        price: Math.max(0, Math.round(Number(o.price) || 0)),
+        qty: Math.max(1, Math.round(Number(o.qty) || 1)),
+      };
+    })
+    .filter((x) => x.id.trim().length > 0);
+}
+
 async function buildOrderItemsFromBranch(
   supabase: ReturnType<typeof createSupabaseBrowserClient>,
   branchId: string,
@@ -82,8 +109,16 @@ async function buildOrderItemsFromBranch(
 ): Promise<OrderItem[]> {
   const requestedMap = new Map(
     items
-      .filter((item) => Boolean(item?.id))
-      .map((item) => [String(item.id), { quantity: Math.max(1, Number(item.quantity) || 1), description: item.description ?? null }])
+      .filter((item) => Boolean(item?.id) && isUuidLike(String(item.id)))
+      .map((item) => [
+        String(item.id),
+        {
+          quantity: Math.max(1, Number(item.quantity) || 1),
+          description: item.description ?? null,
+          extras_total: Math.max(0, Math.round(Number(item.extras_total) || 0)),
+          extras: normalizeExtrasPayload(item.extras),
+        },
+      ])
   );
 
   const requestedIds = Array.from(requestedMap.keys());
@@ -147,6 +182,8 @@ async function buildOrderItemsFromBranch(
       has_discount: false,
       discount_price: null,
       description: requested.description,
+      extras_total: requested.extras_total,
+      extras: requested.extras,
     });
   }
 
@@ -171,7 +208,23 @@ export const ordersService = {
       orderData.items
     );
 
-    if (normalizedItems.length === 0) {
+    const customItems = (orderData.items ?? [])
+      .filter((it) => it.custom_item === true)
+      .map((it, idx) => ({
+        id: `custom_${idx}_${String(it.id ?? "")}`,
+        name: String(it.name ?? "Extra"),
+        quantity: Math.max(1, Number(it.quantity) || 1),
+        price: Math.max(0, Math.round(Number(it.price) || 0)),
+        has_discount: false,
+        discount_price: null,
+        description: it.description ?? null,
+        extras_total: 0,
+        extras: normalizeExtrasPayload(it.extras),
+      }));
+
+    const itemsForRpc = [...normalizedItems, ...customItems];
+
+    if (itemsForRpc.length === 0) {
       throw new Error(
         "Ningun producto del carrito esta disponible en esta sucursal en este momento."
       );
@@ -191,13 +244,14 @@ export const ordersService = {
     }
 
     const calculatedItemsTotal = Math.round(
-      normalizedItems.reduce((sum, item) => {
+      itemsForRpc.reduce((sum, item) => {
         const price =
           item.has_discount && item.discount_price && Number(item.discount_price) > 0
             ? Number(item.discount_price)
             : Number(item.price || 0);
+        const extrasTotal = Math.max(0, Number(item.extras_total) || 0);
         const qty = Math.max(1, Number(item.quantity) || 1);
-        return sum + price * qty;
+        return sum + (price + extrasTotal) * qty;
       }, 0)
     );
 
@@ -398,7 +452,7 @@ export const ordersService = {
         p_client_name: orderData.client_name,
         p_client_phone: orderData.client_phone,
         p_client_rut: orderData.client_rut || "",
-        p_items: normalizedItems,
+        p_items: itemsForRpc,
         p_total: totalToUse,
         p_payment_type: orderData.payment_type,
         p_payment_ref: paymentRef,

@@ -15,6 +15,7 @@ import { ProductCard } from "./product-card";
 import { HeroCarousel } from "./hero-carousel";
 import type { HeroBanner } from "./hero-carousel";
 import { getTenantScopedPath } from "./utils/tenant-route";
+import { lockScroll, unlockScroll } from "./utils/scroll-lock";
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 import type { Json } from "../../types/supabase-database";
 
@@ -194,15 +195,15 @@ export function MenuClient({
   const hasOpenBranches = (openBranchIds ?? []).length > 0;
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(true);
 
-  // Disable scroll when modal is open
+  // Lock de scroll robusto para mobile/in-app browsers.
   useEffect(() => {
     if (isLocationModalOpen) {
-      document.body.style.overflow = 'hidden';
+      lockScroll();
     } else {
-      document.body.style.overflow = '';
+      unlockScroll();
     }
     return () => {
-      document.body.style.overflow = '';
+      unlockScroll();
     };
   }, [isLocationModalOpen]);
 
@@ -298,6 +299,35 @@ export function MenuClient({
             schema: "public",
             table: "product_branch",
             filter: `branch_id=eq.${selectedBranchId}`,
+          },
+          scheduleServerRefresh
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "product_extras_groups",
+            filter: `branch_id=eq.${selectedBranchId}`,
+          },
+          scheduleServerRefresh
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "product_upsell_beverages",
+            filter: `branch_id=eq.${selectedBranchId}`,
+          },
+          scheduleServerRefresh
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "product_extras_options",
           },
           scheduleServerRefresh
         );

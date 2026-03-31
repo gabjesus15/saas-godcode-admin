@@ -13,8 +13,38 @@ interface CartProduct {
   is_active?: boolean | null;
 }
 
-interface CartItem extends CartProduct {
+export interface CartExtraSelection {
+  id: string;
+  name: string;
+  price: number;
+  qty: number;
+}
+
+export interface CartUpsellBeverageSelection {
+  id: string;
+  name: string;
+  price: number;
+  qty: number;
+}
+
+export interface CartGlobalExtraSelection {
+  id: string;
+  name: string;
+  price: number;
+  qty: number;
+}
+
+export interface CartItem extends CartProduct {
+  lineId: string;
   quantity: number;
+  selected_extras?: CartExtraSelection[];
+  selected_beverages?: CartUpsellBeverageSelection[];
+  line_summary?: string | null;
+}
+
+/** Línea que es solo una bebida del upsell (no un plato con bebida añadida). */
+export function isUpsellBeverageLineId(id: string | null | undefined): boolean {
+  return String(id ?? "").startsWith("upsell_beverage_");
 }
 
 export type CartFulfillment = "pickup" | "delivery";
@@ -23,7 +53,14 @@ interface CartContextType {
   cart: CartItem[];
   isCartOpen: boolean;
   toggleCart: () => void;
-  addToCart: (product: CartProduct) => void;
+  addToCart: (
+    product: CartProduct,
+    options?: {
+      selectedExtras?: CartExtraSelection[];
+      selectedBeverages?: CartUpsellBeverageSelection[];
+      forceNewLine?: boolean;
+    },
+  ) => void;
   decreaseQuantity: (productId: string) => void;
   removeFromCart: (id: string) => void;
   clearCart: () => void;
@@ -71,6 +108,10 @@ interface CartContextType {
   isDeliveryOutOfZone: boolean;
   /** Km en línea recta cliente–local o último km cotizado en servidor. */
   quotedRouteKm: number | null;
+  globalExtras: CartGlobalExtraSelection[];
+  setGlobalExtras: (extras: CartGlobalExtraSelection[]) => void;
+  extrasEnabledByBranch: boolean;
+  beveragesUpsellEnabledByBranch: boolean;
 }
 
 const CartContext = createContext<CartContextType | null>(null);

@@ -4,7 +4,14 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import CartContext from "./cart-context";
-import type { CartFulfillment } from "./cart-context";
+import type {
+  CartExtraSelection,
+  CartFulfillment,
+  CartGlobalExtraSelection,
+  CartItem,
+  CartUpsellBeverageSelection,
+} from "./cart-context";
+import { isUpsellBeverageLineId } from "./cart-context";
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 import { filterValidProductIds, isValidBranchId } from "./utils/safe-ids";
 import { mergeCartWithBranchPrices } from "./utils/cart-pricing";
@@ -16,18 +23,6 @@ import {
 } from "../../lib/delivery-settings";
 import { haversineKm, isValidLatLng } from "../../lib/geo";
 import { formatCartMoney } from "./utils/format-cart-money";
-
-interface CartItem {
-  id: string;
-  name?: string | null;
-  description?: string | null;
-  image_url?: string | null;
-  price?: number | null;
-  has_discount?: boolean | null;
-  discount_price?: number | null;
-  quantity: number;
-  is_active?: boolean | null;
-}
 
 interface CartProduct {
   id: string;
@@ -56,8 +51,16 @@ interface CartState {
   deliveryNamedAreaId: string | null;
   deliveryKmManual: string;
   showDeliveryReference: boolean;
+  globalExtras: CartGlobalExtraSelection[];
   toggleCart?: () => void;
-  addToCart?: (product: CartProduct) => void;
+  addToCart?: (
+    product: CartProduct,
+    options?: {
+      selectedExtras?: CartExtraSelection[];
+      selectedBeverages?: CartUpsellBeverageSelection[];
+      forceNewLine?: boolean;
+    },
+  ) => void;
   decreaseQuantity?: (productId: string) => void;
   removeFromCart?: (id: string) => void;
   clearCart?: () => void;
@@ -73,6 +76,38 @@ interface CartState {
   setDeliveryNamedAreaId?: (id: string | null) => void;
   setDeliveryKmManual?: (value: string) => void;
   setShowDeliveryReference?: (value: boolean) => void;
+  setGlobalExtras?: (extras: CartGlobalExtraSelection[]) => void;
+}
+
+function buildLineId(productId: string): string {
+  return `${productId}:${Date.now().toString(36)}:${Math.random()
+    .toString(36)
+    .slice(2, 7)}`;
+}
+
+function lineSelectionsKey(
+  extras: CartExtraSelection[] | undefined,
+  beverages: CartUpsellBeverageSelection[] | undefined,
+): string {
+  const e = (extras ?? [])
+    .map((x) => `${x.id}:${x.qty}`)
+    .sort()
+    .join("|");
+  const b = (beverages ?? [])
+    .map((x) => `${x.id}:${x.qty}`)
+    .sort()
+    .join("|");
+  return `e(${e})-b(${b})`;
+}
+
+function sanitizeQty(n: unknown): number {
+  const v = Number(n);
+  return Number.isFinite(v) && v > 0 ? Math.max(1, Math.round(v)) : 1;
+}
+
+function sanitizePrice(n: unknown): number {
+  const v = Number(n);
+  return Number.isFinite(v) && v > 0 ? Math.round(v) : 0;
 }
 
 const useCartStore = create<CartState>()(
@@ -92,21 +127,51 @@ const useCartStore = create<CartState>()(
       deliveryNamedAreaId: null,
       deliveryKmManual: "",
       showDeliveryReference: false,
+      globalExtras: [],
 
       toggleCart: () => set((state) => ({ isCartOpen: !state.isCartOpen })),
 
-      addToCart: (product) => set((state) => {
+      addToCart: (product, options) => set((state) => {
         if (!product?.id) return {};
-        const existing = state.cart.find((item) => item.id === product.id);
+        const normalizedExtras = (options?.selectedExtras ?? [])
+          .filter((x) => x && typeof x.id === "string")
+          .map((x) => ({
+            id: x.id,
+            name: String(x.name ?? "Extra"),
+            price: sanitizePrice(x.price),
+            qty: sanitizeQty(x.qty),
+          }))
+          .filter((x) => x.price >= 0);
+        const normalizedBeverages = (options?.selectedBeverages ?? [])
+          .filter((x) => x && typeof x.id === "string")
+          .map((x) => ({
+            id: x.id,
+            name: String(x.name ?? "Bebida"),
+            price: sanitizePrice(x.price),
+            qty: sanitizeQty(x.qty),
+          }))
+          .filter((x) => x.price >= 0);
+        const selectionKey = lineSelectionsKey(normalizedExtras, normalizedBeverages);
+        const existing = options?.forceNewLine
+          ? null
+          : state.cart.find(
+              (item) =>
+                item.id === product.id &&
+                lineSelectionsKey(item.selected_extras, item.selected_beverages) ===
+                  selectionKey,
+            );
         if (existing) {
           if (existing.quantity >= 20) return {};
           return {
             cart: state.cart.map((item) =>
-              item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+              item.lineId === existing.lineId
+                ? { ...item, quantity: item.quantity + 1 }
+                : item
             ),
           };
         }
         const newItem: CartItem = {
+          lineId: buildLineId(product.id),
           id: product.id,
           name: product.name ?? null,
           description: product.description ?? null,
@@ -116,6 +181,9 @@ const useCartStore = create<CartState>()(
           discount_price: product.discount_price ?? null,
           is_active: product.is_active ?? null,
           quantity: 1,
+          selected_extras: normalizedExtras,
+          selected_beverages: normalizedBeverages,
+          line_summary: null,
         };
         return { cart: [...state.cart, newItem] };
       }),
@@ -123,7 +191,7 @@ const useCartStore = create<CartState>()(
       decreaseQuantity: (productId) => set((state) => ({
         cart: state.cart
           .map((item) =>
-            item.id === productId
+            item.lineId === productId || item.id === productId
               ? { ...item, quantity: Math.max(0, item.quantity - 1) }
               : item
           )
@@ -131,7 +199,7 @@ const useCartStore = create<CartState>()(
       })),
 
       removeFromCart: (id) => set((state) => ({
-        cart: state.cart.filter((item) => item.id !== id),
+        cart: state.cart.filter((item) => item.lineId !== id && item.id !== id),
       })),
 
       clearCart: () =>
@@ -148,6 +216,7 @@ const useCartStore = create<CartState>()(
           deliveryNamedAreaId: null,
           deliveryKmManual: "",
           showDeliveryReference: false,
+          globalExtras: [],
         }),
 
       setOrderNote: (note) => set({ orderNote: note }),
@@ -173,6 +242,20 @@ const useCartStore = create<CartState>()(
       setDeliveryKmManual: (value) => set({ deliveryKmManual: value }),
 
       setShowDeliveryReference: (value) => set({ showDeliveryReference: value }),
+
+      setGlobalExtras: (extras) =>
+        set({
+          globalExtras: Array.isArray(extras)
+            ? extras
+                .filter((x) => x && typeof x.id === "string")
+                .map((x) => ({
+                  id: x.id,
+                  name: String(x.name ?? "Extra"),
+                  price: sanitizePrice(x.price),
+                  qty: sanitizeQty(x.qty),
+                }))
+            : [],
+        }),
     }),
     {
       name: "tenant_cart_storage",
@@ -181,6 +264,7 @@ const useCartStore = create<CartState>()(
         cart: state.cart,
         orderNote: state.orderNote,
         storedBranchId: state.storedBranchId,
+        globalExtras: state.globalExtras,
       }),
     }
   )
@@ -215,6 +299,25 @@ export function CartProvider({
       () => effectiveDeliveryPricingMode(parsedDelivery),
       [parsedDelivery]
     );
+
+    const branchFeatureFlags = useMemo(() => {
+      const raw =
+        branchDeliverySettings &&
+        typeof branchDeliverySettings === "object" &&
+        !Array.isArray(branchDeliverySettings)
+          ? (branchDeliverySettings as Record<string, unknown>)
+          : {};
+      const extrasEnabled =
+        raw.extrasEnabledByBranch === true ||
+        raw.extras_enabled_by_branch === true;
+      const beveragesEnabled =
+        raw.beveragesUpsellEnabledByBranch === true ||
+        raw.beverages_upsell_enabled_by_branch === true;
+      return {
+        extrasEnabledByBranch: extrasEnabled,
+        beveragesUpsellEnabledByBranch: beveragesEnabled,
+      };
+    }, [branchDeliverySettings]);
 
     useEffect(() => {
       if (typeof window === "undefined") return;
@@ -351,12 +454,31 @@ export function CartProvider({
       const raw = store.cart.reduce((acc, item) => {
         const price = getPrice(item);
         if (typeof item.quantity !== "number" || item.quantity < 1) return acc;
-        return acc + price * item.quantity;
+        const extrasTotal = (item.selected_extras ?? []).reduce(
+          (sum, ex) => sum + sanitizePrice(ex.price) * sanitizeQty(ex.qty),
+          0,
+        );
+        const beveragesTotal = isUpsellBeverageLineId(item.id)
+          ? 0
+          : (item.selected_beverages ?? []).reduce(
+              (sum, bev) => sum + sanitizePrice(bev.price) * sanitizeQty(bev.qty),
+              0,
+            );
+        return acc + (price + extrasTotal + beveragesTotal) * item.quantity;
       }, 0);
       return Math.round(raw);
     }, [store.cart, getPrice]);
 
-    const cartSubtotal = cartTotal;
+    const globalExtrasTotal = useMemo(
+      () =>
+        (store.globalExtras ?? []).reduce(
+          (sum, ex) => sum + sanitizePrice(ex.price) * sanitizeQty(ex.qty),
+          0,
+        ),
+      [store.globalExtras],
+    );
+
+    const cartSubtotal = Math.round(cartTotal + globalExtrasTotal);
 
     const haversineKmVal = useMemo(() => {
       if (
@@ -888,14 +1010,41 @@ export function CartProvider({
         const price = getPrice(item);
         const qty = typeof item.quantity === "number" && item.quantity > 0 ? item.quantity : 1;
         const name = typeof item.name === "string" ? item.name : "Producto";
-        const subtotal = Math.round(price * qty);
+        const extrasText = (item.selected_extras ?? [])
+          .map((ex) => `${ex.qty}x ${ex.name}`)
+          .join(", ");
+        const beveragesText = isUpsellBeverageLineId(item.id)
+          ? ""
+          : (item.selected_beverages ?? [])
+              .map((bev) => `${bev.qty}x ${bev.name}`)
+              .join(", ");
+        const extrasTotal = (item.selected_extras ?? []).reduce(
+          (sum, ex) => sum + sanitizePrice(ex.price) * sanitizeQty(ex.qty),
+          0,
+        );
+        const beveragesTotal = isUpsellBeverageLineId(item.id)
+          ? 0
+          : (item.selected_beverages ?? []).reduce(
+              (sum, bev) => sum + sanitizePrice(bev.price) * sanitizeQty(bev.qty),
+              0,
+            );
+        const subtotal = Math.round((price + extrasTotal + beveragesTotal) * qty);
         message += `+ ${qty} x ${name.toUpperCase()}\n`;
         if (typeof item.description === "string" && item.description.trim()) {
           message += `   (Hacer: ${item.description})\n`;
         }
+        if (extrasText) message += `   Extras: ${extrasText}\n`;
+        if (beveragesText) message += `   Bebidas: ${beveragesText}\n`;
         message += `   Subtotal: $${formatCartMoney(subtotal)}\n`;
         message += "--------------------------------\n";
       });
+
+      if ((store.globalExtras ?? []).length > 0) {
+        const gtxt = store.globalExtras
+          .map((ex) => `${ex.qty}x ${ex.name}`)
+          .join(", ");
+        message += `\nExtras globales: ${gtxt}\n`;
+      }
 
       if (store.fulfillment === "delivery" && deliveryFee > 0) {
         message += `\nEnvio: $${formatCartMoney(deliveryFee)}\n`;
@@ -909,7 +1058,7 @@ export function CartProvider({
       }
 
       return encodeURIComponent(message);
-    }, [store.cart, store.orderNote, store.fulfillment, grandTotal, deliveryFee, getPrice]);
+    }, [store.cart, store.globalExtras, store.orderNote, store.fulfillment, grandTotal, deliveryFee, getPrice]);
 
     const contextValue = useMemo(() => ({
       cart: isHydrated && Array.isArray(store.cart) ? store.cart : [],
@@ -947,12 +1096,16 @@ export function CartProvider({
       setDeliveryKmManual: typeof store.setDeliveryKmManual === "function" ? store.setDeliveryKmManual : () => {},
       showDeliveryReference: store.showDeliveryReference,
       setShowDeliveryReference: typeof store.setShowDeliveryReference === "function" ? store.setShowDeliveryReference : () => {},
+      globalExtras: Array.isArray(store.globalExtras) ? store.globalExtras : [],
+      setGlobalExtras: typeof store.setGlobalExtras === "function" ? store.setGlobalExtras : () => {},
       deliveryWaivedFree: isHydrated ? waivedFree : false,
       deliveryNamedAreaLabel: isHydrated ? namedLabel : null,
       deliveryQuoteLoading: isHydrated ? quoteLoading : false,
       deliveryQuoteError: isHydrated ? quoteError : null,
       isDeliveryOutOfZone: isHydrated ? outOfZone : false,
       quotedRouteKm: isHydrated ? quotedRouteKm : null,
+      extrasEnabledByBranch: branchFeatureFlags.extrasEnabledByBranch,
+      beveragesUpsellEnabledByBranch: branchFeatureFlags.beveragesUpsellEnabledByBranch,
     }), [
       store,
       isHydrated,
@@ -969,6 +1122,7 @@ export function CartProvider({
       quoteError,
       outOfZone,
       quotedRouteKm,
+      branchFeatureFlags,
     ]);
 
   return (

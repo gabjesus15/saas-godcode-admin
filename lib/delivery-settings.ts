@@ -606,14 +606,15 @@ export function isOrderPaymentAllowedForDelivery(
 
 /** Suma ítems del pedido (precio efectivo × cantidad). */
 export function orderItemsSubtotalFromPayload(
-	items: Array<{ price?: unknown; quantity?: unknown }>,
+	items: Array<{ price?: unknown; quantity?: unknown; extras_total?: unknown }>,
 ): number {
 	if (!Array.isArray(items)) return 0;
 	let sum = 0;
 	for (const it of items) {
 		const p = Number(it.price) || 0;
+		const extras = Math.max(0, Number(it.extras_total) || 0);
 		const q = Math.max(1, Number(it.quantity) || 1);
-		sum += p * q;
+		sum += (p + extras) * q;
 	}
 	return Math.round(sum);
 }

@@ -65,6 +65,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
     transition: transform 0.2s ease;
 }
 
@@ -91,12 +93,13 @@
     background: rgba(255, 255, 255, 0.09);
     border: 1px solid rgba(255, 255, 255, 0.13);
     border-radius: 20px;
-    padding: 3px 8px;
+    padding: 6px 10px;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 5px;
     cursor: pointer;
+    min-height: 44px;
     margin-top: 1px;
     transition: all 0.2s ease;
     -webkit-backdrop-filter: blur(4px);
@@ -308,6 +311,20 @@ section {
 @media (min-width: 601px) {
     .nav-logo {
         height: 46px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .navbar-sticky .container {
+        max-width: 1240px;
+    }
+
+    .menu-spacer {
+        height: calc(var(--menu-header-height) + env(safe-area-inset-top) + 4px);
+    }
+
+    .category-section {
+        scroll-margin-top: calc(156px + env(safe-area-inset-top));
     }
 }
 

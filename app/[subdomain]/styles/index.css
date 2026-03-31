@@ -1,4 +1,4 @@
-﻿/* Forzar dark mode en los menús desplegables de los select */
+/* Forzar dark mode en los menús desplegables de los select */
 @import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap");
 
 select,
@@ -68,8 +68,11 @@ html, body, #root {
 
 .page-wrapper {
   padding-top: 20px;
-  padding-bottom: 100px;
+  padding-bottom: calc(100px + env(safe-area-inset-bottom));
   min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  touch-action: pan-y;
 }
 
 .app-wrapper {
