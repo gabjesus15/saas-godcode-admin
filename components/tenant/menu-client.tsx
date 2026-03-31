@@ -15,7 +15,6 @@ import { ProductCard } from "./product-card";
 import { HeroCarousel } from "./hero-carousel";
 import type { HeroBanner } from "./hero-carousel";
 import { getTenantScopedPath } from "./utils/tenant-route";
-import { lockScroll, unlockScroll } from "./utils/scroll-lock";
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 import type { Json } from "../../types/supabase-database";
 
@@ -195,15 +194,15 @@ export function MenuClient({
   const hasOpenBranches = (openBranchIds ?? []).length > 0;
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(true);
 
-  // Lock de scroll robusto para mobile/in-app browsers.
+  // Disable scroll when modal is open
   useEffect(() => {
     if (isLocationModalOpen) {
-      lockScroll();
+      document.body.style.overflow = "hidden";
     } else {
-      unlockScroll();
+      document.body.style.overflow = "";
     }
     return () => {
-      unlockScroll();
+      document.body.style.overflow = "";
     };
   }, [isLocationModalOpen]);
 

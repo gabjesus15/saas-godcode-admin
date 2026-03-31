@@ -49,7 +49,6 @@ import {
 import { sanitizeUserText } from "../../utils/sanitize-user-text";
 import { mergeCartWithBranchPrices } from "./utils/cart-pricing";
 import { formatCartMoney } from "./utils/format-cart-money";
-import { lockScroll, unlockScroll } from "./utils/scroll-lock";
 import type { Json } from "../../types/supabase-database";
 import { type CartFulfillment, isUpsellBeverageLineId } from "./cart-context";
 import {
@@ -948,30 +947,8 @@ export function CartModal({
   const [showFieldErrors, setShowFieldErrors] = useState(false);
 
   const [paymentMethodKey, setPaymentMethodKey] = useState<string | null>(null);
-  const [isClosing, setIsClosing] = useState(false);
-  const [dragOffsetY, setDragOffsetY] = useState(0);
-  const closeTimerRef = useRef<number | null>(null);
-  const swipeStartYRef = useRef<number | null>(null);
   const fulfillmentScrollRef = useRef<HTMLDivElement | null>(null);
   const fulfillmentChoiceRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!isCartOpen) {
-      unlockScroll();
-      return;
-    }
-    lockScroll();
-    return () => unlockScroll();
-  }, [isCartOpen]);
-
-  // Evitar setState sincronamente dentro de effect (regla react-hooks/set-state-in-effect).
-  // Este reset solo importa cuando se abre el carrito.
-  if (isCartOpen && (isClosing || dragOffsetY !== 0)) {
-    queueMicrotask(() => {
-      setIsClosing(false);
-      setDragOffsetY(0);
-    });
-  }
 
   useEffect(() => {
     if (!isCartOpen || typeof window === "undefined") return;
@@ -1451,53 +1428,7 @@ export function CartModal({
     [fulfillment, setFulfillment],
   );
 
-  const requestCloseCart = useCallback(() => {
-    if (isClosing) return;
-    triggerHaptic(10);
-    if (closeTimerRef.current) {
-      window.clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
-    setIsClosing(true);
-    setDragOffsetY(0);
-    closeTimerRef.current = window.setTimeout(() => {
-      handleCloseCart();
-      setIsClosing(false);
-      closeTimerRef.current = null;
-    }, 180);
-  }, [isClosing, handleCloseCart, triggerHaptic]);
-
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) {
-        window.clearTimeout(closeTimerRef.current);
-      }
-    };
-  }, []);
-
-  const handleHeaderTouchStart = useCallback((event: React.TouchEvent<HTMLElement>) => {
-    swipeStartYRef.current = event.touches[0]?.clientY ?? null;
-  }, []);
-
-  const handleHeaderTouchMove = useCallback((event: React.TouchEvent<HTMLElement>) => {
-    if (swipeStartYRef.current == null) return;
-    const currentY = event.touches[0]?.clientY ?? swipeStartYRef.current;
-    const delta = currentY - swipeStartYRef.current;
-    if (delta <= 0) return;
-    const nextOffset = Math.min(140, delta);
-    setDragOffsetY(nextOffset);
-    if (nextOffset > 6) event.preventDefault();
-  }, []);
-
-  const handleHeaderTouchEnd = useCallback(() => {
-    const shouldClose = dragOffsetY > 90;
-    swipeStartYRef.current = null;
-    if (shouldClose) {
-      requestCloseCart();
-      return;
-    }
-    setDragOffsetY(0);
-  }, [dragOffsetY, requestCloseCart]);
+  // Nota: se eliminó el swipe/drag de cierre del carrito.
 
   const toggleGlobalExtra = useCallback(
     (extra: { id: string; name: string; price: number }) => {
@@ -1776,19 +1707,18 @@ export function CartModal({
 
   if (viewState.showSuccess) {
     return (
-      <div className="modal-overlay cart-overlay" onClick={requestCloseCart}>
+      <div className="modal-overlay cart-overlay" onClick={handleCloseCart}>
         <div
-          className={`cart-panel${isClosing ? " is-closing" : ""}${dragOffsetY > 0 ? " is-dragging" : ""}`}
-          style={{ "--cart-sheet-offset-y": `${dragOffsetY}px` } as React.CSSProperties}
+          className="cart-panel"
           onClick={(e) => e.stopPropagation()}
         >
           <header className="cart-header">
             <h3>¡Pedido Enviado!</h3>
-            <button onClick={requestCloseCart} className="btn-close-cart" aria-label="Cerrar"><X size={20} /></button>
+            <button onClick={handleCloseCart} className="btn-close-cart" aria-label="Cerrar"><X size={20} /></button>
           </header>
           <SuccessView
             onNewOrder={resetFlow}
-            onGoHome={requestCloseCart}
+            onGoHome={handleCloseCart}
             receiptUploadFailed={viewState.receiptUploadFailed}
             activeInfo={activeInfo}
             lastOrder={viewState.lastOrderSuccess}
@@ -1799,20 +1729,13 @@ export function CartModal({
   }
 
   return (
-    <div className="modal-overlay cart-overlay" onClick={requestCloseCart}>
+    <div className="modal-overlay cart-overlay" onClick={handleCloseCart}>
       <div
-        className={`cart-panel${isClosing ? " is-closing" : ""}${dragOffsetY > 0 ? " is-dragging" : ""}`}
-        style={{ "--cart-sheet-offset-y": `${dragOffsetY}px` } as React.CSSProperties}
+        className="cart-panel"
         data-checkout-phase={checkoutPhase}
         onClick={(e) => e.stopPropagation()}
       >
-        <header
-          className="cart-header"
-          onTouchStart={handleHeaderTouchStart}
-          onTouchMove={handleHeaderTouchMove}
-          onTouchEnd={handleHeaderTouchEnd}
-          onTouchCancel={handleHeaderTouchEnd}
-        >
+        <header className="cart-header">
           <div className="cart-header-main">
             <div className="cart-header-title-row">
               <h3>Tu Pedido</h3>
@@ -1825,7 +1748,7 @@ export function CartModal({
               </div>
             ) : null}
           </div>
-          <button onClick={requestCloseCart} className="btn-close-cart" aria-label="Cerrar"><X size={20} /></button>
+          <button onClick={handleCloseCart} className="btn-close-cart" aria-label="Cerrar"><X size={20} /></button>
         </header>
 
         {viewState.error ? (
@@ -1840,7 +1763,7 @@ export function CartModal({
           }`}
         >
           {cart.length === 0 ? (
-            <EmptyState onMenu={requestCloseCart} />
+            <EmptyState onMenu={handleCloseCart} />
           ) : (
             <>
               {!isDeliveryFulfillmentFocus ? (

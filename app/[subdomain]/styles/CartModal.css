@@ -14,8 +14,6 @@
     /* [FIX] Z-Index extremo para ganar a cualquier navbar */
     z-index: 999998; 
     display: block;
-    overscroll-behavior: contain;
-    touch-action: none;
 }
 
 /* El Panel Lateral del Carrito */
@@ -48,19 +46,6 @@
     animation: slideIn 0.3s ease-out;
     will-change: transform;
     touch-action: pan-y;
-}
-
-.cart-panel.is-dragging {
-    animation: none;
-    transition: none;
-    transform: translate3d(0, var(--cart-sheet-offset-y, 0px), 0);
-}
-
-.cart-panel.is-closing {
-    animation: none;
-    transition: transform 0.18s ease, opacity 0.18s ease;
-    transform: translate3d(0, calc(var(--cart-sheet-offset-y, 0px) + 18px), 0);
-    opacity: 0;
 }
 
 @keyframes slideIn {
@@ -1303,8 +1288,6 @@
 
 @media (prefers-reduced-motion: reduce) {
     .cart-panel,
-    .cart-panel.is-closing,
-    .cart-panel.is-dragging,
     .cart-fulfillment-block--delivery-open .cart-delivery-fields {
         animation: none !important;
         transition: none !important;
