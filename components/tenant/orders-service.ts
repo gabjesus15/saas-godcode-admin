@@ -5,6 +5,7 @@ import {
 	effectiveDeliveryPricingMode,
 	normalizeDeliverySettings,
 } from "../../lib/delivery-settings";
+import type { Json } from "../../types/supabase-database";
 
 interface OrderItem {
   id: string;
@@ -406,6 +407,10 @@ export const ordersService = {
         p_company_id: orderData.company_id || null,
         p_status: orderData.status || "pending",
         p_payment_method_specific: orderData.payment_method_specific ?? null,
+        // Sin estos campos el RPC asume pickup + fee 0 y compara mal `p_total` (subtotal+envío) → invalid_item_price.
+        p_order_type: deliveryMode ? "delivery" : "pickup",
+        p_delivery_fee: deliveryMode ? deliveryFee : 0,
+        p_delivery_address: deliveryMode ? (orderData.delivery_address as Json) : null,
       }
     );
 

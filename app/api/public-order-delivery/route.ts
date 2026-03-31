@@ -252,7 +252,6 @@ export async function POST(req: NextRequest) {
 		const { error: upErr } = await supabaseAdmin
 			.from("orders")
 			.update({
-				order_type: isDeliveryType(orderTypeRaw) ? "delivery" : "pickup",
 				delivery_fee: expectedFee,
 				delivery_address: deliveryAddress,
 				...(handoff ? { handoff_code: handoff } : {}),
