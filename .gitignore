@@ -14,7 +14,7 @@
 /coverage
 /playwright-report/
 /test-results/
-
+/services/Saas-panel-admin-ceo/
 # next.js
 /.next/
 /out/
