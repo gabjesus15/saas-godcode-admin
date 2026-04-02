@@ -2608,10 +2608,13 @@ export type Database = {
           address: string
           bank_name: string
           company_id: string
+          delivery_settings: Json | null
           id: string
           instagram_url: string
           map_url: string
           name: string
+          origin_lat: number | null
+          origin_lng: number | null
           phone: string
           schedule: string
           slug: string

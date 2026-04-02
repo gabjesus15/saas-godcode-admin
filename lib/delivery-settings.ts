@@ -14,8 +14,11 @@ export const DELIVERY_MAX_NAMED_AREAS = 40;
 /** Alias por fila para matching con geocodificación. */
 export const DELIVERY_MAX_ALIASES_PER_AREA = 8;
 
-/** Cómo cotiza la sucursal cuando hay zonas por nombre configuradas (o distancia). */
-export type DeliveryPricingStrategy = "distance" | "named_areas";
+/** Cómo cotiza la sucursal cuando hay zonas por nombre configuradas (o distancia o proveedor externo). */
+export type DeliveryPricingStrategy = "distance" | "named_areas" | "external";
+
+/** Proveedor cuando `deliveryPricingStrategy === "external"`. */
+export type ExternalDeliveryProvider = "uber_direct";
 
 /** Si `named_areas`: lista manual o inferencia desde dirección (servidor). */
 export type NamedAreaResolution = "manual_select" | "address_matched";
@@ -40,8 +43,20 @@ export type DeliverySettingsNormalized = {
 	/**
 	 * `named_areas`: usa `namedAreas` + `namedAreaResolution`.
 	 * `distance`: usa km desde el local (`zones`, `pricePerKm`, `baseFee`).
+	 * `external`: cotización vía proveedor (p. ej. Uber Direct); ver `externalDeliveryProvider`.
 	 */
 	deliveryPricingStrategy: DeliveryPricingStrategy;
+	/** Solo aplica con estrategia `external`. */
+	externalDeliveryProvider: ExternalDeliveryProvider | null;
+	/** Store ID de Uber Direct ligado al local (requerido para cotizar). */
+	uberDirectStoreId: string | null;
+	/**
+	 * Si es false, el storefront muestra texto (`externalDeliveryDisplayText`) sin monto fijo;
+	 * el envío se cotiza/negocia con la tienda (fee 0 en total).
+	 */
+	showExternalDeliveryFeeAmount: boolean;
+	/** Texto cuando no se muestra monto de envío al cliente. */
+	externalDeliveryDisplayText: string;
 	namedAreaResolution: NamedAreaResolution;
 	pricePerKm: number;
 	baseFee: number;
@@ -66,6 +81,10 @@ export type DeliverySettingsPublic = DeliverySettingsNormalized;
 const DEFAULTS: DeliverySettingsNormalized = {
 	enabled: true,
 	deliveryPricingStrategy: "distance",
+	externalDeliveryProvider: null,
+	uberDirectStoreId: null,
+	showExternalDeliveryFeeAmount: true,
+	externalDeliveryDisplayText: "Consultar con la tienda",
 	namedAreaResolution: "manual_select",
 	pricePerKm: 0,
 	baseFee: 0,
@@ -227,12 +246,40 @@ function parseDeliveryPricingStrategy(
 		typeof raw === "string"
 			? raw.trim().toLowerCase().replace(/-/g, "_")
 			: "";
+	if (v === "external" || v === "uber" || v === "uber_direct" || v === "provider") {
+		return "external";
+	}
 	if (v === "named_areas" || v === "namedareas") return "named_areas";
 	if (v === "distance" || v === "km") return "distance";
 	// Migración: JSON antiguo sin clave pero con zonas por nombre
 	if (namedAreasCount > 0) return "named_areas";
 	// JSON antiguo tipo per_km / tiered_km / fixed → distancia
 	return "distance";
+}
+
+function parseExternalDeliveryProvider(raw: unknown): ExternalDeliveryProvider | null {
+	const v =
+		typeof raw === "string"
+			? raw.trim().toLowerCase().replace(/-/g, "_")
+			: "";
+	if (v === "uber_direct" || v === "uber") return "uber_direct";
+	return null;
+}
+
+function parseUberDirectStoreId(raw: unknown): string | null {
+	if (typeof raw !== "string") return null;
+	const t = raw.trim();
+	return t.length > 0 ? t.slice(0, 128) : null;
+}
+
+function parseShowExternalDeliveryFeeAmount(
+	raw: unknown,
+	defaultVal: boolean,
+): boolean {
+	if (typeof raw === "boolean") return raw;
+	if (raw === "false" || raw === 0) return false;
+	if (raw === "true" || raw === 1) return true;
+	return defaultVal;
 }
 
 function parseNamedAreaResolution(raw: unknown): NamedAreaResolution {
@@ -274,6 +321,23 @@ export function normalizeDeliverySettings(raw: unknown): DeliverySettingsNormali
 		o.pricing_mode;
 	const narRaw =
 		o.namedAreaResolution ?? o.named_area_resolution ?? o.namedAreaMatch;
+	const extProvRaw =
+		o.externalDeliveryProvider ??
+		o.external_delivery_provider ??
+		o.deliveryProvider ??
+		o.delivery_provider;
+	const uberStoreRaw =
+		o.uberDirectStoreId ?? o.uber_direct_store_id ?? o.uberStoreId ?? o.uber_store_id;
+	const showExtFeeRaw =
+		o.showExternalDeliveryFeeAmount ??
+		o.show_external_delivery_fee_amount ??
+		o.showDeliveryFeeAmount ??
+		o.show_delivery_fee_amount;
+	const extDisplayRaw =
+		o.externalDeliveryDisplayText ??
+		o.external_delivery_display_text ??
+		o.deliveryDisplayText ??
+		o.delivery_display_text;
 
 	// Migración: tiers antiguos [{ up_to_km, fee }] → zones (radio = km)
 	let zones = parseZones(zonesRaw);
@@ -302,12 +366,38 @@ export function normalizeDeliverySettings(raw: unknown): DeliverySettingsNormali
 		baseFee = clampNonNeg(Number(o.base_fee ?? base) || 0, DELIVERY_MAX_BASE_FEE);
 	}
 
+	let deliveryPricingStrategy = parseDeliveryPricingStrategy(
+		stratRaw,
+		namedParsed.length,
+	);
+	let externalDeliveryProvider = parseExternalDeliveryProvider(extProvRaw);
+	let uberDirectStoreId = parseUberDirectStoreId(uberStoreRaw);
+	if (
+		deliveryPricingStrategy === "external" &&
+		externalDeliveryProvider == null
+	) {
+		externalDeliveryProvider = "uber_direct";
+	}
+	if (deliveryPricingStrategy !== "external") {
+		externalDeliveryProvider = null;
+		uberDirectStoreId = null;
+	}
+
 	return {
 		enabled: parseBool(o.enabled, DEFAULTS.enabled),
-		deliveryPricingStrategy: parseDeliveryPricingStrategy(
-			stratRaw,
-			namedParsed.length,
+		deliveryPricingStrategy,
+		externalDeliveryProvider,
+		uberDirectStoreId,
+		showExternalDeliveryFeeAmount: parseShowExternalDeliveryFeeAmount(
+			showExtFeeRaw,
+			DEFAULTS.showExternalDeliveryFeeAmount,
 		),
+		externalDeliveryDisplayText: (() => {
+			if (typeof extDisplayRaw === "string" && extDisplayRaw.trim()) {
+				return extDisplayRaw.trim().slice(0, 500);
+			}
+			return DEFAULTS.externalDeliveryDisplayText;
+		})(),
 		namedAreaResolution: parseNamedAreaResolution(narRaw),
 		pricePerKm,
 		baseFee,
@@ -425,9 +515,30 @@ export function mergeDeliverySettingsJson(
 	}
 	if ("deliveryPricingStrategy" in patch) {
 		const v = patch.deliveryPricingStrategy;
-		if (v === "named_areas" || v === "distance") {
+		if (v === "named_areas" || v === "distance" || v === "external") {
 			next.deliveryPricingStrategy = v;
 		}
+	}
+	if ("externalDeliveryProvider" in patch) {
+		const v = patch.externalDeliveryProvider;
+		if (v === "uber_direct" || v === null) {
+			next.externalDeliveryProvider = v;
+		}
+	}
+	if ("uberDirectStoreId" in patch) {
+		const v = patch.uberDirectStoreId;
+		if (v === null) next.uberDirectStoreId = null;
+		else if (typeof v === "string") next.uberDirectStoreId = v.trim().slice(0, 128);
+	}
+	if ("showExternalDeliveryFeeAmount" in patch) {
+		const v = patch.showExternalDeliveryFeeAmount;
+		if (typeof v === "boolean") next.showExternalDeliveryFeeAmount = v;
+	}
+	if ("externalDeliveryDisplayText" in patch && typeof patch.externalDeliveryDisplayText === "string") {
+		next.externalDeliveryDisplayText = parseNotes(patch.externalDeliveryDisplayText).slice(
+			0,
+			500,
+		);
 	}
 	if ("namedAreaResolution" in patch) {
 		const v = patch.namedAreaResolution;
@@ -459,10 +570,16 @@ export function mergeDeliverySettingsJson(
 	return next;
 }
 
-/** Modo efectivo para UI: `named` solo si estrategia + lista no vacía. */
+/** Modo efectivo para UI: `named` solo si estrategia + lista no vacía; `external` explícito. */
 export function effectiveDeliveryPricingMode(
 	s: DeliverySettingsNormalized,
-): "named" | "distance" {
+): "named" | "distance" | "external" {
+	if (
+		s.deliveryPricingStrategy === "external" &&
+		s.externalDeliveryProvider === "uber_direct"
+	) {
+		return "external";
+	}
 	if (
 		s.deliveryPricingStrategy === "named_areas" &&
 		s.namedAreas.length > 0
@@ -487,6 +604,10 @@ export function computeDeliveryFee(
 	options?: ComputeDeliveryFeeOptions,
 ): { fee: number; waivedFreeShipping: boolean } {
 	if (!settings.enabled) {
+		return { fee: 0, waivedFreeShipping: false };
+	}
+
+	if (effectiveDeliveryPricingMode(settings) === "external") {
 		return { fee: 0, waivedFreeShipping: false };
 	}
 

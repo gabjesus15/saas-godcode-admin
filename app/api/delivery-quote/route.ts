@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { jsonWithPublicCors, publicApiCorsHeaders } from "../../../lib/api-cors";
 import { resolveNamedAreaFromAddress } from "../../../lib/delivery-area-resolve";
+import { UBER_NEEDS_COORDINATES_CODE } from "../../../lib/delivery-quote-contract";
 import {
 	computeDeliveryFee,
 	effectiveDeliveryPricingMode,
@@ -8,6 +10,7 @@ import {
 } from "../../../lib/delivery-settings";
 import { haversineKm, isValidLatLng } from "../../../lib/geo";
 import { supabaseAdmin } from "../../../lib/supabase-admin";
+import { fetchUberDeliveryEstimate } from "../../../lib/uber-direct";
 
 function roundMoney(n: number): number {
 	return Math.round(Number(n) || 0);
@@ -15,9 +18,10 @@ function roundMoney(n: number): number {
 
 /**
  * Cotización pública de delivery (sin auth).
- * - Estrategia `distance`: coordenadas de entrega vs origen de la sucursal.
- * - Estrategia `named_areas` + manual: `namedAreaId`.
- * - Estrategia `named_areas` + address_matched: texto `address`.
+ * - `external` + Uber Direct: requiere lat/lng; puede devolver monto o solo texto.
+ * - `distance`: coordenadas de entrega vs origen de la sucursal.
+ * - `named_areas` + manual: `namedAreaId`.
+ * - `named_areas` + address_matched: texto `address`.
  */
 export async function POST(req: NextRequest) {
 	try {
@@ -40,24 +44,96 @@ export async function POST(req: NextRequest) {
 			typeof body.address === "string" ? body.address.trim() : "";
 
 		if (!branchId) {
-			return NextResponse.json({ error: "Falta branchId" }, { status: 400 });
+			return jsonWithPublicCors(req, { error: "Falta branchId" }, { status: 400 });
 		}
 		if (!Number.isFinite(subtotal) || subtotal < 0) {
-			return NextResponse.json({ error: "Subtotal inválido" }, { status: 400 });
+			return jsonWithPublicCors(req, { error: "Subtotal inválido" }, { status: 400 });
 		}
 
 		const { data: branch, error } = await supabaseAdmin
 			.from("branches")
-			.select("id, delivery_settings, origin_lat, origin_lng")
+			.select("id, company_id, delivery_settings, origin_lat, origin_lng")
 			.eq("id", branchId)
 			.maybeSingle();
 
 		if (error || !branch) {
-			return NextResponse.json({ error: "Sucursal no encontrada" }, { status: 404 });
+			return jsonWithPublicCors(req, { error: "Sucursal no encontrada" }, { status: 404 });
+		}
+
+		let currencyCode = "CLP";
+		if (branch.company_id) {
+			const { data: comp } = await supabaseAdmin
+				.from("companies")
+				.select("currency")
+				.eq("id", branch.company_id)
+				.maybeSingle();
+			const c = typeof comp?.currency === "string" ? comp.currency.trim() : "";
+			if (c) currencyCode = c.toUpperCase().slice(0, 8);
 		}
 
 		const settings = normalizeDeliverySettings(branch.delivery_settings);
 		const mode = effectiveDeliveryPricingMode(settings);
+
+		if (mode === "external") {
+			if (!settings.enabled) {
+				return jsonWithPublicCors(req, { error: "Delivery no habilitado" }, { status: 400 });
+			}
+			if (!isValidLatLng(lat, lng)) {
+				return jsonWithPublicCors(
+					req,
+					{
+						error:
+							"Indica tu ubicación en el mapa o usa “Usar mi ubicación” para cotizar el envío.",
+						code: UBER_NEEDS_COORDINATES_CODE,
+					},
+					{ status: 400 },
+				);
+			}
+			const storeId = settings.uberDirectStoreId?.trim() ?? "";
+			if (!storeId) {
+				return jsonWithPublicCors(
+					req,
+					{
+						error:
+							"Esta sucursal no tiene configurado el local de Uber Direct (store id).",
+					},
+					{ status: 400 },
+				);
+			}
+			if (!settings.showExternalDeliveryFeeAmount) {
+				return jsonWithPublicCors(req, {
+					ok: true,
+					provider: "uber_direct",
+					showDeliveryFeeAmount: false,
+					deliveryDisplayText: settings.externalDeliveryDisplayText,
+					fee: 0,
+					currencyCode,
+					uberQuoteId: null,
+					waivedFreeShipping: false,
+				});
+			}
+			const uber = await fetchUberDeliveryEstimate({
+				storeId,
+				dropoffLat: lat,
+				dropoffLng: lng,
+				formattedAddress: addressStr || undefined,
+				subtotalMajor: subtotal,
+				currencyCode,
+			});
+			if (!uber.ok) {
+				const status = uber.httpStatus === 401 ? 502 : 502;
+				return jsonWithPublicCors(req, { error: uber.message }, { status });
+			}
+			return jsonWithPublicCors(req, {
+				ok: true,
+				provider: "uber_direct",
+				showDeliveryFeeAmount: true,
+				fee: roundMoney(uber.feeMajor),
+				currencyCode: uber.currencyCode,
+				uberQuoteId: uber.estimateId,
+				waivedFreeShipping: false,
+			});
+		}
 
 		if (mode === "named") {
 			if (settings.namedAreaResolution === "address_matched") {
@@ -73,12 +149,13 @@ export async function POST(req: NextRequest) {
 							: resolved.code === "ambiguous"
 								? 409
 								: 404;
-					return NextResponse.json(
+					return jsonWithPublicCors(
+						req,
 						{ error: resolved.message, code: resolved.code },
 						{ status },
 					);
 				}
-				return NextResponse.json({
+				return jsonWithPublicCors(req, {
 					ok: true,
 					mode: "named_area",
 					namedAreaResolution: "address_matched",
@@ -90,7 +167,8 @@ export async function POST(req: NextRequest) {
 			}
 
 			if (!namedAreaId) {
-				return NextResponse.json(
+				return jsonWithPublicCors(
+					req,
 					{ error: "Selecciona una zona de entrega", code: -3 },
 					{ status: 400 },
 				);
@@ -105,9 +183,9 @@ export async function POST(req: NextRequest) {
 						: r.fee === -4
 							? "Zona de entrega no válida"
 							: "No se pudo cotizar el envío";
-				return NextResponse.json({ error: msg, code: r.fee }, { status: 400 });
+				return jsonWithPublicCors(req, { error: msg, code: r.fee }, { status: 400 });
 			}
-			return NextResponse.json({
+			return jsonWithPublicCors(req, {
 				ok: true,
 				mode: "named_area",
 				namedAreaResolution: "manual_select",
@@ -118,13 +196,14 @@ export async function POST(req: NextRequest) {
 		}
 
 		if (!isValidLatLng(lat, lng)) {
-			return NextResponse.json({ error: "Coordenadas inválidas" }, { status: 400 });
+			return jsonWithPublicCors(req, { error: "Coordenadas inválidas" }, { status: 400 });
 		}
 
 		const olat = Number(branch.origin_lat);
 		const olng = Number(branch.origin_lng);
 		if (!isValidLatLng(olat, olng)) {
-			return NextResponse.json(
+			return jsonWithPublicCors(
+				req,
 				{
 					error:
 						"Esta sucursal aún no tiene ubicación del local configurada para cotizar por distancia.",
@@ -138,7 +217,8 @@ export async function POST(req: NextRequest) {
 			settings.maxDeliveryKm != null &&
 			preciseKm > settings.maxDeliveryKm + 1e-9
 		) {
-			return NextResponse.json(
+			return jsonWithPublicCors(
+				req,
 				{
 					error: "Distancia fuera del máximo permitido",
 					code: -1,
@@ -150,7 +230,8 @@ export async function POST(req: NextRequest) {
 		const r = computeDeliveryFee(settings, billedKm, subtotal);
 
 		if (r.fee < 0) {
-			return NextResponse.json(
+			return jsonWithPublicCors(
+				req,
 				{
 					error:
 						r.fee === -1
@@ -162,7 +243,7 @@ export async function POST(req: NextRequest) {
 			);
 		}
 
-		return NextResponse.json({
+		return jsonWithPublicCors(req, {
 			ok: true,
 			mode: "distance",
 			distanceKm: billedKm,
@@ -171,6 +252,14 @@ export async function POST(req: NextRequest) {
 		});
 	} catch (err) {
 		const message = err instanceof Error ? err.message : "Error en el servidor";
-		return NextResponse.json({ error: message }, { status: 500 });
+		return jsonWithPublicCors(req, { error: message }, { status: 500 });
 	}
+}
+
+export async function OPTIONS(req: NextRequest) {
+	const cors = publicApiCorsHeaders(req);
+	if ([...cors.keys()].length === 0) {
+		return new NextResponse(null, { status: 204 });
+	}
+	return new NextResponse(null, { status: 204, headers: cors });
 }

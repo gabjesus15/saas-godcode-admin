@@ -331,7 +331,13 @@
 .cart-footer.cart-footer--sheet.cart-footer--checkout-fulfillment {
     flex: 0 1 auto;
     min-height: 0;
-    max-height: min(88vh, 900px);
+    /* El sheet base usa overflow:hidden (bordes); aquí permitimos scroll para no recortar
+       el CTA "Continuar a métodos de pago" cuando el formulario de delivery es alto. */
+    max-height: min(92vh, 900px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     z-index: 2;
 }
 
@@ -360,6 +366,15 @@
     /* Evita re-anchoring al abrir/cerrar el formulario de delivery */
     overflow-anchor: none;
     scroll-behavior: auto;
+}
+
+/* CTA fuera del scroll interno: no se comprime y queda accesible al hacer scroll del footer */
+.cart-footer-fulfillment-cta {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
 }
 
 .cart-fulfillment-block.cart-fulfillment-block--in-footer {

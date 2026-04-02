@@ -14,6 +14,7 @@ export {
 	type DeliverySettingsNormalized,
 	type DeliveryNamedArea,
 	type DeliveryPricingStrategy,
+	type ExternalDeliveryProvider,
 	type NamedAreaResolution,
 	type CheckoutFulfillment,
 } from "./delivery-settings";
