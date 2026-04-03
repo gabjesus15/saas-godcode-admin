@@ -25,7 +25,7 @@ const formatPrice = (price: number, currency: string = 'CLP') => {
   }).format(Number(price) || 0);
 };
 
-export const ProductCard = React.memo(function ProductCard({ product, priority = false }: { product: ProductType; priority?: boolean }) {
+export const ProductCard = React.memo(function ProductCard({ product, priority = false, country = "CL", currency = "CLP" }: { product: ProductType; priority?: boolean; country?: string; currency?: string }) {
   const { cart, addToCart, decreaseQuantity } = useCart();
   const [isExpanded, setIsExpanded] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -85,13 +85,6 @@ export const ProductCard = React.memo(function ProductCard({ product, priority =
     }
   };
 
-  // Detectar país para mostrar precios en USD si es Venezuela
-  let country = 'CL';
-  let currency = 'CLP';
-  if (typeof window !== 'undefined' && typeof (window as { __BUSINESS_INFO__?: { country?: string; currency?: string } }).__BUSINESS_INFO__ !== 'undefined') {
-    country = ((window as { __BUSINESS_INFO__?: { country?: string } }).__BUSINESS_INFO__?.country) || 'CL';
-    currency = ((window as { __BUSINESS_INFO__?: { currency?: string } }).__BUSINESS_INFO__?.currency) || 'CLP';
-  }
   const showUSD = country === 'VE' || country === 'Venezuela';
 
   return (

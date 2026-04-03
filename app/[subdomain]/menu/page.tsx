@@ -19,13 +19,26 @@ export async function generateMetadata({
 	params: Promise<{ subdomain: string }>;
 }): Promise<Metadata> {
 	const resolvedParams = await params;
+	const supabase = createSupabasePublicServerClient();
+	const { data: company } = await supabase
+		.from("companies")
+		.select("name,theme_config")
+		.eq("public_slug", resolvedParams.subdomain)
+		.maybeSingle();
+
+	const displayName =
+		(company?.theme_config as Record<string, unknown> | null)?.displayName as string | undefined
+		?? company?.name
+		?? "Menú";
 
 	return {
+		title: { absolute: `${displayName} — Menú` },
+		description: `Explora el menú de ${displayName}. Pide online y recibe en tu puerta.`,
 		manifest: `/${resolvedParams.subdomain}/menu/manifest.webmanifest`,
 		appleWebApp: {
 			capable: true,
 			statusBarStyle: "default",
-			title: "Menu",
+			title: displayName,
 		},
 	};
 }
@@ -311,6 +324,8 @@ export default async function TenantMenuPage({ params, searchParams }: TenantMen
         products={products}
         selectedBranchId={selectedBranch?.id ?? null}
         banners={heroBanners}
+        country={company.country ?? "CL"}
+        currency={company.currency ?? "CLP"}
       />
     );
 }

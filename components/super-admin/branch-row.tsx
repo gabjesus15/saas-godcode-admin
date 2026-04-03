@@ -7,6 +7,7 @@ import * as z from "zod";
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 import { requireAdminRole, roleSets } from "../../utils/admin";
 import { logAdminAction } from "../../utils/audit";
+import { useAdminRole } from "./admin-role-context";
 import {
 	effectiveDeliveryPricingMode,
 	mergeDeliverySettingsJson,
@@ -197,7 +198,7 @@ export function BranchRow({ branch }: BranchRowProps) {
 
 // View Component
 function BranchView({ branch, onEdit }: { branch: Branch, onEdit: () => void }) {
-        // ...existing code...
+    const { readOnly } = useAdminRole();
     const [isDeleting, setIsDeleting] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [globalError, setGlobalError] = useState<string | null>(null);
@@ -270,14 +271,16 @@ function BranchView({ branch, onEdit }: { branch: Branch, onEdit: () => void }) 
                     <Badge variant={branch.is_active ? "success" : "destructive"} className="shrink-0">
                         {branch.is_active ? "Activa" : "Suspendida"}
                     </Badge>
-                    <div className="flex shrink-0 gap-2">
-                        <Button onClick={onEdit} size="sm" variant="outline">
-                            Editar
-                        </Button>
-                        <Button onClick={() => setIsDeleting(true)} size="sm" variant="destructive">
-                            Eliminar
-                        </Button>
-                    </div>
+                    {!readOnly && (
+                      <div className="flex shrink-0 gap-2">
+                          <Button onClick={onEdit} size="sm" variant="outline">
+                              Editar
+                          </Button>
+                          <Button onClick={() => setIsDeleting(true)} size="sm" variant="destructive">
+                              Eliminar
+                          </Button>
+                      </div>
+                    )}
                 </div>
                 <div className="min-w-0 rounded-xl border border-zinc-100 bg-zinc-50/80 py-3 px-3 dark:border-zinc-700 dark:bg-zinc-800/50 md:col-span-6 md:px-4">
                     <p className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">

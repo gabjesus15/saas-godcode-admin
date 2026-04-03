@@ -15,6 +15,7 @@ import { requireAdminRole, roleSets } from "../../utils/admin";
 import { getTenantBaseDomainStatic, normalizeBaseDomain } from "../../utils/tenant-url";
 import { slugify } from "../../utils/slugify";
 import { uploadImage } from "../tenant/utils/cloudinary";
+import { useAdminRole } from "./admin-role-context";
 import {
   TENANT_ADMIN_TAB_OPTIONS,
   TENANT_ADMIN_TAB_IDS,
@@ -165,6 +166,7 @@ interface BranchOption {
 
 
 function UserManagement({ companyId }: { companyId: string }) {
+  const { readOnly } = useAdminRole();
   const [users, setUsers] = useState<CompanyUser[]>([]);
   const [branches, setBranches] = useState<BranchOption[]>([]);
   const [loading, setLoading] = useState(false);
@@ -379,10 +381,10 @@ function UserManagement({ companyId }: { companyId: string }) {
                 <td className="px-4 py-3 text-zinc-600">{user.branch_name ?? "Todos los locales"}</td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex flex-wrap justify-end gap-2">
-                  <Button size="sm" type="button" onClick={() => startEditUser(user)}>
+                  <Button size="sm" type="button" onClick={() => startEditUser(user)} disabled={readOnly}>
                     {editingId === user.id ? "Editando" : "Editar"}
                   </Button>
-                  <Button size="sm" variant="destructive" type="button" onClick={() => handleRemoveUser(user.id)} disabled={removingId === user.id}>
+                  <Button size="sm" variant="destructive" type="button" onClick={() => handleRemoveUser(user.id)} disabled={removingId === user.id || readOnly}>
                     {removingId === user.id ? "Quitando..." : "Quitar"}
                   </Button>
                   </div>
@@ -445,7 +447,7 @@ function UserManagement({ companyId }: { companyId: string }) {
           </div>
 
           <div className="mt-4 flex flex-wrap justify-end gap-2">
-            <Button size="sm" type="button" onClick={() => handleEditUser(editingId)}>
+            <Button size="sm" type="button" onClick={() => handleEditUser(editingId)} disabled={readOnly}>
               Guardar cambios
             </Button>
             <Button
@@ -515,7 +517,7 @@ function UserManagement({ companyId }: { companyId: string }) {
             onClick={handleAddUser}
             className="w-full"
             loading={adding}
-            disabled={adding || !newEmail.trim() || !newPassword.trim()}
+            disabled={adding || readOnly || !newEmail.trim() || !newPassword.trim()}
           >
             Agregar usuario
           </Button>
@@ -537,9 +539,9 @@ export function CompanyGlobalForm({
   payments,
   uberIntegration,
 }: CompanyGlobalFormProps) {
+  const { readOnly } = useAdminRole();
   const router = useRouter();
-  
-  // Estados de carga y error
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [extendLoading, setExtendLoading] = useState(false);
@@ -1311,7 +1313,7 @@ export function CompanyGlobalForm({
               />
             </label>
             <div className="flex items-end">
-              <Button type="button" onClick={handleExtend} loading={extendLoading} disabled={isDevPlan || monthsToAdd <= 0}>
+              <Button type="button" onClick={handleExtend} loading={extendLoading} disabled={readOnly || isDevPlan || monthsToAdd <= 0}>
                 Extender suscripción
               </Button>
             </div>
@@ -1352,7 +1354,7 @@ export function CompanyGlobalForm({
                 type="button"
                 onClick={() => handleCheckout("stripe")}
                 loading={billingLoading === "stripe"}
-                disabled={!selectedPlan?.id || isDevPlan || monthsToBill <= 0}
+                disabled={readOnly || !selectedPlan?.id || isDevPlan || monthsToBill <= 0}
               >
                 Pagar con Stripe
               </Button>
@@ -1361,7 +1363,7 @@ export function CompanyGlobalForm({
                 variant="outline"
                 onClick={() => handleCheckout("mp")}
                 loading={billingLoading === "mp"}
-                disabled={!selectedPlan?.id || isDevPlan || monthsToBill <= 0}
+                disabled={readOnly || !selectedPlan?.id || isDevPlan || monthsToBill <= 0}
               >
                 Pagar con MercadoPago
               </Button>
@@ -1441,7 +1443,7 @@ export function CompanyGlobalForm({
                           type="button"
                           size="sm"
                           className="mt-2"
-                          disabled={validatingPaymentId !== null}
+                          disabled={readOnly || validatingPaymentId !== null}
                           onClick={() => handleValidatePayment(payment.id)}
                         >
                           {validatingPaymentId === payment.id ? "Validando…" : "Validar pago"}
@@ -1471,7 +1473,7 @@ export function CompanyGlobalForm({
       </fieldset>
 
       <div className="sticky bottom-4 z-10 flex justify-end rounded-2xl border border-zinc-200 bg-white/90 px-4 py-3 shadow-sm backdrop-blur">
-        <Button type="submit" loading={loading} className="shadow-lg shadow-zinc-200" size="lg">
+        <Button type="submit" loading={loading} disabled={readOnly} className="shadow-lg shadow-zinc-200" size="lg">
           Guardar cambios
         </Button>
       </div>

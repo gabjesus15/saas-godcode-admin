@@ -34,7 +34,7 @@ export async function GET(req: Request) {
 		.limit(limit);
 
 	if (error) {
-		return NextResponse.json({ error: error.message, data: [] }, { status: 200 });
+		return NextResponse.json({ error: error.message, data: [] }, { status: 500 });
 	}
 
 	const rows = data ?? [];

@@ -16,7 +16,7 @@ export default function MetricCard({ label, value, helper, href }: MetricCardPro
 			className={cn(
 				"flex h-full min-h-0 min-w-0 flex-col gap-2 p-4 sm:gap-3 sm:p-5",
 				href &&
-					"transition hover:border-violet-200/80 hover:shadow-md dark:hover:border-violet-800/50",
+					"transition hover:border-indigo-200/80 hover:shadow-md dark:hover:border-indigo-800/50",
 			)}
 		>
 			<p className="text-xs uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">{label}</p>
@@ -33,7 +33,7 @@ export default function MetricCard({ label, value, helper, href }: MetricCardPro
 		return (
 			<Link
 				href={href}
-				className="block h-full min-w-0 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-950"
+				className="block h-full min-w-0 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-950"
 			>
 				{inner}
 			</Link>

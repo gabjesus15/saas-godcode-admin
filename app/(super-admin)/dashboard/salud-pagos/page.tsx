@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 import { fetchPaymentHealthRows } from "../../../../lib/super-admin-metrics";
 
@@ -12,9 +13,9 @@ export default async function SaludPagosPage() {
 			<div>
 				<Link
 					href="/dashboard"
-					className="text-sm font-medium text-violet-600 hover:underline dark:text-violet-400"
+					className="inline-flex items-center gap-1 text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
 				>
-					← Volver al dashboard
+					<ArrowLeft className="h-3.5 w-3.5" /> Volver al dashboard
 				</Link>
 				<h2 className="mt-2 text-xl font-semibold text-zinc-900 dark:text-zinc-100">Salud de pagos</h2>
 				<p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
@@ -57,7 +58,7 @@ export default async function SaludPagosPage() {
 												Activa sin pago pagado
 											</span>
 										) : (
-											<span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-900 dark:bg-violet-950/60 dark:text-violet-100">
+											<span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-100">
 												Suspendida con pago reciente
 											</span>
 										)}
@@ -73,7 +74,7 @@ export default async function SaludPagosPage() {
 									<td className="px-4 py-3">
 										<Link
 											href={`/companies/${r.company_id}`}
-											className="font-medium text-violet-600 hover:underline dark:text-violet-400"
+											className="font-medium text-indigo-600 hover:underline dark:text-indigo-400"
 										>
 											Ver empresa
 										</Link>

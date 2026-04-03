@@ -8,6 +8,7 @@ import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 import { logAdminAction } from "../../utils/audit";
 import { requireAdminRole, roleSets } from "../../utils/admin";
 import { slugify } from "../../utils/slugify";
+import { useAdminRole } from "./admin-role-context";
 
 interface BranchesCreateFormProps {
   companyId: string;
@@ -18,6 +19,7 @@ interface BranchesCreateFormProps {
 }
 
 export function BranchesCreateForm({ companyId, businessInfo }: BranchesCreateFormProps) {
+  const { readOnly } = useAdminRole();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -119,7 +121,7 @@ export function BranchesCreateForm({ companyId, businessInfo }: BranchesCreateFo
         />
       </div>
       {betaLimitReached && (
-        <div className="text-violet-600 text-sm mb-2">El plan beta solo permite 2 sucursales. No puedes crear más.</div>
+        <div className="text-indigo-600 text-sm mb-2">El plan beta solo permite 2 sucursales. No puedes crear más.</div>
       )}
       <div className="min-w-0">
         <Input
@@ -205,7 +207,7 @@ export function BranchesCreateForm({ companyId, businessInfo }: BranchesCreateFo
           />
           Activa
         </label>
-        <Button type="submit" size="sm" loading={loading} className="shrink-0">
+        <Button type="submit" size="sm" loading={loading} disabled={readOnly} className="shrink-0">
           Crear sucursal
         </Button>
       </div>

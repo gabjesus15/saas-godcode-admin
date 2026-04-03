@@ -116,6 +116,8 @@ interface MenuClientProps {
   products: MenuProduct[];
   selectedBranchId?: string | null;
   banners?: HeroBanner[];
+  country?: string;
+  currency?: string;
 }
 
 function isPromocionesCategoryName(name: string | null | undefined) {
@@ -132,6 +134,8 @@ export function MenuClient({
   products,
   selectedBranchId,
   banners = [],
+  country = "CL",
+  currency = "CLP",
 }: MenuClientProps) {
   
   let priorityCounter = 0;
@@ -188,7 +192,6 @@ export function MenuClient({
   const [searchExpanded, setSearchExpanded] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [logoError, setLogoError] = useState(false);
-  const [isManualScrolling] = useState(false);
   
   // Modal should always open on entry so user explicitly selects a branch.
   const hasOpenBranches = (openBranchIds ?? []).length > 0;
@@ -451,7 +454,7 @@ export function MenuClient({
     sections.forEach((section) => observer.observe(section));
 
     return () => observer.disconnect();
-  }, [query, isManualScrolling, visibleCategories]);
+  }, [query, visibleCategories]);
 
   const handleBranchSelect = (branch: BranchModalItem) => {
     setIsLocationModalOpen(false);
@@ -610,7 +613,7 @@ export function MenuClient({
               {filteredBySearch.length > 0 ? (
                 <div className="product-grid">
                   {filteredBySearch.map((product) => (
-                    <ProductCard key={product.id} product={product} priority={nextPriority()} />
+                    <ProductCard key={product.id} product={product} priority={nextPriority()} country={country} currency={currency} />
                   ))}
                 </div>
               ) : (
@@ -629,7 +632,7 @@ export function MenuClient({
               </h2>
               <div className="product-grid">
                 {specialProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} priority={nextPriority()} />
+                  <ProductCard key={product.id} product={product} priority={nextPriority()} country={country} currency={currency} />
                 ))}
               </div>
             </section>
@@ -660,7 +663,7 @@ export function MenuClient({
                     <div className="product-grid">
                       {categoryProducts.length > 0
                         ? categoryProducts.map((product) => (
-                            <ProductCard key={product.id} product={product} priority={nextPriority()} />
+                            <ProductCard key={product.id} product={product} priority={nextPriority()} country={country} currency={currency} />
                           ))
                         : (
                             <p className="no-results-text">No hay productos en esta categoría.</p>

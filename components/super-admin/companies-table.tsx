@@ -194,7 +194,7 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
                         />
                         <Link
                           href="/dashboard/salud-pagos"
-                          className="inline-flex h-9 min-w-0 items-center rounded-xl border border-violet-200 bg-violet-50/80 px-3 text-xs font-semibold text-violet-800 transition hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-200 dark:hover:bg-violet-900/40"
+                          className="inline-flex h-9 min-w-0 items-center rounded-xl border border-indigo-200 bg-indigo-50/80 px-3 text-xs font-semibold text-indigo-800 transition hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:bg-indigo-900/40"
                         >
                           Salud pagos
                         </Link>

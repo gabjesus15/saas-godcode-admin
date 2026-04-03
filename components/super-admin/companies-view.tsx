@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import { Input } from "../ui/input";
 import { CompaniesTable } from "./companies-table";
+import { useAdminRole } from "./admin-role-context";
 import Link from "next/link";
 
 interface CompaniesViewProps {
@@ -23,6 +24,7 @@ interface CompaniesViewProps {
 }
 
 export function CompaniesView({ companies }: CompaniesViewProps) {
+  const { readOnly } = useAdminRole();
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -56,12 +58,14 @@ export function CompaniesView({ companies }: CompaniesViewProps) {
               className="w-full"
             />
           </div>
-          <Link
-            href="/companies/new"
-            className="inline-flex h-10 min-w-0 items-center justify-center rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 sm:h-11"
-          >
-            Nueva empresa
-          </Link>
+          {!readOnly && (
+            <Link
+              href="/companies/new"
+              className="inline-flex h-10 min-w-0 items-center justify-center rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 sm:h-11"
+            >
+              Nueva empresa
+            </Link>
+          )}
         </div>
       </div>
       <div className="min-w-0 overflow-x-auto">

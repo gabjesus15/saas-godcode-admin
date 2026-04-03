@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { LogOut } from "lucide-react";
-import { AnimatedLogo } from "./AnimatedLogo";
+import { SaasLogo } from "./SaasLogo";
 
 import { SUPER_ADMIN_NAV } from "../../lib/super-admin-nav";
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
@@ -27,8 +27,8 @@ export function Sidebar() {
 
   return (
     <div className="flex h-full flex-col gap-6 md:gap-10">
-      <div className="flex flex-col items-center gap-1 mt-1 mb-1 md:mt-2 md:mb-2">
-        <AnimatedLogo />
+      <div className="mb-1 mt-1 md:mb-2 md:mt-2">
+        <SaasLogo />
       </div>
       <nav className="flex flex-col gap-1 sm:gap-2">
         {SUPER_ADMIN_NAV.map((item) => {

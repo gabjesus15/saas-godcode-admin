@@ -6,6 +6,7 @@ import { LifeBuoy, MessageSquarePlus, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useAdminRole } from "./admin-role-context";
 
 type TicketStatus = "open" | "in_progress" | "waiting_customer" | "resolved" | "closed";
 type TicketPriority = "low" | "medium" | "high" | "critical";
@@ -52,6 +53,7 @@ const PRIORITY_OPTIONS: TicketPriority[] = ["low", "medium", "high", "critical"]
 const CATEGORY_OPTIONS: TicketCategory[] = ["general", "billing", "technical", "product", "account"];
 
 export default function TicketsManager() {
+  const { readOnly } = useAdminRole();
   const [tickets, setTickets] = useState<TicketItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -391,7 +393,7 @@ export default function TicketsManager() {
                 ))}
               </select>
             </div>
-            <Button onClick={() => void createTicket()} disabled={saving} className="bg-zinc-900 hover:bg-zinc-800">
+            <Button onClick={() => void createTicket()} disabled={saving || readOnly} className="bg-zinc-900 hover:bg-zinc-800">
               <MessageSquarePlus className="mr-2 h-4 w-4" />
               Crear ticket
             </Button>
@@ -447,11 +449,11 @@ export default function TicketsManager() {
                   Nota interna (no visible tenant)
                 </label>
 
-                <Button onClick={() => void sendMessage()} disabled={saving} variant="outline">
+                <Button onClick={() => void sendMessage()} disabled={saving || readOnly} variant="outline">
                   Enviar mensaje al hilo
                 </Button>
 
-                <Button onClick={() => void saveTicket()} disabled={saving} className="bg-zinc-900 hover:bg-zinc-800">
+                <Button onClick={() => void saveTicket()} disabled={saving || readOnly} className="bg-zinc-900 hover:bg-zinc-800">
                   <Save className="mr-2 h-4 w-4" />
                   Guardar gestión
                 </Button>

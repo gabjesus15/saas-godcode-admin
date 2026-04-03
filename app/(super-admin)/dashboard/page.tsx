@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { Activity, ScrollText, ShieldAlert } from "lucide-react";
 
 import { DashboardPeriodTabs } from "../../../components/super-admin/dashboard-period-tabs";
 import {
@@ -153,20 +154,23 @@ export default async function DashboardPage({
 			<div className="grid gap-3 sm:grid-cols-3">
 				<Link
 					href="/dashboard/salud-pagos"
-					className="rounded-2xl border border-zinc-200 bg-white/90 px-4 py-4 text-sm font-semibold text-violet-700 shadow-sm transition hover:bg-violet-50 dark:border-zinc-700 dark:bg-zinc-900/80 dark:text-violet-300 dark:hover:bg-violet-950/40"
+					className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white/90 px-4 py-4 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/60 dark:border-zinc-700 dark:bg-zinc-900/80 dark:text-zinc-200 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/30"
 				>
+					<ShieldAlert className="h-4.5 w-4.5 shrink-0 text-indigo-500" />
 					Salud de pagos
 				</Link>
 				<Link
 					href="/dashboard/onboarding-embudo"
-					className="rounded-2xl border border-zinc-200 bg-white/90 px-4 py-4 text-sm font-semibold text-violet-700 shadow-sm transition hover:bg-violet-50 dark:border-zinc-700 dark:bg-zinc-900/80 dark:text-violet-300 dark:hover:bg-violet-950/40"
+					className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white/90 px-4 py-4 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/60 dark:border-zinc-700 dark:bg-zinc-900/80 dark:text-zinc-200 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/30"
 				>
+					<Activity className="h-4.5 w-4.5 shrink-0 text-indigo-500" />
 					Embudo onboarding
 				</Link>
 				<Link
 					href="/dashboard/auditoria"
-					className="rounded-2xl border border-zinc-200 bg-white/90 px-4 py-4 text-sm font-semibold text-violet-700 shadow-sm transition hover:bg-violet-50 dark:border-zinc-700 dark:bg-zinc-900/80 dark:text-violet-300 dark:hover:bg-violet-950/40"
+					className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white/90 px-4 py-4 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/60 dark:border-zinc-700 dark:bg-zinc-900/80 dark:text-zinc-200 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/30"
 				>
+					<ScrollText className="h-4.5 w-4.5 shrink-0 text-indigo-500" />
 					Auditoría admin
 				</Link>
 			</div>

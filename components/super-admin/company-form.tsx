@@ -15,6 +15,7 @@ import { requireAdminRole, roleSets } from "../../utils/admin";
 import { getTenantBaseDomainStatic } from "../../utils/tenant-url";
 import { slugify } from "../../utils/slugify";
 import { uploadImage } from "../tenant/utils/cloudinary";
+import { useAdminRole } from "./admin-role-context";
 
 const BrandingPreview = dynamic(
   () => import("./branding-preview").then((mod) => mod.BrandingPreview),
@@ -32,8 +33,7 @@ interface CompanyFormProps {
 }
 
 export function CompanyForm({ plans }: CompanyFormProps) {
-  // Importar validator solo en cliente
-  // Validación manual para CI y rut.js para Chile
+  const { readOnly } = useAdminRole();
   const router = useRouter();
   const baseDomain = useMemo(() => getTenantBaseDomainStatic(), []);
   const [loading, setLoading] = useState(false);
@@ -520,7 +520,7 @@ export function CompanyForm({ plans }: CompanyFormProps) {
       ) : null}
 
       <div className="flex justify-end">
-        <Button type="submit" loading={loading}>
+        <Button type="submit" loading={loading} disabled={readOnly}>
           Crear empresa
         </Button>
       </div>

@@ -7,6 +7,7 @@ import { requireAdminRole, roleSets } from "../../utils/admin";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { Input } from "../ui/input";
+import { useAdminRole } from "./admin-role-context";
 
 type Props = {
 	companyId: string;
@@ -22,6 +23,7 @@ export function CompanyUberCredentialsForm({
 	hasClientSecret: initialHasSecret,
 	initialAllowTenantExternalDelivery = true,
 }: Props) {
+	const { readOnly } = useAdminRole();
 	const [clientId, setClientId] = useState(initialClientId);
 	const [clientSecret, setClientSecret] = useState("");
 	const [clearSecret, setClearSecret] = useState(false);
@@ -218,7 +220,7 @@ export function CompanyUberCredentialsForm({
 						size="sm"
 						className="shrink-0 self-start sm:self-center"
 						onClick={() => void onSavePolicy()}
-						disabled={savingPolicy}
+						disabled={readOnly || savingPolicy}
 					>
 						{savingPolicy ? "Guardando…" : "Guardar política"}
 					</Button>
@@ -305,7 +307,7 @@ export function CompanyUberCredentialsForm({
 							<Button type="button" variant="outline" onClick={handleHideCredentials}>
 								Ocultar sin guardar
 							</Button>
-							<Button type="button" onClick={onSave} disabled={saving}>
+							<Button type="button" onClick={onSave} disabled={readOnly || saving}>
 								{saving ? "Guardando…" : "Guardar credenciales Uber"}
 							</Button>
 						</div>

@@ -429,6 +429,7 @@ export function CartModal({
       deliveryShowNumericFee,
       deliveryExternalHintText,
       uberQuoteId,
+      branchPriceRows,
     } = useCart();
 
     type CheckoutLiveBranch = Pick<
@@ -874,56 +875,12 @@ export function CartModal({
       setDeliveryCoords,
     ]);
 
-    // --- Lógica para filtrar productos desactivados y actualizar precios ---
-    const [filteredCart, setFilteredCart] = useState<CartLineItem[]>(cart);
-    const cartProductIds = useMemo(
-      () => Array.isArray(cart)
-        ? Array.from(new Set(cart.map((item) => String(item.id || "")).filter(Boolean))).join(",")
-        : "",
-      [cart]
+    const filteredCart = useMemo(
+      () => mergeCartWithBranchPrices(cart, branchPriceRows, {
+        omitLinesWithoutPriceWhenBranchHasData: true,
+      }),
+      [cart, branchPriceRows]
     );
-
-    useEffect(() => {
-      if (!cartProductIds || !selectedBranch?.id) {
-        return;
-      }
-      let cancelled = false;
-      const validatePrices = async () => {
-        const ids = cartProductIds.split(",").filter(Boolean);
-        // ...existing code...
-        if (ids.length === 0) return;
-        try {
-          const { data, error } = await supabase
-            .from("product_prices")
-            .select("product_id, price, has_discount, discount_price, products(id,name,is_active,description)")
-            .in("product_id", ids)
-            .eq("branch_id", selectedBranch.id);
-          if (cancelled) return;
-          if (error) {
-            console.log("[CartModal] Error en supabase product_prices:", error);
-            setFilteredCart(cart);
-            return;
-          }
-          // ...existing code...
-          const next = mergeCartWithBranchPrices(cart, data ?? [], {
-            omitLinesWithoutPriceWhenBranchHasData: true,
-          });
-          // ...existing code...
-          setFilteredCart(next);
-        } catch {
-          // ...existing code...
-          if (!cancelled) {
-            setFilteredCart(cart);
-          }
-        }
-      };
-      validatePrices();
-      return () => {
-        cancelled = true;
-      };
-    }, [cart, cartProductIds, selectedBranch?.id, supabase]);
-
-    // --- Fin lógica filtrado ---
 
     // Detectar productos eliminados al cambiar de sucursal
     // const [removedProducts, setRemovedProducts] = useState<string[]>([]);
@@ -957,14 +914,39 @@ export function CartModal({
   const [paymentMethodKey, setPaymentMethodKey] = useState<string | null>(null);
   const fulfillmentScrollRef = useRef<HTMLDivElement | null>(null);
   const fulfillmentChoiceRef = useRef<HTMLDivElement | null>(null);
+  const cartPanelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!isCartOpen) return;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prevOverflow;
-    };
+
+    const panel = cartPanelRef.current;
+    if (panel) {
+      const prev = document.activeElement as HTMLElement | null;
+      panel.focus();
+      const handleTab = (e: KeyboardEvent) => {
+        if (e.key !== "Tab") return;
+        const focusable = panel.querySelectorAll<HTMLElement>(
+          'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+        } else {
+          if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+        }
+      };
+      panel.addEventListener("keydown", handleTab);
+      return () => {
+        panel.removeEventListener("keydown", handleTab);
+        document.body.style.overflow = prevOverflow;
+        prev?.focus();
+      };
+    }
+    return () => { document.body.style.overflow = prevOverflow; };
   }, [isCartOpen]);
 
   useEffect(() => {
@@ -978,14 +960,15 @@ export function CartModal({
     }
   }, [paymentMethodKey, checkoutPaymentMethods]);
 
-  // Zod schema para validación robusta
-    const clientSchema = z.object({
+  const clientSchema = z.object({
       name: z.string()
         .min(3, "Nombre muy corto")
         .max(50)
         .regex(/^[\p{L} .'-]+$/u, "Nombre inválido"),
-      phone: z.string(), // Validación desactivada temporalmente
-      rut: z.string(), // Validación desactivada temporalmente
+      phone: z.string()
+        .transform((v) => v.replace(/\s/g, ""))
+        .pipe(z.string().min(7, "Teléfono muy corto").max(20, "Teléfono muy largo").regex(/^\+?\d{7,15}$/, "Teléfono inválido")),
+      rut: z.string().optional().default(""),
       receiptFile: z.any().optional(),
       receiptPreview: z.string().optional(),
     });
@@ -1721,7 +1704,12 @@ export function CartModal({
     return (
       <div className="modal-overlay cart-overlay" onClick={handleCloseCart}>
         <div
+          ref={cartPanelRef}
           className="cart-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Pedido enviado"
+          tabIndex={-1}
           onClick={(e) => e.stopPropagation()}
         >
           <header className="cart-header">
@@ -1743,7 +1731,12 @@ export function CartModal({
   return (
     <div className="modal-overlay cart-overlay" onClick={handleCloseCart}>
       <div
+        ref={cartPanelRef}
         className="cart-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Tu pedido"
+        tabIndex={-1}
         data-checkout-phase={checkoutPhase}
         onClick={(e) => e.stopPropagation()}
       >
@@ -2891,6 +2884,7 @@ const SuccessView = ({
                   type="button"
                   className="summary-value summary-copy-row"
                   onClick={() => copyText(orderLabel.replace("#", ""))}
+                  aria-label="Copiar número de pedido"
                 >
                   <b>{orderLabel}</b> <Copy size={14} />
                 </button>
@@ -2901,6 +2895,7 @@ const SuccessView = ({
               type="button"
               className="summary-value summary-mono summary-copy-row"
               onClick={() => copyText(lastOrder?.handoff_code ?? "")}
+              aria-label="Copiar código de entrega"
             >
               <b>{lastOrder?.handoff_code}</b> <Copy size={14} />
             </button>

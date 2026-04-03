@@ -14,7 +14,7 @@ import type {
 import { isUpsellBeverageLineId } from "./cart-context";
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 import { filterValidProductIds, isValidBranchId } from "./utils/safe-ids";
-import { mergeCartWithBranchPrices } from "./utils/cart-pricing";
+import { mergeCartWithBranchPrices, type BranchProductPriceRow } from "./utils/cart-pricing";
 import { UBER_NEEDS_COORDINATES_CODE } from "../../lib/delivery-quote-contract";
 import {
 	computeDeliveryFee,
@@ -377,6 +377,8 @@ export function CartProvider({
       [store.cart, isHydrated]
     );
 
+    const [branchPriceRows, setBranchPriceRows] = useState<BranchProductPriceRow[]>([]);
+
     useEffect(() => {
       if (!isHydrated || !cartProductIds || !selectedBranchId) return;
       if (!isValidBranchId(selectedBranchId)) return;
@@ -425,6 +427,9 @@ export function CartProvider({
                 }
               : undefined,
           }));
+
+          setBranchPriceRows(rows);
+
           const currentCart = useCartStore.getState().cart;
           const nextCart = mergeCartWithBranchPrices(currentCart, rows, {
             omitLinesWithoutPriceWhenBranchHasData: false,
@@ -1330,6 +1335,7 @@ export function CartProvider({
       deliveryShowNumericFee: isHydrated ? deliveryShowNumericFee : true,
       deliveryExternalHintText: isHydrated ? deliveryExternalHintText : null,
       uberQuoteId: isHydrated ? uberQuoteId : null,
+      branchPriceRows,
     }), [
       store,
       isHydrated,
@@ -1350,6 +1356,7 @@ export function CartProvider({
       deliveryShowNumericFee,
       deliveryExternalHintText,
       uberQuoteId,
+      branchPriceRows,
     ]);
 
   return (

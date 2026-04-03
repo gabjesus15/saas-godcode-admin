@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext } from "react";
+import type { BranchProductPriceRow } from "./utils/cart-pricing";
 
 interface CartProduct {
   id: string;
@@ -121,6 +122,8 @@ interface CartContextType {
   deliveryExternalHintText: string | null;
   /** Cotización Uber Direct (`estimate_id`) para validar al confirmar pedido. */
   uberQuoteId: string | null;
+  /** Cached price rows from the current branch — avoids re-fetching in the modal. */
+  branchPriceRows: BranchProductPriceRow[];
 }
 
 const CartContext = createContext<CartContextType | null>(null);

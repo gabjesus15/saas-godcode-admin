@@ -9,6 +9,7 @@ import { useAdminRole } from "./admin-role-context";
 import { AdminCommandPalette } from "./admin-command-palette";
 import { AdminHeaderClock } from "./admin-header-clock";
 import { AdminShortcutsHelp } from "./admin-shortcuts-help";
+import { SaasLogo } from "./SaasLogo";
 import { Sidebar } from "./sidebar";
 
 const maintenanceBanner =
@@ -73,12 +74,12 @@ export function AdminShell({ children }: AdminShellProps) {
         <div className="flex min-w-0 flex-1 flex-col gap-4 sm:gap-6">
           <header className="flex min-w-0 items-center justify-between gap-2 rounded-2xl border border-zinc-200 bg-white/80 px-3 py-3 shadow-sm backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/80 sm:rounded-3xl sm:px-5 sm:py-4">
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
-                Control Center
-              </p>
               <h1 className="truncate text-base font-semibold text-zinc-900 dark:text-zinc-100 sm:text-lg">
-                Panel Super Admin
+                Administración
               </h1>
+              <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+                Panel de control
+              </p>
             </div>
             <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2">
               <AdminHeaderClock />
@@ -146,9 +147,7 @@ export function AdminShell({ children }: AdminShellProps) {
               }}
             >
               <div className="mb-4 flex items-center justify-between gap-2 sm:mb-6">
-                <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                  Navegación
-                </span>
+                <SaasLogo size="sm" />
                 <button
                   ref={closeButtonRef}
                   type="button"

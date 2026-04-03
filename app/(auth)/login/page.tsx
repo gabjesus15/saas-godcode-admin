@@ -8,6 +8,7 @@ import { ShieldCheck } from "lucide-react";
 
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
+import { SaasLogo } from "../../../components/super-admin/SaasLogo";
 import { mapAuthClientError } from "../../../utils/auth-client-errors";
 import { createSupabaseBrowserClient } from "../../../utils/supabase/client";
 
@@ -28,8 +29,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [showGodCode, setShowGodCode] = useState(false);
-  const [godCodeLetters, setGodCodeLetters] = useState("");
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -51,16 +51,8 @@ export default function LoginPage() {
         throw signInError;
       }
 
-      // Animación: mostrar GodCode letra por letra
-      setShowGodCode(true);
-      let letters = "";
-      const godCode = "GodCode";
-      for (let i = 0; i < godCode.length; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 120));
-        letters += godCode[i];
-        setGodCodeLetters(letters);
-      }
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      setShowSuccess(true);
+      await new Promise((resolve) => setTimeout(resolve, 800));
       router.push("/dashboard");
       router.refresh();
     } catch (err) {
@@ -76,26 +68,23 @@ export default function LoginPage() {
 
       <Card className="relative w-full max-w-md border-zinc-200/80 bg-white/90 p-7 shadow-[0_20px_50px_-22px_rgba(15,23,42,0.35)] dark:border-zinc-700/80 dark:bg-zinc-900/90 dark:shadow-[0_20px_50px_-22px_rgba(0,0,0,0.75)]">
         <div className="mb-7 flex flex-col items-center text-center">
-          <div className="mb-4 flex flex-col items-center justify-center">
-            <span style={{fontFamily:'Nevis, sans-serif', fontSize:'2.2rem', color:'#6d28d9', fontWeight:'bold', letterSpacing:'-2px'}}>
-              {showGodCode ? (
-                <>
-                  {godCodeLetters}
-                  <span style={{color:'#888'}}>{godCodeLetters.length < 7 ? '|' : ''}</span>
-                </>
-              ) : 'Gcode'}
-            </span>
-            <div style={{fontFamily:'Aleo-Light, sans-serif', fontSize:'1rem', color:'#888', marginTop:'-8px'}}>Tu visión, nuestro código.</div>
+          <div className="mb-5">
+            <SaasLogo size="lg" />
           </div>
 
-          <p className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-            <ShieldCheck size={14} />
-            Acceso seguro
-          </p>
-
-          {/* Eliminado texto SaaS GodCode por petición del usuario */}
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Panel Super Admin</p>
-          <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">Ingresa con tu cuenta autorizada.</p>
+          {showSuccess ? (
+            <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+              Acceso concedido. Redirigiendo...
+            </p>
+          ) : (
+            <>
+              <p className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                <ShieldCheck size={14} />
+                Panel de administración
+              </p>
+              <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">Ingresa con tu cuenta autorizada.</p>
+            </>
+          )}
         </div>
 
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>

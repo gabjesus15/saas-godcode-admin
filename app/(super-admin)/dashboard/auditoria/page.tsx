@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Download } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
 import type { Json } from "../../../../types/supabase-database";
@@ -39,9 +39,9 @@ export default async function AuditoriaPage() {
 				<div className="min-w-0 flex-1">
 					<Link
 						href="/dashboard"
-						className="text-sm font-medium text-violet-600 hover:underline dark:text-violet-400"
+						className="inline-flex items-center gap-1 text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
 					>
-						← Volver al dashboard
+						<ArrowLeft className="h-3.5 w-3.5" /> Volver al dashboard
 					</Link>
 					<h2 className="mt-2 text-xl font-semibold text-zinc-900 dark:text-zinc-100">Auditoría de mutaciones</h2>
 					<p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
@@ -51,7 +51,7 @@ export default async function AuditoriaPage() {
 				</div>
 				<a
 					href="/api/super-admin/audit-log?format=csv&limit=2000"
-					className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-medium text-violet-800 shadow-sm hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-950/50 dark:text-violet-200 dark:hover:bg-violet-900/40"
+					className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-medium text-indigo-800 shadow-sm hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-200 dark:hover:bg-indigo-900/40"
 					download
 				>
 					<Download className="h-4 w-4" aria-hidden />

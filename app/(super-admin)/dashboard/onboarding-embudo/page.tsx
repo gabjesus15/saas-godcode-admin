@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 import { fetchOnboardingFunnelCounts } from "../../../../lib/super-admin-metrics";
 
@@ -31,9 +32,9 @@ export default async function OnboardingEmbudoPage() {
 			<div>
 				<Link
 					href="/dashboard"
-					className="text-sm font-medium text-violet-600 hover:underline dark:text-violet-400"
+					className="inline-flex items-center gap-1 text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
 				>
-					← Volver al dashboard
+					<ArrowLeft className="h-3.5 w-3.5" /> Volver al dashboard
 				</Link>
 				<h2 className="mt-2 text-xl font-semibold text-zinc-900 dark:text-zinc-100">Embudo de onboarding</h2>
 				<p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
@@ -62,7 +63,7 @@ export default async function OnboardingEmbudoPage() {
 							</div>
 							<div className="h-2.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
 								<div
-									className="h-full rounded-full bg-violet-500 transition-all dark:bg-violet-600"
+									className="h-full rounded-full bg-indigo-500 transition-all dark:bg-indigo-600"
 									style={{ width: `${Math.min(100, pct)}%` }}
 								/>
 							</div>
@@ -74,7 +75,7 @@ export default async function OnboardingEmbudoPage() {
 			<p className="text-xs text-zinc-500 dark:text-zinc-400">
 				Para reducir abandono: revisá correo (SPF/DKIM), claridad del paso 2 y redirección post-pago (Stripe).
 				Listado operativo en{" "}
-				<Link href="/onboarding/solicitudes" className="font-medium text-violet-600 hover:underline dark:text-violet-400">
+				<Link href="/onboarding/solicitudes" className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
 					Solicitudes
 				</Link>
 				.
