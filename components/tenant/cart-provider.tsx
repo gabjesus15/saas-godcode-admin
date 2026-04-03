@@ -15,6 +15,7 @@ import { isUpsellBeverageLineId } from "./cart-context";
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 import { filterValidProductIds, isValidBranchId } from "./utils/safe-ids";
 import { mergeCartWithBranchPrices } from "./utils/cart-pricing";
+import { UBER_NEEDS_COORDINATES_CODE } from "../../lib/delivery-quote-contract";
 import {
 	computeDeliveryFee,
 	effectiveDeliveryPricingMode,
@@ -538,6 +539,15 @@ export function CartProvider({
     const [namedManualLoading, setNamedManualLoading] = useState(false);
     const [namedManualError, setNamedManualError] = useState<string | null>(null);
 
+    const [extQuote, setExtQuote] = useState<{
+      showFee: boolean;
+      fee: number;
+      currencyCode: string;
+      displayText: string;
+      uberQuoteId: string | null;
+    } | null>(null);
+    const [extError, setExtError] = useState<string | null>(null);
+
     useEffect(() => {
       let cancelled = false;
 
@@ -806,6 +816,166 @@ export function CartProvider({
       cartSubtotal,
     ]);
 
+    useEffect(() => {
+      let cancelled = false;
+      const clearExt = () => {
+        window.setTimeout(() => {
+          if (!cancelled) {
+            setExtQuote(null);
+            setExtError(null);
+          }
+        }, 0);
+      };
+
+      if (
+        store.fulfillment !== "delivery" ||
+        !parsedDelivery.enabled ||
+        pricingMode !== "external" ||
+        !selectedBranchId
+      ) {
+        clearExt();
+        return () => {
+          cancelled = true;
+        };
+      }
+
+      const minOkExt =
+        parsedDelivery.minOrderSubtotal == null ||
+        cartSubtotal + 1e-9 >= parsedDelivery.minOrderSubtotal;
+      if (!minOkExt) {
+        clearExt();
+        return () => {
+          cancelled = true;
+        };
+      }
+
+      if (!isValidLatLng(store.deliveryLat, store.deliveryLng)) {
+        clearExt();
+        return () => {
+          cancelled = true;
+        };
+      }
+
+      const addr = `${store.deliveryLine1}, ${store.deliveryCommune}`.trim();
+      const t = window.setTimeout(() => {
+        if (cancelled) return;
+        setExtError(null);
+        fetch("/api/delivery-quote", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            branchId: selectedBranchId,
+            subtotal: cartSubtotal,
+            lat: store.deliveryLat,
+            lng: store.deliveryLng,
+            ...(addr.length >= 8 ? { address: addr } : {}),
+          }),
+        })
+          .then(async (r) => {
+            const j = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+            if (cancelled) return;
+            if (!r.ok || !j.ok) {
+              setExtQuote(null);
+              const code = String(j.code ?? "");
+              const errMsg =
+                code === UBER_NEEDS_COORDINATES_CODE
+                  ? "Ubicá el punto de entrega en el mapa o usá “Usar mi ubicación”."
+                  : typeof j.error === "string"
+                    ? j.error
+                    : "No se pudo cotizar el envío.";
+              setExtError(errMsg);
+              return;
+            }
+            const showFee = j.showDeliveryFeeAmount !== false;
+            setExtQuote({
+              showFee,
+              fee: Math.round(Number(j.fee) || 0),
+              currencyCode:
+                typeof j.currencyCode === "string" && j.currencyCode.trim()
+                  ? j.currencyCode.trim().toUpperCase()
+                  : "CLP",
+              displayText:
+                typeof j.deliveryDisplayText === "string" && j.deliveryDisplayText.trim()
+                  ? j.deliveryDisplayText.trim()
+                  : parsedDelivery.externalDeliveryDisplayText,
+              uberQuoteId:
+                typeof j.uberQuoteId === "string" && j.uberQuoteId.trim()
+                  ? j.uberQuoteId.trim()
+                  : null,
+            });
+            setExtError(null);
+          })
+          .catch(() => {
+            if (!cancelled) {
+              setExtQuote(null);
+              setExtError("Error de red al cotizar.");
+            }
+          });
+      }, 320);
+
+      return () => {
+        cancelled = true;
+        clearTimeout(t);
+      };
+    }, [
+      store.fulfillment,
+      parsedDelivery.enabled,
+      parsedDelivery.minOrderSubtotal,
+      parsedDelivery.externalDeliveryDisplayText,
+      pricingMode,
+      selectedBranchId,
+      cartSubtotal,
+      store.deliveryLat,
+      store.deliveryLng,
+      store.deliveryLine1,
+      store.deliveryCommune,
+    ]);
+
+    const deliveryShowNumericFee = useMemo(() => {
+      if (
+        store.fulfillment !== "delivery" ||
+        !parsedDelivery.enabled ||
+        pricingMode !== "external"
+      ) {
+        return true;
+      }
+      if (extQuote) return extQuote.showFee;
+      return parsedDelivery.showExternalDeliveryFeeAmount;
+    }, [
+      store.fulfillment,
+      parsedDelivery.enabled,
+      parsedDelivery.showExternalDeliveryFeeAmount,
+      pricingMode,
+      extQuote,
+    ]);
+
+    const deliveryExternalHintText = useMemo(() => {
+      if (
+        store.fulfillment !== "delivery" ||
+        !parsedDelivery.enabled ||
+        pricingMode !== "external"
+      ) {
+        return null;
+      }
+      if (extQuote && !extQuote.showFee) return extQuote.displayText;
+      if (!parsedDelivery.showExternalDeliveryFeeAmount && !extQuote) {
+        return parsedDelivery.externalDeliveryDisplayText;
+      }
+      return null;
+    }, [
+      store.fulfillment,
+      parsedDelivery.enabled,
+      pricingMode,
+      extQuote,
+      parsedDelivery.externalDeliveryDisplayText,
+      parsedDelivery.showExternalDeliveryFeeAmount,
+    ]);
+
+    const uberQuoteId = useMemo(() => {
+      if (pricingMode !== "external") return null;
+      return extQuote?.uberQuoteId ?? null;
+    }, [pricingMode, extQuote]);
+
     const { deliveryFee, waivedFree, namedLabel, quotedRouteKm, outOfZone, quoteLoading, quoteError } =
       useMemo(() => {
         if (store.fulfillment !== "delivery" || !parsedDelivery.enabled) {
@@ -832,6 +1002,52 @@ export function CartProvider({
             quotedRouteKm: null,
             outOfZone: false,
             quoteLoading: false,
+            quoteError: null,
+          };
+        }
+
+        if (pricingMode === "external") {
+          const hasGps = isValidLatLng(store.deliveryLat, store.deliveryLng);
+          if (!hasGps) {
+            return {
+              deliveryFee: 0,
+              waivedFree: false,
+              namedLabel: null,
+              quotedRouteKm: null,
+              outOfZone: false,
+              quoteLoading: false,
+              quoteError: null,
+            };
+          }
+          if (extError) {
+            return {
+              deliveryFee: 0,
+              waivedFree: false,
+              namedLabel: null,
+              quotedRouteKm: null,
+              outOfZone: false,
+              quoteLoading: false,
+              quoteError: extError,
+            };
+          }
+          if (extQuote) {
+            return {
+              deliveryFee: extQuote.showFee ? Math.round(extQuote.fee) : 0,
+              waivedFree: false,
+              namedLabel: null,
+              quotedRouteKm: null,
+              outOfZone: false,
+              quoteLoading: false,
+              quoteError: null,
+            };
+          }
+          return {
+            deliveryFee: 0,
+            waivedFree: false,
+            namedLabel: null,
+            quotedRouteKm: null,
+            outOfZone: false,
+            quoteLoading: true,
             quoteError: null,
           };
         }
@@ -991,6 +1207,8 @@ export function CartProvider({
         namedManualQuote,
         namedManualLoading,
         namedManualError,
+        extQuote,
+        extError,
       ]);
 
     const grandTotal = Math.round(cartSubtotal) + Math.round(deliveryFee);
@@ -1109,6 +1327,9 @@ export function CartProvider({
       quotedRouteKm: isHydrated ? quotedRouteKm : null,
       extrasEnabledByBranch: branchFeatureFlags.extrasEnabledByBranch,
       beveragesUpsellEnabledByBranch: branchFeatureFlags.beveragesUpsellEnabledByBranch,
+      deliveryShowNumericFee: isHydrated ? deliveryShowNumericFee : true,
+      deliveryExternalHintText: isHydrated ? deliveryExternalHintText : null,
+      uberQuoteId: isHydrated ? uberQuoteId : null,
     }), [
       store,
       isHydrated,
@@ -1126,6 +1347,9 @@ export function CartProvider({
       outOfZone,
       quotedRouteKm,
       branchFeatureFlags,
+      deliveryShowNumericFee,
+      deliveryExternalHintText,
+      uberQuoteId,
     ]);
 
   return (

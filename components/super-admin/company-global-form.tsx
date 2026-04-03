@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
+import { CompanyUberCredentialsForm } from "./company-uber-credentials-form";
 import { Input } from "../ui/input";
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 import { logAdminAction } from "../../utils/audit";
@@ -136,6 +137,11 @@ interface CompanyGlobalFormProps {
   businessInfo: BusinessInfo | null;
   plans: PlanOption[];
   payments: PaymentHistory[];
+  uberIntegration: {
+    clientId: string;
+    hasClientSecret: boolean;
+    allowTenantExternalDelivery: boolean;
+  };
 }
 
 interface CompanyUser {
@@ -529,6 +535,7 @@ export function CompanyGlobalForm({
   businessInfo,
   plans,
   payments,
+  uberIntegration,
 }: CompanyGlobalFormProps) {
   const router = useRouter();
   
@@ -1256,6 +1263,15 @@ export function CompanyGlobalForm({
             Las opciones deshabilitadas se muestran en gris en el navbar y muestran mensaje de acceso restringido al hacer click.
           </p>
         </Card>
+
+        <CompanyUberCredentialsForm
+          companyId={company.id}
+          initialClientId={uberIntegration.clientId}
+          hasClientSecret={uberIntegration.hasClientSecret}
+          initialAllowTenantExternalDelivery={
+            uberIntegration.allowTenantExternalDelivery
+          }
+        />
 
         <Card className="flex flex-col gap-6">
           <div>

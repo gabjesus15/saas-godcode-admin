@@ -44,6 +44,8 @@ interface CreateOrderPayload {
   delivery_lng?: number | null;
   delivery_named_area_id?: string | null;
   namedAreaId?: string | null;
+  /** Cotización Uber Direct (opcional; se revalida en servidor). */
+  uber_quote_id?: string | null;
 }
 
 interface ProductPriceRow {
@@ -265,6 +267,10 @@ export const ordersService = {
     const MIN_DRIVER_REFERENCE_LEN = 6;
 
     let deliveryFee = 0;
+    let uberQuoteIdForPatch: string | null =
+      typeof orderData.uber_quote_id === "string" && orderData.uber_quote_id.trim()
+        ? orderData.uber_quote_id.trim()
+        : null;
     let namedId: string | null =
       typeof orderData.delivery_named_area_id === "string" && orderData.delivery_named_area_id.trim()
         ? orderData.delivery_named_area_id.trim()
@@ -346,6 +352,62 @@ export const ordersService = {
           throw new Error("La zona de entrega seleccionada no es valida.");
         }
         deliveryFee = r.fee < 0 ? 0 : r.fee;
+      } else if (priceMode === "external") {
+        const dlat = orderData.delivery_lat;
+        const dlng = orderData.delivery_lng;
+        const hasLatLng =
+          typeof dlat === "number" &&
+          typeof dlng === "number" &&
+          Number.isFinite(dlat) &&
+          Number.isFinite(dlng);
+        if (!hasLatLng) {
+          throw new Error(
+            "Indica tu ubicacion de entrega en el mapa para continuar con el envio.",
+          );
+        }
+        if (typeof window === "undefined") {
+          throw new Error("Cotizacion de envio externo no disponible en este contexto.");
+        }
+        const da = orderData.delivery_address;
+        const addrStr =
+          da && typeof da === "object"
+            ? String(
+                (da as Record<string, unknown>).formatted_address ??
+                  (da as Record<string, unknown>).address ??
+                  "",
+              ).trim()
+            : "";
+        const qRes = await fetch(`${window.location.origin}/api/delivery-quote`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            branchId: orderData.branch_id,
+            subtotal: calculatedItemsTotal,
+            lat: dlat,
+            lng: dlng,
+            ...(addrStr.length >= 8 ? { address: addrStr } : {}),
+          }),
+        });
+        const qJson = (await qRes.json().catch(() => ({}))) as {
+          ok?: boolean;
+          fee?: number;
+          showDeliveryFeeAmount?: boolean;
+          uberQuoteId?: string | null;
+          error?: string;
+        };
+        if (!qRes.ok || !qJson.ok) {
+          throw new Error(
+            qJson.error ||
+              "No se pudo validar el envio con el proveedor. Verifica tu ubicacion e intenta de nuevo.",
+          );
+        }
+        const showAmt = qJson.showDeliveryFeeAmount !== false;
+        deliveryFee = showAmt ? Math.round(Math.max(0, Number(qJson.fee) || 0)) : 0;
+        uberQuoteIdForPatch = showAmt
+          ? typeof qJson.uberQuoteId === "string" && qJson.uberQuoteId.trim()
+            ? qJson.uberQuoteId.trim()
+            : uberQuoteIdForPatch
+          : uberQuoteIdForPatch;
       } else {
         const dlat = orderData.delivery_lat;
         const dlng = orderData.delivery_lng;
@@ -500,6 +562,7 @@ export const ordersService = {
             typeof namedId === "string" && namedId.trim()
               ? namedId.trim()
               : undefined,
+          ...(uberQuoteIdForPatch ? { uberQuoteId: uberQuoteIdForPatch } : {}),
         }),
       });
       if (!patchRes.ok) {

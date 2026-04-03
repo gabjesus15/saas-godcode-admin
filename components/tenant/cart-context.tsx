@@ -112,6 +112,15 @@ interface CartContextType {
   setGlobalExtras: (extras: CartGlobalExtraSelection[]) => void;
   extrasEnabledByBranch: boolean;
   beveragesUpsellEnabledByBranch: boolean;
+  /**
+   * Si es false, el envío no muestra monto fijo (p. ej. Uber con copy de tienda);
+   * `grandTotal` sigue siendo subtotal + deliveryFee (fee 0 en ese modo).
+   */
+  deliveryShowNumericFee: boolean;
+  /** Texto a mostrar cuando `deliveryShowNumericFee` es false. */
+  deliveryExternalHintText: string | null;
+  /** Cotización Uber Direct (`estimate_id`) para validar al confirmar pedido. */
+  uberQuoteId: string | null;
 }
 
 const CartContext = createContext<CartContextType | null>(null);

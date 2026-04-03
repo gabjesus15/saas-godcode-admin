@@ -27,6 +27,12 @@ interface CompanyGlobalTabProps {
       roleNavPermissions?: Record<string, string[]>;
     } | null;
   };
+  /** Vista previa de integración Uber (sin exponer secretos). */
+  uberIntegration: {
+    clientId: string;
+    hasClientSecret: boolean;
+    allowTenantExternalDelivery: boolean;
+  };
   businessInfo: {
     name: string | null;
     phone: string | null;
@@ -53,6 +59,7 @@ interface CompanyGlobalTabProps {
 
 export async function CompanyGlobalTab({
   company,
+  uberIntegration,
   businessInfo,
   plans,
   payments,
@@ -65,6 +72,7 @@ export async function CompanyGlobalTab({
         businessInfo={businessInfo}
         plans={plans}
         payments={payments}
+        uberIntegration={uberIntegration}
       />
     </div>
   );

@@ -5,6 +5,8 @@ import { BranchesCreateForm } from "../../../../components/super-admin/branches-
 import { BranchesTable } from "../../../../components/super-admin/branches-table";
 import { CompanyGlobalTab } from "../../../../components/super-admin/company-global-tab";
 import { CompanyTabs } from "../../../../components/super-admin/company-tabs";
+import { isTenantExternalDeliveryAllowed } from "../../../../lib/company-integration-policy";
+import { parseCompanyIntegrationSettingsJson } from "../../../../lib/company-integration-json";
 import { createSupabaseServerClient } from "../../../../utils/supabase/server";
 
 export async function generateMetadata({
@@ -47,7 +49,7 @@ export default async function CompanyDetailPage({
       supabase
         .from("companies")
         .select(
-          "id,name,legal_rut,email,phone,address,public_slug,custom_domain,plan_id,subscription_status,subscription_ends_at,theme_config,country,currency"
+          "id,name,legal_rut,email,phone,address,public_slug,custom_domain,plan_id,subscription_status,subscription_ends_at,theme_config,country,currency,integration_settings"
         )
         .eq("id", resolvedParams.id)
         .maybeSingle(),
@@ -58,7 +60,9 @@ export default async function CompanyDetailPage({
         .maybeSingle(),
       supabase
         .from("branches")
-          .select("id,name,slug,address,phone,is_active,country,currency,instagram,schedule,payment_methods,pago_movil,zelle,transferencia_bancaria,stripe,mercadopago,efectivo,tarjeta,paypal,company_id")
+          .select(
+            "id,name,slug,address,phone,is_active,country,currency,instagram,schedule,payment_methods,pago_movil,zelle,transferencia_bancaria,stripe,mercadopago,efectivo,tarjeta,paypal,company_id,delivery_settings"
+          )
         .eq("company_id", resolvedParams.id)
         .order("created_at", { ascending: false }),
       supabase
@@ -87,6 +91,13 @@ export default async function CompanyDetailPage({
       notFound();
     }
 
+    const integ = parseCompanyIntegrationSettingsJson(company.integration_settings);
+    const uberIntegration = {
+      clientId: integ.uber?.clientId ?? "",
+      hasClientSecret: Boolean(integ.uber?.clientSecretEncrypted),
+      allowTenantExternalDelivery: isTenantExternalDeliveryAllowed(company.integration_settings),
+    };
+
     return (
       <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
         <div className="min-w-0">
@@ -107,6 +118,7 @@ export default async function CompanyDetailPage({
               content: (
                 <CompanyGlobalTab
                   company={company}
+                  uberIntegration={uberIntegration}
                   businessInfo={businessInfo}
                   plans={plans ?? []}
                   payments={payments ?? []}

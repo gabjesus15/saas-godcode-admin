@@ -6,6 +6,7 @@ import {
   normalizeHostForLookup,
   resolveTenantSlugFromCustomDomainHost,
 } from "./lib/custom-domain-resolve";
+import { publicApiCorsHeaders } from "./lib/api-cors";
 
 const adminPaths = [
   "/dashboard",
@@ -142,9 +143,28 @@ const resolveTenantSlugFromReferer = (refererHeader: string | null) => {
   }
 };
 
+const PUBLIC_DELIVERY_API_PATHS = new Set([
+  "/api/delivery-quote",
+  "/api/public-order-delivery",
+]);
+
+function attachPublicDeliveryApiCors(req: NextRequest, res: NextResponse): NextResponse {
+  if (!PUBLIC_DELIVERY_API_PATHS.has(req.nextUrl.pathname)) return res;
+  const cors = publicApiCorsHeaders(req);
+  cors.forEach((value, key) => res.headers.set(key, value));
+  return res;
+}
+
 export async function proxy(req: NextRequest) {
 
   const { pathname } = req.nextUrl;
+
+  if (PUBLIC_DELIVERY_API_PATHS.has(pathname) && req.method === "OPTIONS") {
+    const cors = publicApiCorsHeaders(req);
+    if ([...cors.keys()].length > 0) {
+      return new NextResponse(null, { status: 204, headers: cors });
+    }
+  }
   const hostHeader = req.headers.get("host");
   let subdomain = extractSubdomain(hostHeader);
   if (!subdomain) {
@@ -170,11 +190,17 @@ export async function proxy(req: NextRequest) {
     if (tenantSlug) {
       const rewriteUrl = new URL(`/${tenantSlug}/tenant-favicon`, req.url);
       const response = NextResponse.rewrite(rewriteUrl);
-      return applySessionRefresh(req, response, "tenant");
+      return attachPublicDeliveryApiCors(
+        req,
+        await applySessionRefresh(req, response, "tenant"),
+      );
     }
 
     const response = NextResponse.next({ request: req });
-    return applySessionRefresh(req, response, "super-admin");
+    return attachPublicDeliveryApiCors(
+      req,
+      await applySessionRefresh(req, response, "super-admin"),
+    );
   }
 
   if (subdomain) {
@@ -182,14 +208,17 @@ export async function proxy(req: NextRequest) {
     if (pathname.startsWith("/onboarding")) {
       const base = getAppUrl().replace(/\/$/, "");
       const target = new URL(pathname + req.nextUrl.search, base);
-      return NextResponse.redirect(target, 302);
+      return attachPublicDeliveryApiCors(req, NextResponse.redirect(target, 302));
     }
     if (
       tenantBypassPaths.some((path) => pathname.startsWith(path)) ||
       pathname.includes(".")
     ) {
       const response = NextResponse.next({ request: req });
-      return applySessionRefresh(req, response, "tenant");
+      return attachPublicDeliveryApiCors(
+        req,
+        await applySessionRefresh(req, response, "tenant"),
+      );
     }
 
     // Si la ruta es '/', reescribe a '/[subdomain]'
@@ -197,22 +226,34 @@ export async function proxy(req: NextRequest) {
       const rewriteUrl = new URL(`/${subdomain}`, req.url);
       rewriteUrl.search = req.nextUrl.search;
       const response = NextResponse.rewrite(rewriteUrl);
-      return applySessionRefresh(req, response, "tenant");
+      return attachPublicDeliveryApiCors(
+        req,
+        await applySessionRefresh(req, response, "tenant"),
+      );
     }
 
     const rewriteUrl = new URL(`/${subdomain}${pathname}`, req.url);
     rewriteUrl.search = req.nextUrl.search;
     const response = NextResponse.rewrite(rewriteUrl);
-    return applySessionRefresh(req, response, "tenant");
+    return attachPublicDeliveryApiCors(
+      req,
+      await applySessionRefresh(req, response, "tenant"),
+    );
   }
 
   if (adminPaths.some((path) => pathname.startsWith(path))) {
     const response = NextResponse.next({ request: req });
-    return applySessionRefresh(req, response, "super-admin");
+    return attachPublicDeliveryApiCors(
+      req,
+      await applySessionRefresh(req, response, "super-admin"),
+    );
   }
 
   const response = NextResponse.next({ request: req });
-  return applySessionRefresh(req, response, "super-admin");
+  return attachPublicDeliveryApiCors(
+    req,
+    await applySessionRefresh(req, response, "super-admin"),
+  );
 }
 
 export const config = {

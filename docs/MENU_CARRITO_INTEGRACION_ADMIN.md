@@ -60,7 +60,7 @@ Formato esperado por item:
 Normalizados por [`lib/delivery-settings.ts`](lib/delivery-settings.ts):
 
 - `enabled`
-- `deliveryPricingStrategy`: `"distance"` | `"named_areas"`
+- `deliveryPricingStrategy`: `"distance"` | `"named_areas"` | `"external"`
 - `namedAreaResolution`: `"manual_select"` | `"address_matched"`
 - `pricePerKm`, `baseFee`, `minFee`, `maxFee`
 - `maxDeliveryKm`
@@ -76,6 +76,13 @@ Esto controla:
 - como se calcula fee,
 - metodos de pago permitidos en delivery,
 - mensajes al cliente y validaciones.
+
+Con `deliveryPricingStrategy: "external"` y `externalDeliveryProvider: "uber_direct"`:
+
+- `uberDirectStoreId`: store id de Uber por **sucursal** (panel CEO, edicion de sucursal).
+- `showExternalDeliveryFeeAmount` / `externalDeliveryDisplayText`: UX cuando no se muestra monto fijo.
+
+Credenciales OAuth (`client_id` / `client_secret`) van por **empresa** en `companies.integration_settings.uber` (Client Secret cifrado con `UBER_SECRETS_ENCRYPTION_KEY`). Si la empresa no tiene credenciales en BD, el servidor puede usar `UBER_CLIENT_ID` / `UBER_CLIENT_SECRET` como respaldo. Las APIs [`app/api/delivery-quote/route.ts`](../app/api/delivery-quote/route.ts) y [`app/api/public-order-delivery/route.ts`](../app/api/public-order-delivery/route.ts) resuelven el token con [`lib/company-integration-settings.ts`](../lib/company-integration-settings.ts).
 
 
 ## 3) Flujo de datos: de donde sale cada cosa y a donde va

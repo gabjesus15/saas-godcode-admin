@@ -426,6 +426,9 @@ export function CartModal({
       setGlobalExtras,
       extrasEnabledByBranch,
       beveragesUpsellEnabledByBranch,
+      deliveryShowNumericFee,
+      deliveryExternalHintText,
+      uberQuoteId,
     } = useCart();
 
     type CheckoutLiveBranch = Pick<
@@ -559,6 +562,11 @@ export function CartModal({
       [deliverySettings]
     );
 
+    const mapAddressMode = useMemo(
+      () => deliveryPriceMode === "distance" || deliveryPriceMode === "external",
+      [deliveryPriceMode],
+    );
+
     const [activeEnhancePanel, setActiveEnhancePanel] = useState<
       "none" | "beverages" | "extras"
     >("none");
@@ -656,13 +664,13 @@ export function CartModal({
     useEffect(() => {
       const wasOpen = cartWasOpenRef.current;
       cartWasOpenRef.current = isCartOpen;
-      if (!isCartOpen || deliveryPriceMode !== "distance") return;
+      if (!isCartOpen || !mapAddressMode) return;
       if (wasOpen) return;
       const merged = [deliveryLine1.trim(), deliveryCommune.trim()]
         .filter(Boolean)
         .join(", ");
       queueMicrotask(() => setUnifiedAddressSearch(merged));
-    }, [isCartOpen, deliveryPriceMode, deliveryLine1, deliveryCommune]);
+    }, [isCartOpen, mapAddressMode, deliveryLine1, deliveryCommune]);
 
     useEffect(() => {
       if (!isCartOpen) return;
@@ -672,7 +680,7 @@ export function CartModal({
         // En modo distancia con campos separados (comuna/calle/número),
         // no volver a parsear el string unificado para evitar "pisar" inputs.
         // Caso típico: escribir solo "Ñuñoa" en comuna terminaba moviéndolo a calle.
-        if (deliveryPriceMode === "distance" && !SHOW_ADDRESS_SUGGESTIONS) {
+        if (mapAddressMode && !SHOW_ADDRESS_SUGGESTIONS) {
           return;
         }
         const { line1, commune } = parseUnifiedAddressSearch(unifiedAddressSearch);
@@ -683,7 +691,7 @@ export function CartModal({
     }, [
       unifiedAddressSearch,
       isCartOpen,
-      deliveryPriceMode,
+      mapAddressMode,
       SHOW_ADDRESS_SUGGESTIONS,
       setDeliveryLine1,
       setDeliveryCommune,
@@ -700,7 +708,7 @@ export function CartModal({
     }, [deliveryLine1, deliveryCommune]);
 
     useEffect(() => {
-      if (deliveryPriceMode !== "distance") return;
+      if (!mapAddressMode) return;
       const q = debouncedLookup.trim();
       if (q.length < 3) {
         const clearT = window.setTimeout(() => {
@@ -777,7 +785,7 @@ export function CartModal({
       };
     }, [
       debouncedLookup,
-      deliveryPriceMode,
+      mapAddressMode,
       selectedBranch?.id,
       selectedBranch?.origin_lat,
       selectedBranch?.origin_lng,
@@ -798,7 +806,7 @@ export function CartModal({
 
     /** Si el cliente completa el número en calle/comuna, recalculamos coordenadas y el envío. */
     useEffect(() => {
-      if (deliveryPriceMode !== "distance") return;
+      if (!mapAddressMode) return;
       if (fulfillment !== "delivery") return;
       if (Date.now() < suppressLineGeocodeUntilRef.current) return;
 
@@ -858,7 +866,7 @@ export function CartModal({
       };
     }, [
       debouncedDeliveryLine,
-      deliveryPriceMode,
+      mapAddressMode,
       fulfillment,
       selectedBranch?.id,
       selectedBranch?.origin_lat,
@@ -1122,12 +1130,17 @@ export function CartModal({
   }
 
   const distanceReady =
-    deliveryPriceMode !== "distance" ||
-    (!isDeliveryOutOfZone &&
-      !deliveryQuoteError &&
-      (isValidCoordsForQuote()
-        ? !deliveryQuoteLoading
-        : kmManualValid()));
+    (deliveryPriceMode !== "distance" && deliveryPriceMode !== "external") ||
+    (deliveryPriceMode === "external"
+      ? !isDeliveryOutOfZone &&
+        !deliveryQuoteError &&
+        isValidCoordsForQuote() &&
+        !deliveryQuoteLoading
+      : !isDeliveryOutOfZone &&
+        !deliveryQuoteError &&
+        (isValidCoordsForQuote()
+          ? !deliveryQuoteLoading
+          : kmManualValid()));
 
   const canProceedFulfillment =
     fulfillment !== "delivery" ||
@@ -1630,6 +1643,7 @@ export function CartModal({
         delivery_lat: deliveryLat,
         delivery_lng: deliveryLng,
         delivery_named_area_id: deliveryNamedAreaId?.trim() || null,
+        uber_quote_id: uberQuoteId || null,
       };
       const { order: newOrder, receiptUploadFailed } = await ordersService.createOrder(
         orderPayload,
@@ -1989,7 +2003,9 @@ export function CartModal({
                         ? "Gratis"
                         : isDeliveryOutOfZone
                           ? "—"
-                          : `$${formatCartMoney(deliveryFee)}`}
+                          : !deliveryShowNumericFee && deliveryExternalHintText
+                            ? deliveryExternalHintText
+                            : `$${formatCartMoney(deliveryFee)}`}
                     </span>
                   </div>
                 ) : null}
@@ -2096,7 +2112,7 @@ export function CartModal({
                             </p>
                           ) : null}
 
-                          {deliveryPriceMode === "distance" ? (
+                          {mapAddressMode ? (
                             <>
                               <button
                                 type="button"
@@ -2127,17 +2143,17 @@ export function CartModal({
 
                           <div
                             className={
-                              deliveryPriceMode === "distance"
+                              mapAddressMode
                                 ? "cart-address-search-wrap"
                                 : undefined
                             }
                             ref={
-                              deliveryPriceMode === "distance"
+                              mapAddressMode
                                 ? addressSearchWrapRef
                                 : undefined
                             }
                           >
-                            {deliveryPriceMode === "distance" ? (
+                            {mapAddressMode ? (
                               <>
                               <label
                                 className="cart-field-label"
@@ -2231,19 +2247,19 @@ export function CartModal({
                               </>
                             ) : null}
                         {SHOW_ADDRESS_SUGGESTIONS &&
-                        deliveryPriceMode === "distance" &&
+                        mapAddressMode &&
                             addressSearchLoading ? (
                               <p className="cart-geo-hint">Buscando direcciones…</p>
                             ) : null}
                         {SHOW_ADDRESS_SUGGESTIONS &&
-                        deliveryPriceMode === "distance" &&
+                        mapAddressMode &&
                             addressSearchConfigError ? (
                               <p className="cart-fulfillment-warn">
                                 {addressSearchConfigError}
                               </p>
                             ) : null}
                         {SHOW_ADDRESS_SUGGESTIONS &&
-                        deliveryPriceMode === "distance" &&
+                        mapAddressMode &&
                             addressHitsOpen &&
                             addressHits.length > 0 ? (
                               <ul
@@ -2282,7 +2298,7 @@ export function CartModal({
                             ) : null}
                           </div>
                           {fulfillment === "delivery" &&
-                          deliveryPriceMode === "distance" &&
+                          mapAddressMode &&
                           lineGeocodeLoading ? (
                             <p className="cart-geo-hint">
                               Actualizando ubicación con calle y número (recalculamos envío)…
@@ -2290,7 +2306,7 @@ export function CartModal({
                           ) : null}
 
                           {fulfillment === "delivery" &&
-                          deliveryPriceMode === "distance" ? (
+                          mapAddressMode ? (
                             <DeliveryPreviewMap lat={deliveryLat} lng={deliveryLng} />
                           ) : null}
 
@@ -2336,7 +2352,9 @@ export function CartModal({
                                 ? "Gratis"
                                 : isDeliveryOutOfZone
                                   ? "Fuera de zona"
-                                  : `$${formatCartMoney(deliveryFee)}`}
+                                  : !deliveryShowNumericFee && deliveryExternalHintText
+                                    ? deliveryExternalHintText
+                                    : `$${formatCartMoney(deliveryFee)}`}
                             </strong>
                           </div>
                           {!meetsMinDelivery ? (
@@ -2360,23 +2378,31 @@ export function CartModal({
                   </div>
                 </div>
 
+                <div className="cart-footer-fulfillment-cta">
                 {!canProceedFulfillment ? (
                   <div className="cash-closed-banner">
                     <AlertCircle size={16} />
                     <span>
-                      {fulfillment === "delivery" && !deliveryReferenceOk
-                        ? `Agrega indicaciones para el repartidor (minimo ${MIN_DRIVER_REFERENCE_LEN} caracteres).`
-                        : isDeliveryOutOfZone
-                          ? "Tu ubicacion esta fuera del area de delivery de este local."
-                          : !meetsMinDelivery
-                            ? `Monto minimo para delivery: $${formatCartMoney(minOrder)}.`
-                            : deliveryQuoteLoading &&
-                                deliveryPriceMode === "distance" &&
-                                isValidCoordsForQuote()
-                              ? "Calculando envio con tu ubicacion…"
-                              : deliveryQuoteError
-                                ? deliveryQuoteError
-                                : "Completa los datos de envio para continuar."}
+                      {fulfillment === "delivery" &&
+                      mapAddressMode &&
+                      !isValidCoordsForQuote()
+                        ? deliveryPriceMode === "external"
+                          ? "Para cotizar el envío (Uber), ubicá el punto en el mapa o tocá «Usar ubicación actual»."
+                          : "Indicá tu ubicación en el mapa, escribí calle y número con comuna, o ingresá los km a mano para continuar."
+                        : fulfillment === "delivery" && !deliveryReferenceOk
+                          ? `Agrega indicaciones para el repartidor (minimo ${MIN_DRIVER_REFERENCE_LEN} caracteres).`
+                          : isDeliveryOutOfZone
+                            ? "Tu ubicacion esta fuera del area de delivery de este local."
+                            : !meetsMinDelivery
+                              ? `Monto minimo para delivery: $${formatCartMoney(minOrder)}.`
+                              : deliveryQuoteLoading &&
+                                  (deliveryPriceMode === "distance" ||
+                                    deliveryPriceMode === "external") &&
+                                  isValidCoordsForQuote()
+                                ? "Calculando envio con tu ubicacion…"
+                                : deliveryQuoteError
+                                  ? deliveryQuoteError
+                                  : "Completa los datos de envio para continuar."}
                     </span>
                   </div>
                 ) : (
@@ -2403,6 +2429,7 @@ export function CartModal({
                   <ArrowLeft size={16} className="mr-5" />
                   Volver al resumen
                 </button>
+                </div>
               </>
             ) : (
               <PaymentFlow

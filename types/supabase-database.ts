@@ -799,6 +799,8 @@ export type Database = {
           custom_domain_expires_at: string | null
           email: string | null
           id: string
+          /** Integraciones por empresa (Uber OAuth cifrado, etc.). */
+          integration_settings: Json
           legal_rut: string | null
           name: string
           phone: string | null
@@ -819,6 +821,7 @@ export type Database = {
           custom_domain_expires_at?: string | null
           email?: string | null
           id?: string
+          integration_settings?: Json
           legal_rut?: string | null
           name: string
           phone?: string | null
@@ -839,6 +842,7 @@ export type Database = {
           custom_domain_expires_at?: string | null
           email?: string | null
           id?: string
+          integration_settings?: Json
           legal_rut?: string | null
           name?: string
           phone?: string | null
@@ -2608,10 +2612,13 @@ export type Database = {
           address: string
           bank_name: string
           company_id: string
+          delivery_settings: Json | null
           id: string
           instagram_url: string
           map_url: string
           name: string
+          origin_lat: number | null
+          origin_lng: number | null
           phone: string
           schedule: string
           slug: string
