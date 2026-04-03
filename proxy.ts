@@ -8,6 +8,21 @@ import {
 } from "./lib/custom-domain-resolve";
 import { publicApiCorsHeaders } from "./lib/api-cors";
 
+const SECURITY_HEADERS: [string, string][] = [
+  ["X-Content-Type-Options", "nosniff"],
+  ["X-Frame-Options", "DENY"],
+  ["Referrer-Policy", "strict-origin-when-cross-origin"],
+  ["Permissions-Policy", "camera=(), microphone=(), geolocation=(self)"],
+  ["X-DNS-Prefetch-Control", "on"],
+];
+
+function applySecurityHeaders(res: NextResponse): NextResponse {
+  for (const [key, value] of SECURITY_HEADERS) {
+    res.headers.set(key, value);
+  }
+  return res;
+}
+
 const adminPaths = [
   "/dashboard",
   "/companies",
@@ -156,6 +171,15 @@ function attachPublicDeliveryApiCors(req: NextRequest, res: NextResponse): NextR
 }
 
 export async function proxy(req: NextRequest) {
+  const result = await _proxy(req);
+  applySecurityHeaders(result);
+  if (req.nextUrl.pathname.startsWith("/api/")) {
+    result.headers.set("Cache-Control", "no-store");
+  }
+  return result;
+}
+
+async function _proxy(req: NextRequest): Promise<NextResponse> {
 
   const { pathname } = req.nextUrl;
 
