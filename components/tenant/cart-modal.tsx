@@ -253,7 +253,7 @@ const generateWSMessage = (
     if (tipoCuenta) msg += `Tipo: ${tipoCuenta}\n`;
     if (nroCuenta) msg += `Cuenta: ${nroCuenta}\n`;
     if (titular) msg += `Titular: ${titular}\n`;
-    msg += `\nCuando completes la transferencia, respondé este WhatsApp con el monto y la hora (no hace falta enviar comprobante).\n`;
+    msg += `\nCuando completes la transferencia, adjuntá el comprobante en tu pedido.\n`;
   }
 
   if (note && note.trim()) msg += `\nNota: ${note}\n`;
@@ -1319,8 +1319,7 @@ export function CartModal({
     const requiresReceipt =
       Boolean(
         paymentMethodKey &&
-          PAYMENT_METHOD_CONFIG[paymentMethodKey]?.isOnline &&
-          paymentMethodKey !== "transferencia_bancaria"
+          PAYMENT_METHOD_CONFIG[paymentMethodKey]?.isOnline
       );
     const isReceiptValid = requiresReceipt ? !!values.receiptFile : true;
 
@@ -2516,8 +2515,7 @@ const PaymentFlow = ({
   const isOnline = paymentMethodKey && PAYMENT_METHOD_CONFIG[paymentMethodKey]?.isOnline;
   const requiresReceipt = Boolean(
     paymentMethodKey &&
-      PAYMENT_METHOD_CONFIG[paymentMethodKey]?.isOnline &&
-      paymentMethodKey !== "transferencia_bancaria"
+      PAYMENT_METHOD_CONFIG[paymentMethodKey]?.isOnline
   );
   const showNameError = showFieldErrors && !validation.name;
   const showRutError = showFieldErrors && !validation.rut;

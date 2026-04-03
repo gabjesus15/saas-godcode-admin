@@ -15,7 +15,8 @@ export async function GET() {
 		.order("sort_order", { ascending: true });
 
 	if (error) {
-		return NextResponse.json({ error: error.message }, { status: 500 });
+		console.error("[addons/list] DB error:", error.message);
+		return NextResponse.json({ error: "Error al cargar add-ons" }, { status: 500 });
 	}
 	return NextResponse.json({ data: data ?? [] });
 }
@@ -64,7 +65,8 @@ export async function POST(req: NextRequest) {
 		if (error.code === "23505") {
 			return NextResponse.json({ error: "Ya existe un add-on con ese slug" }, { status: 409 });
 		}
-		return NextResponse.json({ error: error.message }, { status: 500 });
+		console.error("[addons/create] DB error:", error.message);
+		return NextResponse.json({ error: "Error al crear add-on" }, { status: 500 });
 	}
 	await logAdminAudit({
 		actorEmail: permission.email ?? "",

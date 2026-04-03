@@ -13,7 +13,7 @@ import { provisionOnboardingWelcome } from "../../../../../lib/onboarding/welcom
 import { proxyToOnboardingBilling } from "../../../../../lib/service-proxy";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "";
-const RESEND_FROM = process.env.RESEND_FROM ?? "noreply@example.com";
+const RESEND_FROM = process.env.RESEND_FROM?.trim() || "";
 
 export async function POST(req: NextRequest) {
 	const proxied = await proxyToOnboardingBilling(req, "/api/super-admin/payments/validate");
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
 			.maybeSingle();
 
 		let welcomeSent = false;
-		if (app && !app.welcome_email_sent_at) {
+		if (app && !app.welcome_email_sent_at && RESEND_API_KEY && RESEND_FROM) {
 			try {
 				await provisionOnboardingWelcome({
 					supabaseAdmin,
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
 				});
 				welcomeSent = true;
 			} catch {
-				// Se conserva el comportamiento previo: el pago se valida aunque falle el provisioning de bienvenida.
+				logger.warn("welcome_email_failed", ctx, { companyId: payment.company_id });
 			}
 		}
 

@@ -34,8 +34,9 @@ export async function GET() {
 			.limit(200);
 
 		if (error) {
+			console.error("[solicitudes] DB error:", error.message);
 			return NextResponse.json(
-				{ error: `Error al cargar solicitudes: ${error.message}` },
+				{ error: "Error al cargar solicitudes" },
 				{ status: 500 }
 		);
 	}

@@ -16,7 +16,8 @@ export async function GET() {
 		.order("price", { ascending: true });
 
 	if (error) {
-		return NextResponse.json({ error: error.message }, { status: 500 });
+		console.error("[plans/list] DB error:", error.message);
+		return NextResponse.json({ error: "Error al cargar planes" }, { status: 500 });
 	}
 	return NextResponse.json({ data: data ?? [] });
 }
@@ -51,7 +52,8 @@ export async function POST(req: NextRequest) {
 	const { data, error } = await supabaseAdmin.from("plans").insert(payload).select("id").single();
 
 	if (error) {
-		return NextResponse.json({ error: error.message }, { status: 500 });
+		console.error("[plans/create] DB error:", error.message);
+		return NextResponse.json({ error: "Error al crear plan" }, { status: 500 });
 	}
 	await logAdminAudit({
 		actorEmail: permission.email ?? "",

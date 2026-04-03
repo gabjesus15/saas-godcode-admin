@@ -65,8 +65,30 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-function JsonLd() {
+function JsonLd({ plans }: { plans: { price_monthly?: number | null }[] }) {
   const base = getAppUrl();
+  const prices = plans
+    .map((p) => Number(p.price_monthly ?? 0))
+    .filter((p) => p > 0);
+  const minPrice = prices.length > 0 ? Math.min(...prices) : undefined;
+  const maxPrice = prices.length > 0 ? Math.max(...prices) : undefined;
+
+  const offers =
+    minPrice !== undefined
+      ? {
+          "@type": "AggregateOffer",
+          lowPrice: String(minPrice),
+          highPrice: String(maxPrice),
+          priceCurrency: "USD",
+          offerCount: String(prices.length),
+        }
+      : {
+          "@type": "Offer",
+          price: "0",
+          priceCurrency: "USD",
+          description: "Consulta planes disponibles",
+        };
+
   const ld = [
     {
       "@context": "https://schema.org",
@@ -77,12 +99,7 @@ function JsonLd() {
       operatingSystem: "Web",
       description:
         "Plataforma SaaS para crear tu tienda online con menú digital, carrito, delivery, caja, comandas e inventario.",
-      offers: {
-        "@type": "Offer",
-        price: "0",
-        priceCurrency: "USD",
-        description: "Plan gratuito disponible",
-      },
+      offers,
     },
     {
       "@context": "https://schema.org",
@@ -112,7 +129,7 @@ export default async function Home() {
     const plans = await getPublicPlansForLanding();
     return (
       <>
-        <JsonLd />
+        <JsonLd plans={plans} />
         <GodcodeLanding plans={plans} />
       </>
     );

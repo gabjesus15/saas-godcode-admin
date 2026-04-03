@@ -66,8 +66,9 @@ export async function GET(req: Request) {
 			.limit(12);
 
 		if (error) {
+			console.error("[companies-search] DB error:", error.message);
 			return NextResponse.json(
-				{ error: error.message, companies: [] },
+				{ error: "Error al buscar empresas", companies: [] },
 				{ status: 500 },
 			);
 		}

@@ -56,7 +56,16 @@
 .onboarding-page .onboarding-input:focus {
   border-color: #818cf8 !important;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12) !important;
-  outline: none !important;
+  outline: 2px solid transparent !important;
+  outline-offset: 2px !important;
+}
+
+.onboarding-page input:focus-visible,
+.onboarding-page textarea:focus-visible,
+.onboarding-page select:focus-visible,
+.onboarding-page .onboarding-input:focus-visible {
+  outline: 2px solid #818cf8 !important;
+  outline-offset: 2px !important;
 }
 
 .onboarding-page .onboarding-card label {

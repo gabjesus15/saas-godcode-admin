@@ -6,6 +6,19 @@ import { Check } from "lucide-react";
 import { Button } from "../ui/button";
 
 type Plan = { id: string; name: string | null; price: number | null; max_branches: number | null };
+
+const INTERNAL_PLAN_NAMES = ["dev", "desarrollo", "internal", "test"];
+const BETA_PLAN_NAMES = ["beta"];
+
+function isPlanInternal(plan: Plan): boolean {
+  const n = (plan.name ?? "").toLowerCase().trim();
+  return INTERNAL_PLAN_NAMES.some((k) => n === k || n.startsWith(`${k} `));
+}
+
+function isPlanBeta(plan: Plan): boolean {
+  const n = (plan.name ?? "").toLowerCase().trim();
+  return BETA_PLAN_NAMES.some((k) => n === k || n.startsWith(`${k} `) || n.endsWith(` ${k}`));
+}
 type PlanPaymentMethod = { id: string; slug: string; name: string | null; auto_verify: boolean; sort_order: number };
 type Addon = {
   id: string;
@@ -99,10 +112,11 @@ export function OnboardingStep2Form({
   const [betaDisabled, setBetaDisabled] = useState(false);
   useEffect(() => {
     async function checkBeta() {
-      const betaPlan = plans.find(p => p.name?.toLowerCase().includes("beta"));
+      const betaPlan = plans.find(isPlanBeta);
       if (!betaPlan || !initialData.email) { setBetaDisabled(false); return; }
       try {
         const res = await fetch(`/api/onboarding/check-beta?email=${encodeURIComponent(initialData.email)}&plan_id=${betaPlan.id}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         setBetaDisabled(json.used === true);
       } catch { setBetaDisabled(false); }
@@ -117,7 +131,10 @@ export function OnboardingStep2Form({
     setPlanMethodsLoadState("loading");
     let cancelled = false;
     fetch(`/api/onboarding/plan-payment-methods?country=${encodeURIComponent(c)}`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then((json: { data?: PlanPaymentMethod[] }) => {
         if (!cancelled && Array.isArray(json.data)) setPlanPaymentMethods(json.data);
       })
@@ -189,7 +206,7 @@ export function OnboardingStep2Form({
     }
   };
 
-  const visiblePlans = plans.filter((p) => !p.name?.toLowerCase().includes("dev"));
+  const visiblePlans = plans.filter((p) => !isPlanInternal(p));
 
   return (
     <form onSubmit={handleSubmit} className="w-full space-y-6">
@@ -227,7 +244,7 @@ export function OnboardingStep2Form({
         <h3 className="mb-3 text-sm font-semibold text-slate-900">Elige tu plan *</h3>
         <div className={`grid gap-3 ${visiblePlans.length >= 3 ? "sm:grid-cols-3" : visiblePlans.length === 2 ? "sm:grid-cols-2" : ""}`}>
           {visiblePlans.map((plan) => {
-            const isBeta = plan.name?.toLowerCase().includes("beta");
+            const isBeta = isPlanBeta(plan);
             const selected = planId === plan.id;
             const disabled = isBeta && betaDisabled;
             return (

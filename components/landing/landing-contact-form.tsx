@@ -48,6 +48,8 @@ export function LandingContactForm({ supportEmail }: { supportEmail: string }) {
         <label className="flex flex-col gap-1 text-sm font-medium text-slate-800 dark:text-zinc-200">
           Nombre
           <input
+            name="name"
+            autoComplete="name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Tu nombre"
@@ -58,6 +60,8 @@ export function LandingContactForm({ supportEmail }: { supportEmail: string }) {
           Email
           <input
             type="email"
+            name="email"
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="tu@email.com"
@@ -68,6 +72,7 @@ export function LandingContactForm({ supportEmail }: { supportEmail: string }) {
       <label className="flex flex-col gap-1 text-sm font-medium text-slate-800 dark:text-zinc-200">
         Mensaje
         <textarea
+          name="message"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           rows={4}

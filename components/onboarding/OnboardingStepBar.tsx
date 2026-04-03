@@ -14,7 +14,7 @@ export function OnboardingStepBar({ current }: { current: 1 | 2 | 3 }) {
           const done = s.n < current;
           const active = s.n === current;
           return (
-            <li key={s.n} className="flex items-center">
+            <li key={s.n} className="flex items-center" aria-current={active ? "step" : undefined}>
               <div className="flex flex-col items-center">
                 <span
                   className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition sm:h-9 sm:w-9 ${

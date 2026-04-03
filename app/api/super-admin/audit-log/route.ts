@@ -34,7 +34,8 @@ export async function GET(req: Request) {
 		.limit(limit);
 
 	if (error) {
-		return NextResponse.json({ error: error.message, data: [] }, { status: 500 });
+		console.error("[audit-log] DB error:", error.message);
+		return NextResponse.json({ error: "Error al cargar registros", data: [] }, { status: 500 });
 	}
 
 	const rows = data ?? [];

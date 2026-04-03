@@ -47,7 +47,8 @@ export async function PATCH(
 		if (error.code === "23505") {
 			return NextResponse.json({ error: "Ya existe un add-on con ese slug" }, { status: 409 });
 		}
-		return NextResponse.json({ error: error.message }, { status: 500 });
+		console.error("[addons/update] DB error:", error.message);
+		return NextResponse.json({ error: "Error al actualizar add-on" }, { status: 500 });
 	}
 	await logAdminAudit({
 		actorEmail: permission.email ?? "",

@@ -58,10 +58,8 @@ export default async function OnboardingCompletePage({
     return <ErrorCard title="Aplicación no encontrada" text="El enlace es inválido o la aplicación no existe." />;
   }
 
-  const maxAttempts = 3;
-  const waitMs = 2000;
-  for (let attempt = 1; attempt <= maxAttempts && app.status !== "email_verified" && app.status !== "form_completed"; attempt++) {
-    await new Promise((r) => setTimeout(r, waitMs));
+  if (app.status !== "email_verified" && app.status !== "form_completed") {
+    await new Promise((r) => setTimeout(r, 800));
     const retry = await fetchApp();
     if (retry.error || !retry.app) {
       if (retry.error) console.error("[ONBOARDING COMPLETE] Error en reintento:", retry.error);

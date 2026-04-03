@@ -43,8 +43,8 @@ export function LandingProductCarousel({ slides }: { slides: LandingProductSlide
   if (safeSlides.length === 0) return null;
 
   return (
-    <div className="mt-8 sm:mt-14" suppressHydrationWarning>
-      <div className="relative">
+    <div className="mt-8 sm:mt-14" role="region" aria-roledescription="carousel" aria-label="Capturas del producto" suppressHydrationWarning>
+      <div className="relative" aria-live="polite">
         {multi ? (
           <>
             <button

@@ -15,7 +15,8 @@ export async function GET() {
 		.order("sort_order", { ascending: true });
 
 	if (error) {
-		return NextResponse.json({ error: error.message }, { status: 500 });
+		console.error("[plan-payment-methods] DB error:", error.message);
+		return NextResponse.json({ error: "Error al cargar métodos de pago" }, { status: 500 });
 	}
 
 	const withConfig = await Promise.all(

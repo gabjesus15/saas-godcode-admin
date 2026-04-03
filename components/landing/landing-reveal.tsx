@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 
 import { cn } from "../../utils/cn";
 
@@ -22,14 +22,15 @@ export function LandingReveal({
   delay?: number;
   direction?: "up" | "left" | "right";
 }) {
+  const prefersReduced = useReducedMotion();
   const offset = directionMap[direction];
   return (
     <motion.div
       className={cn(className)}
-      initial={{ opacity: 0, x: offset.x, y: offset.y }}
+      initial={prefersReduced ? false : { opacity: 0, x: offset.x, y: offset.y }}
       whileInView={{ opacity: 1, x: 0, y: 0 }}
       viewport={{ once: true, amount: 0.15 }}
-      transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1], delay }}
+      transition={prefersReduced ? { duration: 0 } : { duration: 0.5, ease: [0.25, 0.1, 0.25, 1], delay }}
     >
       {children}
     </motion.div>

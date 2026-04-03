@@ -36,7 +36,8 @@ export async function PATCH(
 	const { error } = await supabaseAdmin.from("plans").update(updates).eq("id", id);
 
 	if (error) {
-		return NextResponse.json({ error: error.message }, { status: 500 });
+		console.error("[plans/update] DB error:", error.message);
+		return NextResponse.json({ error: "Error al actualizar plan" }, { status: 500 });
 	}
 	await logAdminAudit({
 		actorEmail: permission.email ?? "",
