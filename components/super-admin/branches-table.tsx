@@ -35,6 +35,7 @@ interface BranchesTableProps {
     tarjeta?: { [key: string]: string } | null;
     paypal?: { [key: string]: string } | null;
     company_id: string;
+    delivery_settings?: unknown;
   }>;
 }
 

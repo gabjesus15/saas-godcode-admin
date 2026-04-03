@@ -4,13 +4,20 @@
  * @see https://developer.uber.com/docs/deliveries/direct/api/v1/post-eats-deliveries-estimates
  */
 
+import { createHash } from "crypto";
+
 const UBER_TOKEN_URL = "https://auth.uber.com/oauth/v2/token";
 const UBER_ESTIMATES_URL = "https://api.uber.com/v1/eats/deliveries/estimates";
 
 type TokenCache = { token: string; expiresAtMs: number };
-let tokenCache: TokenCache | null = null;
+const tokenCacheByKey = new Map<string, TokenCache>();
 
 const TOKEN_SKEW_MS = 60_000;
+
+function cacheKeyForCredentials(clientId: string, clientSecret: string): string {
+	const h = createHash("sha256").update(clientSecret, "utf8").digest("hex").slice(0, 24);
+	return `${clientId.trim()}::${h}`;
+}
 
 function currencyMinorExponent(currencyCode: string): number {
 	const c = currencyCode.trim().toUpperCase();
@@ -42,23 +49,36 @@ export function fromUberMinorUnits(minor: number, currencyCode: string): number 
 	return minor / factor;
 }
 
-export async function getUberDirectAccessToken(): Promise<
-	{ ok: true; accessToken: string } | { ok: false; message: string }
-> {
-	// En este repo usamos las variables del panel: `UBER_CLIENT_ID` / `UBER_CLIENT_SECRET`.
-	const clientId = process.env.UBER_CLIENT_ID?.trim();
-	const clientSecret = process.env.UBER_CLIENT_SECRET?.trim();
+export type UberOAuthCredentials = { clientId: string; clientSecret: string };
+
+/**
+ * Token OAuth. Si no se pasan credenciales, usa `UBER_CLIENT_ID` / `UBER_CLIENT_SECRET`.
+ */
+export async function getUberDirectAccessToken(
+	credentials?: UberOAuthCredentials | null,
+): Promise<{ ok: true; accessToken: string } | { ok: false; message: string }> {
+	let clientId: string;
+	let clientSecret: string;
+	if (credentials?.clientId?.trim() && credentials?.clientSecret) {
+		clientId = credentials.clientId.trim();
+		clientSecret = credentials.clientSecret;
+	} else {
+		clientId = process.env.UBER_CLIENT_ID?.trim() ?? "";
+		clientSecret = process.env.UBER_CLIENT_SECRET?.trim() ?? "";
+	}
 	if (!clientId || !clientSecret) {
 		return {
 			ok: false,
 			message:
-				"Uber Direct no configurado: define UBER_CLIENT_ID y UBER_CLIENT_SECRET.",
+				"Uber Direct no configurado: credenciales de empresa o UBER_CLIENT_ID / UBER_CLIENT_SECRET.",
 		};
 	}
 
+	const cacheKey = cacheKeyForCredentials(clientId, clientSecret);
 	const now = Date.now();
-	if (tokenCache && tokenCache.expiresAtMs > now + TOKEN_SKEW_MS) {
-		return { ok: true, accessToken: tokenCache.token };
+	const cached = tokenCacheByKey.get(cacheKey);
+	if (cached && cached.expiresAtMs > now + TOKEN_SKEW_MS) {
+		return { ok: true, accessToken: cached.token };
 	}
 
 	const body = new URLSearchParams({
@@ -81,7 +101,7 @@ export async function getUberDirectAccessToken(): Promise<
 
 	const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
 	if (!res.ok) {
-		tokenCache = null;
+		tokenCacheByKey.delete(cacheKey);
 		const msg =
 			typeof j.error_description === "string"
 				? j.error_description
@@ -97,10 +117,10 @@ export async function getUberDirectAccessToken(): Promise<
 		return { ok: false, message: "Respuesta de token de Uber inválida." };
 	}
 
-	tokenCache = {
+	tokenCacheByKey.set(cacheKey, {
 		token: accessToken,
 		expiresAtMs: now + Math.max(60, expiresIn) * 1000,
-	};
+	});
 	return { ok: true, accessToken };
 }
 
@@ -120,11 +140,20 @@ export async function fetchUberDeliveryEstimate(params: {
 	formattedAddress?: string;
 	subtotalMajor: number;
 	currencyCode: string;
+	/** Si se omite, se usa el par global en env. */
+	oauth?: UberOAuthCredentials | null;
 }): Promise<UberDeliveryEstimateResult> {
-	const tokenRes = await getUberDirectAccessToken();
+	const tokenRes = await getUberDirectAccessToken(params.oauth ?? null);
 	if (!tokenRes.ok) {
 		return { ok: false, message: tokenRes.message };
 	}
+
+	const oauthKey = params.oauth
+		? cacheKeyForCredentials(params.oauth.clientId, params.oauth.clientSecret)
+		: cacheKeyForCredentials(
+				process.env.UBER_CLIENT_ID?.trim() ?? "",
+				process.env.UBER_CLIENT_SECRET?.trim() ?? "",
+			);
 
 	const currency = params.currencyCode.trim().toUpperCase() || "CLP";
 	const dropoff_address: Record<string, unknown> = {
@@ -164,7 +193,7 @@ export async function fetchUberDeliveryEstimate(params: {
 	const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
 	if (!res.ok) {
 		if (res.status === 401) {
-			tokenCache = null;
+			tokenCacheByKey.delete(oauthKey);
 		}
 		const msg =
 			typeof j.message === "string"

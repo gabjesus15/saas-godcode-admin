@@ -9,6 +9,7 @@ import {
 	normalizeDeliverySettings,
 } from "../../../lib/delivery-settings";
 import { haversineKm, isValidLatLng } from "../../../lib/geo";
+import { resolveUberOAuthCredentials } from "../../../lib/company-integration-settings";
 import { supabaseAdmin } from "../../../lib/supabase-admin";
 import { fetchUberDeliveryEstimate } from "../../../lib/uber-direct";
 
@@ -61,14 +62,16 @@ export async function POST(req: NextRequest) {
 		}
 
 		let currencyCode = "CLP";
+		let companyIntegration: unknown = null;
 		if (branch.company_id) {
 			const { data: comp } = await supabaseAdmin
 				.from("companies")
-				.select("currency")
+				.select("currency, integration_settings")
 				.eq("id", branch.company_id)
 				.maybeSingle();
 			const c = typeof comp?.currency === "string" ? comp.currency.trim() : "";
 			if (c) currencyCode = c.toUpperCase().slice(0, 8);
+			companyIntegration = comp?.integration_settings ?? null;
 		}
 
 		const settings = normalizeDeliverySettings(branch.delivery_settings);
@@ -112,6 +115,12 @@ export async function POST(req: NextRequest) {
 					waivedFreeShipping: false,
 				});
 			}
+			const oauth = resolveUberOAuthCredentials({
+				integrationSettings: companyIntegration,
+			});
+			if (!oauth.ok) {
+				return jsonWithPublicCors(req, { error: oauth.message }, { status: 400 });
+			}
 			const uber = await fetchUberDeliveryEstimate({
 				storeId,
 				dropoffLat: lat,
@@ -119,6 +128,7 @@ export async function POST(req: NextRequest) {
 				formattedAddress: addressStr || undefined,
 				subtotalMajor: subtotal,
 				currencyCode,
+				oauth: { clientId: oauth.clientId, clientSecret: oauth.clientSecret },
 			});
 			if (!uber.ok) {
 				const status = uber.httpStatus === 401 ? 502 : 502;

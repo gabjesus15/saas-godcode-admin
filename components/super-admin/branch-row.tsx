@@ -7,6 +7,11 @@ import * as z from "zod";
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 import { requireAdminRole, roleSets } from "../../utils/admin";
 import { logAdminAction } from "../../utils/audit";
+import {
+	effectiveDeliveryPricingMode,
+	mergeDeliverySettingsJson,
+	normalizeDeliverySettings,
+} from "../../lib/delivery-settings";
 
 import { ChevronDown, ChevronRight, MapPin, Phone } from "lucide-react";
 
@@ -50,6 +55,7 @@ export type Branch = {
     paypal?: { [key: string]: string } | null;
     is_active: boolean;
     company_id: string;
+    delivery_settings?: unknown;
     [key: string]: unknown;
 };
 
@@ -71,7 +77,19 @@ const branchFormSchema = z.object({
     stripe: z.any(),
     mercadopago: z.any(),
     paypal: z.any(),
-});
+    uberExternalEnabled: z.boolean(),
+    uberStoreId: z.string().optional(),
+    uberShowFeeAmount: z.boolean(),
+    uberDisplayText: z.string().optional(),
+}).refine(
+    (d) =>
+        !d.uberExternalEnabled ||
+        Boolean(d.uberStoreId && String(d.uberStoreId).trim().length > 0),
+    {
+        path: ["uberStoreId"],
+        message: "Indica el store id de Uber para esta sucursal.",
+    },
+);
 
 // TypeScript infiere el tipo desde el esquema Zod
 type BranchFormValues = z.infer<typeof branchFormSchema>;
@@ -242,6 +260,13 @@ function BranchView({ branch, onEdit }: { branch: Branch, onEdit: () => void }) 
                     ) : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-3 md:col-span-2 md:justify-end">
+                    {effectiveDeliveryPricingMode(
+                        normalizeDeliverySettings(branch.delivery_settings),
+                    ) === "external" ? (
+                        <Badge variant="neutral" className="shrink-0">
+                            Uber Direct
+                        </Badge>
+                    ) : null}
                     <Badge variant={branch.is_active ? "success" : "destructive"} className="shrink-0">
                         {branch.is_active ? "Activa" : "Suspendida"}
                     </Badge>
@@ -311,6 +336,7 @@ function BranchEditForm({ branch, onCancel }: { branch: Branch, onCancel: () => 
     };
 
     // 1. Preparar valores iniciales
+    const ds = normalizeDeliverySettings(branch.delivery_settings);
     const defaultValues: Partial<BranchFormValues> = {
             name: branch.name || "",
             slug: branch.slug || "",
@@ -321,6 +347,10 @@ function BranchEditForm({ branch, onCancel }: { branch: Branch, onCancel: () => 
             country: branch.country || "",
             currency: branch.currency || "",
             payment_methods: Array.isArray(branch.payment_methods) ? [...branch.payment_methods] : [],
+            uberExternalEnabled: effectiveDeliveryPricingMode(ds) === "external",
+            uberStoreId: ds.uberDirectStoreId ?? "",
+            uberShowFeeAmount: ds.showExternalDeliveryFeeAmount,
+            uberDisplayText: ds.externalDeliveryDisplayText ?? "",
     };
 
     // Parsear JSON strings a objetos si es necesario
@@ -349,6 +379,8 @@ function BranchEditForm({ branch, onCancel }: { branch: Branch, onCancel: () => 
     const currentCountry = useWatch({ control, name: "country" });
     const currentPaymentMethods = useWatch({ control, name: "payment_methods" });
     const currentCurrency = useWatch({ control, name: "currency" });
+    const uberExternalEnabled = useWatch({ control, name: "uberExternalEnabled" });
+    const uberShowFeeAmountVal = useWatch({ control, name: "uberShowFeeAmount" });
 
     // Recalcular campos dinámicos solo cuando es necesario
     const paymentFieldsConfig = useMemo(() => {
@@ -374,9 +406,41 @@ function BranchEditForm({ branch, onCancel }: { branch: Branch, onCancel: () => 
 
         setGlobalError(null);
 
-        const cleanForm = { ...data };
-        
-        const { error: updateError } = await supabase.from("branches").update(cleanForm).eq("id", branch.id);
+        const {
+            uberExternalEnabled: uberOn,
+            uberStoreId,
+            uberShowFeeAmount,
+            uberDisplayText,
+            ...restData
+        } = data;
+        const cleanForm = { ...restData };
+
+        const deliveryPatch: Record<string, unknown> = uberOn
+            ? {
+                  deliveryPricingStrategy: "external",
+                  externalDeliveryProvider: "uber_direct",
+                  uberDirectStoreId: uberStoreId?.trim() || null,
+                  showExternalDeliveryFeeAmount: uberShowFeeAmount,
+                  externalDeliveryDisplayText:
+                      (uberDisplayText && uberDisplayText.trim()) ||
+                      "Consultar con la tienda",
+              }
+            : {
+                  deliveryPricingStrategy: "distance",
+                  externalDeliveryProvider: null,
+                  uberDirectStoreId: null,
+                  showExternalDeliveryFeeAmount: true,
+              };
+
+        const delivery_settings = mergeDeliverySettingsJson(
+            branch.delivery_settings,
+            deliveryPatch,
+        );
+
+        const { error: updateError } = await supabase
+            .from("branches")
+            .update({ ...cleanForm, delivery_settings })
+            .eq("id", branch.id);
 
         if (updateError) {
             setGlobalError(`Error actualizando: ${updateError.message}`);
@@ -441,6 +505,102 @@ function BranchEditForm({ branch, onCancel }: { branch: Branch, onCancel: () => 
                             )}
                         </div>
                     ))}
+                </div>
+
+                <div className="border-t border-zinc-200 pt-4 dark:border-zinc-700">
+                    <h3 className="mb-2 text-base font-semibold text-zinc-800 dark:text-zinc-200 sm:text-lg">
+                        Opciones de sucursal (Uber Direct)
+                    </h3>
+                    <p className="mb-3 text-sm text-zinc-500 dark:text-zinc-400">
+                        Activa la cotización vía Uber para esta ubicación. Las credenciales OAuth se
+                        configuran en la pestaña Global de la empresa.
+                    </p>
+                    <div className="flex items-center gap-2">
+                        <Checkbox
+                            id="uber-external-enabled"
+                            checked={uberExternalEnabled === true}
+                            onCheckedChange={(v) =>
+                                setValue("uberExternalEnabled", v === true, { shouldDirty: true })
+                            }
+                        />
+                        <label
+                            htmlFor="uber-external-enabled"
+                            className="cursor-pointer text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                        >
+                            Usar Uber Direct en esta sucursal
+                        </label>
+                    </div>
+                    {uberExternalEnabled ? (
+                        <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div className="min-w-0 sm:col-span-2">
+                                <label
+                                    htmlFor="uber-store-id"
+                                    className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                                >
+                                    Store ID (Uber Direct)
+                                </label>
+                                <p
+                                    id="uber-store-desc"
+                                    className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400"
+                                >
+                                    Es el identificador del{" "}
+                                    <strong className="font-medium text-zinc-600 dark:text-zinc-300">
+                                        local de recogida
+                                    </strong>{" "}
+                                    que Uber asigna a esta sucursal en Uber Direct / Eats: indica desde qué
+                                    tienda sale el envío. Lo obtienes en el portal de desarrolladores o el
+                                    panel de Uber vinculado a tu app;{" "}
+                                    <strong className="font-medium text-zinc-600 dark:text-zinc-300">
+                                        no es el Client ID
+                                    </strong>{" "}
+                                    (ese va en Global de la empresa).
+                                </p>
+                                <Input
+                                    id="uber-store-id"
+                                    {...register("uberStoreId")}
+                                    className="mt-2 w-full min-w-0 font-mono text-sm"
+                                    placeholder="Ej. UUID o id que te da Uber para este local"
+                                    aria-describedby="uber-store-desc"
+                                />
+                                {errors.uberStoreId ? (
+                                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                                        {errors.uberStoreId.message}
+                                    </p>
+                                ) : null}
+                            </div>
+                            <div className="flex items-center gap-2 sm:col-span-2">
+                                <Checkbox
+                                    id="uber-show-fee"
+                                    checked={uberShowFeeAmountVal === true}
+                                    onCheckedChange={(v) =>
+                                        setValue("uberShowFeeAmount", v === true, {
+                                            shouldDirty: true,
+                                        })
+                                    }
+                                />
+                                <label
+                                    htmlFor="uber-show-fee"
+                                    className="cursor-pointer text-sm text-zinc-700 dark:text-zinc-300"
+                                >
+                                    Mostrar monto de envío al cliente (si no, solo texto informativo)
+                                </label>
+                            </div>
+                            <div className="min-w-0 sm:col-span-2">
+                                <label
+                                    htmlFor="uber-display-text"
+                                    className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                                >
+                                    Texto si no se muestra monto
+                                </label>
+                                <Input
+                                    id="uber-display-text"
+                                    {...register("uberDisplayText")}
+                                    className="mt-1 w-full min-w-0"
+                                    placeholder="Ej. Consultar con la tienda"
+                                />
+                            </div>
+                        </div>
+                    ) : null}
                 </div>
 
                 <div className="border-t border-zinc-200 pt-4 dark:border-zinc-700">
