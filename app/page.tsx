@@ -65,10 +65,10 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-function JsonLd({ plans }: { plans: { price_monthly?: number | null }[] }) {
+function JsonLd({ plans }: { plans: { price?: number | null }[] }) {
   const base = getAppUrl();
   const prices = plans
-    .map((p) => Number(p.price_monthly ?? 0))
+    .map((p) => Number(p.price ?? 0))
     .filter((p) => p > 0);
   const minPrice = prices.length > 0 ? Math.min(...prices) : undefined;
   const maxPrice = prices.length > 0 ? Math.max(...prices) : undefined;
