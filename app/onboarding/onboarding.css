@@ -1,9 +1,8 @@
-/* Onboarding - moderno, con personalidad sin pasarse */
+/* Onboarding — alineado con el landing (slate/indigo, limpio) */
 
 .onboarding-page {
   min-height: 100vh;
-  background:
-    linear-gradient(165deg, #f5f3ff 0%, #ede9fe 22%, #e5e7eb 45%, #d1d5db 100%);
+  background: #ffffff;
   position: relative;
   overflow-x: hidden;
   overflow-y: auto;
@@ -11,202 +10,158 @@
   touch-action: manipulation;
 }
 
-.onboarding-page::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(124, 58, 237, 0.08), transparent 50%),
-    radial-gradient(ellipse 55% 40% at 85% 40%, rgba(139, 92, 246, 0.05), transparent 45%),
-    radial-gradient(ellipse 50% 35% at 15% 90%, rgba(124, 58, 237, 0.04), transparent 45%);
-  pointer-events: none;
-}
-
 .onboarding-header {
-  background: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(124, 58, 237, 0.06);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .onboarding-card {
   position: relative;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 24px;
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
   box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.04),
-    0 2px 6px rgba(0, 0, 0, 0.04),
-    0 12px 32px rgba(124, 58, 237, 0.06);
-  transition: box-shadow 0.3s ease, transform 0.25s ease, border-color 0.2s ease;
-}
-
-/* Acento corto centrado en la card (detalle discreto) */
-.onboarding-card::before {
-  content: "";
-  position: absolute;
-  top: 14px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 32px;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(124, 58, 237, 0.6), transparent);
-  border-radius: 1px;
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 8px 24px rgba(0, 0, 0, 0.03);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .onboarding-card:hover {
   box-shadow:
-    0 0 0 1px rgba(124, 58, 237, 0.08),
-    0 4px 12px rgba(0, 0, 0, 0.05),
-    0 20px 48px rgba(124, 58, 237, 0.08);
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 12px 32px rgba(0, 0, 0, 0.06);
 }
 
-/* Onboarding siempre legible: inputs claros y texto oscuro (ignora dark mode) */
+/* Inputs: fondo blanco, borde slate, focus indigo */
 .onboarding-page input:not([type="checkbox"]):not([type="radio"]),
 .onboarding-page textarea,
+.onboarding-page select,
 .onboarding-page .onboarding-input {
   background: #ffffff !important;
-  color: #111827 !important;
-  border-color: #d1d5db !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
 }
 
 .onboarding-page input::placeholder,
 .onboarding-page textarea::placeholder {
-  color: #6b7280 !important;
+  color: #94a3b8 !important;
 }
 
 .onboarding-page input:focus,
 .onboarding-page textarea:focus,
+.onboarding-page select:focus,
 .onboarding-page .onboarding-input:focus {
-  border-color: #7c3aed !important;
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15) !important;
+  border-color: #818cf8 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12) !important;
   outline: none !important;
 }
 
 .onboarding-page .onboarding-card label {
-  color: #374151 !important;
+  color: #334155 !important;
 }
 
 .onboarding-page .onboarding-card h2 {
-  color: #111827 !important;
+  color: #0f172a !important;
 }
 
-/* Textos que no se pierdan: tamaño mínimo y contraste */
 .onboarding-page p,
 .onboarding-page .onboarding-card p,
 .onboarding-page .onboarding-success-card p {
-  color: #4b5563 !important;
+  color: #475569 !important;
   font-size: clamp(0.875rem, 2.2vw, 1rem);
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 .onboarding-page .onboarding-card .text-sm,
 .onboarding-page .onboarding-card [class*="text-zinc-5"] {
-  color: #4b5563 !important;
-  font-size: min(0.9375rem, 4vw) !important;
+  color: #475569 !important;
 }
 
 .onboarding-page footer,
 .onboarding-page .onboarding-trust-line {
   font-size: clamp(0.8125rem, 2vw, 0.875rem) !important;
-  color: #4b5563 !important;
+  color: #64748b !important;
 }
 
 .onboarding-page a:not(.onboarding-btn-primary):not(.onboarding-header-cta) {
-  color: #374151 !important;
+  color: #334155 !important;
 }
 
 .onboarding-page a:not(.onboarding-btn-primary):not(.onboarding-header-cta):hover {
-  color: #111827 !important;
+  color: #0f172a !important;
 }
 
-/* Botón CTA del header: gradiente, profundidad y hover refinado */
+/* Botón CTA del header */
 .onboarding-header-cta {
   color: #ffffff !important;
-  background: linear-gradient(135deg, #6d28d9 0%, #7c3aed 50%, #8b5cf6 100%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.06),
-    0 4px 12px rgba(124, 58, 237, 0.35) !important;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease !important;
+  background: #0f172a !important;
+  border: none !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  transition: background 0.15s ease, box-shadow 0.15s ease !important;
 }
 
 .onboarding-header-cta:hover {
   color: #ffffff !important;
-  background: linear-gradient(135deg, #5b21b6 0%, #6d28d9 50%, #7c3aed 100%) !important;
-  border-color: rgba(255, 255, 255, 0.2) !important;
-  box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.08),
-    0 8px 20px rgba(124, 58, 237, 0.4) !important;
-  transform: translateY(-1px);
-}
-
-.onboarding-header-cta:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3) !important;
+  background: #1e293b !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12) !important;
 }
 
 .onboarding-input {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.onboarding-input:focus {
-  border-color: #7c3aed;
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
-}
-
 .onboarding-btn-primary {
-  background: linear-gradient(135deg, #6d28d9 0%, #7c3aed 100%);
-  color: white;
+  background: #0f172a !important;
+  color: white !important;
   font-weight: 600;
-  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .onboarding-btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.4);
+  background: #1e293b !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
 }
 
 .onboarding-btn-outline {
-  border: 1.5px solid #e5e7eb;
-  color: #374151;
+  border: 1px solid #e2e8f0;
+  color: #334155;
   transition: all 0.15s ease;
 }
 
 .onboarding-btn-outline:hover {
-  border-color: #d1d5db;
-  background: #f9fafb;
-  color: #111827;
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #0f172a;
 }
 
 .onboarding-success-card {
-  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-  border: 1px solid rgba(16, 185, 129, 0.25);
-  border-radius: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .onboarding-plan-option {
-  transition: all 0.2s ease;
-  border-radius: 14px;
+  transition: all 0.15s ease;
+  border-radius: 12px;
 }
 
 .onboarding-plan-option:hover {
-  border-color: #7c3aed !important;
-  background: #f5f3ff !important;
+  border-color: #6366f1 !important;
+  background: #f8fafc !important;
 }
 
-
-/* Uniforme: todos los planes igual, solo borde y fondo blanco */
 .onboarding-plan-option.selected {
-  border-color: #7c3aed !important;
+  border-color: #6366f1 !important;
   background: #fff !important;
-  box-shadow: none;
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.2);
 }
 
-/* Validación y errores de campo */
+/* Validación y errores */
 .onboarding-field-error,
 .onboarding .error {
   display: block;
@@ -217,31 +172,31 @@
 }
 
 .onboarding-input.is-invalid {
-  border-color: #f87171;
-  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.1);
+  border-color: #fca5a5;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.08);
 }
 
-/* Secciones del formulario avanzado */
+/* Secciones del formulario */
 .onboarding-section-title {
   font-size: 0.9375rem;
   font-weight: 600;
-  color: #374151;
+  color: #334155;
   margin-bottom: 0.75rem;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .onboarding-section {
   margin-top: 1.5rem;
   padding-top: 1.5rem;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid #f1f5f9;
 }
 
-/* Entrada suave del contenido (modernidad sin ser ortero) */
+/* Entrada suave */
 @keyframes onboarding-fade-in {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -250,33 +205,19 @@
 }
 
 .onboarding-main {
-  animation: onboarding-fade-in 0.5s ease-out forwards;
+  animation: onboarding-fade-in 0.4s ease-out forwards;
 }
 
-/* Línea decorativa bajo el hero (detalle premium) */
-.onboarding-hero-accent {
-  width: 48px;
-  height: 3px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, #7c3aed, rgba(124, 58, 237, 0.4));
-  margin-left: auto;
-  margin-right: auto;
-}
-
-/* Paginador: siempre legible, pastilla clara con toque de profundidad */
+/* Step pill */
 .onboarding-step-pill {
-  background: rgba(255, 255, 255, 0.95);
-  color: #1f2937;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: #f8fafc;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-/* Footer más integrado */
+/* Footer */
 .onboarding-page footer {
-  background: rgba(255, 255, 255, 0.5);
-  border-top: 1px solid rgba(124, 58, 237, 0.08);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
 }

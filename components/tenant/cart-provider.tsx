@@ -188,15 +188,18 @@ const useCartStore = create<CartState>()(
         return { cart: [...state.cart, newItem] };
       }),
 
-      decreaseQuantity: (productId) => set((state) => ({
-        cart: state.cart
-          .map((item) =>
-            item.lineId === productId || item.id === productId
-              ? { ...item, quantity: Math.max(0, item.quantity - 1) }
-              : item
-          )
-          .filter((item) => item.quantity > 0),
-      })),
+      decreaseQuantity: (productId) => set((state) => {
+        let decremented = false;
+        const updated = state.cart.map((item) => {
+          if (decremented) return item;
+          if (item.lineId === productId || item.id === productId) {
+            decremented = true;
+            return { ...item, quantity: Math.max(0, item.quantity - 1) };
+          }
+          return item;
+        });
+        return { cart: updated.filter((item) => item.quantity > 0) };
+      }),
 
       removeFromCart: (id) => set((state) => ({
         cart: state.cart.filter((item) => item.lineId !== id && item.id !== id),

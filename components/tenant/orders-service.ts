@@ -107,21 +107,17 @@ async function buildOrderItemsFromBranch(
   branchId: string,
   items: OrderItem[]
 ): Promise<OrderItem[]> {
-  const requestedMap = new Map(
-    items
-      .filter((item) => Boolean(item?.id) && isUuidLike(String(item.id)))
-      .map((item) => [
-        String(item.id),
-        {
-          quantity: Math.max(1, Number(item.quantity) || 1),
-          description: item.description ?? null,
-          extras_total: Math.max(0, Math.round(Number(item.extras_total) || 0)),
-          extras: normalizeExtrasPayload(item.extras),
-        },
-      ])
-  );
+  const requestedLines = items
+    .filter((item) => Boolean(item?.id) && isUuidLike(String(item.id)))
+    .map((item) => ({
+      productId: String(item.id),
+      quantity: Math.max(1, Number(item.quantity) || 1),
+      description: item.description ?? null,
+      extras_total: Math.max(0, Math.round(Number(item.extras_total) || 0)),
+      extras: normalizeExtrasPayload(item.extras),
+    }));
 
-  const requestedIds = Array.from(requestedMap.keys());
+  const requestedIds = [...new Set(requestedLines.map((l) => l.productId))];
   if (requestedIds.length === 0) return [];
 
   const [{ data: prices, error: pricesError }, { data: branchRows, error: branchError }, { data: products, error: productsError }] =
@@ -159,7 +155,8 @@ async function buildOrderItemsFromBranch(
 
   const normalizedItems: OrderItem[] = [];
 
-  for (const productId of requestedIds) {
+  for (const line of requestedLines) {
+    const { productId } = line;
     if (!activeBranchProducts.has(productId)) continue;
 
     const dbPriceRow = pricesByProduct.get(productId);
@@ -171,19 +168,16 @@ async function buildOrderItemsFromBranch(
     const effectivePrice = hasDiscount ? discountPrice : basePrice;
     if (!Number.isFinite(effectivePrice) || effectivePrice <= 0) continue;
 
-    const requested = requestedMap.get(productId);
-    if (!requested) continue;
-
     normalizedItems.push({
       id: productId,
       name: String(productNames.get(productId) || "Producto"),
-      quantity: requested.quantity,
+      quantity: line.quantity,
       price: effectivePrice,
       has_discount: false,
       discount_price: null,
-      description: requested.description,
-      extras_total: requested.extras_total,
-      extras: requested.extras,
+      description: line.description,
+      extras_total: line.extras_total,
+      extras: line.extras,
     });
   }
 

@@ -3,11 +3,12 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
+import { Check, X } from "lucide-react";
 
 function VerifyContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-    const token = searchParams?.get ? searchParams.get("token") : null;
+  const token = searchParams?.get ? searchParams.get("token") : null;
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
   const [message, setMessage] = useState("");
 
@@ -38,36 +39,29 @@ function VerifyContent() {
   }, [token, router]);
 
   return (
-    <div className="relative flex min-h-[60vh] items-center justify-center px-6 py-16">
-      <div className="onboarding-card max-w-md p-8 text-center sm:p-10">
+    <div className="relative flex min-h-[60vh] items-center justify-center px-5 py-16">
+      <div className="onboarding-card max-w-md p-6 text-center sm:p-8">
         {status === "loading" && (
           <>
-            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-2 border-zinc-200 border-t-zinc-900" />
-            <p className="text-zinc-600">Verificando tu correo...</p>
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-slate-900" />
+            <p className="text-sm text-slate-500">Verificando tu correo...</p>
           </>
         )}
         {status === "ok" && (
           <>
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+            <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+              <Check className="h-5 w-5" />
             </div>
-            <p className="text-zinc-700">Redirigiendo al formulario...</p>
+            <p className="text-sm text-slate-600">Redirigiendo...</p>
           </>
         )}
         {status === "error" && (
           <>
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-600">
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+            <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-600">
+              <X className="h-5 w-5" />
             </div>
-            <p className="text-red-700">{message}</p>
-            <Link
-              href="/onboarding"
-              className="mt-4 inline-block text-sm font-medium text-zinc-900 underline hover:no-underline"
-            >
+            <p className="text-sm text-red-600">{message}</p>
+            <Link href="/onboarding" className="mt-4 inline-block text-sm font-medium text-indigo-600 hover:underline">
               Volver al inicio
             </Link>
           </>
@@ -80,8 +74,8 @@ function VerifyContent() {
 export default function OnboardingVerifyPage() {
   return (
     <Suspense fallback={
-      <div className="flex min-h-[60vh] items-center justify-center px-6">
-        <div className="h-12 w-12 animate-spin rounded-full border-2 border-zinc-200 border-t-zinc-900" />
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-slate-900" />
       </div>
     }>
       <VerifyContent />

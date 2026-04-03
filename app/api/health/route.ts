@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import { supabaseAdmin } from "../../../lib/supabase-admin";
 import { flags, getOnboardingBillingBaseUrl } from "../../../lib/feature-flags";
@@ -6,7 +6,14 @@ import { startTimer } from "../../../lib/logger";
 
 const startedAt = new Date().toISOString();
 
-export async function GET() {
+function isAuthorized(req: NextRequest): boolean {
+  const secret = process.env.HEALTH_CHECK_SECRET;
+  if (!secret) return false;
+  const auth = req.headers.get("authorization") || "";
+  return auth === `Bearer ${secret}`;
+}
+
+export async function GET(req: NextRequest) {
 	const checks: Record<string, string> = {};
 	let healthy = true;
 
@@ -60,15 +67,19 @@ export async function GET() {
 		}
 	}
 
+	const statusCode = healthy ? 200 : 503;
+	const publicBody = {
+		service: "bff",
+		status: healthy ? "healthy" : "degraded",
+		timestamp: new Date().toISOString(),
+	};
+
+	if (!isAuthorized(req)) {
+		return NextResponse.json(publicBody, { status: statusCode });
+	}
+
 	return NextResponse.json(
-		{
-			service: "bff",
-			status: healthy ? "healthy" : "degraded",
-			started_at: startedAt,
-			timestamp: new Date().toISOString(),
-			checks,
-			proxy,
-		},
-		{ status: healthy ? 200 : 503 }
+		{ ...publicBody, started_at: startedAt, checks, proxy },
+		{ status: statusCode }
 	);
 }

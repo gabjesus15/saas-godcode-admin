@@ -1678,10 +1678,16 @@ export function CartModal({
             handoffCode: parsed?.handoff_code ?? null,
           }
         );
-        let targetPhone = "56976645547";
-        if (activeInfo.phone) {
-          targetPhone = activeInfo.phone.replace(/\D/g, "");
+        const rawPhone = (activeInfo.phone || "").replace(/\D/g, "");
+        if (!rawPhone) {
+          setViewState((v) => ({
+            ...v,
+            isSaving: false,
+            error: "Este negocio no tiene un número de WhatsApp configurado.",
+          }));
+          return;
         }
+        const targetPhone = rawPhone;
         window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`, "_blank");
         clearCart();
       }, 1500);

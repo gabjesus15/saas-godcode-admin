@@ -1,25 +1,111 @@
 import Link from "next/link";
 
+const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || "hola@godcode.me";
+
 export default function PrivacidadPage() {
 	return (
-		<div className="mx-auto max-w-2xl px-4 py-12 sm:px-6 sm:py-16">
-			<div className="onboarding-card p-8 sm:p-10">
-				<h1 className="text-2xl font-bold text-zinc-900">Política de privacidad</h1>
-				<p className="mt-2 text-sm text-zinc-500">Última actualización: {new Date().toLocaleDateString("es-CL")}</p>
-				<div className="mt-8 space-y-4 text-sm leading-relaxed text-zinc-600">
-					<p>
-						Este es un placeholder. Añade aquí el contenido de tu política de privacidad: qué datos recoges,
-						cómo los usas, con quién se comparten, derechos del usuario (acceso, rectificación, eliminación),
-						cookies y cumplimiento normativo (GDPR, CCPA, etc.).
-					</p>
-					<p>
-						Recomendamos que un abogado redacte o revise la política antes de publicarla en producción.
-					</p>
+		<div className="mx-auto max-w-2xl px-5 py-10 sm:px-6 sm:py-16">
+			<div className="onboarding-card p-6 sm:p-8">
+				<h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Política de privacidad</h1>
+				<p className="mt-2 text-xs text-slate-400">Última actualización: 3 de abril de 2026</p>
+
+				<div className="mt-6 space-y-5 text-sm leading-relaxed text-slate-600">
+					<section>
+						<h2 className="font-semibold text-slate-800">1. Información que recopilamos</h2>
+						<p className="mt-1">
+							Recopilamos los datos que proporcionas al registrarte (nombre, correo electrónico,
+							nombre del negocio) y datos generados por tu uso del servicio (productos, pedidos, configuraciones).
+							También recopilamos datos técnicos como dirección IP, tipo de navegador y dispositivo
+							para mejorar la seguridad y el rendimiento.
+						</p>
+					</section>
+
+					<section>
+						<h2 className="font-semibold text-slate-800">2. Cómo usamos tus datos</h2>
+						<p className="mt-1">Usamos tu información para:</p>
+						<ul className="ml-5 mt-1 list-disc space-y-0.5">
+							<li>Proveer y mantener el servicio.</li>
+							<li>Procesar pagos y facturación.</li>
+							<li>Enviarte comunicaciones sobre tu cuenta o cambios en el servicio.</li>
+							<li>Mejorar la plataforma y desarrollar nuevas funcionalidades.</li>
+							<li>Prevenir fraude y garantizar la seguridad.</li>
+						</ul>
+					</section>
+
+					<section>
+						<h2 className="font-semibold text-slate-800">3. Compartición de datos</h2>
+						<p className="mt-1">
+							No vendemos tus datos personales. Podemos compartir información con proveedores
+							de servicios esenciales (procesadores de pago, hosting, almacenamiento en la nube) bajo
+							acuerdos de confidencialidad. Podemos divulgar datos si la ley lo requiere.
+						</p>
+					</section>
+
+					<section>
+						<h2 className="font-semibold text-slate-800">4. Almacenamiento y seguridad</h2>
+						<p className="mt-1">
+							Tus datos se almacenan en servidores seguros con cifrado en tránsito y en reposo.
+							Implementamos medidas técnicas y organizativas para proteger tu información, pero
+							ningún sistema es completamente infalible.
+						</p>
+					</section>
+
+					<section>
+						<h2 className="font-semibold text-slate-800">5. Tus derechos</h2>
+						<p className="mt-1">Tienes derecho a:</p>
+						<ul className="ml-5 mt-1 list-disc space-y-0.5">
+							<li>Acceder a tus datos personales.</li>
+							<li>Solicitar la corrección de datos inexactos.</li>
+							<li>Solicitar la eliminación de tu cuenta y datos asociados.</li>
+							<li>Exportar tus datos en un formato legible.</li>
+							<li>Retirar tu consentimiento en cualquier momento.</li>
+						</ul>
+						<p className="mt-1">
+							Para ejercer estos derechos, contacta a{" "}
+							<a href={`mailto:${SUPPORT_EMAIL}`} className="font-medium text-indigo-600 hover:underline">
+								{SUPPORT_EMAIL}
+							</a>.
+						</p>
+					</section>
+
+					<section>
+						<h2 className="font-semibold text-slate-800">6. Cookies</h2>
+						<p className="mt-1">
+							Usamos cookies esenciales para el funcionamiento del servicio (autenticación, sesión).
+							No usamos cookies de rastreo publicitario. Puedes configurar tu navegador para bloquear
+							cookies, pero esto puede afectar la funcionalidad del servicio.
+						</p>
+					</section>
+
+					<section>
+						<h2 className="font-semibold text-slate-800">7. Retención de datos</h2>
+						<p className="mt-1">
+							Conservamos tus datos mientras tu cuenta esté activa. Al cancelar tu cuenta,
+							eliminaremos tus datos personales dentro de 30 días, excepto cuando la ley nos
+							obligue a retenerlos por más tiempo.
+						</p>
+					</section>
+
+					<section>
+						<h2 className="font-semibold text-slate-800">8. Cambios a esta política</h2>
+						<p className="mt-1">
+							Podemos actualizar esta política de privacidad. Te notificaremos por correo electrónico
+							sobre cambios significativos con al menos 15 días de antelación.
+						</p>
+					</section>
+
+					<section>
+						<h2 className="font-semibold text-slate-800">9. Contacto</h2>
+						<p className="mt-1">
+							Para consultas sobre privacidad, escríbenos a{" "}
+							<a href={`mailto:${SUPPORT_EMAIL}`} className="font-medium text-indigo-600 hover:underline">
+								{SUPPORT_EMAIL}
+							</a>.
+						</p>
+					</section>
 				</div>
-				<Link
-					href="/onboarding"
-					className="mt-8 inline-block text-sm font-medium text-emerald-600 underline hover:no-underline"
-				>
+
+				<Link href="/onboarding" className="mt-6 inline-block text-sm font-medium text-indigo-600 hover:underline">
 					← Volver al registro
 				</Link>
 			</div>

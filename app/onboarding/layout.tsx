@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import { OnboardingAntiZoom } from "../../components/onboarding/OnboardingAntiZoom";
+import { LandingLogo } from "../../components/landing/landing-logo";
 import "../super-admin.tailwind.css";
 import "./onboarding.css";
 
@@ -19,46 +20,31 @@ export default function OnboardingLayout({
 }) {
   return (
     <OnboardingAntiZoom>
-    <div className="onboarding-page">
-      <header className="onboarding-header sticky top-0 z-10 px-3 py-3 min-[480px]:px-4 min-[480px]:py-4 sm:px-6">
-        <div className="mx-auto flex max-w-4xl items-center justify-between gap-3">
+    <div className="onboarding-page flex min-h-screen flex-col">
+      <header className="onboarding-header sticky top-0 z-10 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex h-10 max-w-4xl items-center justify-between gap-3">
           <Link
-            href="/onboarding"
-            className="flex flex-col items-start justify-center shrink-0 transition opacity-90 hover:opacity-100 focus:opacity-100 focus:outline-none"
+            href="/"
+            className="shrink-0 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
           >
-            <span
-              className="font-bold tracking-tight"
-              style={{
-                fontFamily: "Nevis, sans-serif",
-                fontSize: "clamp(1.2rem, 4.5vw, 1.5rem)",
-                color: "#6d28d9",
-                letterSpacing: "-1px",
-              }}
-            >
-              GodCode
-            </span>
-            <span
-              className="text-[0.65rem] min-[480px]:text-[0.7rem]"
-              style={{
-                fontFamily: "Aleo-Light, serif",
-                color: "#4b5563",
-                marginTop: "-2px",
-              }}
-            >
-              Tu visión, nuestro código.
-            </span>
+            <LandingLogo />
           </Link>
           <Link
             href="/onboarding/negocios"
-            className="onboarding-header-cta flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold min-[480px]:gap-2 min-[480px]:px-4 min-[480px]:text-sm"
+            className="onboarding-header-cta flex shrink-0 items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-medium sm:gap-2 sm:px-4 sm:text-sm"
           >
-            <span className="hidden sm:inline">Ver negocios en la plataforma</span>
+            <span className="hidden sm:inline">Ver negocios</span>
             <span className="sm:hidden">Negocios</span>
             <ArrowRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
           </Link>
         </div>
       </header>
-      {children}
+
+      <div className="flex-1">{children}</div>
+
+      <footer className="border-t border-slate-100 px-5 py-4 text-center text-xs text-slate-400 sm:py-5 sm:text-sm">
+        Protegido con verificación de correo y encriptación SSL.
+      </footer>
     </div>
     </OnboardingAntiZoom>
   );

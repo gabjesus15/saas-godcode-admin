@@ -3,8 +3,24 @@ import { redirect } from "next/navigation";
 
 import { supabaseAdmin } from "../../../lib/supabase-admin";
 import { OnboardingStep2Form } from "../../../components/onboarding/OnboardingStep2Form";
+import { OnboardingStepBar } from "../../../components/onboarding/OnboardingStepBar";
 
 export const dynamic = "force-dynamic";
+
+function ErrorCard({ title, text }: { title: string; text: string }) {
+  return (
+    <main className="onboarding-main relative mx-auto w-full max-w-3xl px-5 py-8 sm:px-6 sm:py-12 md:py-16">
+      <OnboardingStepBar current={2} />
+      <div className="onboarding-card mx-auto max-w-md p-6 text-center sm:p-8">
+        <h2 className="text-lg font-bold text-red-600">{title}</h2>
+        <p className="mt-3 text-sm text-slate-500">{text}</p>
+        <Link href="/onboarding" className="mt-4 inline-block text-sm font-medium text-indigo-600 hover:underline">
+          Volver al inicio
+        </Link>
+      </div>
+    </main>
+  );
+}
 
 export default async function OnboardingCompletePage({
   searchParams,
@@ -33,35 +49,15 @@ export default async function OnboardingCompletePage({
   const initialFetch = await fetchApp();
   let app = initialFetch.app;
   const error = initialFetch.error;
+
   if (error) {
     console.error("[ONBOARDING COMPLETE] Error al cargar aplicación:", error);
-    return (
-      <main className="onboarding-main relative mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-12 md:py-14">
-        <div className="onboarding-card max-w-md mx-auto p-8 text-center">
-          <h2 className="text-xl font-bold text-red-600 mb-4">Error de registro</h2>
-          <p className="text-sm text-red-700">No se pudo cargar la aplicación. Intenta de nuevo o contacta soporte.</p>
-          <Link href="/onboarding" className="mt-4 inline-block text-sm font-medium text-zinc-900 underline hover:no-underline">
-            Volver al inicio
-          </Link>
-        </div>
-      </main>
-    );
+    return <ErrorCard title="Error de registro" text="No se pudo cargar la aplicación. Intenta de nuevo o contacta soporte." />;
   }
   if (!app) {
-    return (
-      <main className="onboarding-main relative mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-12 md:py-14">
-        <div className="onboarding-card max-w-md mx-auto p-8 text-center">
-          <h2 className="text-xl font-bold text-red-600 mb-4">Aplicación no encontrada</h2>
-          <p className="text-sm text-red-700">El enlace es inválido o la aplicación no existe.</p>
-          <Link href="/onboarding" className="mt-4 inline-block text-sm font-medium text-zinc-900 underline hover:no-underline">
-            Volver al inicio
-          </Link>
-        </div>
-      </main>
-    );
+    return <ErrorCard title="Aplicación no encontrada" text="El enlace es inválido o la aplicación no existe." />;
   }
 
-  // Propagación de escritura en Supabase: hasta 3 intentos con espera (evita redirigir al paso 1)
   const maxAttempts = 3;
   const waitMs = 2000;
   for (let attempt = 1; attempt <= maxAttempts && app.status !== "email_verified" && app.status !== "form_completed"; attempt++) {
@@ -69,29 +65,13 @@ export default async function OnboardingCompletePage({
     const retry = await fetchApp();
     if (retry.error || !retry.app) {
       if (retry.error) console.error("[ONBOARDING COMPLETE] Error en reintento:", retry.error);
-      return (
-        <main className="onboarding-main relative mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-12 md:py-14">
-          <div className="onboarding-card max-w-md mx-auto p-8 text-center">
-            <h2 className="text-xl font-bold text-red-600 mb-4">Error de registro</h2>
-            <p className="text-sm text-red-700">No se pudo cargar la aplicación. Intenta de nuevo o contacta soporte.</p>
-            <Link href="/onboarding" className="mt-4 inline-block text-sm font-medium text-zinc-900 underline hover:no-underline">
-              Volver al inicio
-            </Link>
-          </div>
-        </main>
-      );
+      return <ErrorCard title="Error de registro" text="No se pudo cargar la aplicación. Intenta de nuevo o contacta soporte." />;
     }
     app = retry.app;
   }
+
   if (app.status !== "email_verified" && app.status !== "form_completed") {
-    return (
-      <main className="onboarding-main relative mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-12 md:py-14">
-        <div className="onboarding-card max-w-md mx-auto p-8 text-center">
-          <h2 className="text-xl font-bold text-red-600 mb-4">Correo no verificado</h2>
-          <p className="text-sm text-red-700">Debes verificar tu correo antes de continuar. Revisa tu bandeja y haz clic en el enlace de verificación.</p>
-        </div>
-      </main>
-    );
+    return <ErrorCard title="Correo no verificado" text="Debes verificar tu correo antes de continuar. Revisa tu bandeja y haz clic en el enlace de verificación." />;
   }
 
   const [plansResult, addonsResult, applicationAddonsResult] = await Promise.all([
@@ -100,33 +80,45 @@ export default async function OnboardingCompletePage({
     supabaseAdmin.from("onboarding_application_addons").select("addon_id,quantity,price_snapshot").eq("application_id", app.id),
   ]);
 
+  if (plansResult.error) {
+    console.error("[ONBOARDING COMPLETE] Error al cargar planes:", plansResult.error);
+    return <ErrorCard title="Error al cargar planes" text="No pudimos obtener los planes disponibles. Intenta de nuevo en unos minutos." />;
+  }
+
   const plans = plansResult.data ?? [];
   const addons = addonsResult.data ?? [];
   const applicationAddons = applicationAddonsResult.data ?? [];
 
+  if (plans.length === 0) {
+    return <ErrorCard title="Sin planes disponibles" text="No hay planes activos en este momento. Contacta a soporte para más información." />;
+  }
+
   return (
-    <>
-      <main className="onboarding-main relative mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-12 md:py-14">
-        <div className="mb-6 flex justify-center sm:mb-8">
-          <div className="onboarding-step-pill inline-flex items-center gap-2.5 rounded-full px-3 py-1.5 min-[480px]:px-4 min-[480px]:py-2">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-600 text-white text-xs font-bold shadow-sm">2</span>
-            <span className="whitespace-nowrap text-xs font-semibold uppercase tracking-wider min-[480px]:text-[0.75rem]">Paso 2 de 3 — Datos del negocio</span>
-          </div>
-        </div>
-        <div className="mb-8 text-center sm:mb-10">
-          <h1 className="text-xl font-bold text-zinc-800 min-[480px]:text-2xl sm:text-3xl">Completa los datos de tu negocio</h1>
-          <p className="mt-3 text-sm font-medium text-zinc-700 min-[480px]:text-base">Elige plan, moneda y método de pago. Luego pasarás al pago seguro.</p>
-        </div>
-        <OnboardingStep2Form
-          token={token}
-          initialData={{ ...app, addons: applicationAddons }}
-          plans={plans}
-          addons={addons}
-        />
-      </main>
-      <footer className="relative mt-12 px-4 py-5 text-center text-zinc-600 sm:mt-16 sm:py-6">
-        Protegido con verificación de correo y encriptación.
-      </footer>
-    </>
+    <main className="onboarding-main relative mx-auto w-full max-w-3xl px-5 py-8 sm:px-6 sm:py-12 md:py-16">
+      <OnboardingStepBar current={2} />
+
+      <div className="mb-8 text-center sm:mb-10">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+          Elige tu plan
+        </h1>
+        <p className="mx-auto mt-3 max-w-lg text-sm text-slate-500 sm:text-base">
+          Selecciona el plan que necesitas, añade extras si quieres, y continúa al pago.
+        </p>
+      </div>
+
+      <OnboardingStep2Form
+        token={token}
+        initialData={{
+          plan_id: app.plan_id,
+          country: app.country,
+          currency: app.currency,
+          subscription_payment_method: app.subscription_payment_method,
+          addons: applicationAddons,
+          email: app.email,
+        }}
+        plans={plans}
+        addons={addons}
+      />
+    </main>
   );
 }
