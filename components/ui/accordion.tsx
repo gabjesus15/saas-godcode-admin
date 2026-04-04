@@ -29,7 +29,7 @@ export const AccordionTrigger = React.forwardRef<
     <AccordionPrimitive.Trigger
       ref={ref}
       className={cn(
-        "group flex w-full flex-1 items-center justify-between gap-4 px-6 py-5 text-left font-semibold text-slate-900 transition-colors hover:bg-slate-50 marker:content-none dark:text-white dark:hover:bg-zinc-900/40",
+        "group flex w-full flex-1 items-center justify-between gap-4 px-6 py-5 text-left font-semibold text-slate-900 transition-all duration-200 hover:bg-slate-50 marker:content-none dark:text-white dark:hover:bg-zinc-900/40",
         className,
       )}
       {...props}
@@ -47,12 +47,12 @@ export const AccordionContent = React.forwardRef<
   <AccordionPrimitive.Content
     ref={ref}
     className={cn(
-      "overflow-hidden px-6 pb-5 pt-0 text-sm leading-relaxed text-slate-600 dark:text-zinc-400",
+      "accordion-animate overflow-hidden text-sm leading-relaxed text-slate-600 dark:text-zinc-400",
       className,
     )}
     {...props}
   >
-    {children}
+    <div className="px-6 pb-5 pt-0">{children}</div>
   </AccordionPrimitive.Content>
 ));
 AccordionContent.displayName = "AccordionContent";

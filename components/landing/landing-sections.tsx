@@ -2,34 +2,31 @@ import Link from "next/link";
 import {
   ArrowRight,
   Check,
-  Clock,
   CreditCard,
   Globe,
   Headphones,
-  ImageIcon,
-  LayoutDashboard,
   Minus,
-  Package,
   Plus,
-  Receipt,
   Shield,
-  ShoppingCart,
   Smartphone,
-  Store,
-  Truck,
-  UtensilsCrossed,
+  Users,
+  X,
 } from "lucide-react";
 
 import { popularPlanIndex, type PublicPlanForLanding } from "../../lib/public-plans";
 import { cn } from "../../utils/cn";
 import { Card } from "../ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../ui/accordion";
-import { LandingProductCarousel, type LandingProductSlide } from "./landing-product-carousel";
-import { MenuScreenMock, CartScreenMock, OperationsScreenMock } from "./landing-product-screen-mocks";
-import { LandingContactForm } from "./landing-contact-form";
-import { LandingHeroIllustrationAnimated } from "./landing-hero-illustration-animated";
-import { LandingLeadForm } from "./landing-lead-form";
 import { LandingReveal } from "./landing-reveal";
+import { LandingFeatureBlock } from "./landing-feature-block";
+import { LandingTestimonials } from "./landing-testimonials";
+import { LandingCountUp } from "./landing-count-up";
+import { LaptopFrame, PhoneFrame } from "./landing-device-frame";
+import { ScreenPlaceholder } from "./landing-screen-placeholder";
+import { LandingAnimatedGrid } from "./landing-animated-grid";
+import { LandingPhoneCarousel } from "./landing-phone-carousel";
+import { LandingContactForm } from "./landing-contact-form";
+import { LandingLeadForm } from "./landing-lead-form";
 
 const usdMonth = new Intl.NumberFormat("es-CL", {
   style: "currency",
@@ -58,20 +55,21 @@ function SectionShell({
   children,
 }: {
   id?: string;
-  variant?: "default" | "white" | "muted";
+  variant?: "default" | "white" | "muted" | "dark" | "gradient";
   className?: string;
   children: React.ReactNode;
 }) {
-  const bg =
-    variant === "white"
-      ? "bg-white dark:bg-zinc-950"
-      : variant === "muted"
-        ? "bg-slate-50 dark:bg-zinc-950"
-        : "bg-transparent";
+  const bg = {
+    default: "bg-transparent",
+    white: "bg-white dark:bg-zinc-950",
+    muted: "bg-slate-50 dark:bg-zinc-950",
+    dark: "bg-slate-900 dark:bg-zinc-950",
+    gradient: "bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700",
+  }[variant];
   return (
     <section
       id={id}
-      className={cn("scroll-mt-20 border-b border-slate-200/40 py-14 sm:py-20 md:py-24 dark:border-zinc-800/50", bg, className)}
+      className={cn("scroll-mt-20 py-14 sm:py-20 md:py-24", bg, className)}
     >
       {children}
     </section>
@@ -80,77 +78,19 @@ function SectionShell({
 
 /* ───── Data ───── */
 
-const features = [
-  {
-    icon: Store,
-    title: "Menú digital",
-    text: "Categorías, fotos, precios por sucursal. Tu cliente ve todo desde su celular.",
-  },
-  {
-    icon: ShoppingCart,
-    title: "Carrito y checkout",
-    text: "Pedidos claros con totales, método de entrega y pago integrado.",
-  },
-  {
-    icon: Truck,
-    title: "Delivery y retiro",
-    text: "Configura zonas de reparto, cotiza envíos y ofrece retiro en local.",
-  },
-  {
-    icon: LayoutDashboard,
-    title: "Sistema de caja",
-    text: "Punto de venta para cobrar en tu local. Rápido y simple.",
-  },
-  {
-    icon: UtensilsCrossed,
-    title: "Comandas de cocina",
-    text: "Los pedidos llegan directo a cocina. Sin papelitos perdidos.",
-  },
-  {
-    icon: Package,
-    title: "Inventario",
-    text: "Controla stock por producto y sucursal. Alertas cuando se acaba.",
-  },
-  {
-    icon: Receipt,
-    title: "Facturación",
-    text: "Genera comprobantes para tus clientes automáticamente.",
-  },
-  {
-    icon: ImageIcon,
-    title: "Tu marca, tu diseño",
-    text: "Logo, colores y un carrusel de banners personalizados en tu tienda.",
-  },
-] as const;
-
 const steps = [
   { n: "1", title: "Regístrate", text: "Crea tu cuenta con email. Sin tarjeta de crédito." },
   { n: "2", title: "Arma tu tienda", text: "Sube productos, configura delivery y sucursales." },
   { n: "3", title: "Empieza a vender", text: "Comparte tu link y recibe pedidos desde el día 1." },
 ] as const;
 
-const diffPoints = [
-  {
-    vs: "Instagram / WhatsApp",
-    problem: "Tus pedidos se pierden en los DMs.",
-    solution: "Con GodCode cada pedido queda registrado con total, estado y datos del cliente.",
-  },
-  {
-    vs: "Rappi / UberEats",
-    problem: "Se quedan con el 25-30% de cada venta y con los datos de tus clientes.",
-    solution: "Con GodCode pagas una tarifa fija y los clientes son tuyos.",
-  },
-  {
-    vs: "Desarrollo propio",
-    problem: "Meses de desarrollo, servidor y mantenimiento constante.",
-    solution: "Con GodCode abres tu tienda hoy sin programar una línea.",
-  },
-] as const;
-
-const useCases = [
-  { icon: UtensilsCrossed, title: "Restaurantes y cafeterías", text: "Menú digital con categorías, combos y pedidos para delivery o retiro por sucursal." },
-  { icon: Package, title: "Tiendas y minimarkets", text: "Catálogo de productos, carrito con totales automáticos y despacho por tienda." },
-  { icon: Truck, title: "Negocios con delivery", text: "Gestión de zonas, cotización de envíos y seguimiento de pedidos en tiempo real." },
+const compareRows = [
+  { feature: "Comisión por venta", ig: "0%", rappi: "25-30%", custom: "0%", gc: "0%" },
+  { feature: "Control de clientes", ig: false, rappi: false, custom: true, gc: true },
+  { feature: "Tu propia marca", ig: false, rappi: false, custom: true, gc: true },
+  { feature: "Tiempo de setup", ig: "1 día", rappi: "1-2 sem.", custom: "2-6 meses", gc: "5 min" },
+  { feature: "Costo mensual", ig: "Gratis*", rappi: "Gratis*", custom: "$500+", gc: "Desde $9" },
+  { feature: "Inventario y caja", ig: false, rappi: false, custom: true, gc: true },
 ] as const;
 
 const faqItems = [
@@ -162,7 +102,7 @@ const faqItems = [
   { q: "¿Puedo tener varias sucursales?", a: "Sí. Cada sucursal tiene su propio inventario, precios, zona de delivery y horarios." },
 ] as const;
 
-/* ───── Main component ───── */
+/* ───── Main ───── */
 
 export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
   const support = getSupportEmail();
@@ -172,18 +112,30 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
     <main className="relative z-10">
 
       {/* ════ 1. HERO ════ */}
-      <section id="inicio" className="scroll-mt-20 border-b border-slate-200/40 pb-14 pt-10 sm:pb-20 md:pt-14 lg:pb-24 dark:border-zinc-800/50">
-        <div className="mx-auto flex max-w-7xl flex-col items-center gap-10 px-5 sm:px-6 lg:grid lg:grid-cols-2 lg:items-center lg:gap-16 lg:px-8">
+      <section
+        id="inicio"
+        className="relative scroll-mt-20 overflow-hidden pb-14 pt-10 sm:pb-20 md:pt-14 lg:pb-28"
+        style={{
+          backgroundImage: "radial-gradient(circle at 1px 1px, rgb(226 232 240 / 0.4) 1px, transparent 0)",
+          backgroundSize: "24px 24px",
+        }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-white via-indigo-50/20 to-white dark:from-zinc-950 dark:via-indigo-950/10 dark:to-zinc-950" />
+
+        <div className="relative mx-auto flex max-w-7xl flex-col items-center gap-10 px-5 sm:px-6 lg:grid lg:grid-cols-2 lg:items-center lg:gap-16 lg:px-8">
           <div className="order-2 text-center lg:order-1 lg:text-left">
             <LandingReveal>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-800 sm:px-4 sm:text-xs dark:border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-300">
-                <Clock className="h-3 w-3" aria-hidden />
-                Precio de lanzamiento — Primeros negocios con descuento
+              <span className="inline-flex items-center gap-2 rounded-full border border-indigo-200/60 bg-indigo-50/80 px-3.5 py-1.5 text-[11px] font-medium text-indigo-700 backdrop-blur sm:px-4 sm:text-xs dark:border-indigo-500/20 dark:bg-indigo-950/40 dark:text-indigo-300">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-500 opacity-60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-indigo-600 dark:bg-indigo-400" />
+                </span>
+                Lanzamiento — Descuento para primeros negocios
               </span>
             </LandingReveal>
 
             <LandingReveal delay={0.08}>
-              <h1 className="mt-5 text-[1.7rem] font-bold leading-[1.1] tracking-tight text-slate-900 sm:text-4xl md:text-5xl lg:text-[3.25rem] dark:text-white">
+              <h1 className="mt-5 text-[1.7rem] font-bold leading-[1.08] tracking-tight text-slate-900 sm:text-4xl md:text-5xl lg:text-[3.25rem] dark:text-white">
                 Todo lo que tu negocio necesita para{" "}
                 <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent dark:from-indigo-400 dark:to-violet-400">
                   vender online
@@ -202,7 +154,7 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
               <div className="mt-7 flex flex-col items-center gap-3 sm:mt-8 sm:flex-row sm:justify-center lg:justify-start">
                 <Link
                   href="/onboarding"
-                  className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-7 text-sm font-semibold text-white shadow-lg transition hover:bg-slate-800 sm:h-[3.25rem] sm:w-auto sm:px-8 sm:text-base dark:bg-white dark:text-slate-900 dark:hover:bg-zinc-200"
+                  className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-7 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-700 sm:h-[3.25rem] sm:w-auto sm:px-8 sm:text-base"
                 >
                   Empezar gratis
                   <ArrowRight className="h-4 w-4" aria-hidden />
@@ -222,62 +174,69 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
             </LandingReveal>
           </div>
 
-          <div className="order-1 w-full max-w-sm sm:max-w-md lg:order-2 lg:max-w-none">
+          <div className="order-1 w-full lg:order-2">
             <LandingReveal delay={0.1} direction="right">
-              <LandingHeroIllustrationAnimated />
+              <div className="relative mx-auto max-w-lg pb-8 sm:pb-10 lg:max-w-none">
+                <LaptopFrame>
+                  <ScreenPlaceholder variant="dashboard" />
+                </LaptopFrame>
+                <div className="absolute -bottom-2 -left-2 z-10 sm:-bottom-4 sm:-left-6 lg:-left-10">
+                  <PhoneFrame className="!max-w-[90px] sm:!max-w-[130px] lg:!max-w-[150px]">
+                    <ScreenPlaceholder variant="menu-mobile" />
+                  </PhoneFrame>
+                </div>
+              </div>
             </LandingReveal>
           </div>
         </div>
       </section>
 
-      {/* ════ 2. TRUST STRIP ════ */}
-      <SectionShell variant="white" className="border-t-0 py-10 sm:py-14">
-        <div className="mx-auto max-w-4xl px-5 sm:px-6">
+      {/* wave: white → dark */}
+      <div className="relative -mb-px h-8 sm:h-12">
+        <svg viewBox="0 0 1440 54" fill="none" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
+          <path d="M0 22C240 52 480 54 720 36S1200 0 1440 18V54H0Z" className="fill-slate-900 dark:fill-zinc-950" />
+        </svg>
+      </div>
+
+      {/* ════ 2. TRUST STRIP + KPIs ════ */}
+      <SectionShell variant="dark" className="py-10 sm:py-14">
+        <div className="mx-auto max-w-5xl px-5 sm:px-6">
           <LandingReveal>
-            <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 text-sm text-slate-500 sm:gap-x-12 dark:text-zinc-400">
-              <span className="inline-flex items-center gap-2 font-medium"><CreditCard className="h-4 w-4 text-indigo-600 dark:text-indigo-400" aria-hidden />Pagos con Stripe / PayPal</span>
-              <span className="inline-flex items-center gap-2 font-medium"><Shield className="h-4 w-4 text-indigo-600 dark:text-indigo-400" aria-hidden />Cifrado SSL</span>
-              <span className="inline-flex items-center gap-2 font-medium"><Headphones className="h-4 w-4 text-indigo-600 dark:text-indigo-400" aria-hidden />Soporte por email</span>
+            <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 text-sm text-slate-400 sm:gap-x-12">
+              <span className="inline-flex items-center gap-2 font-medium"><CreditCard className="h-4 w-4 text-indigo-400" aria-hidden />Stripe / PayPal</span>
+              <span className="inline-flex items-center gap-2 font-medium"><Shield className="h-4 w-4 text-indigo-400" aria-hidden />Cifrado SSL</span>
+              <span className="inline-flex items-center gap-2 font-medium"><Headphones className="h-4 w-4 text-indigo-400" aria-hidden />Soporte por email</span>
             </div>
           </LandingReveal>
+
           <LandingReveal delay={0.1}>
-            <p className="mt-6 text-center text-sm font-medium text-slate-600 dark:text-zinc-400">
-              Plataforma en lanzamiento — <span className="text-indigo-600 dark:text-indigo-400">sé el primero en tu ciudad</span>
-            </p>
-          </LandingReveal>
-        </div>
-      </SectionShell>
-
-      {/* ════ 3. CÓMO FUNCIONA ════ */}
-      <SectionShell id="como-funciona" variant="muted">
-        <div className="mx-auto max-w-5xl px-5 sm:px-6 lg:px-8">
-          <LandingReveal>
-            <Eyebrow>3 pasos</Eyebrow>
-            <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
-              Tu tienda lista en minutos
-            </h2>
-          </LandingReveal>
-
-          <div className="relative mt-10 sm:mt-14">
-            <div className="absolute left-0 right-0 top-7 hidden h-px bg-gradient-to-r from-transparent via-indigo-200 to-transparent md:block dark:via-indigo-900/50" />
-            <ol className="relative grid gap-8 md:grid-cols-3">
-              {steps.map((s, i) => (
-                <LandingReveal key={s.n} delay={i * 0.1}>
-                  <li className="text-center">
-                    <span className="relative z-10 mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900 text-lg font-bold text-white shadow-md sm:h-14 sm:w-14 dark:bg-white dark:text-slate-900">
-                      {s.n}
-                    </span>
-                    <h3 className="mt-4 text-sm font-bold text-slate-900 sm:text-base dark:text-white">{s.title}</h3>
-                    <p className="mt-1.5 text-xs leading-relaxed text-slate-500 sm:text-sm dark:text-zinc-400">{s.text}</p>
-                  </li>
-                </LandingReveal>
+            <div className="mt-8 grid grid-cols-2 gap-4 sm:mt-10 sm:gap-6 md:grid-cols-4">
+              {([
+                { end: 100, suffix: "+", label: "Negocios activos" },
+                { end: 10000, suffix: "+", label: "Pedidos procesados" },
+                { end: 5, suffix: "", label: "Países" },
+                { end: 99.9, suffix: "%", label: "Uptime" },
+              ] as const).map((kpi, i) => (
+                <div key={kpi.label} className="text-center">
+                  <p className="text-2xl font-bold text-white sm:text-3xl">
+                    <LandingCountUp end={kpi.end} suffix={kpi.suffix} duration={1800 + i * 200} />
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400 sm:text-sm">{kpi.label}</p>
+                </div>
               ))}
-            </ol>
-          </div>
+            </div>
+          </LandingReveal>
         </div>
       </SectionShell>
 
-      {/* ════ 4. FEATURES ════ */}
+      {/* wave: dark → white */}
+      <div className="relative -mb-px h-8 sm:h-12">
+        <svg viewBox="0 0 1440 54" fill="none" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
+          <path d="M0 32C360 4 720 0 1080 22S1380 52 1440 40V0H0Z" className="fill-slate-900 dark:fill-zinc-950" />
+        </svg>
+      </div>
+
+      {/* ════ 3. FEATURE SPOTLIGHTS ════ */}
       <SectionShell id="funciones" variant="white">
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
           <LandingReveal>
@@ -289,26 +248,107 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
               Deja de pagar por 5 herramientas distintas. Aquí está todo.
             </p>
           </LandingReveal>
+        </div>
 
-          <div className="mt-10 grid gap-4 sm:mt-14 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4 lg:gap-6">
-            {features.map(({ icon: Icon, title, text }, i) => (
-              <LandingReveal key={title} delay={i * 0.05}>
-                <div className="group rounded-2xl border border-slate-200/60 bg-white p-5 transition hover:border-indigo-200 hover:shadow-lg hover:shadow-indigo-500/5 sm:p-6 dark:border-zinc-800 dark:bg-zinc-900/60 dark:hover:border-indigo-500/30">
-                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-600 transition group-hover:bg-indigo-50 group-hover:text-indigo-600 sm:h-11 sm:w-11 dark:bg-zinc-800 dark:text-zinc-400 dark:group-hover:bg-indigo-950/60 dark:group-hover:text-indigo-400">
-                    <Icon className="h-5 w-5" aria-hidden />
-                  </div>
-                  <h3 className="text-sm font-bold text-slate-900 sm:text-base dark:text-white">{title}</h3>
-                  <p className="mt-1.5 text-xs leading-relaxed text-slate-500 sm:text-sm dark:text-zinc-400">{text}</p>
-                </div>
-              </LandingReveal>
-            ))}
-          </div>
+        <div className="mt-14 space-y-16 sm:mt-20 sm:space-y-24">
+          <LandingFeatureBlock
+            eyebrow="Ventas online"
+            title="Menú digital y carrito inteligente"
+            description="Tus clientes ven el menú desde su celular, eligen productos, personalizan extras y pagan online. Todo sin que levantes el teléfono."
+            bullets={[
+              "Categorías, fotos y precios por sucursal",
+              "Carrito con totales automáticos y extras",
+              "Pagos con tarjeta, transferencia o efectivo",
+              "Banners promocionales personalizados",
+            ]}
+            visual={<ScreenPlaceholder variant="menu" />}
+          />
+
+          <LandingFeatureBlock
+            eyebrow="Operaciones"
+            title="Punto de venta y caja registradora"
+            description="Cobra en tu local con un sistema rápido y simple. Turnos de caja, métodos de pago y resumen de ventas en un solo lugar."
+            bullets={[
+              "POS táctil rápido e intuitivo",
+              "Turnos de caja con apertura y cierre",
+              "Múltiples métodos de pago",
+              "Reportes de venta en tiempo real",
+            ]}
+            visual={<ScreenPlaceholder variant="pos" />}
+            reversed
+            delay={0.05}
+          />
+
+          <LandingFeatureBlock
+            eyebrow="Control"
+            title="Inventario y gestión por sucursal"
+            description="Controla el stock de cada producto por sucursal. Recibe alertas cuando se está acabando y lleva el historial de movimientos."
+            bullets={[
+              "Stock en tiempo real por sucursal",
+              "Alertas de inventario bajo",
+              "Recetas: descuento automático al vender",
+              "Historial completo de movimientos",
+            ]}
+            visual={<ScreenPlaceholder variant="inventory" />}
+            delay={0.1}
+          />
         </div>
       </SectionShell>
 
-      {/* ════ 5. PRODUCTO ════ */}
+      {/* ════ 4. CÓMO FUNCIONA ════ */}
+      <SectionShell id="como-funciona" variant="muted">
+        <div className="mx-auto max-w-5xl px-5 sm:px-6 lg:px-8">
+          <LandingReveal>
+            <Eyebrow>Cómo funciona</Eyebrow>
+            <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
+              Tu tienda lista en minutos
+            </h2>
+          </LandingReveal>
+
+          <ol className="relative mt-12 grid gap-6 sm:mt-16 md:grid-cols-3">
+            {/* Connector arrows (desktop) */}
+            <div className="pointer-events-none absolute left-[33.33%] top-10 hidden -translate-x-1/2 text-slate-300 md:block dark:text-zinc-700" aria-hidden>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 12h14m0 0l-4-4m4 4l-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </div>
+            <div className="pointer-events-none absolute left-[66.66%] top-10 hidden -translate-x-1/2 text-slate-300 md:block dark:text-zinc-700" aria-hidden>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 12h14m0 0l-4-4m4 4l-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </div>
+
+            {steps.map((s, i) => {
+              const colors = [
+                "border-t-indigo-500 bg-indigo-50/50 text-indigo-600 dark:border-t-indigo-400 dark:bg-indigo-950/20 dark:text-indigo-400",
+                "border-t-violet-500 bg-violet-50/50 text-violet-600 dark:border-t-violet-400 dark:bg-violet-950/20 dark:text-violet-400",
+                "border-t-emerald-500 bg-emerald-50/50 text-emerald-600 dark:border-t-emerald-400 dark:bg-emerald-950/20 dark:text-emerald-400",
+              ];
+              const [borderColor, numBg, numColor] = colors[i].split(" ").reduce<[string, string, string]>(
+                (acc, cls) => {
+                  if (cls.startsWith("border-t-")) acc[0] += ` ${cls}`;
+                  else if (cls.startsWith("bg-") || cls.startsWith("dark:bg-")) acc[1] += ` ${cls}`;
+                  else acc[2] += ` ${cls}`;
+                  return acc;
+                },
+                ["", "", ""],
+              );
+
+              return (
+                <LandingReveal key={s.n} delay={i * 0.1}>
+                  <li className={`flex h-full flex-col rounded-2xl border border-slate-200/60 border-t-[3px] bg-white p-6 sm:p-8 dark:border-zinc-800 dark:bg-zinc-900/60 ${borderColor}`}>
+                    <span className={`flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold ${numBg} ${numColor}`}>
+                      {s.n}
+                    </span>
+                    <h3 className="mt-5 text-base font-bold text-slate-900 sm:text-lg dark:text-white">{s.title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-zinc-400">{s.text}</p>
+                  </li>
+                </LandingReveal>
+              );
+            })}
+          </ol>
+        </div>
+      </SectionShell>
+
+      {/* ════ 5. PRODUCTO SHOWCASE ════ */}
       <SectionShell id="producto" variant="muted">
-        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-5xl px-5 sm:px-6 lg:px-8">
           <LandingReveal>
             <Eyebrow>Producto</Eyebrow>
             <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
@@ -319,19 +359,50 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
             </p>
           </LandingReveal>
 
-          <LandingProductCarousel
-            slides={[
-              { title: "Menú digital", sub: "Categorías, productos y banners personalizados por negocio.", content: <MenuScreenMock /> },
-              { title: "Carrito y checkout", sub: "Resumen de pedido, método de entrega y pago integrado.", content: <CartScreenMock /> },
-              { title: "Panel de operación", sub: "Pedidos en tiempo real, métricas y gestión de sucursales.", content: <OperationsScreenMock /> },
-            ] satisfies LandingProductSlide[]}
-          />
+          <LandingPhoneCarousel />
         </div>
       </SectionShell>
 
-      {/* ════ 6. DIFERENCIACIÓN ════ */}
+      {/* ════ 6. CTA INTERMEDIO ════ */}
+      <section className="relative overflow-hidden bg-slate-900 py-16 sm:py-20 md:py-24 dark:bg-zinc-950">
+        <LandingAnimatedGrid />
+
+        <div className="relative mx-auto max-w-3xl px-5 text-center sm:px-6">
+          <LandingReveal>
+            <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-indigo-400">
+              Empieza ahora
+            </p>
+            <h2 className="text-2xl font-bold text-white sm:text-3xl md:text-[2.75rem] md:leading-[1.15]">
+              Crea tu tienda en menos de{" "}
+              <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
+                5 minutos
+              </span>
+            </h2>
+            <p className="mx-auto mt-5 max-w-xl text-sm leading-relaxed text-slate-400 sm:text-base">
+              Sin código, sin servidores, sin complicaciones. Solo tú y tus productos.
+            </p>
+            <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+              <Link
+                href="/onboarding"
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-8 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-700 sm:h-[3.25rem] sm:w-auto sm:text-base"
+              >
+                Empezar gratis
+                <ArrowRight className="h-4 w-4" aria-hidden />
+              </Link>
+              <a
+                href="#precios"
+                className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-slate-700 px-8 text-sm font-medium text-slate-300 transition hover:border-slate-600 hover:text-white sm:h-[3.25rem] sm:w-auto sm:text-base"
+              >
+                Ver precios
+              </a>
+            </div>
+          </LandingReveal>
+        </div>
+      </section>
+
+      {/* ════ 7. COMPARACIÓN ════ */}
       <SectionShell id="comparar" variant="white">
-        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-5xl px-5 sm:px-6 lg:px-8">
           <LandingReveal>
             <Eyebrow>¿Por qué GodCode?</Eyebrow>
             <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
@@ -339,49 +410,54 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
             </h2>
           </LandingReveal>
 
-          <div className="mt-10 grid gap-4 sm:mt-14 sm:gap-6 md:grid-cols-3">
-            {diffPoints.map((d, i) => (
-              <LandingReveal key={d.vs} delay={i * 0.08}>
-                <div className="flex h-full flex-col rounded-2xl border border-slate-200/60 bg-white p-5 sm:p-6 dark:border-zinc-800 dark:bg-zinc-900/60">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-500">vs. {d.vs}</p>
-                  <p className="mt-3 text-sm font-medium leading-snug text-slate-700 dark:text-zinc-300">
-                    <span className="text-red-500 dark:text-red-400">✕</span> {d.problem}
-                  </p>
-                  <p className="mt-3 flex-1 text-sm leading-snug text-slate-600 dark:text-zinc-400">
-                    <span className="text-emerald-600 dark:text-emerald-400">✓</span> {d.solution}
-                  </p>
-                </div>
-              </LandingReveal>
-            ))}
-          </div>
+          <LandingReveal delay={0.1}>
+            <div className="mt-10 overflow-x-auto sm:mt-14">
+              <table className="w-full min-w-[560px] text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-zinc-800">
+                    <th className="pb-3 pr-4 text-left font-medium text-slate-500 dark:text-zinc-400" />
+                    <th className="pb-3 px-3 text-center font-medium text-slate-500 dark:text-zinc-400">IG / WhatsApp</th>
+                    <th className="pb-3 px-3 text-center font-medium text-slate-500 dark:text-zinc-400">Rappi / Uber</th>
+                    <th className="pb-3 px-3 text-center font-medium text-slate-500 dark:text-zinc-400">Desarrollo propio</th>
+                    <th className="pb-3 px-3 text-center font-bold text-indigo-600 dark:text-indigo-400">GodCode</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {compareRows.map((row) => (
+                    <tr key={row.feature} className="border-b border-slate-100 dark:border-zinc-800/60">
+                      <td className="py-3 pr-4 font-medium text-slate-700 dark:text-zinc-300">{row.feature}</td>
+                      {([row.ig, row.rappi, row.custom, row.gc] as const).map((val, ci) => (
+                        <td key={ci} className={cn("px-3 py-3 text-center", ci === 3 && "bg-indigo-50/50 font-semibold text-indigo-700 dark:bg-indigo-950/20 dark:text-indigo-300")}>
+                          {typeof val === "boolean"
+                            ? val
+                              ? <Check className="mx-auto h-4 w-4 text-emerald-500" aria-label="Sí" />
+                              : <X className="mx-auto h-4 w-4 text-slate-300 dark:text-zinc-600" aria-label="No" />
+                            : val}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </LandingReveal>
         </div>
       </SectionShell>
 
-      {/* ════ 7. PARA QUIÉN ════ */}
-      <SectionShell id="casos" variant="muted">
+      {/* ════ 8. TESTIMONIOS ════ */}
+      <SectionShell id="testimonios" variant="muted">
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
           <LandingReveal>
-            <Eyebrow>¿Para quién es?</Eyebrow>
+            <Eyebrow>Testimonios</Eyebrow>
             <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
-              Pensado para negocios como el tuyo
+              Lo que dicen nuestros clientes
             </h2>
           </LandingReveal>
-
-          <div className="mt-10 grid gap-4 sm:mt-14 sm:grid-cols-2 sm:gap-6 md:grid-cols-3">
-            {useCases.map(({ icon: Icon, title, text }, i) => (
-              <LandingReveal key={title} delay={i * 0.08}>
-                <div className="rounded-2xl border border-slate-200/60 bg-white p-5 sm:p-6 dark:border-zinc-800 dark:bg-zinc-900/60">
-                  <Icon className="mb-3 h-6 w-6 text-indigo-600 dark:text-indigo-400" aria-hidden />
-                  <h3 className="text-sm font-bold text-slate-900 sm:text-base dark:text-white">{title}</h3>
-                  <p className="mt-2 text-xs leading-relaxed text-slate-500 sm:text-sm dark:text-zinc-400">{text}</p>
-                </div>
-              </LandingReveal>
-            ))}
-          </div>
+          <LandingTestimonials />
         </div>
       </SectionShell>
 
-      {/* ════ 8. PRECIOS ════ */}
+      {/* ════ 9. PRECIOS ════ */}
       <SectionShell id="precios" variant="white">
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
           <LandingReveal>
@@ -401,7 +477,7 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
                 <p className="mt-2 text-xs text-slate-500 dark:text-zinc-400">Mientras tanto, puedes crear tu cuenta y explorar la plataforma gratis.</p>
                 <Link
                   href="/onboarding"
-                  className="mt-5 inline-flex h-10 items-center justify-center rounded-xl bg-slate-900 px-6 text-sm font-semibold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-zinc-200"
+                  className="mt-5 inline-flex h-10 items-center justify-center rounded-xl bg-indigo-600 px-6 text-sm font-semibold text-white hover:bg-indigo-700"
                 >
                   Empezar gratis
                 </Link>
@@ -422,14 +498,14 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
                   <LandingReveal key={plan.id} delay={index * 0.08}>
                     <div
                       className={cn(
-                        "relative flex h-full flex-col rounded-2xl border bg-white p-5 sm:p-7 dark:bg-zinc-900/60",
+                        "relative flex h-full flex-col rounded-2xl border bg-white p-5 transition sm:p-7 dark:bg-zinc-900/60",
                         isPopular
-                          ? "z-10 border-2 border-indigo-500/50 shadow-xl shadow-indigo-500/10 sm:py-9"
-                          : "border-slate-200/60 dark:border-zinc-800",
+                          ? "z-10 scale-[1.02] border-2 border-indigo-500/60 shadow-xl shadow-indigo-500/10 sm:py-9"
+                          : "border-slate-200/60 hover:border-slate-300 hover:shadow-lg dark:border-zinc-800 dark:hover:border-zinc-700",
                       )}
                     >
                       {isPopular && (
-                        <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-slate-900 px-3 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow sm:text-xs dark:bg-white dark:text-slate-900">
+                        <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow sm:text-xs">
                           Popular
                         </span>
                       )}
@@ -451,7 +527,7 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
                         className={cn(
                           "mt-6 inline-flex h-11 items-center justify-center rounded-xl text-center text-sm font-semibold transition",
                           isPopular
-                            ? "bg-slate-900 text-white shadow-lg hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-zinc-200"
+                            ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-700"
                             : "border border-slate-200 bg-white text-slate-800 hover:bg-slate-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800",
                         )}
                       >
@@ -473,7 +549,7 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
         </div>
       </SectionShell>
 
-      {/* ════ 9. FAQ ════ */}
+      {/* ════ 10. FAQ ════ */}
       <SectionShell id="faq" variant="muted">
         <div className="mx-auto max-w-3xl px-5 sm:px-6 lg:px-8">
           <LandingReveal>
@@ -504,44 +580,73 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
         </div>
       </SectionShell>
 
-      {/* ════ 10. LEAD CAPTURE + CONTACTO ════ */}
-      <SectionShell id="contacto" variant="white" className="border-b-0 pb-14 sm:pb-20">
+      {/* wave: muted → dark */}
+      <div className="relative -mb-px h-8 sm:h-12">
+        <svg viewBox="0 0 1440 54" fill="none" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
+          <path d="M0 22C240 52 480 54 720 36S1200 0 1440 18V54H0Z" className="fill-slate-900 dark:fill-zinc-950" />
+        </svg>
+      </div>
+
+      {/* ════ 11. CTA FINAL + CONTACTO ════ */}
+      <SectionShell id="contacto" variant="dark" className="pb-0">
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
 
-          {/* Lead capture */}
+          {/* CTA */}
           <LandingReveal>
-            <div className="mx-auto mb-12 max-w-xl rounded-2xl border border-indigo-100 bg-indigo-50/50 p-6 text-center sm:mb-16 sm:p-8 dark:border-indigo-500/20 dark:bg-indigo-950/20">
-              <Smartphone className="mx-auto h-6 w-6 text-indigo-600 dark:text-indigo-400" aria-hidden />
-              <p className="mt-3 text-sm font-semibold text-slate-800 sm:text-base dark:text-zinc-200">¿Todavía no estás listo?</p>
-              <p className="mt-1 text-xs text-slate-500 sm:text-sm dark:text-zinc-400">Déjanos tu correo y te avisamos de novedades y ofertas.</p>
-              <LandingLeadForm />
+            <div className="mx-auto max-w-2xl text-center">
+              <h2 className="text-2xl font-bold text-white sm:text-3xl md:text-4xl">
+                Empieza hoy — tu primera tienda es gratis
+              </h2>
+              <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-slate-400 sm:text-base">
+                Únete a los negocios que ya venden con GodCode. Sin riesgos, sin contratos.
+              </p>
+              <div className="mt-7 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+                <Link
+                  href="/onboarding"
+                  className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-8 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-700 sm:w-auto sm:text-base"
+                >
+                  Crear mi tienda gratis
+                  <ArrowRight className="h-4 w-4" aria-hidden />
+                </Link>
+              </div>
+            </div>
+          </LandingReveal>
+
+          {/* Lead capture */}
+          <LandingReveal delay={0.1}>
+            <div className="mx-auto mt-12 max-w-md rounded-2xl border border-slate-700/60 bg-slate-800/50 p-6 text-center backdrop-blur sm:mt-16 sm:p-8">
+              <Smartphone className="mx-auto h-6 w-6 text-indigo-400" aria-hidden />
+              <p className="mt-3 text-sm font-semibold text-white sm:text-base">¿Todavía no estás listo?</p>
+              <p className="mt-1 text-xs text-slate-400 sm:text-sm">Déjanos tu correo y te avisamos de novedades.</p>
+              <LandingLeadForm dark />
             </div>
           </LandingReveal>
 
           {/* Contact */}
-          <LandingReveal delay={0.1}>
-            <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white dark:border-zinc-800 dark:bg-zinc-900/60">
+          <LandingReveal delay={0.15}>
+            <div className="mx-auto mt-12 max-w-4xl overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-800/40 backdrop-blur sm:mt-16">
               <div className="grid md:grid-cols-2">
                 <div className="p-5 sm:p-8 md:p-10">
-                  <Eyebrow className="!text-left">Contacto</Eyebrow>
-                  <h2 className="text-xl font-bold text-slate-900 sm:text-2xl dark:text-white">¿Tienes dudas?</h2>
-                  <p className="mt-2 text-xs text-slate-500 sm:text-sm dark:text-zinc-400">
+                  <Eyebrow className="!text-left !text-indigo-400">Contacto</Eyebrow>
+                  <h2 className="text-xl font-bold text-white sm:text-2xl">¿Tienes dudas?</h2>
+                  <p className="mt-2 text-xs text-slate-400 sm:text-sm">
                     Escríbenos y te respondemos en menos de 24 horas.
                   </p>
-                  <LandingContactForm supportEmail={support} />
+                  <LandingContactForm supportEmail={support} dark />
                   <div className="mt-5 flex items-center gap-2">
-                    <Headphones className="h-4 w-4 text-indigo-600 dark:text-indigo-400" aria-hidden />
-                    <a href={`mailto:${support}`} className="text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400">{support}</a>
+                    <Headphones className="h-4 w-4 text-indigo-400" aria-hidden />
+                    <a href={`mailto:${support}`} className="text-sm font-medium text-indigo-400 hover:underline">{support}</a>
                   </div>
                 </div>
-                <div className="flex flex-col justify-center border-t border-slate-100 bg-slate-50 p-5 sm:p-8 md:border-l md:border-t-0 md:p-10 dark:border-zinc-800 dark:bg-zinc-950/50">
-                  <p className="text-sm font-semibold text-slate-800 dark:text-zinc-200">También puedes empezar directamente</p>
-                  <p className="mt-2 text-xs leading-relaxed text-slate-500 sm:text-sm dark:text-zinc-400">
+                <div className="flex flex-col justify-center border-t border-slate-700/40 bg-slate-800/60 p-5 sm:p-8 md:border-l md:border-t-0 md:p-10">
+                  <Users className="h-8 w-8 text-indigo-400" aria-hidden />
+                  <p className="mt-4 text-sm font-semibold text-white">También puedes empezar directamente</p>
+                  <p className="mt-2 text-xs leading-relaxed text-slate-400 sm:text-sm">
                     El registro toma 5 minutos. Si tienes dudas después, nuestro soporte te ayuda.
                   </p>
                   <Link
                     href="/onboarding"
-                    className="mt-5 inline-flex h-10 w-fit items-center justify-center rounded-xl bg-slate-900 px-6 text-sm font-semibold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-zinc-200"
+                    className="mt-5 inline-flex h-10 w-fit items-center justify-center rounded-xl bg-white px-6 text-sm font-semibold text-slate-900 hover:bg-slate-100"
                   >
                     Crear mi tienda
                   </Link>
@@ -549,6 +654,8 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
               </div>
             </div>
           </LandingReveal>
+
+          <div className="pb-10 sm:pb-14" />
         </div>
       </SectionShell>
     </main>

@@ -66,12 +66,12 @@ export function LandingProductCarousel({ slides }: { slides: LandingProductSlide
           </>
         ) : null}
 
-        <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white/60 shadow-sm backdrop-blur sm:rounded-3xl dark:border-zinc-800/70 dark:bg-zinc-950/20">
-          <div className="flex gap-3 p-3 sm:gap-5 sm:p-5 lg:gap-6 lg:p-6" ref={emblaRef}>
+        <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white/60 shadow-sm backdrop-blur sm:rounded-3xl dark:border-zinc-800/70 dark:bg-zinc-950/20" ref={emblaRef}>
+          <div className="flex gap-3 p-3 sm:gap-5 sm:p-5 lg:gap-6 lg:p-6">
             {safeSlides.map((s, i) => (
               <div
                 key={`${s.title}-${i}`}
-                className="min-w-[80%] sm:min-w-[360px] lg:min-w-[420px]"
+                className="min-w-0 flex-[0_0_80%] sm:flex-[0_0_360px] lg:flex-[0_0_420px]"
                 aria-label={`Slide ${i + 1}`}
               >
                 <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm transition hover:shadow-[0_18px_60px_-30px_rgba(79,70,229,0.25)] sm:rounded-3xl dark:border-zinc-800/70 dark:bg-zinc-900/60">
