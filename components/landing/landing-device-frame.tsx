@@ -10,11 +10,13 @@ export function LaptopFrame({
   alt = "Captura de pantalla",
   children,
   className,
+  priority = false,
 }: {
   src?: string;
   alt?: string;
   children?: ReactNode;
   className?: string;
+  priority?: boolean;
 }) {
   return (
     <div className={cn("relative mx-auto w-full", className)}>
@@ -34,7 +36,7 @@ export function LaptopFrame({
               width={1440}
               height={900}
               className="h-auto w-full"
-              priority={false}
+              priority={priority}
             />
           ) : children ? (
             <div className="aspect-[16/10]">{children}</div>
@@ -69,11 +71,13 @@ export function PhoneFrame({
   alt = "Captura de pantalla",
   children,
   className,
+  priority = false,
 }: {
   src?: string;
   alt?: string;
   children?: ReactNode;
   className?: string;
+  priority?: boolean;
 }) {
   return (
     <div className={cn("relative mx-auto w-full max-w-[220px] sm:max-w-[260px]", className)}>
@@ -96,7 +100,7 @@ export function PhoneFrame({
                 width={430}
                 height={932}
                 className="h-auto w-full"
-                priority={false}
+                priority={priority}
               />
             ) : children ? (
               <div className="aspect-[9/19.5]">{children}</div>

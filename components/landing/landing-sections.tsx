@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 
+import { landingMedia } from "../../lib/landing-media";
 import { popularPlanIndex, type PublicPlanForLanding } from "../../lib/public-plans";
 import { cn } from "../../utils/cn";
 import { Card } from "../ui/card";
@@ -23,7 +24,7 @@ import { LandingFeatureBlock } from "./landing-feature-block";
 import { LandingTestimonials } from "./landing-testimonials";
 import { LandingCountUp } from "./landing-count-up";
 import { LaptopFrame, PhoneFrame } from "./landing-device-frame";
-import { ScreenPlaceholder } from "./landing-screen-placeholder";
+import { LandingFeatureShot } from "./landing-feature-shot";
 import { LandingAnimatedGrid } from "./landing-animated-grid";
 import { LandingPhoneCarousel } from "./landing-phone-carousel";
 import { LandingContactForm } from "./landing-contact-form";
@@ -178,13 +179,17 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
           <div className="order-1 w-full lg:order-2">
             <LandingReveal delay={0.1} direction="right">
               <div className="relative mx-auto max-w-lg pb-8 sm:pb-10 lg:max-w-none">
-                <LaptopFrame>
-                  <ScreenPlaceholder variant="dashboard" />
-                </LaptopFrame>
+                <LaptopFrame
+                  src={landingMedia.hero.laptopSrc}
+                  alt={landingMedia.hero.laptopAlt}
+                  priority
+                />
                 <div className="absolute -bottom-2 -left-2 z-10 sm:-bottom-4 sm:-left-6 lg:-left-10">
-                  <PhoneFrame className="!max-w-[90px] sm:!max-w-[130px] lg:!max-w-[150px]">
-                    <ScreenPlaceholder variant="menu-mobile" />
-                  </PhoneFrame>
+                  <PhoneFrame
+                    className="!max-w-[90px] sm:!max-w-[130px] lg:!max-w-[150px]"
+                    src={landingMedia.hero.phoneSrc}
+                    alt={landingMedia.hero.phoneAlt}
+                  />
                 </div>
               </div>
             </LandingReveal>
@@ -204,7 +209,7 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
         <div className="mx-auto max-w-5xl px-5 sm:px-6">
           <LandingReveal>
             <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 text-sm text-slate-400 sm:gap-x-12">
-              <span className="inline-flex items-center gap-2 font-medium"><CreditCard className="h-4 w-4 text-indigo-400" aria-hidden />Stripe / PayPal</span>
+              <span className="inline-flex items-center gap-2 font-medium"><CreditCard className="h-4 w-4 text-indigo-400" aria-hidden />Múltiples métodos de pago</span>
               <span className="inline-flex items-center gap-2 font-medium"><Shield className="h-4 w-4 text-indigo-400" aria-hidden />Cifrado SSL</span>
               <span className="inline-flex items-center gap-2 font-medium"><Headphones className="h-4 w-4 text-indigo-400" aria-hidden />Soporte por email</span>
             </div>
@@ -262,7 +267,12 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
               "Pagos con tarjeta, transferencia o efectivo",
               "Banners promocionales personalizados",
             ]}
-            visual={<ScreenPlaceholder variant="menu" />}
+            visual={
+              <LandingFeatureShot
+                src={landingMedia.features.menu.src}
+                alt={landingMedia.features.menu.alt}
+              />
+            }
           />
 
           <LandingFeatureBlock
@@ -275,7 +285,12 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
               "Múltiples métodos de pago",
               "Reportes de venta en tiempo real",
             ]}
-            visual={<ScreenPlaceholder variant="pos" />}
+            visual={
+              <LandingFeatureShot
+                src={landingMedia.features.pos.src}
+                alt={landingMedia.features.pos.alt}
+              />
+            }
             reversed
             delay={0.05}
           />
@@ -290,7 +305,12 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
               "Recetas: descuento automático al vender",
               "Historial completo de movimientos",
             ]}
-            visual={<ScreenPlaceholder variant="inventory" />}
+            visual={
+              <LandingFeatureShot
+                src={landingMedia.features.inventory.src}
+                alt={landingMedia.features.inventory.alt}
+              />
+            }
             delay={0.1}
           />
         </div>

@@ -3,23 +3,11 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
+import { landingPhoneCarouselSlides } from "../../lib/landing-media";
 import { cn } from "../../utils/cn";
 import { PhoneFrame } from "./landing-device-frame";
-import { ScreenPlaceholder } from "./landing-screen-placeholder";
 
-type Slide = {
-  variant: "menu-mobile" | "cart" | "orders" | "menu" | "dashboard" | "pos" | "inventory";
-  label: string;
-  sub: string;
-};
-
-const slides: Slide[] = [
-  { variant: "menu-mobile", label: "Menú digital", sub: "Categorías, productos y banners desde el celular" },
-  { variant: "cart", label: "Carrito y checkout", sub: "Resumen de pedido, extras y pago integrado" },
-  { variant: "orders", label: "Panel de pedidos", sub: "Estados, progreso y notificaciones en vivo" },
-  { variant: "pos", label: "Punto de venta", sub: "Cobra en tu local rápido y sin complicaciones" },
-  { variant: "inventory", label: "Inventario", sub: "Stock por sucursal con alertas automáticas" },
-];
+const slides = landingPhoneCarouselSlides;
 
 const AUTO_INTERVAL = 4000;
 /** Mínimo horizontal (px) y que supere al vertical para contar como swipe */
@@ -137,9 +125,11 @@ export function LandingPhoneCarousel() {
           animate={{ opacity: 0.4, x: 0 }}
           transition={{ duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
         >
-          <PhoneFrame className="!max-w-[140px] lg:!max-w-[170px]">
-            <ScreenPlaceholder variant={slides[prevIdx].variant} />
-          </PhoneFrame>
+          <PhoneFrame
+            className="!max-w-[140px] lg:!max-w-[170px]"
+            src={slides[prevIdx].src}
+            alt={slides[prevIdx].label}
+          />
         </motion.div>
 
         {/* Active phone (center): ancho fijo + wait evita el “salto” de popLayout con flex */}
@@ -147,7 +137,7 @@ export function LandingPhoneCarousel() {
           <div className="relative mx-auto w-full max-w-[200px] sm:max-w-[240px] lg:max-w-[270px]">
             <AnimatePresence initial={false} custom={direction} mode="wait">
               <motion.div
-                key={current.variant}
+                key={current.id}
                 custom={direction}
                 variants={{
                   enter: (dir: number) => ({
@@ -166,9 +156,11 @@ export function LandingPhoneCarousel() {
                 transition={slideTransition}
                 className="w-full"
               >
-                <PhoneFrame className="!max-w-none w-full">
-                  <ScreenPlaceholder variant={current.variant} />
-                </PhoneFrame>
+                <PhoneFrame
+                  className="!max-w-none w-full"
+                  src={current.src}
+                  alt={current.label}
+                />
               </motion.div>
             </AnimatePresence>
           </div>
@@ -182,9 +174,11 @@ export function LandingPhoneCarousel() {
           animate={{ opacity: 0.4, x: 0 }}
           transition={{ duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
         >
-          <PhoneFrame className="!max-w-[140px] lg:!max-w-[170px]">
-            <ScreenPlaceholder variant={slides[nextIdx].variant} />
-          </PhoneFrame>
+          <PhoneFrame
+            className="!max-w-[140px] lg:!max-w-[170px]"
+            src={slides[nextIdx].src}
+            alt={slides[nextIdx].label}
+          />
         </motion.div>
       </div>
 
@@ -192,7 +186,7 @@ export function LandingPhoneCarousel() {
       <div className="relative mx-auto mt-6 max-w-md overflow-hidden text-center sm:mt-8">
         <AnimatePresence initial={false} custom={direction} mode="wait">
           <motion.div
-            key={current.variant}
+            key={current.id}
             custom={direction}
             variants={{
               enter: (dir: number) => ({
@@ -221,7 +215,7 @@ export function LandingPhoneCarousel() {
       <div className="mt-5 flex items-center justify-center gap-2">
         {slides.map((s, i) => (
           <button
-            key={s.variant}
+            key={s.id}
             type="button"
             onClick={() => goTo(i)}
             aria-label={s.label}
