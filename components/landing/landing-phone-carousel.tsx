@@ -142,34 +142,36 @@ export function LandingPhoneCarousel() {
           </PhoneFrame>
         </motion.div>
 
-        {/* Active phone (center) */}
+        {/* Active phone (center): ancho fijo + wait evita el “salto” de popLayout con flex */}
         <div className="relative z-10 -mx-4 w-[min(100%,280px)] overflow-hidden sm:-mx-6 sm:w-[min(100%,300px)] lg:w-[min(100%,320px)]">
-          <AnimatePresence initial={false} custom={direction} mode="popLayout">
-            <motion.div
-              key={current.variant}
-              custom={direction}
-              variants={{
-                enter: (dir: number) => ({
-                  x: prefersReduced ? 0 : dir > 0 ? "85%" : "-85%",
-                  opacity: 0,
-                }),
-                center: { x: 0, opacity: 1 },
-                exit: (dir: number) => ({
-                  x: prefersReduced ? 0 : dir > 0 ? "-85%" : "85%",
-                  opacity: 0,
-                }),
-              }}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={slideTransition}
-              className="flex justify-center"
-            >
-              <PhoneFrame className="!max-w-[200px] sm:!max-w-[240px] lg:!max-w-[270px]">
-                <ScreenPlaceholder variant={current.variant} />
-              </PhoneFrame>
-            </motion.div>
-          </AnimatePresence>
+          <div className="relative mx-auto w-full max-w-[200px] sm:max-w-[240px] lg:max-w-[270px]">
+            <AnimatePresence initial={false} custom={direction} mode="wait">
+              <motion.div
+                key={current.variant}
+                custom={direction}
+                variants={{
+                  enter: (dir: number) => ({
+                    x: prefersReduced ? 0 : dir > 0 ? "100%" : "-100%",
+                    opacity: 0,
+                  }),
+                  center: { x: 0, opacity: 1 },
+                  exit: (dir: number) => ({
+                    x: prefersReduced ? 0 : dir > 0 ? "-100%" : "100%",
+                    opacity: 0,
+                  }),
+                }}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={slideTransition}
+                className="w-full"
+              >
+                <PhoneFrame className="!max-w-none w-full">
+                  <ScreenPlaceholder variant={current.variant} />
+                </PhoneFrame>
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </div>
 
         {/* Next phone (right, smaller) */}
@@ -188,7 +190,7 @@ export function LandingPhoneCarousel() {
 
       {/* Label */}
       <div className="relative mx-auto mt-6 max-w-md overflow-hidden text-center sm:mt-8">
-        <AnimatePresence initial={false} custom={direction} mode="popLayout">
+        <AnimatePresence initial={false} custom={direction} mode="wait">
           <motion.div
             key={current.variant}
             custom={direction}

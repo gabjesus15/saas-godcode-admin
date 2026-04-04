@@ -2,14 +2,15 @@ import Link from "next/link";
 import {
   ArrowRight,
   Check,
+  Clock,
   CreditCard,
   Globe,
   Headphones,
+  Mail,
+  MessageSquare,
   Minus,
   Plus,
   Shield,
-  Smartphone,
-  Users,
   X,
 } from "lucide-react";
 
@@ -191,15 +192,15 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
         </div>
       </section>
 
-      {/* wave: white → dark */}
-      <div className="relative -mb-px h-8 sm:h-12">
-        <svg viewBox="0 0 1440 54" fill="none" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-          <path d="M0 22C240 52 480 54 720 36S1200 0 1440 18V54H0Z" className="fill-slate-900 dark:fill-zinc-950" />
+      {/* wave: white → dark — fill-current = mismo token que bg-slate-900 de la sección; -mt-px evita halo por antialiasing */}
+      <div className="relative -mb-px h-8 overflow-hidden bg-white text-slate-900 dark:bg-zinc-950 dark:text-zinc-950 sm:h-12">
+        <svg viewBox="0 0 1440 54" fill="none" preserveAspectRatio="none" className="absolute inset-0 block h-full w-full">
+          <path d="M0 22C240 52 480 54 720 36S1200 0 1440 18V54H0Z" className="fill-current" />
         </svg>
       </div>
 
       {/* ════ 2. TRUST STRIP + KPIs ════ */}
-      <SectionShell variant="dark" className="py-10 sm:py-14">
+      <SectionShell variant="dark" className="-mt-px py-10 sm:py-14">
         <div className="mx-auto max-w-5xl px-5 sm:px-6">
           <LandingReveal>
             <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 text-sm text-slate-400 sm:gap-x-12">
@@ -230,14 +231,14 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
       </SectionShell>
 
       {/* wave: dark → white */}
-      <div className="relative -mb-px h-8 sm:h-12">
-        <svg viewBox="0 0 1440 54" fill="none" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-          <path d="M0 32C360 4 720 0 1080 22S1380 52 1440 40V0H0Z" className="fill-slate-900 dark:fill-zinc-950" />
+      <div className="relative -mb-px h-8 overflow-hidden bg-white text-slate-900 dark:bg-zinc-950 dark:text-zinc-950 sm:h-12">
+        <svg viewBox="0 0 1440 54" fill="none" preserveAspectRatio="none" className="absolute inset-0 block h-full w-full">
+          <path d="M0 32C360 4 720 0 1080 22S1380 52 1440 40V0H0Z" className="fill-current" />
         </svg>
       </div>
 
       {/* ════ 3. FEATURE SPOTLIGHTS ════ */}
-      <SectionShell id="funciones" variant="white">
+      <SectionShell id="funciones" variant="white" className="-mt-px">
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
           <LandingReveal>
             <Eyebrow>Todo incluido</Eyebrow>
@@ -581,79 +582,134 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
       </SectionShell>
 
       {/* wave: muted → dark */}
-      <div className="relative -mb-px h-8 sm:h-12">
-        <svg viewBox="0 0 1440 54" fill="none" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-          <path d="M0 22C240 52 480 54 720 36S1200 0 1440 18V54H0Z" className="fill-slate-900 dark:fill-zinc-950" />
+      <div className="relative -mb-px h-8 overflow-hidden bg-slate-50 text-slate-900 dark:bg-zinc-950 dark:text-zinc-950 sm:h-12">
+        <svg viewBox="0 0 1440 54" fill="none" preserveAspectRatio="none" className="absolute inset-0 block h-full w-full">
+          <path d="M0 22C240 52 480 54 720 36S1200 0 1440 18V54H0Z" className="fill-current" />
         </svg>
       </div>
 
       {/* ════ 11. CTA FINAL + CONTACTO ════ */}
-      <SectionShell id="contacto" variant="dark" className="pb-0">
-        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
+      <SectionShell id="contacto" variant="dark" className="relative -mt-px overflow-hidden pb-0">
+        <LandingAnimatedGrid />
 
-          {/* CTA */}
+        <div className="relative mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
+          {/* Hero CTA */}
           <LandingReveal>
-            <div className="mx-auto max-w-2xl text-center">
-              <h2 className="text-2xl font-bold text-white sm:text-3xl md:text-4xl">
-                Empieza hoy — tu primera tienda es gratis
+            <div className="mx-auto max-w-3xl text-center">
+              <Eyebrow className="!text-indigo-400">Último paso</Eyebrow>
+              <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl md:text-[2.75rem] md:leading-[1.12]">
+                Empieza hoy: tu primera tienda es{" "}
+                <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
+                  gratis
+                </span>
               </h2>
-              <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-slate-400 sm:text-base">
-                Únete a los negocios que ya venden con GodCode. Sin riesgos, sin contratos.
+              <p className="mx-auto mt-4 max-w-xl text-pretty text-sm leading-relaxed text-slate-400 sm:text-base">
+                Menú digital, pedidos, caja e inventario en un solo lugar. Sin comisiones por venta ni letra chica.
               </p>
-              <div className="mt-7 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+              <ul className="mt-6 flex flex-col items-center gap-2 text-xs text-slate-400 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-6 sm:gap-y-2 sm:text-sm">
+                <li className="inline-flex items-center gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden />
+                  Sin tarjeta para comenzar
+                </li>
+                <li className="inline-flex items-center gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden />
+                  Cancelas cuando quieras
+                </li>
+                <li className="inline-flex items-center gap-2">
+                  <Clock className="h-4 w-4 shrink-0 text-indigo-400" aria-hidden />
+                  Soporte en menos de 24 h
+                </li>
+              </ul>
+              <div className="mt-8 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-center">
                 <Link
                   href="/onboarding"
-                  className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-8 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-700 sm:w-auto sm:text-base"
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-8 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-500 sm:h-[3.25rem] sm:text-base"
                 >
                   Crear mi tienda gratis
                   <ArrowRight className="h-4 w-4" aria-hidden />
                 </Link>
+                <a
+                  href="#faq"
+                  className="inline-flex h-12 items-center justify-center rounded-xl border border-slate-600/80 bg-slate-800/40 px-6 text-sm font-medium text-slate-200 backdrop-blur transition hover:border-slate-500 hover:bg-slate-800/70 sm:h-[3.25rem]"
+                >
+                  Ver preguntas frecuentes
+                </a>
               </div>
             </div>
           </LandingReveal>
 
-          {/* Lead capture */}
-          <LandingReveal delay={0.1}>
-            <div className="mx-auto mt-12 max-w-md rounded-2xl border border-slate-700/60 bg-slate-800/50 p-6 text-center backdrop-blur sm:mt-16 sm:p-8">
-              <Smartphone className="mx-auto h-6 w-6 text-indigo-400" aria-hidden />
-              <p className="mt-3 text-sm font-semibold text-white sm:text-base">¿Todavía no estás listo?</p>
-              <p className="mt-1 text-xs text-slate-400 sm:text-sm">Déjanos tu correo y te avisamos de novedades.</p>
-              <LandingLeadForm dark />
-            </div>
-          </LandingReveal>
-
-          {/* Contact */}
-          <LandingReveal delay={0.15}>
-            <div className="mx-auto mt-12 max-w-4xl overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-800/40 backdrop-blur sm:mt-16">
-              <div className="grid md:grid-cols-2">
-                <div className="p-5 sm:p-8 md:p-10">
-                  <Eyebrow className="!text-left !text-indigo-400">Contacto</Eyebrow>
-                  <h2 className="text-xl font-bold text-white sm:text-2xl">¿Tienes dudas?</h2>
-                  <p className="mt-2 text-xs text-slate-400 sm:text-sm">
-                    Escríbenos y te respondemos en menos de 24 horas.
+          {/* Newsletter + contacto (items-start: la tarjeta corta no se estira a la altura de la otra) */}
+          <div className="mx-auto mt-14 grid max-w-6xl gap-6 lg:mt-20 lg:grid-cols-2 lg:gap-8 lg:items-start">
+            <LandingReveal delay={0.08} className="self-start">
+              <div className="flex w-full flex-col overflow-hidden rounded-2xl border border-slate-600/45 bg-slate-950/40 shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset] backdrop-blur-sm sm:rounded-[1.35rem]">
+                <div className="h-1 w-full bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-500 opacity-90" aria-hidden />
+                <div className="flex flex-col p-5 sm:p-6">
+                  <div className="flex items-center gap-2 text-indigo-400">
+                    <Mail className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">Boletín</span>
+                  </div>
+                  <h3 className="mt-2 text-lg font-bold tracking-tight text-white sm:text-xl">
+                    ¿Aún no te decides?
+                  </h3>
+                  <p className="mt-1.5 max-w-md text-pretty text-sm leading-snug text-slate-400">
+                    Deja tu correo y te escribimos solo cuando tengamos algo que te sirva. Nada de spam.
                   </p>
-                  <LandingContactForm supportEmail={support} dark />
-                  <div className="mt-5 flex items-center gap-2">
-                    <Headphones className="h-4 w-4 text-indigo-400" aria-hidden />
-                    <a href={`mailto:${support}`} className="text-sm font-medium text-indigo-400 hover:underline">{support}</a>
+                  <div className="mt-4 rounded-xl border border-slate-700/50 bg-slate-900/50 p-3.5 sm:p-4">
+                    <LandingLeadForm dark layout="stacked" />
                   </div>
                 </div>
-                <div className="flex flex-col justify-center border-t border-slate-700/40 bg-slate-800/60 p-5 sm:p-8 md:border-l md:border-t-0 md:p-10">
-                  <Users className="h-8 w-8 text-indigo-400" aria-hidden />
-                  <p className="mt-4 text-sm font-semibold text-white">También puedes empezar directamente</p>
-                  <p className="mt-2 text-xs leading-relaxed text-slate-400 sm:text-sm">
-                    El registro toma 5 minutos. Si tienes dudas después, nuestro soporte te ayuda.
+              </div>
+            </LandingReveal>
+
+            <LandingReveal delay={0.12} className="self-start">
+              <div className="flex w-full flex-col overflow-hidden rounded-2xl border border-slate-600/45 bg-slate-950/40 shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset] backdrop-blur-sm sm:rounded-[1.35rem]">
+                <div
+                  className="h-1 w-full bg-gradient-to-r from-violet-500 via-indigo-500 to-violet-500 opacity-90"
+                  aria-hidden
+                />
+                <div className="flex flex-col p-5 sm:p-6">
+                  <div className="flex items-center gap-2 text-violet-400">
+                    <MessageSquare className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">Escríbenos</span>
+                  </div>
+                  <h3 className="mt-2 text-lg font-bold tracking-tight text-white sm:text-xl">¿Tienes dudas?</h3>
+                  <p className="mt-1.5 max-w-md text-pretty text-sm leading-snug text-slate-400">
+                    Cuéntanos tu rubro y qué necesitas. Respondemos por correo en menos de 24 horas.
                   </p>
-                  <Link
-                    href="/onboarding"
-                    className="mt-5 inline-flex h-10 w-fit items-center justify-center rounded-xl bg-white px-6 text-sm font-semibold text-slate-900 hover:bg-slate-100"
-                  >
-                    Crear mi tienda
-                  </Link>
+                  <div className="mt-4 rounded-xl border border-slate-700/50 bg-slate-900/50 p-3.5 sm:p-4">
+                    <LandingContactForm supportEmail={support} dark className="mt-0 space-y-3" />
+                  </div>
+                  <div className="mt-4 border-t border-slate-700/40 pt-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <a
+                        href={`mailto:${support}`}
+                        className="inline-flex items-center gap-2 text-sm font-medium text-indigo-400 transition hover:text-indigo-300"
+                      >
+                        <Headphones className="h-4 w-4 shrink-0" aria-hidden />
+                        {support}
+                      </a>
+                      <Link
+                        href="/onboarding"
+                        className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-slate-600/70 bg-slate-900/40 px-4 text-sm font-semibold text-white transition hover:border-slate-500 hover:bg-slate-800/50 sm:w-auto sm:shrink-0"
+                      >
+                        Crear mi tienda ya
+                      </Link>
+                    </div>
+                    <ul className="mt-3 space-y-1.5 text-xs text-slate-500">
+                      <li className="flex gap-2">
+                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500/90" aria-hidden />
+                        Registro en minutos, sin tarjeta.
+                      </li>
+                      <li className="flex gap-2">
+                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500/90" aria-hidden />
+                        Soporte humano si te atoras.
+                      </li>
+                    </ul>
+                  </div>
                 </div>
               </div>
-            </div>
-          </LandingReveal>
+            </LandingReveal>
+          </div>
 
           <div className="pb-10 sm:pb-14" />
         </div>

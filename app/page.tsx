@@ -14,12 +14,12 @@ export async function generateMetadata(): Promise<Metadata> {
     return {};
   }
   const base = getAppUrl();
-  const title = "GodCode — Crea tu tienda online en minutos";
+  const shareTitle = "GodCode — Crea tu tienda online en minutos";
   const description =
     "Menú digital, carrito, delivery, caja, comandas e inventario para tu negocio. Sin programar, sin comisiones por venta. Empieza gratis.";
 
   return {
-    title,
+    title: { absolute: "GodCode" },
     description,
     keywords: [
       "tienda online",
@@ -35,7 +35,7 @@ export async function generateMetadata(): Promise<Metadata> {
     ],
     alternates: { canonical: `${base}/` },
     openGraph: {
-      title,
+      title: shareTitle,
       description,
       url: base,
       siteName: "GodCode",
@@ -46,13 +46,13 @@ export async function generateMetadata(): Promise<Metadata> {
           url: `${base}/api/og`,
           width: 1200,
           height: 630,
-          alt: "GodCode — Crea tu tienda online en minutos",
+          alt: shareTitle,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title,
+      title: shareTitle,
       description,
       images: [`${base}/api/og`],
     },
