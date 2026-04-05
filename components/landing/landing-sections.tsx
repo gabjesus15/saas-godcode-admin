@@ -536,10 +536,10 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
                         <p className="text-xs text-slate-500 dark:text-zinc-500">/ mes</p>
                       </div>
                       <ul className="mt-5 flex-1 space-y-2.5 text-sm text-slate-600 dark:text-zinc-300">
-                        {plan.featureBullets.map((b) => (
-                          <li key={`${plan.id}-${b}`} className="flex gap-2">
+                        {plan.featureBullets.map((b, bi) => (
+                          <li key={`${plan.id}-b-${bi}`} className="flex gap-2">
                             <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
-                            <span>{b}</span>
+                            <span className="whitespace-pre-wrap">{b}</span>
                           </li>
                         ))}
                       </ul>

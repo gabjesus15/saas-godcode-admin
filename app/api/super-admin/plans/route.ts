@@ -1,8 +1,10 @@
+import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
-import { SAAS_READ_ROLES, SAAS_MUTATE_ROLES, validateAdminRolesOnServer } from "../../../../utils/admin/server-auth";
+import { SAAS_READ_ROLES, validateAdminRolesOnServer } from "../../../../utils/admin/server-auth";
 
 import { logAdminAudit } from "../../../../lib/admin-audit";
-import { supabaseAdmin } from "../../../../lib/supabase-admin";
+import { normalizeMarketingLines } from "../../../../lib/plan-marketing-lines";
+import { adminInsertPlan, queryAdminPlansList } from "../../../../lib/plans-db-query";
 
 export async function GET() {
 	const permission = await validateAdminRolesOnServer([...SAAS_READ_ROLES]);
@@ -10,10 +12,7 @@ export async function GET() {
 		return NextResponse.json({ error: permission.error ?? "No autorizado" }, { status: permission.status ?? 403 });
 	}
 
-	const { data, error } = await supabaseAdmin
-		.from("plans")
-		.select("id,name,price,max_branches,is_public,features,is_active")
-		.order("price", { ascending: true });
+	const { data, error } = await queryAdminPlansList();
 
 	if (error) {
 		console.error("[plans/list] DB error:", error.message);
@@ -26,12 +25,15 @@ type CreateBody = {
 	name: string;
 	price?: number;
 	max_branches?: number;
+	max_users?: number;
 	is_public?: boolean;
+	is_active?: boolean;
 	features?: Record<string, boolean>;
+	marketing_lines?: unknown;
 };
 
 export async function POST(req: NextRequest) {
-	const permission = await validateAdminRolesOnServer([...SAAS_MUTATE_ROLES]);
+	const permission = await validateAdminRolesOnServer([...SAAS_READ_ROLES]);
 	if (!permission.ok) {
 		return NextResponse.json({ error: permission.error ?? "No autorizado" }, { status: permission.status ?? 403 });
 	}
@@ -46,22 +48,36 @@ export async function POST(req: NextRequest) {
 		name,
 		price: Math.max(0, Number(body.price) ?? 0),
 		max_branches: Math.max(0, Math.min(9999, Number(body.max_branches) ?? 1)),
+		max_users: Math.max(0, Math.min(999999, Number(body.max_users) ?? 0)),
 		is_public: body.is_public !== false,
+		is_active: body.is_active !== false,
 		features: body.features && typeof body.features === "object" ? body.features : {},
+		marketing_lines: normalizeMarketingLines(body.marketing_lines),
 	};
-	const { data, error } = await supabaseAdmin.from("plans").insert(payload).select("id").single();
+	const { error, marketingLinesSkipped, singleId } = await adminInsertPlan(payload);
 
 	if (error) {
 		console.error("[plans/create] DB error:", error.message);
-		return NextResponse.json({ error: "Error al crear plan" }, { status: 500 });
+		const detail = process.env.NODE_ENV === "development" ? error.message : undefined;
+		return NextResponse.json({ error: "Error al crear plan", detail }, { status: 500 });
 	}
 	await logAdminAudit({
 		actorEmail: permission.email ?? "",
 		actorRole: permission.role,
 		action: "plan.create",
 		resourceType: "plan",
-		resourceId: data?.id ?? undefined,
+		resourceId: singleId ?? undefined,
 		metadata: { name },
 	});
-	return NextResponse.json({ ok: true, id: data?.id });
+	revalidatePath("/");
+	return NextResponse.json({
+		ok: true,
+		id: singleId,
+		...(marketingLinesSkipped
+			? {
+					warning:
+						"Las viñetas no se guardaron: falta la columna marketing_lines en la base de datos. Ejecuta la migración en Supabase.",
+				}
+			: {}),
+	});
 }

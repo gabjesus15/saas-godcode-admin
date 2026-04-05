@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import Script from "next/script";
 
 import { GodcodeLanding } from "../components/landing/godcode-landing";
 import { getAppUrl } from "../lib/app-url";
@@ -115,8 +116,10 @@ function JsonLd({ plans }: { plans: { price?: number | null }[] }) {
     },
   ];
   return (
-    <script
+    <Script
+      id="godcode-jsonld-landing"
       type="application/ld+json"
+      strategy="afterInteractive"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }}
     />
   );

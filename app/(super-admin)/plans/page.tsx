@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from "../../../utils/supabase/server";
+import { queryAdminPlansList } from "../../../lib/plans-db-query";
 import { PlansAdminClient } from "./PlansAdminClient";
 
 const getUsdToClp = async () => {
@@ -17,24 +17,17 @@ const getUsdToClp = async () => {
 
 export default async function PlansPage() {
 	try {
-		const supabase = await createSupabaseServerClient();
-		const [rate, plansResult] = await Promise.all([
-			getUsdToClp(),
-			supabase
-				.from("plans")
-				.select("id,name,price,max_branches,is_public,features")
-				.order("price", { ascending: true }),
-		]);
+		const [rate, plansResult] = await Promise.all([getUsdToClp(), queryAdminPlansList()]);
 		const { data, error } = plansResult;
 
 		if (error) {
+			console.error("[plans/page] DB:", error.message);
 			throw error;
 		}
 
-		return (
-			<PlansAdminClient plans={data ?? []} rate={rate} />
-		);
-	} catch {
+		return <PlansAdminClient plans={data ?? []} rate={rate} />;
+	} catch (err) {
+		console.error("[plans/page]", err);
 		return (
 			<div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700 dark:bg-red-950/60 dark:text-red-300">
 				No se pudo cargar el listado de planes.

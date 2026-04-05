@@ -17,15 +17,15 @@ export function SaasLogo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
         aria-hidden
       >
         <rect width="28" height="28" rx="8" className="fill-indigo-600" />
+        {/* G: apertura arriba-derecha + barra; evita lectura tipo “E” / Э espejada */}
         <path
-          d="M8 10.5h5.5a2.5 2.5 0 010 5H11v3"
+          d="M17.2 9.8C11.6 9 8.2 12.1 8.2 15.6c0 3.6 3.1 6.5 7 6.5 1.3 0 2.5-.3 3.6-1M18.6 14h-6.6"
           className="stroke-white"
-          strokeWidth="2.4"
+          strokeWidth="2.35"
           strokeLinecap="round"
           strokeLinejoin="round"
           fill="none"
         />
-        <circle cx="19" cy="17.5" r="2.5" className="fill-indigo-300" />
       </svg>
       <span className={`${text} font-bold tracking-tight text-zinc-900 dark:text-white`}>
         God<span className="text-indigo-600 dark:text-indigo-400">Code</span>

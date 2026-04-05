@@ -1,13 +1,7 @@
 import "server-only";
 
-import { supabaseAdmin } from "./supabase-admin";
-
-/** Etiquetas para claves booleanas en `plans.features` (JSON). */
-const FEATURE_LABELS: Record<string, string> = {
-  crm: "CRM",
-  cash: "Caja",
-  menu: "Menú",
-};
+import { normalizeMarketingLines } from "./plan-marketing-lines";
+import { queryPublicPlansLandingRows } from "./plans-db-query";
 
 export type PublicPlanForLanding = {
   id: string;
@@ -21,29 +15,23 @@ export type PublicPlanForLanding = {
 function bulletsFromPlan(row: {
   max_branches: number | null;
   max_users: number | null;
-  features: unknown;
+  marketing_lines?: unknown;
 }): string[] {
-  const bullets: string[] = [];
+  const custom = normalizeMarketingLines(row.marketing_lines);
+  const base: string[] = [];
   const maxB = row.max_branches ?? 0;
   const maxU = row.max_users ?? 0;
   if (maxB > 0) {
-    bullets.push(`Hasta ${maxB} sucursal${maxB === 1 ? "" : "es"}`);
+    base.push(`Hasta ${maxB} sucursal${maxB === 1 ? "" : "es"}`);
   }
   if (maxU > 0) {
-    bullets.push(`Hasta ${maxU} usuario${maxU === 1 ? "" : "s"}`);
+    base.push(`Hasta ${maxU} usuario${maxU === 1 ? "" : "s"}`);
   }
-  const f = row.features;
-  if (f && typeof f === "object" && !Array.isArray(f)) {
-    for (const [key, val] of Object.entries(f as Record<string, unknown>)) {
-      if (val === true) {
-        bullets.push(FEATURE_LABELS[key] ?? key.charAt(0).toUpperCase() + key.slice(1));
-      }
-    }
+  const merged = [...base, ...custom];
+  if (merged.length === 0) {
+    return ["Detalles del plan configurables desde el panel"];
   }
-  if (bullets.length === 0) {
-    bullets.push("Incluye las funciones configuradas para este plan");
-  }
-  return bullets;
+  return merged;
 }
 
 /**
@@ -51,11 +39,7 @@ function bulletsFromPlan(row: {
  * Orden por precio ascendente (como en el panel de planes).
  */
 export async function getPublicPlansForLanding(): Promise<PublicPlanForLanding[]> {
-  const { data, error } = await supabaseAdmin
-    .from("plans")
-    .select("id,name,price,max_branches,max_users,features,is_active")
-    .eq("is_public", true)
-    .order("price", { ascending: true });
+  const { data, error } = await queryPublicPlansLandingRows();
 
   if (error) {
     console.error("[getPublicPlansForLanding]", error.message);

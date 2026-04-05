@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { landingPhoneCarouselSlides } from "../../lib/landing-media";
 import { cn } from "../../utils/cn";
@@ -37,6 +38,11 @@ export function LandingPhoneCarousel() {
   const next = useCallback(() => {
     setDirection(1);
     setActive((i) => (i + 1) % slides.length);
+  }, []);
+
+  const prev = useCallback(() => {
+    setDirection(-1);
+    setActive((i) => (i - 1 + slides.length) % slides.length);
   }, []);
 
   useEffect(() => {
@@ -100,6 +106,11 @@ export function LandingPhoneCarousel() {
     [clearSwipeCapture],
   );
 
+  /** Evita que el padre haga setPointerCapture y rompa el clic en las flechas */
+  const stopCarouselPointerBubble = useCallback((e: ReactPointerEvent) => {
+    e.stopPropagation();
+  }, []);
+
   return (
     <div
       className="mt-12 sm:mt-16"
@@ -117,6 +128,29 @@ export function LandingPhoneCarousel() {
       >
       {/* Phones */}
       <div className="relative flex items-center justify-center">
+        <button
+          type="button"
+          onClick={prev}
+          onPointerDown={stopCarouselPointerBubble}
+          onPointerUp={stopCarouselPointerBubble}
+          onPointerCancel={stopCarouselPointerBubble}
+          aria-label="Vista anterior"
+          className="absolute left-0 top-1/2 z-20 hidden h-10 w-10 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-slate-200/70 bg-white/90 p-0 text-slate-700 shadow-sm backdrop-blur ring-1 ring-slate-200/60 transition hover:bg-white hover:ring-slate-300/80 sm:inline-flex dark:border-zinc-800/70 dark:bg-zinc-950/80 dark:text-zinc-100 dark:ring-zinc-800/60 dark:hover:bg-zinc-900/90"
+        >
+          <ChevronLeft className="h-5 w-5" aria-hidden />
+        </button>
+        <button
+          type="button"
+          onClick={next}
+          onPointerDown={stopCarouselPointerBubble}
+          onPointerUp={stopCarouselPointerBubble}
+          onPointerCancel={stopCarouselPointerBubble}
+          aria-label="Vista siguiente"
+          className="absolute right-0 top-1/2 z-20 hidden h-10 w-10 translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-slate-200/70 bg-white/90 p-0 text-slate-700 shadow-sm backdrop-blur ring-1 ring-slate-200/60 transition hover:bg-white hover:ring-slate-300/80 sm:inline-flex dark:border-zinc-800/70 dark:bg-zinc-950/80 dark:text-zinc-100 dark:ring-zinc-800/60 dark:hover:bg-zinc-900/90"
+        >
+          <ChevronRight className="h-5 w-5" aria-hidden />
+        </button>
+
         {/* Prev phone (left, smaller) */}
         <motion.div
           key={`prev-${prevIdx}`}
@@ -220,7 +254,7 @@ export function LandingPhoneCarousel() {
             onClick={() => goTo(i)}
             aria-label={s.label}
             className={cn(
-              "h-2 rounded-full transition-all duration-300",
+              "h-2 cursor-pointer rounded-full transition-all duration-300",
               i === active
                 ? "w-6 bg-indigo-600 dark:bg-indigo-400"
                 : "w-2 bg-slate-300 hover:bg-slate-400 dark:bg-zinc-700 dark:hover:bg-zinc-600",
