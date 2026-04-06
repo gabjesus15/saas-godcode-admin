@@ -1,8 +1,7 @@
 "use client";
 
 // Eliminar el CSS de scroll
-import { useEffect } from "react";
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
@@ -13,7 +12,7 @@ import { SaasLogo } from "../../../components/super-admin/SaasLogo";
 import { mapAuthClientError } from "../../../utils/auth-client-errors";
 import { createSupabaseBrowserClient } from "../../../utils/supabase/client";
 
-export default function LoginPage() {
+function LoginPageContent() {
     // Previene zoom con control + scroll
     useEffect(() => {
       const handler = (e: WheelEvent) => {
@@ -138,5 +137,13 @@ export default function LoginPage() {
         </form>
       </Card>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageContent />
+    </Suspense>
   );
 }

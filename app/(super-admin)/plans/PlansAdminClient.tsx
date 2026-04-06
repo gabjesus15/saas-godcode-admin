@@ -415,7 +415,7 @@ export function PlansAdminClient({
 									<Badge variant="destructive">Solo interno</Badge>
 								) : null}
 								{plan.is_active === false ? (
-									<Badge variant="secondary" className="bg-amber-100 text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
+									<Badge variant="warning" className="bg-amber-100 text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
 										Inactivo
 									</Badge>
 								) : null}
