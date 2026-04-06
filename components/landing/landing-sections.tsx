@@ -9,12 +9,14 @@ import {
   Mail,
   MessageSquare,
   Minus,
+  Play,
   Plus,
   Shield,
+  Sparkles,
   X,
 } from "lucide-react";
 
-import { landingMedia } from "../../lib/landing-media";
+import type { LandingMediaBundle } from "../../lib/landing-media-types";
 import { popularPlanIndex, type PublicPlanForLanding } from "../../lib/public-plans";
 import { cn } from "../../utils/cn";
 import { Card } from "../ui/card";
@@ -22,7 +24,6 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "..
 import { LandingReveal } from "./landing-reveal";
 import { LandingFeatureBlock } from "./landing-feature-block";
 import { LandingTestimonials } from "./landing-testimonials";
-import { LandingCountUp } from "./landing-count-up";
 import { LaptopFrame, PhoneFrame } from "./landing-device-frame";
 import { LandingFeatureShot } from "./landing-feature-shot";
 import { LandingAnimatedGrid } from "./landing-animated-grid";
@@ -71,7 +72,7 @@ function SectionShell({
   return (
     <section
       id={id}
-      className={cn("scroll-mt-20 py-14 sm:py-20 md:py-24", bg, className)}
+      className={cn("scroll-mt-20 min-h-[100svh] py-14 sm:py-20 md:py-24", bg, className)}
     >
       {children}
     </section>
@@ -87,11 +88,11 @@ const steps = [
 ] as const;
 
 const compareRows = [
-  { feature: "Comisión por venta", ig: "0%", rappi: "25-30%", custom: "0%", gc: "0%" },
+  { feature: "Comisión por venta", ig: "No aplica", rappi: "25-30%", custom: "0%", gc: "0%" },
   { feature: "Control de clientes", ig: false, rappi: false, custom: true, gc: true },
   { feature: "Tu propia marca", ig: false, rappi: false, custom: true, gc: true },
   { feature: "Tiempo de setup", ig: "1 día", rappi: "1-2 sem.", custom: "2-6 meses", gc: "5 min" },
-  { feature: "Costo mensual", ig: "Gratis*", rappi: "Gratis*", custom: "$500+", gc: "Desde $9" },
+  { feature: "Costo mensual", ig: "Gratis*", rappi: "Gratis*", custom: "$500+", gc: "Desde $20" },
   { feature: "Inventario y caja", ig: false, rappi: false, custom: true, gc: true },
 ] as const;
 
@@ -106,7 +107,13 @@ const faqItems = [
 
 /* ───── Main ───── */
 
-export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
+export function LandingSections({
+  plans,
+  media,
+}: {
+  plans: PublicPlanForLanding[];
+  media: LandingMediaBundle;
+}) {
   const support = getSupportEmail();
   const popularIdx = popularPlanIndex(plans.length);
 
@@ -116,15 +123,15 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
       {/* ════ 1. HERO ════ */}
       <section
         id="inicio"
-        className="relative scroll-mt-20 overflow-hidden pb-14 pt-10 sm:pb-20 md:pt-14 lg:pb-28"
-        style={{
-          backgroundImage: "radial-gradient(circle at 1px 1px, rgb(226 232 240 / 0.4) 1px, transparent 0)",
-          backgroundSize: "24px 24px",
-        }}
+        className="relative scroll-mt-20 flex min-h-[92svh] items-center overflow-hidden bg-[radial-gradient(circle_at_1px_1px,rgb(226_232_240_/_0.4)_1px,transparent_0)] bg-[length:24px_24px] py-10 sm:py-14 md:py-16 lg:py-20"
       >
         <div className="absolute inset-0 bg-gradient-to-b from-white via-indigo-50/20 to-white dark:from-zinc-950 dark:via-indigo-950/10 dark:to-zinc-950" />
+        <div className="landing-hero-aurora landing-hero-aurora--one" aria-hidden />
+        <div className="landing-hero-aurora landing-hero-aurora--two" aria-hidden />
+        <div className="landing-hero-aurora landing-hero-aurora--three" aria-hidden />
+        <div className="landing-hero-sheen" aria-hidden />
 
-        <div className="relative mx-auto flex max-w-7xl flex-col items-center gap-10 px-5 sm:px-6 lg:grid lg:grid-cols-2 lg:items-center lg:gap-16 lg:px-8">
+        <div className="relative mx-auto flex w-full max-w-7xl flex-col items-center gap-10 px-5 sm:px-6 lg:grid lg:grid-cols-2 lg:items-center lg:gap-16 lg:px-8">
           <div className="order-2 text-center lg:order-1 lg:text-left">
             <LandingReveal>
               <span className="inline-flex items-center gap-2 rounded-full border border-indigo-200/60 bg-indigo-50/80 px-3.5 py-1.5 text-[11px] font-medium text-indigo-700 backdrop-blur sm:px-4 sm:text-xs dark:border-indigo-500/20 dark:bg-indigo-950/40 dark:text-indigo-300">
@@ -132,7 +139,7 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-500 opacity-60" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-indigo-600 dark:bg-indigo-400" />
                 </span>
-                Lanzamiento — Descuento para primeros negocios
+                Lanzamiento: beneficios para primeros negocios (cupos limitados)
               </span>
             </LandingReveal>
 
@@ -165,6 +172,9 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
               <p className="mt-3 text-center text-xs text-slate-500 sm:text-sm lg:text-left dark:text-zinc-500">
                 Sin tarjeta de crédito · Cancela cuando quieras
               </p>
+              <p className="mt-1 text-center text-[11px] text-slate-400 sm:text-xs lg:text-left dark:text-zinc-500">
+                Descuento de lanzamiento sujeto a disponibilidad y validación de rubro.
+              </p>
             </LandingReveal>
 
             <LandingReveal delay={0.28}>
@@ -178,17 +188,18 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
 
           <div className="order-1 w-full lg:order-2">
             <LandingReveal delay={0.1} direction="right">
-              <div className="relative mx-auto max-w-lg pb-8 sm:pb-10 lg:max-w-none">
+              <div className="relative mx-auto max-w-[28rem] pb-4 sm:max-w-lg sm:pb-10 lg:max-w-none">
                 <LaptopFrame
-                  src={landingMedia.hero.laptopSrc}
-                  alt={landingMedia.hero.laptopAlt}
+                  src={media.hero.laptopSrc}
+                  alt={media.hero.laptopAlt}
                   priority
                 />
-                <div className="absolute -bottom-2 -left-2 z-10 sm:-bottom-4 sm:-left-6 lg:-left-10">
+                <div className="absolute -bottom-2 -left-2 z-10 hidden sm:block sm:-bottom-4 sm:-left-6 lg:-left-10">
                   <PhoneFrame
-                    className="!max-w-[90px] sm:!max-w-[130px] lg:!max-w-[150px]"
-                    src={landingMedia.hero.phoneSrc}
-                    alt={landingMedia.hero.phoneAlt}
+                    className="!max-w-[108px] sm:!max-w-[152px] lg:!max-w-[184px]"
+                    src={media.hero.phoneSrc}
+                    alt={media.hero.phoneAlt}
+                    priority
                   />
                 </div>
               </div>
@@ -198,35 +209,33 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
       </section>
 
       {/* wave: white → dark — fill-current = mismo token que bg-slate-900 de la sección; -mt-px evita halo por antialiasing */}
-      <div className="relative -mb-px h-8 overflow-hidden bg-white text-slate-900 dark:bg-zinc-950 dark:text-zinc-950 sm:h-12">
-        <svg viewBox="0 0 1440 54" fill="none" preserveAspectRatio="none" className="absolute inset-0 block h-full w-full">
+      <div className="relative -my-2 h-8 overflow-hidden bg-white text-slate-900 dark:bg-zinc-950 dark:text-zinc-950 sm:h-12">
+        <svg viewBox="0 0 1440 54" fill="none" preserveAspectRatio="none" className="absolute inset-x-0 top-[-1px] block h-[calc(100%+2px)] w-full">
           <path d="M0 22C240 52 480 54 720 36S1200 0 1440 18V54H0Z" className="fill-current" />
         </svg>
       </div>
 
       {/* ════ 2. TRUST STRIP + KPIs ════ */}
-      <SectionShell variant="dark" className="-mt-px py-10 sm:py-14">
+      <SectionShell variant="dark" className="-mt-px min-h-0 py-10 sm:py-14">
         <div className="mx-auto max-w-5xl px-5 sm:px-6">
           <LandingReveal>
             <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 text-sm text-slate-400 sm:gap-x-12">
               <span className="inline-flex items-center gap-2 font-medium"><CreditCard className="h-4 w-4 text-indigo-400" aria-hidden />Múltiples métodos de pago</span>
               <span className="inline-flex items-center gap-2 font-medium"><Shield className="h-4 w-4 text-indigo-400" aria-hidden />Cifrado SSL</span>
-              <span className="inline-flex items-center gap-2 font-medium"><Headphones className="h-4 w-4 text-indigo-400" aria-hidden />Soporte por email</span>
+              <span className="inline-flex items-center gap-2 font-medium"><Headphones className="h-4 w-4 text-indigo-400" aria-hidden />Soporte humano por email (&lt;24h)</span>
             </div>
           </LandingReveal>
 
           <LandingReveal delay={0.1}>
             <div className="mt-8 grid grid-cols-2 gap-4 sm:mt-10 sm:gap-6 md:grid-cols-4">
               {([
-                { end: 100, suffix: "+", label: "Negocios activos" },
-                { end: 10000, suffix: "+", label: "Pedidos procesados" },
-                { end: 5, suffix: "", label: "Países" },
-                { end: 99.9, suffix: "%", label: "Uptime" },
-              ] as const).map((kpi, i) => (
-                <div key={kpi.label} className="text-center">
-                  <p className="text-2xl font-bold text-white sm:text-3xl">
-                    <LandingCountUp end={kpi.end} suffix={kpi.suffix} duration={1800 + i * 200} />
-                  </p>
+                { title: "Sin comisión", label: "0% por venta en todos los planes" },
+                { title: "Setup rápido", label: "Configuración guiada en minutos" },
+                { title: "Sin amarras", label: "Cancela cuando quieras" },
+                { title: "Soporte real", label: "Respuesta humana por correo" },
+              ] as const).map((kpi) => (
+                <div key={kpi.title} className="rounded-2xl border border-slate-700/70 bg-slate-950/45 p-4 text-center">
+                  <p className="text-base font-semibold text-white sm:text-lg">{kpi.title}</p>
                   <p className="mt-1 text-xs text-slate-400 sm:text-sm">{kpi.label}</p>
                 </div>
               ))}
@@ -236,8 +245,8 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
       </SectionShell>
 
       {/* wave: dark → white */}
-      <div className="relative -mb-px h-8 overflow-hidden bg-white text-slate-900 dark:bg-zinc-950 dark:text-zinc-950 sm:h-12">
-        <svg viewBox="0 0 1440 54" fill="none" preserveAspectRatio="none" className="absolute inset-0 block h-full w-full">
+      <div className="relative -my-2 h-8 overflow-hidden bg-white text-slate-900 dark:bg-zinc-950 dark:text-zinc-950 sm:h-12">
+        <svg viewBox="0 0 1440 54" fill="none" preserveAspectRatio="none" className="absolute inset-x-0 top-[-1px] block h-[calc(100%+2px)] w-full">
           <path d="M0 32C360 4 720 0 1080 22S1380 52 1440 40V0H0Z" className="fill-current" />
         </svg>
       </div>
@@ -264,13 +273,12 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
             bullets={[
               "Categorías, fotos y precios por sucursal",
               "Carrito con totales automáticos y extras",
-              "Pagos con tarjeta, transferencia o efectivo",
-              "Banners promocionales personalizados",
+              "Checkout rápido desde cualquier celular",
             ]}
             visual={
               <LandingFeatureShot
-                src={landingMedia.features.menu.src}
-                alt={landingMedia.features.menu.alt}
+                src={media.features.menu.src}
+                alt={media.features.menu.alt}
               />
             }
           />
@@ -283,12 +291,11 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
               "POS táctil rápido e intuitivo",
               "Turnos de caja con apertura y cierre",
               "Múltiples métodos de pago",
-              "Reportes de venta en tiempo real",
             ]}
             visual={
               <LandingFeatureShot
-                src={landingMedia.features.pos.src}
-                alt={landingMedia.features.pos.alt}
+                src={media.features.pos.src}
+                alt={media.features.pos.alt}
               />
             }
             reversed
@@ -296,9 +303,9 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
           />
 
           <LandingFeatureBlock
-            eyebrow="Control"
-            title="Inventario y gestión por sucursal"
-            description="Controla el stock de cada producto por sucursal. Recibe alertas cuando se está acabando y lleva el historial de movimientos."
+            eyebrow="Inventario"
+            title="Stock y control por sucursal"
+            description="Mantén inventario, recetas y movimientos sincronizados para evitar quiebres de stock y errores al vender."
             bullets={[
               "Stock en tiempo real por sucursal",
               "Alertas de inventario bajo",
@@ -307,8 +314,8 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
             ]}
             visual={
               <LandingFeatureShot
-                src={landingMedia.features.inventory.src}
-                alt={landingMedia.features.inventory.alt}
+                src={media.features.inventory.src}
+                alt={media.features.inventory.alt}
               />
             }
             delay={0.1}
@@ -317,59 +324,93 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
       </SectionShell>
 
       {/* ════ 4. CÓMO FUNCIONA ════ */}
-      <SectionShell id="como-funciona" variant="muted">
-        <div className="mx-auto max-w-5xl px-5 sm:px-6 lg:px-8">
-          <LandingReveal>
-            <Eyebrow>Cómo funciona</Eyebrow>
-            <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
-              Tu tienda lista en minutos
-            </h2>
-          </LandingReveal>
+      <SectionShell
+        id="como-funciona"
+        variant="dark"
+        className="relative min-h-0 overflow-hidden border-y border-indigo-500/20 bg-[radial-gradient(circle_at_20%_20%,rgba(99,102,241,0.24),transparent_30%),radial-gradient(circle_at_80%_18%,rgba(139,92,246,0.22),transparent_30%),radial-gradient(circle_at_50%_58%,rgba(37,99,235,0.2),transparent_38%),linear-gradient(180deg,#0f172a_0%,#070d1d_100%)]"
+      >
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden>
+          <div className="absolute left-[-8rem] top-[10%] h-64 w-64 rounded-full bg-indigo-500/25 blur-3xl" />
+          <div className="absolute right-[-7rem] top-[22%] h-72 w-72 rounded-full bg-violet-500/20 blur-3xl" />
+          <div className="absolute left-1/2 top-[58%] h-80 w-80 -translate-x-1/2 rounded-full bg-blue-500/15 blur-3xl" />
+        </div>
 
-          <ol className="relative mt-12 grid gap-6 sm:mt-16 md:grid-cols-3">
-            {/* Connector arrows (desktop) */}
-            <div className="pointer-events-none absolute left-[33.33%] top-10 hidden -translate-x-1/2 text-slate-300 md:block dark:text-zinc-700" aria-hidden>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 12h14m0 0l-4-4m4 4l-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            </div>
-            <div className="pointer-events-none absolute left-[66.66%] top-10 hidden -translate-x-1/2 text-slate-300 md:block dark:text-zinc-700" aria-hidden>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 12h14m0 0l-4-4m4 4l-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            </div>
+        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
+          <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.92fr_1.08fr] lg:items-end lg:gap-12">
+            <LandingReveal>
+              <div className="max-w-2xl">
+                <Eyebrow className="text-left !text-indigo-300">Cómo funciona</Eyebrow>
+                <h2 className="text-left text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-[3rem]">
+                  Tu tienda lista en minutos
+                </h2>
+                <p className="mt-4 max-w-xl text-sm leading-relaxed text-indigo-100/80 sm:text-base">
+                  Un flujo corto y claro para pasar de idea a ventas sin fricción. Sin configuraciones pesadas, sin curva técnica y sin perder tiempo en pasos innecesarios.
+                </p>
+
+                <div className="mt-6 flex flex-wrap gap-2">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-indigo-300/30 bg-indigo-500/15 px-3 py-1.5 text-xs font-medium text-indigo-100 shadow-sm backdrop-blur-sm">
+                    <Check className="h-3.5 w-3.5 text-indigo-200" aria-hidden />
+                    Sin tarjeta de crédito
+                  </span>
+                  <span className="inline-flex items-center gap-2 rounded-full border border-violet-300/30 bg-violet-500/15 px-3 py-1.5 text-xs font-medium text-indigo-100 shadow-sm backdrop-blur-sm">
+                    <Clock className="h-3.5 w-3.5 text-violet-200" aria-hidden />
+                    En menos de 5 minutos
+                  </span>
+                  <span className="inline-flex items-center gap-2 rounded-full border border-blue-300/30 bg-blue-500/15 px-3 py-1.5 text-xs font-medium text-indigo-100 shadow-sm backdrop-blur-sm">
+                    <Shield className="h-3.5 w-3.5 text-blue-200" aria-hidden />
+                    Soporte incluido
+                  </span>
+                </div>
+              </div>
+            </LandingReveal>
+
+            <LandingReveal delay={0.05} direction="right">
+              <div className="relative overflow-hidden rounded-[2rem] border border-indigo-300/20 bg-slate-950/45 p-4 shadow-[0_24px_90px_-34px_rgba(0,0,0,0.8)] backdrop-blur-xl sm:p-6 md:p-8">
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-300/60 to-transparent" aria-hidden />
+
+              {/* Connector arrows (desktop) */}
+              <div className="pointer-events-none absolute left-[33.33%] top-14 hidden -translate-x-1/2 text-indigo-200/35 md:block" aria-hidden>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 12h14m0 0l-4-4m4 4l-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </div>
+              <div className="pointer-events-none absolute left-[66.66%] top-14 hidden -translate-x-1/2 text-indigo-200/35 md:block" aria-hidden>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 12h14m0 0l-4-4m4 4l-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </div>
+
+              <ol className="relative grid gap-4 md:grid-cols-3 md:gap-5">
 
             {steps.map((s, i) => {
-              const colors = [
-                "border-t-indigo-500 bg-indigo-50/50 text-indigo-600 dark:border-t-indigo-400 dark:bg-indigo-950/20 dark:text-indigo-400",
-                "border-t-violet-500 bg-violet-50/50 text-violet-600 dark:border-t-violet-400 dark:bg-violet-950/20 dark:text-violet-400",
-                "border-t-emerald-500 bg-emerald-50/50 text-emerald-600 dark:border-t-emerald-400 dark:bg-emerald-950/20 dark:text-emerald-400",
+              const cardStyles = [
+                "border-indigo-300/30 bg-gradient-to-b from-indigo-500/20 to-slate-950/50 text-indigo-200",
+                "border-violet-300/30 bg-gradient-to-b from-violet-500/20 to-slate-950/50 text-violet-200",
+                "border-blue-300/30 bg-gradient-to-b from-blue-500/20 to-slate-950/50 text-blue-200",
               ];
-              const [borderColor, numBg, numColor] = colors[i].split(" ").reduce<[string, string, string]>(
-                (acc, cls) => {
-                  if (cls.startsWith("border-t-")) acc[0] += ` ${cls}`;
-                  else if (cls.startsWith("bg-") || cls.startsWith("dark:bg-")) acc[1] += ` ${cls}`;
-                  else acc[2] += ` ${cls}`;
-                  return acc;
-                },
-                ["", "", ""],
-              );
 
               return (
                 <LandingReveal key={s.n} delay={i * 0.1}>
-                  <li className={`flex h-full flex-col rounded-2xl border border-slate-200/60 border-t-[3px] bg-white p-6 sm:p-8 dark:border-zinc-800 dark:bg-zinc-900/60 ${borderColor}`}>
-                    <span className={`flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold ${numBg} ${numColor}`}>
+                  <li className={`group flex h-full flex-col rounded-[1.5rem] border p-6 shadow-[0_10px_30px_-24px_rgba(0,0,0,0.8)] transition-transform duration-300 hover:-translate-y-1 sm:p-7 ${cardStyles[i]}`}>
+                    <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-sm font-bold shadow-sm ring-1 ring-white/20">
                       {s.n}
                     </span>
-                    <h3 className="mt-5 text-base font-bold text-slate-900 sm:text-lg dark:text-white">{s.title}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-zinc-400">{s.text}</p>
+                    <h3 className="mt-5 text-lg font-bold text-white sm:text-xl">{s.title}</h3>
+                    <p className="mt-3 text-sm leading-relaxed text-indigo-100/75">{s.text}</p>
                   </li>
                 </LandingReveal>
               );
             })}
-          </ol>
+              </ol>
+            </div>
+            </LandingReveal>
+          </div>
         </div>
       </SectionShell>
 
       {/* ════ 5. PRODUCTO SHOWCASE ════ */}
-      <SectionShell id="producto" variant="muted">
-        <div className="mx-auto max-w-5xl px-5 sm:px-6 lg:px-8">
+      <SectionShell
+        id="producto"
+        variant="muted"
+        className="flex min-h-[100dvh] flex-col justify-center py-8 sm:py-12 md:py-16"
+      >
+        <div className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col justify-center px-5 sm:px-6 lg:px-8">
           <LandingReveal>
             <Eyebrow>Producto</Eyebrow>
             <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
@@ -380,75 +421,160 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
             </p>
           </LandingReveal>
 
-          <LandingPhoneCarousel />
+          <LandingPhoneCarousel slides={media.phoneCarouselSlides} />
         </div>
       </SectionShell>
 
-      {/* ════ 6. CTA INTERMEDIO ════ */}
-      <section className="relative overflow-hidden bg-slate-900 py-16 sm:py-20 md:py-24 dark:bg-zinc-950">
+      {/* ════ 6. DEMO + CTA INTERMEDIO ════ */}
+      <section id="demo" className="relative overflow-hidden bg-slate-900 py-16 sm:py-20 md:py-24 dark:bg-zinc-950">
         <LandingAnimatedGrid />
 
-        <div className="relative mx-auto max-w-3xl px-5 text-center sm:px-6">
+        <div className="relative mx-auto max-w-6xl px-5 sm:px-6 lg:px-8">
           <LandingReveal>
-            <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-indigo-400">
-              Empieza ahora
-            </p>
-            <h2 className="text-2xl font-bold text-white sm:text-3xl md:text-[2.75rem] md:leading-[1.15]">
-              Crea tu tienda en menos de{" "}
-              <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
-                5 minutos
-              </span>
-            </h2>
-            <p className="mx-auto mt-5 max-w-xl text-sm leading-relaxed text-slate-400 sm:text-base">
-              Sin código, sin servidores, sin complicaciones. Solo tú y tus productos.
-            </p>
-            <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-              <Link
-                href="/onboarding"
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-8 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-700 sm:h-[3.25rem] sm:w-auto sm:text-base"
-              >
-                Empezar gratis
-                <ArrowRight className="h-4 w-4" aria-hidden />
-              </Link>
-              <a
-                href="#precios"
-                className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-slate-700 px-8 text-sm font-medium text-slate-300 transition hover:border-slate-600 hover:text-white sm:h-[3.25rem] sm:w-auto sm:text-base"
-              >
-                Ver precios
-              </a>
+            <div className="mx-auto max-w-3xl text-center">
+              <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-indigo-400">
+                Empieza ahora
+              </p>
+              <h2 className="text-2xl font-bold text-white sm:text-3xl md:text-[2.75rem] md:leading-[1.15]">
+                Crea tu tienda en menos de{" "}
+                <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
+                  5 minutos
+                </span>
+              </h2>
+              <p className="mx-auto mt-5 max-w-xl text-sm leading-relaxed text-slate-400 sm:text-base">
+                Sin código, sin servidores, sin complicaciones. Solo tú y tus productos.
+              </p>
+              <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+                <Link
+                  href="/onboarding"
+                  className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-8 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-700 sm:h-[3.25rem] sm:w-auto sm:text-base"
+                >
+                  Empezar gratis
+                  <ArrowRight className="h-4 w-4" aria-hidden />
+                </Link>
+                <a
+                  href="#precios"
+                  className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-slate-700 px-8 text-sm font-medium text-slate-300 transition hover:border-slate-600 hover:text-white sm:h-[3.25rem] sm:w-auto sm:text-base"
+                >
+                  Ver precios
+                </a>
+              </div>
+            </div>
+          </LandingReveal>
+
+          <LandingReveal delay={0.08} direction="right">
+            <div className="mx-auto mt-12 grid max-w-5xl gap-6 lg:mt-16 lg:grid-cols-[0.95fr_1.05fr] lg:items-stretch">
+              <div className="relative overflow-hidden rounded-[2rem] border border-slate-700/60 bg-slate-950/40 p-5 shadow-[0_24px_80px_-36px_rgba(0,0,0,0.85)] backdrop-blur-sm sm:p-6">
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-300/50 to-transparent" aria-hidden />
+                <div className="flex items-center gap-2 text-indigo-400">
+                  <Sparkles className="h-4 w-4 shrink-0" aria-hidden />
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">Demo</span>
+                </div>
+                <h3 className="mt-3 text-xl font-bold tracking-tight text-white sm:text-2xl">
+                  Mira el producto en acción
+                </h3>
+                <p className="mt-3 max-w-lg text-sm leading-relaxed text-slate-400 sm:text-base">
+                  Esta demo resume el flujo completo: menú, carrito, pedidos, caja e inventario en una sola presentación.
+                </p>
+                <div className="mt-6 overflow-hidden rounded-[1.5rem] border border-white/10 bg-slate-950 shadow-inner">
+                  <div className="relative aspect-video w-full overflow-hidden">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.35),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.18),transparent_30%),linear-gradient(180deg,rgba(15,23,42,0.96),rgba(2,6,23,0.96))]" />
+                    <div className="absolute inset-0 flex items-center justify-center px-6 text-center">
+                      <div className="flex flex-col items-center">
+                        <div className="flex h-18 w-18 items-center justify-center rounded-full bg-white/10 text-indigo-200 ring-1 ring-white/10 backdrop-blur-sm">
+                          <Play className="h-7 w-7 fill-current" aria-hidden />
+                        </div>
+                        <p className="mt-5 text-sm font-semibold text-white">Video demo del producto</p>
+                        <p className="mt-2 max-w-md text-xs leading-relaxed text-slate-300">
+                          Versión de demo privada disponible para reuniones comerciales y partners.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center">
+                <div className="w-full rounded-[2rem] border border-slate-700/60 bg-slate-950/40 p-5 shadow-[0_24px_80px_-36px_rgba(0,0,0,0.85)] backdrop-blur-sm sm:p-6">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-300">Vista previa</p>
+                      <h3 className="mt-1 text-lg font-bold text-white">Por qué conviene usarlo</h3>
+                    </div>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-indigo-500/15 px-3 py-1 text-xs font-medium text-indigo-100 ring-1 ring-indigo-300/25">
+                      Demo comercial disponible bajo solicitud
+                    </span>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    {[
+                      "Menú, carrito y pago en un solo lugar",
+                      "Pedidos y caja con control centralizado",
+                      "Inventario por sucursal con alertas",
+                      "Presentación lista para reuniones y demos",
+                    ].map((item) => (
+                      <div key={item} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm leading-relaxed text-slate-300">
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
           </LandingReveal>
         </div>
       </section>
 
-      {/* ════ 7. COMPARACIÓN ════ */}
-      <SectionShell id="comparar" variant="white">
-        <div className="mx-auto max-w-5xl px-5 sm:px-6 lg:px-8">
+      {/* ════ 8. COMPARACIÓN ════ */}
+      <SectionShell
+        id="comparar"
+        variant="white"
+        className="relative flex items-center overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.08),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.08),transparent_30%)]"
+      >
+        <div className="pointer-events-none absolute inset-0 -z-10" aria-hidden>
+          <div className="absolute left-[-8rem] top-[16%] h-56 w-56 rounded-full bg-indigo-500/10 blur-3xl" />
+          <div className="absolute right-[-8rem] bottom-[8%] h-64 w-64 rounded-full bg-sky-500/10 blur-3xl" />
+        </div>
+        <div className="mx-auto w-full max-w-5xl px-5 sm:px-6 lg:px-8">
           <LandingReveal>
             <Eyebrow>¿Por qué GodCode?</Eyebrow>
             <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
               Compara y decide
             </h2>
+            <p className="mx-auto mt-3 max-w-2xl text-center text-sm leading-relaxed text-slate-600 sm:text-base dark:text-zinc-400">
+              Elige una opción que te deje crecer sin comisiones altas, sin depender de terceros y con control total de tu negocio.
+            </p>
           </LandingReveal>
 
           <LandingReveal delay={0.1}>
-            <div className="mt-10 overflow-x-auto sm:mt-14">
-              <table className="w-full min-w-[560px] text-sm">
+            <div className="mt-10 overflow-hidden rounded-[1.8rem] border border-slate-200/80 bg-white/85 p-3 shadow-[0_24px_80px_-38px_rgba(15,23,42,0.3)] backdrop-blur-sm sm:mt-14 sm:p-5 dark:border-zinc-800/70 dark:bg-zinc-900/70 dark:shadow-[0_24px_80px_-38px_rgba(0,0,0,0.8)]">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[620px] text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 dark:border-zinc-800">
-                    <th className="pb-3 pr-4 text-left font-medium text-slate-500 dark:text-zinc-400" />
-                    <th className="pb-3 px-3 text-center font-medium text-slate-500 dark:text-zinc-400">IG / WhatsApp</th>
-                    <th className="pb-3 px-3 text-center font-medium text-slate-500 dark:text-zinc-400">Rappi / Uber</th>
-                    <th className="pb-3 px-3 text-center font-medium text-slate-500 dark:text-zinc-400">Desarrollo propio</th>
-                    <th className="pb-3 px-3 text-center font-bold text-indigo-600 dark:text-indigo-400">GodCode</th>
+                  <tr className="border-b border-slate-200/90 dark:border-zinc-800">
+                    <th className="pb-4 pr-4 text-left font-medium text-slate-500 dark:text-zinc-400" />
+                    <th className="pb-4 px-3 text-center font-medium text-slate-500 dark:text-zinc-400">IG / WhatsApp</th>
+                    <th className="pb-4 px-3 text-center font-medium text-slate-500 dark:text-zinc-400">Rappi / Uber</th>
+                    <th className="pb-4 px-3 text-center font-medium text-slate-500 dark:text-zinc-400">Desarrollo propio</th>
+                    <th className="pb-4 px-3 text-center font-bold text-indigo-600 dark:text-indigo-300">
+                      <span className="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-indigo-700 ring-1 ring-indigo-100 dark:bg-indigo-500/15 dark:text-indigo-200 dark:ring-indigo-400/30">
+                        GodCode
+                      </span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {compareRows.map((row) => (
-                    <tr key={row.feature} className="border-b border-slate-100 dark:border-zinc-800/60">
-                      <td className="py-3 pr-4 font-medium text-slate-700 dark:text-zinc-300">{row.feature}</td>
+                    <tr key={row.feature} className="border-b border-slate-100/90 transition hover:bg-slate-50/70 dark:border-zinc-800/70 dark:hover:bg-zinc-800/30">
+                      <td className="py-4 pr-4 font-medium text-slate-700 dark:text-zinc-300">{row.feature}</td>
                       {([row.ig, row.rappi, row.custom, row.gc] as const).map((val, ci) => (
-                        <td key={ci} className={cn("px-3 py-3 text-center", ci === 3 && "bg-indigo-50/50 font-semibold text-indigo-700 dark:bg-indigo-950/20 dark:text-indigo-300")}>
+                        <td
+                          key={ci}
+                          className={cn(
+                            "px-3 py-4 text-center",
+                            ci === 3 && "bg-gradient-to-b from-indigo-50/85 to-indigo-100/60 font-semibold text-indigo-700 dark:from-indigo-950/40 dark:to-indigo-950/25 dark:text-indigo-200",
+                          )}
+                        >
                           {typeof val === "boolean"
                             ? val
                               ? <Check className="mx-auto h-4 w-4 text-emerald-500" aria-label="Sí" />
@@ -459,18 +585,31 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+                </table>
+              </div>
+              <p className="px-1 pt-3 text-xs text-slate-500 dark:text-zinc-400">
+                * Comparativa referencial. Costos y condiciones de terceros pueden variar por país, categoría y promociones vigentes.
+              </p>
             </div>
           </LandingReveal>
         </div>
       </SectionShell>
 
-      {/* ════ 8. TESTIMONIOS ════ */}
-      <SectionShell id="testimonios" variant="muted">
+      {/* ════ 9. TESTIMONIOS ════ */}
+      <SectionShell
+        id="testimonios"
+        variant="dark"
+        className="relative min-h-0 overflow-hidden border-y border-indigo-500/20 bg-[radial-gradient(circle_at_20%_20%,rgba(99,102,241,0.24),transparent_30%),radial-gradient(circle_at_80%_18%,rgba(139,92,246,0.22),transparent_30%),radial-gradient(circle_at_50%_58%,rgba(37,99,235,0.2),transparent_38%),linear-gradient(180deg,#0f172a_0%,#070d1d_100%)]"
+      >
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden>
+          <div className="absolute left-[-8rem] top-[8%] h-64 w-64 rounded-full bg-indigo-500/22 blur-3xl" />
+          <div className="absolute right-[-7rem] top-[20%] h-72 w-72 rounded-full bg-violet-500/20 blur-3xl" />
+          <div className="absolute left-1/2 top-[62%] h-80 w-80 -translate-x-1/2 rounded-full bg-blue-500/14 blur-3xl" />
+        </div>
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
           <LandingReveal>
-            <Eyebrow>Testimonios</Eyebrow>
-            <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
+            <Eyebrow className="!text-indigo-300">Testimonios</Eyebrow>
+            <h2 className="text-center text-2xl font-bold tracking-tight text-white sm:text-3xl">
               Lo que dicen nuestros clientes
             </h2>
           </LandingReveal>
@@ -478,8 +617,8 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
         </div>
       </SectionShell>
 
-      {/* ════ 9. PRECIOS ════ */}
-      <SectionShell id="precios" variant="white">
+      {/* ════ 10. PRECIOS ════ */}
+      <SectionShell id="precios" variant="white" className="min-h-0">
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
           <LandingReveal>
             <Eyebrow>Precios</Eyebrow>
@@ -533,7 +672,7 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
                       <h3 className="text-lg font-bold text-slate-900 dark:text-white">{plan.name}</h3>
                       <div className="mt-4 border-b border-slate-100 pb-4 dark:border-zinc-800">
                         <p className="text-3xl font-bold text-slate-900 sm:text-4xl dark:text-white">{usdMonth.format(plan.price)}</p>
-                        <p className="text-xs text-slate-500 dark:text-zinc-500">/ mes</p>
+                        <p className="text-xs text-slate-500 dark:text-zinc-500">USD / mes</p>
                       </div>
                       <ul className="mt-5 flex-1 space-y-2.5 text-sm text-slate-600 dark:text-zinc-300">
                         {plan.featureBullets.map((b, bi) => (
@@ -570,9 +709,9 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
         </div>
       </SectionShell>
 
-      {/* ════ 10. FAQ ════ */}
-      <SectionShell id="faq" variant="muted">
-        <div className="mx-auto max-w-3xl px-5 sm:px-6 lg:px-8">
+      {/* ════ 11. FAQ ════ */}
+      <SectionShell id="faq" variant="muted" className="flex items-center">
+        <div className="mx-auto w-full max-w-3xl px-5 sm:px-6 lg:px-8">
           <LandingReveal>
             <Eyebrow>Dudas</Eyebrow>
             <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
@@ -608,7 +747,7 @@ export function LandingSections({ plans }: { plans: PublicPlanForLanding[] }) {
         </svg>
       </div>
 
-      {/* ════ 11. CTA FINAL + CONTACTO ════ */}
+      {/* ════ 12. CTA FINAL + CONTACTO ════ */}
       <SectionShell id="contacto" variant="dark" className="relative -mt-px overflow-hidden pb-0">
         <LandingAnimatedGrid />
 

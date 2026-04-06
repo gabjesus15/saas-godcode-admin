@@ -4,6 +4,7 @@
 import { useEffect } from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
 
 import { Button } from "../../../components/ui/button";
@@ -24,6 +25,7 @@ export default function LoginPage() {
       return () => window.removeEventListener("wheel", handler);
     }, []);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -53,7 +55,7 @@ export default function LoginPage() {
 
       setShowSuccess(true);
       await new Promise((resolve) => setTimeout(resolve, 800));
-      router.push("/dashboard");
+      router.push("/post-login");
       router.refresh();
     } catch (err) {
       setError(mapAuthClientError(err));
@@ -80,9 +82,9 @@ export default function LoginPage() {
             <>
               <p className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                 <ShieldCheck size={14} />
-                Panel de administración
+                Acceso GodCode
               </p>
-              <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">Ingresa con tu cuenta autorizada.</p>
+              <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">Ingresa con tu cuenta para ir al panel que te corresponde.</p>
             </>
           )}
         </div>
@@ -117,6 +119,12 @@ export default function LoginPage() {
           {error ? (
             <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300">
               {error}
+            </div>
+          ) : null}
+
+          {!error && searchParams?.get("error") === "no-access" ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/50 dark:text-amber-300">
+              Tu usuario no tiene acceso a un panel activo. Escribe a soporte para habilitar tu cuenta.
             </div>
           ) : null}
 

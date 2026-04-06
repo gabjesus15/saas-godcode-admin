@@ -35,6 +35,8 @@ export function LaptopFrame({
               alt={alt}
               width={1440}
               height={900}
+              quality={92}
+              sizes="(max-width: 1024px) 100vw, 56vw"
               className="h-auto w-full"
               priority={priority}
             />
@@ -71,12 +73,14 @@ export function PhoneFrame({
   alt = "Captura de pantalla",
   children,
   className,
+  imageClassName,
   priority = false,
 }: {
   src?: string;
   alt?: string;
   children?: ReactNode;
   className?: string;
+  imageClassName?: string;
   priority?: boolean;
 }) {
   return (
@@ -90,18 +94,22 @@ export function PhoneFrame({
           <div className="relative overflow-hidden rounded-[1.6rem] bg-white sm:rounded-[2rem] dark:bg-zinc-900">
 
             {/* Dynamic Island */}
-            <div className="absolute left-1/2 top-[6px] z-20 h-[10px] w-[36px] -translate-x-1/2 rounded-full bg-black sm:top-[8px] sm:h-[12px] sm:w-[42px]" />
+            <div className="absolute left-1/2 top-[3px] z-20 h-[9px] w-[34px] -translate-x-1/2 rounded-full bg-black sm:top-[5px] sm:h-[11px] sm:w-[40px]" />
 
             {/* Screen content */}
             {src ? (
-              <Image
-                src={src}
-                alt={alt}
-                width={430}
-                height={932}
-                className="h-auto w-full"
-                priority={priority}
-              />
+              <div className="relative aspect-[9/19.5] w-full overflow-hidden">
+                <Image
+                  src={src}
+                  alt={alt}
+                  width={430}
+                  height={932}
+                  quality={95}
+                  sizes="(max-width: 640px) 120px, (max-width: 1024px) 170px, 190px"
+                  className={cn("h-full w-full object-cover object-top", imageClassName)}
+                  priority={priority}
+                />
+              </div>
             ) : children ? (
               <div className="aspect-[9/19.5]">{children}</div>
             ) : null}

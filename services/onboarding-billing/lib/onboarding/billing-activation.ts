@@ -37,14 +37,29 @@ export async function activateCompanySubscription(params: {
 	now?: Date;
 }): Promise<void> {
 	const now = params.now ?? new Date();
+	const endsAtIso = getSubscriptionEndsAt(params.monthsPaid, now);
 	await params.supabaseAdmin
 		.from("companies")
 		.update({
 			subscription_status: "active",
-			subscription_ends_at: getSubscriptionEndsAt(params.monthsPaid, now),
+			subscription_ends_at: endsAtIso,
 			updated_at: now.toISOString(),
 		})
 		.eq("id", params.companyId);
+
+	await Promise.all([
+		params.supabaseAdmin
+			.from("company_addons")
+			.update({ expires_at: endsAtIso, updated_at: now.toISOString() })
+			.eq("company_id", params.companyId)
+			.eq("status", "active")
+			.not("expires_at", "is", null),
+		params.supabaseAdmin
+			.from("company_branch_extra_entitlements")
+			.update({ expires_at: endsAtIso, updated_at: now.toISOString() })
+			.eq("company_id", params.companyId)
+			.eq("status", "active"),
+	]);
 }
 
 export type SuspendExpiredResult = {

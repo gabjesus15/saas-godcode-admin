@@ -5,6 +5,7 @@ import Script from "next/script";
 
 import { GodcodeLanding } from "../components/landing/godcode-landing";
 import { getAppUrl } from "../lib/app-url";
+import { getLandingMediaBundle } from "../lib/landing-media";
 import { getPublicPlansForLanding } from "../lib/public-plans";
 import { getSubdomainFromHost, isMainDomain } from "../lib/main-domain-host";
 
@@ -129,11 +130,14 @@ export default async function Home() {
   const hdrs = await headers();
   const host = hdrs.get("host") || "";
   if (isMainDomain(host)) {
-    const plans = await getPublicPlansForLanding();
+    const [plans, media] = await Promise.all([
+      getPublicPlansForLanding(),
+      getLandingMediaBundle(),
+    ]);
     return (
       <>
         <JsonLd plans={plans} />
-        <GodcodeLanding plans={plans} />
+        <GodcodeLanding plans={plans} media={media} />
       </>
     );
   }

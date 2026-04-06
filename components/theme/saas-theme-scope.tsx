@@ -1,8 +1,6 @@
-import Script from "next/script";
-
 const STORAGE_KEY = "saas-theme";
 
-const themeScript = `
+export const THEME_SCOPE_SCRIPT = `
 (function() {
 	try {
 		const theme = localStorage.getItem('${STORAGE_KEY}');
@@ -17,12 +15,12 @@ const themeScript = `
 })();
 `;
 
-export function SaasThemeScope() {
-	return (
-		// App Router: script de tema debe ejecutarse antes de hidratación (evita flash). La regla ESLint aplica a pages/_document.
-		// eslint-disable-next-line @next/next/no-before-interactive-script-outside-document -- intencional en layout
-		<Script id="saas-theme-scope" strategy="beforeInteractive">
-			{themeScript.trim()}
-		</Script>
-	);
-}
+export const LIGHT_ONLY_THEME_SCRIPT = `
+(function() {
+	try {
+		document.documentElement.classList.remove('dark');
+		document.documentElement.setAttribute('data-theme', 'light');
+		localStorage.removeItem('${STORAGE_KEY}');
+	} catch (_) {}
+})();
+`;

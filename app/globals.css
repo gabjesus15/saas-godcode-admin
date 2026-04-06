@@ -48,6 +48,71 @@
   100% { transform: translate(0, 0) scale(1) rotate(0deg); }
 }
 
+@keyframes hero-sheen {
+  0%   { transform: translateX(-12%) rotate(-7deg); opacity: 0.12; }
+  50%  { transform: translateX(12%) rotate(-7deg); opacity: 0.2; }
+  100% { transform: translateX(-12%) rotate(-7deg); opacity: 0.12; }
+}
+
+.landing-hero-aurora {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(64px);
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.landing-hero-aurora--one {
+  width: 36rem;
+  height: 36rem;
+  left: -8rem;
+  top: -9rem;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.2) 0%, rgba(99, 102, 241, 0) 72%);
+  animation: aurora-1 18s ease-in-out infinite;
+}
+
+.landing-hero-aurora--two {
+  width: 34rem;
+  height: 34rem;
+  right: -8rem;
+  top: -10rem;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.16) 0%, rgba(139, 92, 246, 0) 72%);
+  animation: aurora-2 20s ease-in-out infinite;
+}
+
+.landing-hero-aurora--three {
+  width: 30rem;
+  height: 30rem;
+  left: 45%;
+  bottom: -12rem;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.12) 0%, rgba(59, 130, 246, 0) 72%);
+  animation: aurora-3 22s ease-in-out infinite;
+}
+
+.landing-hero-sheen {
+  position: absolute;
+  inset: -20% -10%;
+  pointer-events: none;
+  background: linear-gradient(110deg, rgba(255, 255, 255, 0) 30%, rgba(99, 102, 241, 0.08) 50%, rgba(255, 255, 255, 0) 70%);
+  animation: hero-sheen 14s ease-in-out infinite;
+}
+
+.dark .landing-hero-aurora--one {
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.18) 0%, rgba(99, 102, 241, 0) 72%);
+}
+
+.dark .landing-hero-aurora--two {
+  background: radial-gradient(circle, rgba(167, 139, 250, 0.16) 0%, rgba(167, 139, 250, 0) 72%);
+}
+
+.dark .landing-hero-aurora--three {
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.14) 0%, rgba(59, 130, 246, 0) 72%);
+}
+
+.dark .landing-hero-sheen {
+  background: linear-gradient(110deg, rgba(255, 255, 255, 0) 30%, rgba(129, 140, 248, 0.12) 50%, rgba(255, 255, 255, 0) 70%);
+}
+
 /* ─── Radix Accordion / Collapsible animations ─── */
 
 @keyframes accordion-slide-down {
@@ -72,6 +137,11 @@ html {
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+
+  .landing-hero-aurora,
+  .landing-hero-sheen {
+    animation: none !important;
+  }
 }
 
 body {

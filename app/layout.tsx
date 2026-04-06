@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { DevServiceWorkerCleanup } from "../components/dev-sw-cleanup";
 
 import "./globals.css";
 
@@ -48,6 +49,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} bg-background text-foreground antialiased transition-colors duration-200`}
       >
         {/* Logo y slogan eliminados del layout global por petición del usuario */}
+        {process.env.NODE_ENV !== "production" ? <DevServiceWorkerCleanup /> : null}
         {children}
         {process.env.NODE_ENV === "production" ? (
           <>

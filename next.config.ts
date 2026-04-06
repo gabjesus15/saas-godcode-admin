@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   turbopack: {},
   images: {
+    qualities: [75, 92, 95],
     remotePatterns: [
       { protocol: "https", hostname: "res.cloudinary.com", pathname: "/**" },
       { protocol: "https", hostname: "images.unsplash.com", pathname: "/**" },

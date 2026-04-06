@@ -10,6 +10,7 @@ import {
 	CreditCard,
 	LayoutDashboard,
 	LifeBuoy,
+	MonitorSmartphone,
 	Package,
 	ScrollText,
 	ShieldAlert,
@@ -34,5 +35,6 @@ export const SUPER_ADMIN_NAV: SuperAdminNavItem[] = [
 	{ href: "/addons", label: "Servicios extra", icon: Package, keywords: "addons" },
 	{ href: "/plan-payment-methods", label: "Métodos de pago (plan)", icon: CreditCard, keywords: "planes pago" },
 	{ href: "/tickets", label: "Tickets", icon: LifeBuoy, keywords: "soporte" },
+	{ href: "/landing", label: "Landing", icon: MonitorSmartphone, keywords: "landing leads media webhooks" },
 	{ href: "/herramientas", label: "Herramientas", icon: Wrench, keywords: "tools" },
 ];

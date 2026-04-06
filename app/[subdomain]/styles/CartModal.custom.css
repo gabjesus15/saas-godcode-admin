@@ -629,6 +629,18 @@
     animation: paymentOptStagger 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
+  .payment-flow-surface--pick .payment-opt--delay-0 { animation-delay: 0s; }
+  .payment-flow-surface--pick .payment-opt--delay-1 { animation-delay: 0.045s; }
+  .payment-flow-surface--pick .payment-opt--delay-2 { animation-delay: 0.09s; }
+  .payment-flow-surface--pick .payment-opt--delay-3 { animation-delay: 0.135s; }
+  .payment-flow-surface--pick .payment-opt--delay-4 { animation-delay: 0.18s; }
+  .payment-flow-surface--pick .payment-opt--delay-5 { animation-delay: 0.225s; }
+  .payment-flow-surface--pick .payment-opt--delay-6 { animation-delay: 0.27s; }
+  .payment-flow-surface--pick .payment-opt--delay-7 { animation-delay: 0.315s; }
+  .payment-flow-surface--pick .payment-opt--delay-8 { animation-delay: 0.36s; }
+  .payment-flow-surface--pick .payment-opt--delay-9 { animation-delay: 0.405s; }
+  .payment-flow-surface--pick .payment-opt--delay-10 { animation-delay: 0.45s; }
+
   .payment-method-bank-card,
   .payment-method-store-card {
     animation: paymentBankCardSwap 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;

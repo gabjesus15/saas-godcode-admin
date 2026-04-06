@@ -4,52 +4,125 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPoi
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-import { landingPhoneCarouselSlides } from "../../lib/landing-media";
+import type { LandingSlide } from "../../lib/landing-media-types";
 import { cn } from "../../utils/cn";
 import { PhoneFrame } from "./landing-device-frame";
-
-const slides = landingPhoneCarouselSlides;
 
 const AUTO_INTERVAL = 4000;
 /** Mínimo horizontal (px) y que supere al vertical para contar como swipe */
 const SWIPE_MIN_DX = 40;
+const sidePhoneClassName = "w-[clamp(108px,10vw,140px)] lg:w-[clamp(120px,9vw,156px)]";
+const centerPhoneClassName = "w-[clamp(198px,54vw,240px)] sm:w-[clamp(214px,20vw,252px)] lg:w-[clamp(236px,16vw,272px)]";
 
-export function LandingPhoneCarousel() {
+export function LandingPhoneCarousel({ slides }: { slides: LandingSlide[] }) {
   const [active, setActive] = useState(0);
   const [direction, setDirection] = useState(1);
   const [paused, setPaused] = useState(false);
   const prefersReduced = useReducedMotion();
   const activeRef = useRef(active);
   const swipeStartRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
+  const transitionLockRef = useRef(false);
+  const queuedTargetRef = useRef<number | null>(null);
+  const unlockTimerRef = useRef<number | null>(null);
 
   activeRef.current = active;
 
-  const goTo = useCallback((i: number) => {
+  const normalizeIndex = useCallback((i: number) => {
     const len = slides.length;
-    const cur = activeRef.current;
-    const nextForward = i === (cur + 1) % len;
-    const nextBackward = i === (cur - 1 + len) % len;
-    if (nextForward) setDirection(1);
-    else if (nextBackward) setDirection(-1);
-    else setDirection(i > cur ? 1 : -1);
-    setActive(i);
-  }, []);
+    if (len === 0) return 0;
+    return ((i % len) + len) % len;
+  }, [slides.length]);
+
+  const getDirectionToTarget = useCallback((from: number, to: number) => {
+    const len = slides.length;
+    if (len === 0) return 0;
+    const forward = (to - from + len) % len;
+    const backward = (from - to + len) % len;
+    if (forward === 0) return 0;
+    return forward <= backward ? 1 : -1;
+  }, [slides.length]);
+
+  const runTransition = useCallback(
+    (targetIndex: number) => {
+      const nextIdx = normalizeIndex(targetIndex);
+      const currentIdx = activeRef.current;
+      if (nextIdx === currentIdx) return;
+
+      const nextDirection = getDirectionToTarget(currentIdx, nextIdx);
+      setDirection(nextDirection);
+      setActive(nextIdx);
+      activeRef.current = nextIdx;
+
+      if (prefersReduced) return;
+
+      transitionLockRef.current = true;
+      if (unlockTimerRef.current !== null) {
+        window.clearTimeout(unlockTimerRef.current);
+      }
+      unlockTimerRef.current = window.setTimeout(() => {
+        transitionLockRef.current = false;
+        const queuedTarget = queuedTargetRef.current;
+        queuedTargetRef.current = null;
+        if (queuedTarget !== null && queuedTarget !== activeRef.current) {
+          runTransition(queuedTarget);
+        }
+      }, 360);
+    },
+    [getDirectionToTarget, normalizeIndex, prefersReduced],
+  );
+
+  const requestTransition = useCallback(
+    (targetIndex: number) => {
+      const nextIdx = normalizeIndex(targetIndex);
+      if (!prefersReduced && transitionLockRef.current) {
+        queuedTargetRef.current = nextIdx;
+        return;
+      }
+      runTransition(nextIdx);
+    },
+    [normalizeIndex, prefersReduced, runTransition],
+  );
+
+  const goTo = useCallback((i: number) => {
+    requestTransition(i);
+  }, [requestTransition]);
 
   const next = useCallback(() => {
-    setDirection(1);
-    setActive((i) => (i + 1) % slides.length);
-  }, []);
+    requestTransition(activeRef.current + 1);
+  }, [requestTransition]);
 
   const prev = useCallback(() => {
-    setDirection(-1);
-    setActive((i) => (i - 1 + slides.length) % slides.length);
+    requestTransition(activeRef.current - 1);
+  }, [requestTransition]);
+
+  useEffect(() => {
+    return () => {
+      if (unlockTimerRef.current !== null) {
+        window.clearTimeout(unlockTimerRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
+    if (slides.length === 0) {
+      setActive(0);
+      activeRef.current = 0;
+      return;
+    }
+    if (activeRef.current > slides.length - 1) {
+      setActive(0);
+      activeRef.current = 0;
+    }
+  }, [slides.length]);
+
+  useEffect(() => {
     if (paused || prefersReduced) return;
+    if (slides.length <= 1) return;
     const id = setInterval(next, AUTO_INTERVAL);
     return () => clearInterval(id);
-  }, [paused, next, prefersReduced]);
+  }, [paused, next, prefersReduced, slides.length]);
+
+  if (slides.length === 0) return null;
 
   const current = slides[active];
   const prevIdx = (active - 1 + slides.length) % slides.length;
@@ -57,7 +130,11 @@ export function LandingPhoneCarousel() {
 
   const slideTransition = prefersReduced
     ? { duration: 0 }
-    : { duration: 0.45, ease: [0.32, 0.72, 0, 1] as const };
+    : { duration: 0.3, ease: [0.22, 1, 0.36, 1] as const };
+
+  const textTransition = prefersReduced
+    ? { duration: 0 }
+    : { duration: 0.24, ease: [0.22, 1, 0.36, 1] as const };
 
   const onSwipePointerDown = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -90,10 +167,9 @@ export function LandingPhoneCarousel() {
 
       if (Math.abs(dx) < Math.abs(dy) || Math.abs(dx) < SWIPE_MIN_DX) return;
 
-      const len = slides.length;
       const cur = activeRef.current;
-      if (dx < 0) goTo((cur + 1) % len);
-      else goTo((cur - 1 + len) % len);
+      if (dx < 0) goTo(cur + 1);
+      else goTo(cur - 1);
     },
     [prefersReduced, goTo, clearSwipeCapture],
   );
@@ -113,7 +189,7 @@ export function LandingPhoneCarousel() {
 
   return (
     <div
-      className="mt-12 sm:mt-16"
+      className="relative mt-6 w-screen max-w-none -ml-[calc(50vw-50%)] sm:mx-auto sm:mt-16 sm:w-auto sm:max-w-7xl"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
@@ -121,66 +197,64 @@ export function LandingPhoneCarousel() {
         role="region"
         aria-roledescription="carrusel"
         aria-label="Vistas del producto en el móvil"
-        className="touch-pan-y cursor-grab active:cursor-grabbing"
+        className="touch-pan-y flex min-h-[62dvh] cursor-grab flex-col px-2 active:cursor-grabbing sm:min-h-0 sm:px-0"
         onPointerDown={onSwipePointerDown}
         onPointerUp={onSwipePointerUp}
         onPointerCancel={onSwipePointerCancel}
       >
-      {/* Phones */}
-      <div className="relative flex items-center justify-center">
-        <button
-          type="button"
-          onClick={prev}
-          onPointerDown={stopCarouselPointerBubble}
-          onPointerUp={stopCarouselPointerBubble}
-          onPointerCancel={stopCarouselPointerBubble}
-          aria-label="Vista anterior"
-          className="absolute left-0 top-1/2 z-20 hidden h-10 w-10 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-slate-200/70 bg-white/90 p-0 text-slate-700 shadow-sm backdrop-blur ring-1 ring-slate-200/60 transition hover:bg-white hover:ring-slate-300/80 sm:inline-flex dark:border-zinc-800/70 dark:bg-zinc-950/80 dark:text-zinc-100 dark:ring-zinc-800/60 dark:hover:bg-zinc-900/90"
-        >
-          <ChevronLeft className="h-5 w-5" aria-hidden />
-        </button>
-        <button
-          type="button"
-          onClick={next}
-          onPointerDown={stopCarouselPointerBubble}
-          onPointerUp={stopCarouselPointerBubble}
-          onPointerCancel={stopCarouselPointerBubble}
-          aria-label="Vista siguiente"
-          className="absolute right-0 top-1/2 z-20 hidden h-10 w-10 translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-slate-200/70 bg-white/90 p-0 text-slate-700 shadow-sm backdrop-blur ring-1 ring-slate-200/60 transition hover:bg-white hover:ring-slate-300/80 sm:inline-flex dark:border-zinc-800/70 dark:bg-zinc-950/80 dark:text-zinc-100 dark:ring-zinc-800/60 dark:hover:bg-zinc-900/90"
-        >
-          <ChevronRight className="h-5 w-5" aria-hidden />
-        </button>
+        {/* Phones */}
+        <div className="relative flex flex-1 items-center justify-center gap-2 py-2 sm:gap-4 sm:py-6 lg:gap-6 lg:py-8">
+          <button
+            type="button"
+            onClick={prev}
+            onPointerDown={stopCarouselPointerBubble}
+            onPointerUp={stopCarouselPointerBubble}
+            onPointerCancel={stopCarouselPointerBubble}
+            aria-label="Vista anterior"
+            className="absolute left-0 top-1/2 z-20 hidden h-10 w-10 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-slate-200/70 bg-white/90 p-0 text-slate-700 shadow-sm backdrop-blur ring-1 ring-slate-200/60 transition hover:bg-white hover:ring-slate-300/80 sm:inline-flex dark:border-zinc-800/70 dark:bg-zinc-950/80 dark:text-zinc-100 dark:ring-zinc-800/60 dark:hover:bg-zinc-900/90"
+          >
+            <ChevronLeft className="h-5 w-5" aria-hidden />
+          </button>
+          <button
+            type="button"
+            onClick={next}
+            onPointerDown={stopCarouselPointerBubble}
+            onPointerUp={stopCarouselPointerBubble}
+            onPointerCancel={stopCarouselPointerBubble}
+            aria-label="Vista siguiente"
+            className="absolute right-0 top-1/2 z-20 hidden h-10 w-10 translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-slate-200/70 bg-white/90 p-0 text-slate-700 shadow-sm backdrop-blur ring-1 ring-slate-200/60 transition hover:bg-white hover:ring-slate-300/80 sm:inline-flex dark:border-zinc-800/70 dark:bg-zinc-950/80 dark:text-zinc-100 dark:ring-zinc-800/60 dark:hover:bg-zinc-900/90"
+          >
+            <ChevronRight className="h-5 w-5" aria-hidden />
+          </button>
 
-        {/* Prev phone (left, smaller) */}
-        <motion.div
-          key={`prev-${prevIdx}`}
-          className="pointer-events-none hidden -translate-x-4 opacity-40 blur-[1px] sm:block lg:-translate-x-8"
-          initial={prefersReduced ? false : { opacity: 0, x: -12 }}
-          animate={{ opacity: 0.4, x: 0 }}
-          transition={{ duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
-        >
-          <PhoneFrame
-            className="!max-w-[140px] lg:!max-w-[170px]"
-            src={slides[prevIdx].src}
-            alt={slides[prevIdx].label}
-          />
-        </motion.div>
+          <motion.div
+            key={`prev-${prevIdx}`}
+            className="pointer-events-none hidden shrink-0 opacity-70 sm:block"
+            initial={prefersReduced ? false : { opacity: 0, x: -12 }}
+            animate={{ opacity: 0.75, x: 0 }}
+            transition={{ duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
+          >
+            <PhoneFrame
+              className={cn(sidePhoneClassName, "!w-full !max-w-none")}
+              imageClassName="grayscale-[0.95] blur-[0.7px] contrast-90"
+              src={slides[prevIdx].src}
+              alt={slides[prevIdx].label}
+            />
+          </motion.div>
 
-        {/* Active phone (center): ancho fijo + wait evita el “salto” de popLayout con flex */}
-        <div className="relative z-10 -mx-4 w-[min(100%,280px)] overflow-hidden sm:-mx-6 sm:w-[min(100%,300px)] lg:w-[min(100%,320px)]">
-          <div className="relative mx-auto w-full max-w-[200px] sm:max-w-[240px] lg:max-w-[270px]">
+          <div className="relative z-10 flex min-w-0 flex-none justify-center">
             <AnimatePresence initial={false} custom={direction} mode="wait">
               <motion.div
                 key={current.id}
                 custom={direction}
                 variants={{
                   enter: (dir: number) => ({
-                    x: prefersReduced ? 0 : dir > 0 ? "100%" : "-100%",
+                    x: prefersReduced ? 0 : dir > 0 ? 28 : -28,
                     opacity: 0,
                   }),
                   center: { x: 0, opacity: 1 },
                   exit: (dir: number) => ({
-                    x: prefersReduced ? 0 : dir > 0 ? "-100%" : "100%",
+                    x: prefersReduced ? 0 : dir > 0 ? -28 : 28,
                     opacity: 0,
                   }),
                 }}
@@ -188,55 +262,55 @@ export function LandingPhoneCarousel() {
                 animate="center"
                 exit="exit"
                 transition={slideTransition}
-                className="w-full"
+                className={cn("pointer-events-none mx-auto shrink-0", centerPhoneClassName)}
               >
                 <PhoneFrame
-                  className="!max-w-none w-full"
+                  className="!w-full !max-w-none"
                   src={current.src}
                   alt={current.label}
+                  priority
                 />
               </motion.div>
             </AnimatePresence>
           </div>
+
+          <motion.div
+            key={`next-${nextIdx}`}
+            className="pointer-events-none hidden shrink-0 opacity-70 sm:block"
+            initial={prefersReduced ? false : { opacity: 0, x: 12 }}
+            animate={{ opacity: 0.75, x: 0 }}
+            transition={{ duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
+          >
+            <PhoneFrame
+              className={cn(sidePhoneClassName, "!w-full !max-w-none")}
+              imageClassName="grayscale-[0.95] blur-[0.7px] contrast-90"
+              src={slides[nextIdx].src}
+              alt={slides[nextIdx].label}
+            />
+          </motion.div>
         </div>
 
-        {/* Next phone (right, smaller) */}
-        <motion.div
-          key={`next-${nextIdx}`}
-          className="pointer-events-none hidden translate-x-4 opacity-40 blur-[1px] sm:block lg:translate-x-8"
-          initial={prefersReduced ? false : { opacity: 0, x: 12 }}
-          animate={{ opacity: 0.4, x: 0 }}
-          transition={{ duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
-        >
-          <PhoneFrame
-            className="!max-w-[140px] lg:!max-w-[170px]"
-            src={slides[nextIdx].src}
-            alt={slides[nextIdx].label}
-          />
-        </motion.div>
-      </div>
-
       {/* Label */}
-      <div className="relative mx-auto mt-6 max-w-md overflow-hidden text-center sm:mt-8">
+      <div className="relative mx-auto mt-4 max-w-xl overflow-hidden px-3 text-center sm:mt-12 sm:px-0 lg:mt-14">
         <AnimatePresence initial={false} custom={direction} mode="wait">
           <motion.div
             key={current.id}
             custom={direction}
             variants={{
               enter: (dir: number) => ({
-                x: prefersReduced ? 0 : dir > 0 ? "40%" : "-40%",
+                x: prefersReduced ? 0 : dir > 0 ? 22 : -22,
                 opacity: 0,
               }),
               center: { x: 0, opacity: 1 },
               exit: (dir: number) => ({
-                x: prefersReduced ? 0 : dir > 0 ? "-40%" : "40%",
+                x: prefersReduced ? 0 : dir > 0 ? -22 : 22,
                 opacity: 0,
               }),
             }}
             initial="enter"
             animate="center"
             exit="exit"
-            transition={prefersReduced ? { duration: 0 } : { duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
+            transition={textTransition}
           >
             <p className="text-sm font-bold text-slate-900 sm:text-base dark:text-white">{current.label}</p>
             <p className="mt-1 text-xs text-slate-500 sm:text-sm dark:text-zinc-400">{current.sub}</p>
@@ -246,7 +320,7 @@ export function LandingPhoneCarousel() {
       </div>
 
       {/* Dots */}
-      <div className="mt-5 flex items-center justify-center gap-2">
+      <div className="mt-3 flex items-center justify-center gap-2 sm:mt-5">
         {slides.map((s, i) => (
           <button
             key={s.id}

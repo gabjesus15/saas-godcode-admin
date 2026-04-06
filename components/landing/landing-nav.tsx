@@ -9,7 +9,11 @@ import { LandingLogo } from "./landing-logo";
 
 const navLinks = [
   { href: "#funciones", label: "Funciones" },
+  { href: "#como-funciona", label: "Cómo funciona" },
   { href: "#producto", label: "Producto" },
+  { href: "#demo", label: "Demo" },
+  { href: "#comparar", label: "Comparar" },
+  { href: "#testimonios", label: "Testimonios" },
   { href: "#precios", label: "Precios" },
   { href: "#faq", label: "FAQ" },
   { href: "#contacto", label: "Contacto" },
@@ -89,6 +93,7 @@ export function LandingNav() {
           href="#inicio"
           className="shrink-0 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
         >
+          <span className="sr-only">Ir al inicio</span>
           <LandingLogo />
         </a>
 
@@ -143,7 +148,6 @@ export function LandingNav() {
             type="button"
             className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
             aria-label={open ? "Cerrar menú" : "Abrir menú"}
-            aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
           >
             {open ? <X className="h-[18px] w-[18px]" /> : <Menu className="h-[18px] w-[18px]" />}

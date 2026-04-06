@@ -320,8 +320,6 @@ function CartNamedAreaSelect({
         className={`cart-named-area-select-trigger form-input ${open ? "is-open" : ""}`}
         aria-labelledby="cart-named-area-label"
         onClick={() => setOpen((o) => !o)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
       >
         <span className="cart-named-area-select-value">
           {selected
@@ -335,12 +333,10 @@ function CartNamedAreaSelect({
         />
       </button>
       {open ? (
-        <ul className="cart-named-area-select-list" role="listbox">
-          <li role="presentation">
+        <ul className="cart-named-area-select-list" aria-label="Seleccionar zona de reparto">
+          <li>
             <button
               type="button"
-              role="option"
-              aria-selected={!value}
               className={`cart-named-area-select-option ${!value ? "is-active" : ""}`}
               onClick={() => {
                 onPick(null);
@@ -351,11 +347,9 @@ function CartNamedAreaSelect({
             </button>
           </li>
           {areas.map((a) => (
-            <li key={a.id} role="presentation">
+            <li key={a.id}>
               <button
                 type="button"
-                role="option"
-                aria-selected={value === a.id}
                 className={`cart-named-area-select-option ${
                   value === a.id ? "is-active" : ""
                 }`}
@@ -1816,7 +1810,7 @@ export function CartModal({
                   className={`cart-footer-enhance-expand${
                     activeEnhancePanel !== "none" ? " is-open" : ""
                   }`}
-                  aria-hidden={activeEnhancePanel === "none"}
+                  hidden={activeEnhancePanel === "none"}
                 >
                   <div className="cart-footer-enhance-scroll">
                     <div className="cart-enhance-panel glass cart-enhance-panel--in-footer">
@@ -1920,7 +1914,7 @@ export function CartModal({
                     className={`cart-enhance-segmented${
                       enhanceTabCount === 1 ? " cart-enhance-segmented--single" : ""
                     }`}
-                    role="tablist"
+                    role="group"
                     aria-label={
                       beveragesUpsellEnabledByBranch && extrasEnabledByBranch
                         ? "Agregar bebidas o extras al pedido"
@@ -1932,8 +1926,6 @@ export function CartModal({
                     {beveragesUpsellEnabledByBranch ? (
                       <button
                         type="button"
-                        role="tab"
-                        aria-selected={activeEnhancePanel === "beverages"}
                         className={`cart-enhance-seg ${
                           activeEnhancePanel === "beverages" ? "is-active" : ""
                         }`}
@@ -1949,8 +1941,6 @@ export function CartModal({
                     {extrasEnabledByBranch ? (
                       <button
                         type="button"
-                        role="tab"
-                        aria-selected={activeEnhancePanel === "extras"}
                         className={`cart-enhance-seg ${
                           activeEnhancePanel === "extras" ? "is-active" : ""
                         }`}
@@ -2693,8 +2683,7 @@ const PaymentFlow = ({
             <button 
               key={methodKey} 
               type="button"
-              className="btn btn-secondary btn-block payment-opt" 
-              style={{ animationDelay: `${Math.min(idx, 10) * 0.045}s` }}
+              className={`btn btn-secondary btn-block payment-opt payment-opt--delay-${Math.min(idx, 10)}`}
               onClick={() => setPaymentMethodKey(methodKey)}
             >
               {Icon && <Icon size={20} className="mr-5" />} {config.label}

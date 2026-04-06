@@ -2,14 +2,12 @@ import type { Metadata, Viewport } from "next";
 
 import "../super-admin.tailwind.css";
 import { SaasAdminPwaRegister } from "../../components/super-admin/saas-admin-pwa-register";
-import { SaasThemeScope } from "../../components/theme/saas-theme-scope";
-import { ThemeToggle } from "../../components/theme/theme-toggle";
 
 export const metadata: Metadata = {
 	manifest: "/saas-admin/manifest.webmanifest",
 	icons: {
-		icon: "/globe.svg",
-		apple: "/globe.svg",
+		icon: "/icon.svg",
+		apple: "/icon.svg",
 	},
 	appleWebApp: {
 		capable: true,
@@ -34,8 +32,6 @@ export default function AuthLayout({
 	return (
 		<>
 			<SaasAdminPwaRegister />
-			<SaasThemeScope />
-			<ThemeToggle />
 			{children}
 		</>
 	);

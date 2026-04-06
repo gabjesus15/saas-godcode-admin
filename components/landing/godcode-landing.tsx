@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import type { LandingMediaBundle } from "../../lib/landing-media-types";
 import type { PublicPlanForLanding } from "../../lib/public-plans";
 
 import { LandingNav } from "./landing-nav";
@@ -8,14 +9,15 @@ import { LandingScrollToTop } from "./landing-scroll-to-top";
 
 type GodcodeLandingProps = {
   plans: PublicPlanForLanding[];
+  media: LandingMediaBundle;
 };
 
-export function GodcodeLanding({ plans }: GodcodeLandingProps) {
+export function GodcodeLanding({ plans, media }: GodcodeLandingProps) {
   const support = process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || "hola@godcode.me";
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-white text-slate-800 dark:bg-zinc-950 dark:text-zinc-100">
       <LandingNav />
-      <LandingSections plans={plans} />
+      <LandingSections plans={plans} media={media} />
 
       <footer className="relative z-10 bg-black px-5 py-12 text-slate-400 sm:px-6 sm:py-16 lg:px-8">
         <div className="mx-auto max-w-7xl">
@@ -50,8 +52,11 @@ export function GodcodeLanding({ plans }: GodcodeLandingProps) {
               <ul className="mt-4 space-y-2.5 text-sm">
                 <li><Link href="/onboarding" className="transition-colors hover:text-white">Crear tienda</Link></li>
                 <li><a href="#funciones" className="transition-colors hover:text-white">Funciones</a></li>
+                <li><a href="#demo" className="transition-colors hover:text-white">Demo</a></li>
                 <li><a href="#precios" className="transition-colors hover:text-white">Precios</a></li>
                 <li><a href="#como-funciona" className="transition-colors hover:text-white">Cómo funciona</a></li>
+                <li><a href="#comparar" className="transition-colors hover:text-white">Comparar</a></li>
+                <li><a href="#testimonios" className="transition-colors hover:text-white">Testimonios</a></li>
               </ul>
             </div>
 

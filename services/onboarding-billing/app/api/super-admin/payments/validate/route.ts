@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
 
 		const query = supabaseAdmin
 			.from("payments_history")
-			.select("id,company_id,plan_id,status,months_paid,payment_reference")
+			.select("id,company_id,plan_id,status,months_paid,payment_reference,amount_paid")
 			.limit(1);
 		if (paymentId) query.eq("id", paymentId);
 		else query.eq("payment_reference", paymentRef);
@@ -49,18 +49,113 @@ export async function POST(req: NextRequest) {
 
 		const monthsPaid = getMonthsPaidFromPayment({ months_paid: payment.months_paid }, 1);
 		const now = new Date();
+		const isCustomerAccountExpansion = String(payment.payment_reference ?? "").startsWith("CUST-");
+		const isCustomerPlanChange = String(payment.payment_reference ?? "").startsWith("PLANCHG-");
+		const addonRefMatch = String(payment.payment_reference ?? "").match(/^ADDON-([0-9a-f-]{36})-M(\d+)-/i);
+		const isCustomerAddonPurchase = Boolean(addonRefMatch);
 
 		await supabaseAdmin
 			.from("payments_history")
 			.update({ status: "paid", payment_date: now.toISOString() })
 			.eq("id", payment.id);
 
-		await activateCompanySubscription({
-			supabaseAdmin,
-			companyId: payment.company_id,
-			monthsPaid,
-			now,
-		});
+		if (isCustomerPlanChange) {
+			await supabaseAdmin
+				.from("companies")
+				.update({
+					plan_id: payment.plan_id,
+					subscription_status: "active",
+					updated_at: now.toISOString(),
+				})
+				.eq("id", payment.company_id);
+		} else if (isCustomerAddonPurchase && addonRefMatch) {
+			const addonId = addonRefMatch[1];
+			const [{ data: company }, { data: addon }] = await Promise.all([
+				supabaseAdmin
+					.from("companies")
+					.select("subscription_ends_at")
+					.eq("id", payment.company_id)
+					.maybeSingle(),
+				supabaseAdmin
+					.from("addons")
+					.select("id,price_monthly")
+					.eq("id", addonId)
+					.maybeSingle(),
+			]);
+
+			if (!addon?.id) {
+				return NextResponse.json({ error: "No se encontro el extra asociado al pago" }, { status: 400 });
+			}
+
+			const isMonthlyAddon = Number(addon.price_monthly ?? 0) > 0;
+			await supabaseAdmin.from("company_addons").upsert(
+				{
+					company_id: payment.company_id,
+					addon_id: addon.id,
+					status: "active",
+					price_paid: Number(payment.amount_paid ?? 0) || null,
+					expires_at: isMonthlyAddon ? company?.subscription_ends_at ?? null : null,
+					updated_at: now.toISOString(),
+				},
+				{ onConflict: "company_id,addon_id" }
+			);
+		} else if (!isCustomerAccountExpansion) {
+			await activateCompanySubscription({
+				supabaseAdmin,
+				companyId: payment.company_id,
+				monthsPaid,
+				now,
+			});
+		} else {
+			const [{ data: company }, { data: addons }, { data: entitlement }] = await Promise.all([
+				supabaseAdmin
+					.from("companies")
+					.select("subscription_ends_at")
+					.eq("id", payment.company_id)
+					.maybeSingle(),
+				supabaseAdmin
+					.from("addons")
+					.select("id,slug,name,type")
+					.eq("is_active", true)
+					.order("sort_order", { ascending: true }),
+				supabaseAdmin
+					.from("company_branch_extra_entitlements")
+					.select("id,quantity")
+					.eq("payment_id", payment.id)
+					.maybeSingle(),
+			]);
+
+			const branchAddon = (addons ?? []).find((row) => {
+				const haystack = `${String(row.slug ?? "")} ${String(row.name ?? "")} ${String(row.type ?? "")}`.toLowerCase();
+				return haystack.includes("branch") || haystack.includes("sucursal");
+			});
+
+			if (branchAddon?.id) {
+				await supabaseAdmin.from("company_addons").upsert(
+					{
+						company_id: payment.company_id,
+						addon_id: branchAddon.id,
+						status: "active",
+						price_paid: Number(payment.amount_paid ?? 0) || null,
+						expires_at: company?.subscription_ends_at ?? null,
+						updated_at: now.toISOString(),
+					},
+					{ onConflict: "company_id,addon_id" }
+				);
+			}
+
+			if (entitlement?.id) {
+				await supabaseAdmin
+					.from("company_branch_extra_entitlements")
+					.update({
+						status: "active",
+						starts_at: now.toISOString(),
+						expires_at: company?.subscription_ends_at ?? null,
+						updated_at: now.toISOString(),
+					})
+					.eq("id", entitlement.id);
+			}
+		}
 
 		const { data: app } = await supabaseAdmin
 			.from("onboarding_applications")
@@ -85,7 +180,7 @@ export async function POST(req: NextRequest) {
 			}
 		}
 
-		if (app?.id) {
+		if (app?.id && !isCustomerAccountExpansion && !isCustomerPlanChange && !isCustomerAddonPurchase) {
 			await activateCompanyAddonsFromApplication({
 				supabaseAdmin,
 				applicationId: app.id,
@@ -95,10 +190,22 @@ export async function POST(req: NextRequest) {
 			});
 		}
 
-		logger.info("Pago validado", ctx, { companyId: payment.company_id, welcomeSent });
+		logger.info("Pago validado", ctx, {
+			companyId: payment.company_id,
+			welcomeSent,
+			customerAccountExpansion: isCustomerAccountExpansion,
+			customerPlanChange: isCustomerPlanChange,
+			customerAddonPurchase: isCustomerAddonPurchase,
+		});
 		return NextResponse.json({
 			ok: true,
-			message: "Pago validado. Suscripción activada.",
+			message: isCustomerPlanChange
+				? "Pago validado. El cambio de plan se aplico correctamente."
+				: isCustomerAddonPurchase
+					? "Pago validado. El extra se activo correctamente."
+				: isCustomerAccountExpansion
+					? "Pago validado. Se registro el extra de sucursal en la cuenta del cliente."
+					: "Pago validado. Suscripción activada.",
 			welcome_email_sent: welcomeSent,
 		});
 	} catch (err) {

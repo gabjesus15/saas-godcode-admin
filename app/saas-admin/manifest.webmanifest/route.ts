@@ -9,7 +9,7 @@ export async function GET(req: Request) {
 		origin = "";
 	}
 
-	const svgIcon = origin ? `${origin}/globe.svg` : "/globe.svg";
+	const svgIcon = origin ? `${origin}/icon.svg` : "/icon.svg";
 	const png192 = origin ? `${origin}/saas-admin/icon-192.png` : "/saas-admin/icon-192.png";
 	const png512 = origin ? `${origin}/saas-admin/icon-512.png` : "/saas-admin/icon-512.png";
 

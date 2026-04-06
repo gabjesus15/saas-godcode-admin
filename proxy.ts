@@ -27,6 +27,8 @@ const adminPaths = [
   "/dashboard",
   "/companies",
   "/login",
+  "/post-login",
+  "/cuenta",
   "/plans",
   "/onboarding/solicitudes",
   "/addons",

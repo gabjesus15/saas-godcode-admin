@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { AdminRoleProvider } from "../../components/super-admin/admin-role-context";
 import { SaasAdminPwaRegister } from "../../components/super-admin/saas-admin-pwa-register";
 import { AdminShell } from "../../components/super-admin/admin-shell";
-import { SaasThemeScope } from "../../components/theme/saas-theme-scope";
 import { ThemeToggle } from "../../components/theme/theme-toggle";
 import { createSupabaseServerClient } from "../../utils/supabase/server";
 
@@ -61,7 +60,6 @@ export default async function SuperAdminLayout({
 	return (
 		<>
 			<SaasAdminPwaRegister />
-			<SaasThemeScope />
 			<ThemeToggle />
 			<AdminRoleProvider role={role}>
 				<AdminShell>{children}</AdminShell>

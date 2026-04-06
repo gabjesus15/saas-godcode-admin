@@ -17,6 +17,8 @@ export function LandingLeadForm({
 }) {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (submitted) {
     return (
@@ -57,10 +59,27 @@ export function LandingLeadForm({
   return (
     <form
       className={cn("flex flex-col gap-3", className)}
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
-        if (!email.trim()) return;
-        setSubmitted(true);
+        if (!email.trim() || loading) return;
+        setLoading(true);
+        setError(null);
+        try {
+          const res = await fetch("/api/landing/leads", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            throw new Error(data.error ?? "No se pudo guardar tu correo.");
+          }
+          setSubmitted(true);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "No se pudo guardar tu correo.");
+        } finally {
+          setLoading(false);
+        }
       }}
     >
       <div className={rowCls}>
@@ -77,9 +96,12 @@ export function LandingLeadForm({
           className={darkInputStacked ?? inputCls}
         />
         <button type="submit" className={btnCls}>
-          Avísame
+          {loading ? "Guardando..." : "Avísame"}
         </button>
       </div>
+      {error ? (
+        <p className={cn("text-xs", dark ? "text-red-300" : "text-red-600")}>{error}</p>
+      ) : null}
       {dark ? (
         <p className="text-center text-[11px] leading-relaxed text-slate-500 sm:text-left">
           No compartimos tu correo con terceros. Puedes darte de baja cuando quieras.
