@@ -311,17 +311,34 @@ export function CartProvider({
         !Array.isArray(branchDeliverySettings)
           ? (branchDeliverySettings as Record<string, unknown>)
           : {};
+      const resolveBranchFlag = (value: unknown): boolean => {
+        if (value === true) return true;
+        if (value === false || value == null) return false;
+        if (typeof value === "number") return value === 1;
+        if (typeof value === "string") {
+          const normalized = value.trim().toLowerCase();
+          return normalized === "true" || normalized === "1";
+        }
+        if (typeof value === "object" && !Array.isArray(value)) {
+          const map = value as Record<string, unknown>;
+          if (selectedBranchId && resolveBranchFlag(map[selectedBranchId])) {
+            return true;
+          }
+          return Object.values(map).some((entry) => resolveBranchFlag(entry));
+        }
+        return false;
+      };
       const extrasEnabled =
-        raw.extrasEnabledByBranch === true ||
-        raw.extras_enabled_by_branch === true;
+        resolveBranchFlag(raw.extrasEnabledByBranch) ||
+        resolveBranchFlag(raw.extras_enabled_by_branch);
       const beveragesEnabled =
-        raw.beveragesUpsellEnabledByBranch === true ||
-        raw.beverages_upsell_enabled_by_branch === true;
+        resolveBranchFlag(raw.beveragesUpsellEnabledByBranch) ||
+        resolveBranchFlag(raw.beverages_upsell_enabled_by_branch);
       return {
         extrasEnabledByBranch: extrasEnabled,
         beveragesUpsellEnabledByBranch: beveragesEnabled,
       };
-    }, [branchDeliverySettings]);
+    }, [branchDeliverySettings, selectedBranchId]);
 
     useEffect(() => {
       if (typeof window === "undefined") return;
