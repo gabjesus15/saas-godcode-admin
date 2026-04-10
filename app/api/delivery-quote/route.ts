@@ -129,6 +129,7 @@ export async function POST(req: NextRequest) {
 				subtotalMajor: subtotal,
 				currencyCode,
 				oauth: { clientId: oauth.clientId, clientSecret: oauth.clientSecret },
+				customerId: oauth.customerId,
 			});
 			if (!uber.ok) {
 				const status = uber.httpStatus === 401 ? 502 : 502;

@@ -20,10 +20,12 @@ export function parseCompanyIntegrationSettings(
  */
 export function resolveUberOAuthCredentials(params: {
 	integrationSettings: unknown;
-}): { ok: true; clientId: string; clientSecret: string } | { ok: false; message: string } {
+}): { ok: true; clientId: string; clientSecret: string; customerId?: string } | { ok: false; message: string } {
 	const parsed = parseCompanyIntegrationSettings(params.integrationSettings);
 	const fromDbId = parsed.uber?.clientId?.trim() ?? "";
+	const fromDbCustomerId = parsed.uber?.customerId?.trim() ?? "";
 	const enc = parsed.uber?.clientSecretEncrypted?.trim() ?? "";
+
 	if (fromDbId && enc) {
 		const secret = decryptUberClientSecret(enc);
 		if (!secret) {
@@ -33,13 +35,25 @@ export function resolveUberOAuthCredentials(params: {
 					"No se pudo descifrar el Client Secret de Uber (revisa UBER_SECRETS_ENCRYPTION_KEY o vuelve a guardar el secret).",
 			};
 		}
-		return { ok: true, clientId: fromDbId, clientSecret: secret };
+		return {
+			ok: true,
+			clientId: fromDbId,
+			clientSecret: secret,
+			customerId: fromDbCustomerId || undefined,
+		};
 	}
 
 	const envId = process.env.UBER_CLIENT_ID?.trim() ?? "";
 	const envSecret = process.env.UBER_CLIENT_SECRET?.trim() ?? "";
+	const envCustomerId = process.env.UBER_CUSTOMER_ID?.trim() ?? "";
+
 	if (envId && envSecret) {
-		return { ok: true, clientId: envId, clientSecret: envSecret };
+		return {
+			ok: true,
+			clientId: envId,
+			clientSecret: envSecret,
+			customerId: envCustomerId || undefined,
+		};
 	}
 
 	return {
@@ -53,6 +67,7 @@ export function mergeCompanyIntegrationUberPatch(
 	prev: unknown,
 	patch: {
 		clientId: string;
+		customerId?: string;
 		clientSecretEncrypted?: string | null;
 		clearClientSecret?: boolean;
 	},
@@ -71,6 +86,10 @@ export function mergeCompanyIntegrationUberPatch(
 	const id = patch.clientId.trim().slice(0, 256);
 	if (id) uber.clientId = id;
 	else delete uber.clientId;
+
+	const customerId = patch.customerId?.trim().slice(0, 256) ?? "";
+	if (customerId) uber.customerId = customerId;
+	else delete uber.customerId;
 
 	if (patch.clearClientSecret) {
 		delete uber.clientSecretEncrypted;

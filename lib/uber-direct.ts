@@ -142,6 +142,7 @@ export async function fetchUberDeliveryEstimate(params: {
 	currencyCode: string;
 	/** Si se omite, se usa el par global en env. */
 	oauth?: UberOAuthCredentials | null;
+	customerId?: string;
 }): Promise<UberDeliveryEstimateResult> {
 	const tokenRes = await getUberDirectAccessToken(params.oauth ?? null);
 	if (!tokenRes.ok) {
@@ -154,6 +155,11 @@ export async function fetchUberDeliveryEstimate(params: {
 				process.env.UBER_CLIENT_ID?.trim() ?? "",
 				process.env.UBER_CLIENT_SECRET?.trim() ?? "",
 			);
+
+	const customerId = params.customerId?.trim() || process.env.UBER_CUSTOMER_ID?.trim() || "";
+	const url = customerId
+		? `https://api.uber.com/v1/customers/${customerId}/delivery_estimates`
+		: UBER_ESTIMATES_URL;
 
 	const currency = params.currencyCode.trim().toUpperCase() || "CLP";
 	const dropoff_address: Record<string, unknown> = {
@@ -176,9 +182,15 @@ export async function fetchUberDeliveryEstimate(params: {
 		},
 	};
 
+	// Si es el endpoint corporativo de Direct, a veces prefiere campos planos en la raíz.
+	if (customerId) {
+		payload.currency_code = currency;
+		payload.order_value = toUberMinorUnits(params.subtotalMajor, currency);
+	}
+
 	let res: Response;
 	try {
-		res = await fetch(UBER_ESTIMATES_URL, {
+		res = await fetch(url, {
 			method: "POST",
 			headers: {
 				Authorization: `Bearer ${tokenRes.accessToken}`,

@@ -15,6 +15,7 @@ import {
 interface Body {
 	companyId?: unknown;
 	clientId?: unknown;
+	customerId?: unknown;
 	clientSecret?: unknown;
 	clearClientSecret?: unknown;
 	/** Si false, el panel del negocio no muestra la opción “Consultar / Uber” por sucursal. */
@@ -39,12 +40,14 @@ export async function PATCH(req: NextRequest) {
 
 	const companyId = typeof body.companyId === "string" ? body.companyId.trim() : "";
 	const clientId = typeof body.clientId === "string" ? body.clientId.trim() : "";
+	const customerId = typeof body.customerId === "string" ? body.customerId.trim() : "";
 	const clientSecretRaw =
 		typeof body.clientSecret === "string" ? body.clientSecret.trim() : "";
 	const clearClientSecret = body.clearClientSecret === true;
 	const allowTenantRaw = body.allowTenantExternalDelivery;
 	const hasUberPayload =
 		typeof body.clientId === "string" ||
+		typeof body.customerId === "string" ||
 		typeof body.clientSecret === "string" ||
 		body.clearClientSecret === true;
 	const patchAllowOnly = typeof allowTenantRaw === "boolean" && !hasUberPayload;
@@ -91,6 +94,7 @@ export async function PATCH(req: NextRequest) {
 		}
 		nextSettings = mergeCompanyIntegrationUberPatch(row.integration_settings, {
 			clientId,
+			customerId,
 			clientSecretEncrypted: enc.ciphertext,
 			clearClientSecret: false,
 		});
@@ -100,6 +104,7 @@ export async function PATCH(req: NextRequest) {
 	} else {
 		nextSettings = mergeCompanyIntegrationUberPatch(row.integration_settings, {
 			clientId,
+			customerId,
 			clearClientSecret,
 		});
 		if (typeof allowTenantRaw === "boolean") {
@@ -120,6 +125,7 @@ export async function PATCH(req: NextRequest) {
 	return NextResponse.json({
 		ok: true,
 		uberClientId: parsed.uber?.clientId ?? "",
+		uberCustomerId: parsed.uber?.customerId ?? "",
 		hasClientSecret: Boolean(parsed.uber?.clientSecretEncrypted),
 		allowTenantExternalDelivery: isTenantExternalDeliveryAllowed(nextSettings),
 	});

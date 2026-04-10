@@ -12,6 +12,7 @@ import { useAdminRole } from "./admin-role-context";
 type Props = {
 	companyId: string;
 	initialClientId: string;
+	initialCustomerId?: string;
 	hasClientSecret: boolean;
 	/** Si false, el panel CEO no muestra la estrategia “Consultar / externo” por sucursal. */
 	initialAllowTenantExternalDelivery?: boolean;
@@ -20,11 +21,13 @@ type Props = {
 export function CompanyUberCredentialsForm({
 	companyId,
 	initialClientId,
+	initialCustomerId = "",
 	hasClientSecret: initialHasSecret,
 	initialAllowTenantExternalDelivery = true,
 }: Props) {
 	const { readOnly } = useAdminRole();
 	const [clientId, setClientId] = useState(initialClientId);
+	const [customerId, setCustomerId] = useState(initialCustomerId);
 	const [clientSecret, setClientSecret] = useState("");
 	const [clearSecret, setClearSecret] = useState(false);
 	const [hasSecret, setHasSecret] = useState(initialHasSecret);
@@ -38,7 +41,7 @@ export function CompanyUberCredentialsForm({
 	/** Credenciales ocultas por defecto; el formulario sensible solo al expandir. */
 	const [credentialsVisible, setCredentialsVisible] = useState(false);
 
-	const hasLocalConfig = Boolean(clientId.trim() || hasSecret);
+	const hasLocalConfig = Boolean(clientId.trim() || customerId.trim() || hasSecret);
 
 	const onSavePolicy = async () => {
 		const auth = await requireAdminRole(roleSets.billing);
@@ -92,19 +95,26 @@ export function CompanyUberCredentialsForm({
 				body: JSON.stringify({
 					companyId,
 					clientId: clientId.trim(),
+					customerId: customerId.trim(),
 					allowTenantExternalDelivery,
 					...(clearSecret ? { clearClientSecret: true } : {}),
 					...(clientSecret.trim() ? { clientSecret: clientSecret.trim() } : {}),
 				}),
 			});
 			const data = (await res.json()) as
-				| { ok: true; uberClientId?: string; hasClientSecret?: boolean }
+				| {
+						ok: true;
+						uberClientId?: string;
+						uberCustomerId?: string;
+						hasClientSecret?: boolean;
+				  }
 				| { ok: false; error?: string };
 			if (!res.ok || !data.ok) {
 				setError(data.ok ? "Error al guardar" : (data.error ?? "Error al guardar"));
 				return;
 			}
 			if (data.uberClientId !== undefined) setClientId(data.uberClientId);
+			if (data.uberCustomerId !== undefined) setCustomerId(data.uberCustomerId);
 			if (data.hasClientSecret !== undefined) setHasSecret(data.hasClientSecret);
 			if (
 				"allowTenantExternalDelivery" in data &&
@@ -251,6 +261,22 @@ export function CompanyUberCredentialsForm({
 								className="mt-1 w-full min-w-0 font-mono text-sm"
 								autoComplete="off"
 								placeholder="Opcional si usas solo variables de entorno globales"
+							/>
+						</div>
+						<div className="min-w-0">
+							<label
+								htmlFor="uber-co-customer-id"
+								className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+							>
+								Uber Customer ID
+							</label>
+							<Input
+								id="uber-co-customer-id"
+								value={customerId}
+								onChange={(e) => setCustomerId(e.target.value)}
+								className="mt-1 w-full min-w-0 font-mono text-sm"
+								autoComplete="off"
+								placeholder="ID de empresa entregado por Uber Direct"
 							/>
 						</div>
 						<div className="min-w-0">
