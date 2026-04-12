@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { TENANT_ADMIN_TAB_IDS } from "@/lib/tenant-admin-tabs";
 import { createSupabaseServerClient } from "@/utils/supabase/server";
 
 type CeoResult = { companyId: string; userId: string } | { error: string };
@@ -42,11 +43,24 @@ type UserDeleteRow = {
 };
 
 const TENANT_ALLOWED_ROLES = new Set(["ceo", "cashier"]);
+const TENANT_ALLOWED_TAB_IDS = new Set<string>(TENANT_ADMIN_TAB_IDS);
 
 function normalizeTenantRole(value: unknown): string {
 	const normalized = String(value ?? "").trim().toLowerCase();
 	if (normalized === "staff") return "cashier";
 	return normalized;
+}
+
+function normalizeAllowedTabs(value: unknown): string[] | null {
+	if (!Array.isArray(value)) return null;
+
+	const normalized = value
+		.filter((tab): tab is string => typeof tab === "string")
+		.map((tab) => tab.trim().toLowerCase())
+		.map((tab) => (tab === "drinks" ? "beverages" : tab))
+		.filter((tab) => TENANT_ALLOWED_TAB_IDS.has(tab));
+
+	return Array.from(new Set(normalized));
 }
 
 /**
@@ -121,9 +135,7 @@ export async function POST(req: NextRequest) {
 			typeof (body as Record<string, unknown>)?.branch_id === "string" && (body as { branch_id: string }).branch_id.trim().length > 0
 				? (body as { branch_id: string }).branch_id.trim()
 				: null;
-		const allowedTabs = Array.isArray((body as Record<string, unknown>)?.allowed_tabs)
-			? (body as { allowed_tabs: unknown[] }).allowed_tabs.filter((t: unknown) => typeof t === "string")
-			: null;
+		const allowedTabs = normalizeAllowedTabs((body as Record<string, unknown>)?.allowed_tabs);
 
 		if (!email || !password) {
 			return NextResponse.json({ error: "Email y contraseña son obligatorios" }, { status: 400 });
@@ -204,9 +216,7 @@ export async function PUT(req: NextRequest) {
 			typeof b?.branch_id === "string" && (b.branch_id as string).trim().length > 0
 				? (b.branch_id as string).trim()
 				: null;
-		const allowedTabs = Array.isArray(b?.allowed_tabs)
-			? (b.allowed_tabs as unknown[]).filter((t: unknown) => typeof t === "string")
-			: null;
+		const allowedTabs = normalizeAllowedTabs(b?.allowed_tabs);
 
 		if (!id || !email || !role) {
 			return NextResponse.json({ error: "Faltan id, correo o rol" }, { status: 400 });

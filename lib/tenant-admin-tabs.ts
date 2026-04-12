@@ -18,6 +18,8 @@ export const TENANT_ADMIN_TAB_OPTIONS = [
 	{ id: "analytics", label: "Reportes" },
 	{ id: "categories", label: "Categorías" },
 	{ id: "products", label: "Productos" },
+	{ id: "beverages", label: "Bebidas" },
+	{ id: "extras", label: "Extras" },
 	{ id: "inventory", label: "Inventario" },
 	{ id: "clients", label: "Clientes" },
 	{ id: "users", label: "Equipo" },

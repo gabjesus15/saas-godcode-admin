@@ -96,6 +96,8 @@ function normalizeRoleNavPermissions(raw: unknown): RoleNavPermissions {
     const role = rawRole.toLowerCase() === "staff" ? "cashier" : rawRole.toLowerCase();
     const cleanTabs = tabs
       .filter((value): value is string => typeof value === "string")
+      // Backward compatibility for old persisted id.
+      .map((value) => (value === "drinks" ? "beverages" : value))
       .filter((value) => allowedTabIds.has(value));
 
     normalized[role] = cleanTabs.length > 0 ? Array.from(new Set(cleanTabs)) : (DEFAULT_ROLE_NAV_PERMISSIONS[role as keyof RoleNavPermissions] ?? []);

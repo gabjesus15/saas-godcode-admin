@@ -75,9 +75,10 @@
 }
 
 .nav-logo {
-    height: 38px;
-    width: 38px;
-    object-fit: contain;
+    height: 48px;
+    width: 48px;
+    object-fit: cover;
+    object-position: center;
     border-radius: 6px;
 }
 
@@ -243,8 +244,8 @@ section {
     }
 
     .nav-logo {
-        height: 40px;
-        width: 40px;
+        height: 46px;
+        width: 46px;
     }
 
     .nav-back-button svg {
@@ -310,7 +311,8 @@ section {
 
 @media (min-width: 601px) {
     .nav-logo {
-        height: 46px;
+        height: 52px;
+        width: 52px;
     }
 }
 

@@ -46,7 +46,7 @@
   width: 100%;
   max-width: 100vw;
   min-height: 100dvh;
-  background: var(--bg-primary, #0a0a0a);
+  background: #0a0a0a;
   touch-action: pan-x pan-y;
   overflow-x: hidden;
 }
@@ -63,8 +63,8 @@
   background-image: var(--tenant-bg-image, url(/tenant/menu-pattern.webp));
   background-repeat: repeat;
   background-size: 1200px;
-  opacity: 0.5;
-  filter: brightness(0.18) blur(3px);
+  opacity: 0.22;
+  filter: brightness(0.7) contrast(1.08) blur(0.9px);
   transition: transform 0.1s ease-out, opacity 0.2s ease-out;
   pointer-events: none;
   will-change: transform;
