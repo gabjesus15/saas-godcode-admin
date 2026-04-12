@@ -24,6 +24,7 @@ export async function GET() {
 type CreateBody = {
 	name: string;
 	price?: number;
+	prices_by_continent?: Record<string, { price: number; currency: string }>;
 	max_branches?: number;
 	max_users?: number;
 	is_public?: boolean;
@@ -53,6 +54,7 @@ export async function POST(req: NextRequest) {
 		is_active: body.is_active !== false,
 		features: body.features && typeof body.features === "object" ? body.features : {},
 		marketing_lines: normalizeMarketingLines(body.marketing_lines),
+		prices_by_continent: body.prices_by_continent && typeof body.prices_by_continent === "object" ? body.prices_by_continent : {},
 	};
 	const { error, marketingLinesSkipped, singleId } = await adminInsertPlan(payload);
 

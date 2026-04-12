@@ -8,6 +8,7 @@ import { getAppUrl } from "../lib/app-url";
 import { getLandingMediaBundle } from "../lib/landing-media";
 import { getPublicPlansForLanding } from "../lib/public-plans";
 import { getSubdomainFromHost, isMainDomain } from "../lib/main-domain-host";
+import { getCountryFromHeaders } from "../lib/landing-geo-plans";
 
 export async function generateMetadata(): Promise<Metadata> {
   const hdrs = await headers();
@@ -70,7 +71,8 @@ export async function generateMetadata(): Promise<Metadata> {
 function JsonLd({ plans }: { plans: { price?: number | null }[] }) {
   const base = getAppUrl();
   const prices = plans
-    .map((p) => Number(p.price ?? 0))
+    .flatMap(p => Object.values(p.pricesByContinent || {}))
+    .map(p => Number(p.price ?? 0))
     .filter((p) => p > 0);
   const minPrice = prices.length > 0 ? Math.min(...prices) : undefined;
   const maxPrice = prices.length > 0 ? Math.max(...prices) : undefined;
@@ -130,6 +132,7 @@ export default async function Home() {
   const hdrs = await headers();
   const host = hdrs.get("host") || "";
   if (isMainDomain(host)) {
+    const country = getCountryFromHeaders(hdrs);
     const [plans, media] = await Promise.all([
       getPublicPlansForLanding(),
       getLandingMediaBundle(),
@@ -137,7 +140,7 @@ export default async function Home() {
     return (
       <>
         <JsonLd plans={plans} />
-        <GodcodeLanding plans={plans} media={media} />
+        <GodcodeLanding plans={plans} media={media} country={country} />
       </>
     );
   }

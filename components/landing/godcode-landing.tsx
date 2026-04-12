@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import type { LandingMediaBundle } from "../../lib/landing-media-types";
 import type { PublicPlanForLanding } from "../../lib/public-plans";
+import type { CountryCode } from "../../lib/landing-geo-plans"; // Usamos country para detectar continente
 
 import { LandingNav } from "./landing-nav";
 import { LandingSections } from "./landing-sections";
@@ -11,14 +12,15 @@ import { FloatingWhatsappButton } from "./floating-whatsapp-button";
 type GodcodeLandingProps = {
   plans: PublicPlanForLanding[];
   media: LandingMediaBundle;
+  country?: CountryCode;
 };
 
-export function GodcodeLanding({ plans, media }: GodcodeLandingProps) {
+export function GodcodeLanding({ plans, media, country = "OTHER" }: GodcodeLandingProps) {
   const support = process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || "hola@godcode.me";
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-white text-slate-800 dark:bg-zinc-950 dark:text-zinc-100">
       <LandingNav />
-      <LandingSections plans={plans} media={media} />
+      <LandingSections plans={plans} media={media} country={country} />
 
       <footer className="relative z-10 bg-black px-5 py-12 text-slate-400 sm:px-6 sm:py-16 lg:px-8">
         <div className="mx-auto max-w-7xl">

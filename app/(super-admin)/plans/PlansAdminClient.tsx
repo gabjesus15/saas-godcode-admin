@@ -32,12 +32,12 @@ const clpCurrency = new Intl.NumberFormat("es-CL", {
 type Plan = {
 	id: string;
 	name: string | null;
-	price: number | null;
 	max_branches: number | null;
 	max_users: number | null;
 	is_public: boolean | null;
 	is_active: boolean | null;
 	marketing_lines?: unknown;
+	prices_by_continent?: Record<string, { price: number; currency: string }>;
 };
 
 function planCardLines(plan: Plan): string[] {
@@ -54,24 +54,38 @@ function planCardLines(plan: Plan): string[] {
 
 type DescriptionLine = { id: string; text: string };
 
+type PriceByContinent = {
+	id: string;
+	continent: "USA/Canada" | "Latinoamérica" | "Europe" | "Asia" | "Africa" | "Oceania";
+	price: string | number;
+	currency: string;
+};
+
 type PlanFormState = {
 	name: string;
-	price: string | number;
 	max_branches: string | number;
 	max_users: string | number;
 	is_public: boolean;
 	is_active: boolean;
 	descriptionLines: DescriptionLine[];
+	pricesByContinent: PriceByContinent[];
+	// Formulario temporal para agregar múltiples precios a la vez
+	tempPrice: string | number;
+	tempCurrency: string;
+	tempSelectedRegions: PriceByContinent["continent"][];
 };
 
 const emptyForm = (): PlanFormState => ({
 	name: "",
-	price: "",
 	max_branches: "",
 	max_users: "",
 	is_public: true,
 	is_active: true,
 	descriptionLines: [],
+	pricesByContinent: [],
+	tempPrice: "",
+	tempCurrency: "USD",
+	tempSelectedRegions: [],
 });
 
 export function PlansAdminClient({
@@ -107,9 +121,14 @@ export function PlansAdminClient({
 
 	const startEdit = (p: Plan) => {
 		setNotice(null);
+		const pricesByContinent = Object.entries(p.prices_by_continent || {}).map(([continent, data]) => ({
+			id: newDescriptionLineId(),
+			continent: continent as PriceByContinent["continent"],
+			price: data.price,
+			currency: data.currency,
+		}));
 		setForm({
 			name: (p.name ?? "").trim(),
-			price: p.price ?? "",
 			max_branches: p.max_branches ?? "",
 			max_users: p.max_users ?? "",
 			is_public: p.is_public !== false,
@@ -118,6 +137,10 @@ export function PlansAdminClient({
 				id: newDescriptionLineId(),
 				text,
 			})),
+			pricesByContinent,
+			tempPrice: "",
+			tempCurrency: "USD",
+			tempSelectedRegions: [],
 		});
 		setEditingId(p.id);
 		setShowNew(false);
@@ -129,30 +152,35 @@ export function PlansAdminClient({
 			setError("El nombre del plan es obligatorio.");
 			return;
 		}
-		const priceNum = form.price === "" ? 0 : Number(form.price);
-		const maxBranchesNum = form.max_branches === "" ? 1 : Number(form.max_branches);
-		const maxUsersNum = form.max_users === "" ? 0 : Number(form.max_users);
-		if (Number.isNaN(priceNum) || priceNum < 0) {
-			setError("Indica un precio válido (USD/mes).");
+		if (form.pricesByContinent.length === 0) {
+			setError("Debes agregar al menos un precio por región.");
 			return;
 		}
+		const maxBranchesNum = form.max_branches === "" ? 1 : Number(form.max_branches);
+		const maxUsersNum = form.max_users === "" ? 0 : Number(form.max_users);
 		if (Number.isNaN(maxBranchesNum) || maxBranchesNum < 0) {
 			setError("Indica un número válido de sucursales.");
 			return;
 		}
 		if (Number.isNaN(maxUsersNum) || maxUsersNum < 0) {
-			setError("Indica un número válido de usuarios (0 = sin límite en copy / usa solo sucursales).");
+			setError("Indica un número válido de usuarios (0 = sin límite).");
 			return;
 		}
 
 		const payload = {
 			name: nameTrimmed,
-			price: priceNum,
 			max_branches: maxBranchesNum,
 			max_users: maxUsersNum,
 			is_public: form.is_public,
 			is_active: form.is_active,
 			marketing_lines: normalizeMarketingLines(form.descriptionLines.map((l) => l.text)),
+			prices_by_continent: form.pricesByContinent.reduce((acc, p) => {
+				acc[p.continent] = {
+					price: Number(p.price),
+					currency: p.currency,
+				};
+				return acc;
+			}, {} as Record<string, { price: number; currency: string }>),
 		};
 
 		setSaving(true);
@@ -243,20 +271,6 @@ export function PlansAdminClient({
 								value={form.name}
 								onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
 								placeholder="Básico"
-								className="h-10"
-							/>
-						</label>
-						<label className="flex flex-col gap-1 text-sm">
-							<span className="font-medium text-zinc-700 dark:text-zinc-300">Precio (USD/mes)</span>
-							<Input
-								type="number"
-								min="0"
-								step="1"
-								value={form.price === "" ? "" : form.price}
-								onChange={(e) =>
-									setForm((p) => ({ ...p, price: e.target.value === "" ? "" : Number(e.target.value) }))
-								}
-								placeholder="0"
 								className="h-10"
 							/>
 						</label>
@@ -384,7 +398,141 @@ export function PlansAdminClient({
 							<span className="font-medium text-zinc-700 dark:text-zinc-300">Plan activo</span>
 						</label>
 					</div>
-					<div className="mt-4 flex gap-2">
+
+					{/* Precios por región */}
+					<div className="mt-6 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+						<p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Precios por región</p>
+						<p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+							Ingresa el precio, selecciona las regiones y aplica a todas de una vez.
+						</p>
+
+						{/* Formulario para agregar múltiples precios */}
+						<div className="mt-4 space-y-3 rounded-lg bg-slate-50 p-4 dark:bg-zinc-900/50">
+							<div className="grid gap-3 sm:grid-cols-2">
+								<label className="flex flex-col gap-1 text-sm">
+									<span className="font-medium text-zinc-700 dark:text-zinc-300">Precio</span>
+									<input
+										type="number"
+										min="0"
+										placeholder="20"
+										value={form.tempPrice === "" ? "" : form.tempPrice}
+										onChange={(e) =>
+											setForm((p) => ({
+												...p,
+												tempPrice: e.target.value === "" ? "" : Number(e.target.value),
+											}))
+										}
+										className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+									/>
+								</label>
+								<label className="flex flex-col gap-1 text-sm">
+									<span className="font-medium text-zinc-700 dark:text-zinc-300">Moneda</span>
+									<input
+										type="text"
+										placeholder="USD"
+										maxLength="3"
+										value={form.tempCurrency}
+										onChange={(e) =>
+											setForm((p) => ({
+												...p,
+												tempCurrency: e.target.value.toUpperCase(),
+											}))
+										}
+										className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-center text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+									/>
+								</label>
+							</div>
+
+							<div className="sm:col-span-2">
+								<p className="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2">Aplicar a estas regiones:</p>
+								<div className="grid gap-2 sm:grid-cols-2">
+									{["USA/Canada", "Latinoamérica", "Europe", "Asia", "Africa", "Oceania"].map((region) => (
+										<label key={region} className="flex items-center gap-2 text-sm">
+											<input
+												type="checkbox"
+												checked={form.tempSelectedRegions.includes(region as PriceByContinent["continent"])}
+												onChange={(e) => {
+													const continent = region as PriceByContinent["continent"];
+													setForm((p) => ({
+														...p,
+														tempSelectedRegions: e.target.checked
+															? [...p.tempSelectedRegions, continent]
+															: p.tempSelectedRegions.filter((c) => c !== continent),
+													}));
+												}}
+												className="h-4 w-4 rounded border-zinc-300"
+											/>
+											<span className="text-zinc-700 dark:text-zinc-300">{region}</span>
+										</label>
+									))}
+								</div>
+							</div>
+
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								className="w-full gap-1.5"
+								onClick={() => {
+									const price = Number(form.tempPrice);
+									if (Number.isNaN(price) || price < 0 || form.tempSelectedRegions.length === 0) {
+										setError("Ingresa precio válido y selecciona al menos una región.");
+										return;
+									}
+									setError(null);
+
+									const newPrices = form.tempSelectedRegions.map((continent) => ({
+										id: newDescriptionLineId(),
+										continent,
+										price,
+										currency: form.tempCurrency,
+									}));
+
+									setForm((p) => ({
+										...p,
+										pricesByContinent: [...p.pricesByContinent, ...newPrices],
+										tempPrice: "",
+										tempCurrency: "USD",
+										tempSelectedRegions: [],
+									}));
+								}}
+							>
+								<Plus className="h-4 w-4" aria-hidden />
+								Aplicar precio a {form.tempSelectedRegions.length} región{form.tempSelectedRegions.length !== 1 ? "es" : ""}
+							</Button>
+						</div>
+
+						{/* Tabla de precios ya agregados */}
+						{form.pricesByContinent.length > 0 && (
+							<div className="mt-4 space-y-2">
+								<p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Precios configurados:</p>
+								{form.pricesByContinent.map((pc, idx) => (
+									<div key={pc.id} className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
+										<div className="flex gap-4 items-center">
+											<span className="font-medium text-zinc-900 dark:text-zinc-100">{pc.continent}</span>
+											<span className="text-sm text-zinc-600 dark:text-zinc-400">{pc.currency} {pc.price}</span>
+										</div>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											className="h-8 w-8 p-0"
+											onClick={() => {
+												setForm((prev) => ({
+													...prev,
+													pricesByContinent: prev.pricesByContinent.filter((_, i) => i !== idx),
+												}));
+											}}
+										>
+											<Trash2 className="h-4 w-4" />
+										</Button>
+									</div>
+								))}
+							</div>
+						)}
+					</div>
+
+					<div className="mt-6 flex gap-2">
 						<Button type="button" onClick={save} disabled={saving}>
 							{saving ? "Guardando…" : editingId ? "Guardar" : "Crear"}
 						</Button>
@@ -408,9 +556,18 @@ export function PlansAdminClient({
 								</Button>
 							</div>
 							<div className="mt-2 flex flex-wrap items-center gap-2">
-								<h3 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
-									{currency.format(Number(plan.price ?? 0))} / mes
-								</h3>
+								{(() => {
+									// Buscar precio en orden de preferencia: Latinoamérica (default) o el primero disponible
+									const latinPrice = plan.prices_by_continent?.["Latinoamérica"];
+									const priceData = latinPrice || Object.values(plan.prices_by_continent || {})[0];
+									return (
+										<h3 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
+											{priceData
+												? currency.format(priceData.price)
+												: "Precio no configurado"} / mes
+										</h3>
+									);
+								})()}
 								{plan.is_public === false ? (
 									<Badge variant="destructive">Solo interno</Badge>
 								) : null}
@@ -419,11 +576,15 @@ export function PlansAdminClient({
 										Inactivo
 									</Badge>
 								) : null}
-								{rate ? (
-									<span className="text-xs text-zinc-500">
-										{clpCurrency.format(Number(plan.price ?? 0) * rate)} aprox
-									</span>
-								) : null}
+								{rate && (() => {
+									const latinPrice = plan.prices_by_continent?.["Latinoamérica"];
+									const priceData = latinPrice || Object.values(plan.prices_by_continent || {})[0];
+									return priceData ? (
+										<span className="text-xs text-zinc-500">
+											{clpCurrency.format(priceData.price * rate)} aprox
+										</span>
+									) : null;
+								})()}
 							</div>
 						</div>
 						<div className="flex flex-col gap-3">
