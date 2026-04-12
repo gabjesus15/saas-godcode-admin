@@ -115,6 +115,28 @@ export type ProvisionCompanyResult =
 	| { ok: true; company: { id: string } }
 	| { ok: false; error: string; status: number };
 
+async function resolveCompanyCreatorId(supabaseAdmin: SupabaseClient): Promise<string | null> {
+	const { data: existingCompany } = await supabaseAdmin
+		.from("companies")
+		.select("created_by")
+		.not("created_by", "is", null)
+		.order("created_at", { ascending: true })
+		.limit(1)
+		.maybeSingle();
+
+	if (existingCompany?.created_by) return existingCompany.created_by;
+
+	const { data: activeUser } = await supabaseAdmin
+		.from("users")
+		.select("id")
+		.eq("is_active", true)
+		.order("created_at", { ascending: true })
+		.limit(1)
+		.maybeSingle();
+
+	return activeUser?.id ?? null;
+}
+
 export async function provisionCompanyFromApplication(
 	supabaseAdmin: SupabaseClient,
 	app: OnboardingApplication,
@@ -143,8 +165,14 @@ export async function provisionCompanyFromApplication(
 		publicSlug = `${baseSlug}-${suffix}`;
 	}
 
+	const createdBy = await resolveCompanyCreatorId(supabaseAdmin);
+	if (!createdBy) {
+		return { ok: false, error: "No hay usuario activo para crear la empresa", status: 503 };
+	}
+
 	const companyPayload = {
 		name: app.business_name,
+		created_by: createdBy,
 		legal_rut: app.billing_rut ?? null,
 		email: app.email,
 		phone: null,
