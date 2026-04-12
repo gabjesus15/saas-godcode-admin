@@ -17,7 +17,7 @@ import {
 
 import type { LandingMediaBundle } from "../../lib/landing-media-types";
 import { popularPlanIndex, type PublicPlanForLanding } from "../../lib/public-plans";
-import type { Continent } from "../../lib/landing-geo-plans";
+import type { Continent, CountryCode } from "../../lib/landing-geo-plans";
 import { getCurrencyByContinent, getContinentFromCountry } from "../../lib/landing-geo-plans";
 import { cn } from "../../utils/cn";
 import { Card } from "../ui/card";

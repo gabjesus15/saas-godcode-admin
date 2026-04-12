@@ -5,10 +5,10 @@ import type { PostgrestError } from "@supabase/supabase-js";
 import { supabaseAdmin } from "./supabase-admin";
 
 const ADMIN_PLANS_SELECT_BASE =
-	"id,name,name_i18n,price,max_branches,max_users,is_public,is_active,features";
+	"id,name,name_i18n,price,prices_by_continent,max_branches,max_users,is_public,is_active,features";
 
 const PUBLIC_LANDING_SELECT_BASE =
-	"id,name,name_i18n,price,max_branches,max_users,features,is_active";
+	"id,name,name_i18n,price,prices_by_continent,max_branches,max_users,features,is_active";
 
 function isPlansOptionalColumnsError(error: PostgrestError | null): boolean {
 	const msg = (error?.message ?? "").toLowerCase();

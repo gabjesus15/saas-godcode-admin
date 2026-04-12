@@ -71,7 +71,11 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-function JsonLd({ plans }: { plans: { price?: number | null }[] }) {
+function JsonLd({
+  plans,
+}: {
+  plans: { pricesByContinent?: Record<string, { price: number; currency: string }> }[];
+}) {
   const base = getAppUrl();
   const prices = plans
     .flatMap(p => Object.values(p.pricesByContinent || {}))
@@ -133,6 +137,7 @@ function JsonLd({ plans }: { plans: { price?: number | null }[] }) {
 
 export default async function Home() {
   const hdrs = await headers();
+  const country = getCountryFromHeaders(hdrs);
   const host = hdrs.get("host") || "";
   if (isMainDomain(host)) {
     const locale = await getCurrentLocale();

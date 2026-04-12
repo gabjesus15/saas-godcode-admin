@@ -4,8 +4,6 @@ import type { AppLocale } from "@/lib/i18n/config";
 
 import { resolvePlanMarketingLines, resolvePlanName } from "./plan-i18n";
 import { queryPublicPlansLandingRows } from "./plans-db-query";
-import type { CountryCode } from "./landing-geo-plans";
-import { getPlanTagByCountry } from "./landing-geo-plans";
 
 export type PublicPlanForLanding = {
   id: string;
@@ -101,7 +99,15 @@ export async function getPublicPlansForLanding(locale: AppLocale): Promise<Publi
   return rows.map((p) => ({
     id: p.id,
     name: resolvePlanName({ locale, name: p.name, nameI18n: p.name_i18n }),
-    price: Number(p.price ?? 0),
+    pricesByContinent:
+      p.prices_by_continent && typeof p.prices_by_continent === "object"
+        ? (p.prices_by_continent as Record<string, { price: number; currency: string }>)
+        : {
+            "Latinoamérica": {
+              price: Number(p.price ?? 0),
+              currency: "USD",
+            },
+          },
     max_branches: p.max_branches ?? 0,
     max_users: p.max_users ?? 0,
     featureBullets: bulletsFromPlan(p, locale),

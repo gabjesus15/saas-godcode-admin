@@ -42,6 +42,9 @@ type Plan = {
 	name: string | null;
 	name_i18n?: unknown;
 	price: number | null;
+	prices_by_continent?: Partial<
+		Record<PriceByContinent["continent"], { price: number; currency: string }>
+	> | null;
 	max_branches: number | null;
 	max_users: number | null;
 	is_public: boolean | null;
@@ -105,6 +108,11 @@ type PriceByContinent = {
 
 type PlanFormState = {
 	name: string;
+	price: string | number;
+	pricesByContinent: PriceByContinent[];
+	tempPrice: string | number;
+	tempCurrency: string;
+	tempSelectedRegions: PriceByContinent["continent"][];
 	max_branches: string | number;
 	max_users: string | number;
 	is_public: boolean;
@@ -116,6 +124,11 @@ type PlanFormState = {
 
 const emptyForm = (): PlanFormState => ({
 	name: "",
+	price: "",
+	pricesByContinent: [],
+	tempPrice: "",
+	tempCurrency: "USD",
+	tempSelectedRegions: [],
 	max_branches: "",
 	max_users: "",
 	is_public: true,
@@ -163,15 +176,28 @@ export function PlansAdminClient({
 		const localizedLines = localeLinesFromUnknown(baseLines, p.marketing_lines_i18n);
 		localizedLines[DEFAULT_LOCALE] = baseDescriptionLines.map((line) => ({ ...line }));
 		setNotice(null);
-		const pricesByContinent = Object.entries(p.prices_by_continent || {}).map(([continent, data]) => ({
-			id: newDescriptionLineId(),
-			continent: continent as PriceByContinent["continent"],
-			price: data.price,
-			currency: data.currency,
-		}));
+		const pricesByContinent = Object.entries(p.prices_by_continent || {}).flatMap(
+			([continent, data]) => {
+				if (!data || typeof data.price !== "number" || typeof data.currency !== "string") {
+					return [];
+				}
+				return [
+					{
+						id: newDescriptionLineId(),
+						continent: continent as PriceByContinent["continent"],
+						price: data.price,
+						currency: data.currency,
+					},
+				];
+			}
+		);
 		setForm({
 			name: baseName,
 			price: p.price ?? "",
+			pricesByContinent,
+			tempPrice: "",
+			tempCurrency: "USD",
+			tempSelectedRegions: [],
 			max_branches: p.max_branches ?? "",
 			max_users: p.max_users ?? "",
 			is_public: p.is_public !== false,
@@ -205,8 +231,24 @@ export function PlansAdminClient({
 			return;
 		}
 
+		const pricesByContinentPayload: Partial<
+			Record<PriceByContinent["continent"], { price: number; currency: string }>
+		> = {};
+		for (const pc of form.pricesByContinent) {
+			const normalizedPrice = Number(pc.price);
+			if (!Number.isFinite(normalizedPrice) || normalizedPrice < 0) continue;
+			pricesByContinentPayload[pc.continent] = {
+				price: normalizedPrice,
+				currency: (pc.currency || "USD").toUpperCase(),
+			};
+		}
+		const latinPrice = pricesByContinentPayload["Latinoamérica"]?.price;
+		const fallbackPrice = Object.values(pricesByContinentPayload)[0]?.price ?? 0;
+
 		const payload = {
 			name: nameTrimmed,
+			price: latinPrice ?? fallbackPrice,
+			prices_by_continent: pricesByContinentPayload,
 			max_branches: maxBranchesNum,
 			max_users: maxUsersNum,
 			is_public: form.is_public,
@@ -619,7 +661,7 @@ export function PlansAdminClient({
 									<input
 										type="text"
 										placeholder="USD"
-										maxLength="3"
+										maxLength={3}
 										value={form.tempCurrency}
 										onChange={(e) =>
 											setForm((p) => ({
@@ -646,7 +688,7 @@ export function PlansAdminClient({
 														...p,
 														tempSelectedRegions: e.target.checked
 															? [...p.tempSelectedRegions, continent]
-															: p.tempSelectedRegions.filter((c) => c !== continent),
+														: p.tempSelectedRegions.filter((c: PriceByContinent["continent"]) => c !== continent),
 													}));
 												}}
 												className="h-4 w-4 rounded border-zinc-300"
@@ -670,7 +712,7 @@ export function PlansAdminClient({
 									}
 									setError(null);
 
-									const newPrices = form.tempSelectedRegions.map((continent) => ({
+									const newPrices = form.tempSelectedRegions.map((continent: PriceByContinent["continent"]) => ({
 										id: newDescriptionLineId(),
 										continent,
 										price,
@@ -695,7 +737,7 @@ export function PlansAdminClient({
 						{form.pricesByContinent.length > 0 && (
 							<div className="mt-4 space-y-2">
 								<p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Precios configurados:</p>
-								{form.pricesByContinent.map((pc, idx) => (
+								{form.pricesByContinent.map((pc: PriceByContinent, idx: number) => (
 									<div key={pc.id} className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
 										<div className="flex gap-4 items-center">
 											<span className="font-medium text-zinc-900 dark:text-zinc-100">{pc.continent}</span>
@@ -709,7 +751,7 @@ export function PlansAdminClient({
 											onClick={() => {
 												setForm((prev) => ({
 													...prev,
-													pricesByContinent: prev.pricesByContinent.filter((_, i) => i !== idx),
+													pricesByContinent: prev.pricesByContinent.filter((_: PriceByContinent, i: number) => i !== idx),
 												}));
 											}}
 										>
@@ -748,7 +790,7 @@ export function PlansAdminClient({
 								{(() => {
 									// Buscar precio en orden de preferencia: Latinoamérica (default) o el primero disponible
 									const latinPrice = plan.prices_by_continent?.["Latinoamérica"];
-									const priceData = latinPrice || Object.values(plan.prices_by_continent || {})[0];
+									const priceData = latinPrice || Object.values(plan.prices_by_continent || {}).find(Boolean);
 									return (
 										<h3 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
 											{priceData
@@ -767,7 +809,7 @@ export function PlansAdminClient({
 								) : null}
 								{rate && (() => {
 									const latinPrice = plan.prices_by_continent?.["Latinoamérica"];
-									const priceData = latinPrice || Object.values(plan.prices_by_continent || {})[0];
+									const priceData = latinPrice || Object.values(plan.prices_by_continent || {}).find(Boolean);
 									return priceData ? (
 										<span className="text-xs text-zinc-500">
 											{clpCurrency.format(priceData.price * rate)} aprox

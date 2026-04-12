@@ -51,6 +51,10 @@ export async function POST(req: NextRequest) {
 	const payload: Record<string, unknown> = {
 		name,
 		price: Math.max(0, Number(body.price) ?? 0),
+		prices_by_continent:
+			body.prices_by_continent && typeof body.prices_by_continent === "object"
+				? body.prices_by_continent
+				: {},
 		max_branches: Math.max(0, Math.min(9999, Number(body.max_branches) ?? 1)),
 		max_users: Math.max(0, Math.min(999999, Number(body.max_users) ?? 0)),
 		is_public: body.is_public !== false,
