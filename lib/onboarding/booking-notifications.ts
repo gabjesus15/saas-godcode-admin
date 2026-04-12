@@ -42,10 +42,6 @@ export function getBookingContactDate(now = new Date(), days = CONTACT_DELAY_DAY
 	return contactDate;
 }
 
-function toDayKey(date: Date): string {
-	return date.toISOString().slice(0, 10);
-}
-
 function withUtcHour(date: Date, hour = 15): Date {
 	const d = new Date(date);
 	d.setUTCHours(hour, 0, 0, 0);
