@@ -68,6 +68,7 @@ export default function PlanPaymentMethodsPage() {
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [editConfig, setEditConfig] = useState<Record<string, string>>({});
 	const [saving, setSaving] = useState(false);
+	const [togglingId, setTogglingId] = useState<string | null>(null);
 
 	useEffect(() => {
 		fetch("/api/super-admin/plan-payment-methods")
@@ -103,6 +104,30 @@ export default function PlanPaymentMethodsPage() {
 		}
 	};
 
+	const toggleMethod = async (method: Method) => {
+		setTogglingId(method.id);
+		setError(null);
+		try {
+			const res = await fetch("/api/super-admin/plan-payment-methods", {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ id: method.id, is_active: !method.is_active }),
+			});
+			const json = (await res.json().catch(() => ({}))) as { error?: string };
+			if (!res.ok) {
+				throw new Error(json.error ?? "No se pudo actualizar");
+			}
+
+			setMethods((prev) =>
+				prev.map((m) => (m.id === method.id ? { ...m, is_active: !m.is_active } : m))
+			);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "No se pudo actualizar");
+		} finally {
+			setTogglingId(null);
+		}
+	};
+
 	if (loading) {
 		return (
 			<div className="flex min-h-[200px] items-center justify-center">
@@ -131,6 +156,7 @@ export default function PlanPaymentMethodsPage() {
 			<div className="grid gap-4">
 				{methods.map((m) => {
 					const isOnline = ONLINE_METHOD_SLUGS.includes(m.slug);
+					const isToggling = togglingId === m.id;
 					return (
 						<Card key={m.id} className="p-4 sm:p-5">
 							<div className="flex flex-wrap items-center justify-between gap-2">
@@ -139,28 +165,46 @@ export default function PlanPaymentMethodsPage() {
 									<p className="text-xs text-zinc-500">
 										{m.countries?.join(", ") || "—"} · {m.auto_verify ? "Auto-verificación" : "Validación manual"}
 									</p>
+									<p className="mt-1 text-xs">
+										<span className={m.is_active ? "rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" : "rounded bg-zinc-100 px-2 py-0.5 font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"}>
+											{m.is_active ? "Activo" : "Inactivo"}
+										</span>
+									</p>
 								</div>
-								{!isOnline && (
-									editingId !== m.id ? (
-										<Button type="button" variant="outline" size="sm" onClick={() => startEdit(m)}>
-											Editar datos
-										</Button>
-									) : (
-										<div className="flex gap-2">
-											<Button type="button" size="sm" onClick={saveConfig} disabled={saving}>
-												{saving ? "Guardando…" : "Guardar"}
+								<div className="flex flex-wrap items-center gap-2">
+									{!isOnline && (
+										editingId !== m.id ? (
+											<Button type="button" variant="outline" size="sm" onClick={() => startEdit(m)}>
+												Editar datos
 											</Button>
-											<Button
-												type="button"
-												variant="outline"
-												size="sm"
-												onClick={() => { setEditingId(null); }}
-											>
-												Cancelar
-											</Button>
-										</div>
-									)
-								)}
+										) : (
+											<div className="flex gap-2">
+												<Button type="button" size="sm" onClick={saveConfig} disabled={saving}>
+													{saving ? "Guardando…" : "Guardar"}
+												</Button>
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													onClick={() => {
+														setEditingId(null);
+													}}
+												>
+													Cancelar
+												</Button>
+											</div>
+										)
+									)}
+									<Button
+										type="button"
+										variant={m.is_active ? "outline" : "default"}
+										size="sm"
+										disabled={isToggling}
+										onClick={() => void toggleMethod(m)}
+									>
+										{isToggling ? "Actualizando…" : m.is_active ? "Desactivar" : "Activar"}
+									</Button>
+								</div>
 							</div>
 							{isOnline ? (
 								<p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">

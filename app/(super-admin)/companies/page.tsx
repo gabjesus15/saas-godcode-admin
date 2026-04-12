@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from "../../../utils/supabase/server";
 export default async function CompaniesPage() {
   try {
     const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase
+    const { data: companies, error } = await supabase
       .from("companies")
       .select(
         "id,name,public_slug,custom_domain,subscription_status,subscription_ends_at,plans(name,price,max_branches)"
@@ -15,7 +15,35 @@ export default async function CompaniesPage() {
       throw error;
     }
 
-    return <CompaniesView companies={data ?? []} />;
+    const companyIds = (companies ?? []).map((company) => company.id);
+    const verificationByCompany = new Map<string, { status: string | null; email_verified_at: string | null }>();
+
+    if (companyIds.length > 0) {
+      const { data: verifications } = await supabase
+        .from("onboarding_applications")
+        .select("company_id,status,email_verified_at,created_at")
+        .in("company_id", companyIds)
+        .order("created_at", { ascending: false });
+
+      for (const row of verifications ?? []) {
+        if (!row.company_id || verificationByCompany.has(row.company_id)) continue;
+        verificationByCompany.set(row.company_id, {
+          status: row.status ?? null,
+          email_verified_at: row.email_verified_at ?? null,
+        });
+      }
+    }
+
+    const data = (companies ?? []).map((company) => {
+      const verification = verificationByCompany.get(company.id);
+      return {
+        ...company,
+        status: verification?.status ?? null,
+        email_verified_at: verification?.email_verified_at ?? null,
+      };
+    });
+
+    return <CompaniesView companies={data} />;
   } catch (err) {
     console.error("[super-admin/companies]", err);
   

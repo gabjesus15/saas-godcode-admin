@@ -13,6 +13,9 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { getAppUrl } from "../app-url";
+import { sendOnboardingEmail } from "./emails";
+
 type PaymentStatusRow = {
 	status?: string | null;
 	months_paid?: number | null;
@@ -46,6 +49,12 @@ export async function activateCompanySubscription(params: {
 	now?: Date;
 }): Promise<void> {
 	const now = params.now ?? new Date();
+	const { data: companyBefore } = await params.supabaseAdmin
+		.from("companies")
+		.select("subscription_status,name,email")
+		.eq("id", params.companyId)
+		.maybeSingle();
+	const previousStatus = companyBefore?.subscription_status?.trim().toLowerCase() ?? null;
 	const endsAtIso = getSubscriptionEndsAt(params.monthsPaid, now);
 	await params.supabaseAdmin
 		.from("companies")
@@ -69,6 +78,52 @@ export async function activateCompanySubscription(params: {
 			.eq("company_id", params.companyId)
 			.eq("status", "active"),
 	]);
+
+	const { data: application } = await params.supabaseAdmin
+		.from("onboarding_applications")
+		.select("business_name,responsible_name,email")
+		.eq("company_id", params.companyId)
+		.order("created_at", { ascending: false })
+		.limit(1)
+		.maybeSingle();
+
+	if (!application) {
+		return;
+	}
+
+	const recipientEmail = application.email || companyBefore?.email || "";
+	if (!recipientEmail) {
+		return;
+	}
+
+	const businessName = application.business_name || companyBefore?.name || "Tu negocio";
+	const responsibleName = application.responsible_name || "";
+	const panelUrl = getAppUrl();
+
+	if (previousStatus === "suspended") {
+		await sendOnboardingEmail({
+			type: "status_reactivated",
+			to: recipientEmail,
+			from: process.env.RESEND_FROM ?? "noreply@example.com",
+			apiKey: process.env.RESEND_API_KEY ?? "",
+			responsibleName,
+			businessName,
+			panelUrl,
+		});
+		return;
+	}
+
+	if (previousStatus && previousStatus !== "active") {
+		await sendOnboardingEmail({
+			type: "site_ready",
+			to: recipientEmail,
+			from: process.env.RESEND_FROM ?? "noreply@example.com",
+			apiKey: process.env.RESEND_API_KEY ?? "",
+			responsibleName,
+			businessName,
+			siteUrl: panelUrl,
+		});
+	}
 }
 
 export type SuspendExpiredResult = {
@@ -96,6 +151,17 @@ export async function suspendExpiredSubscriptions(params: {
 		return { suspended: 0 };
 	}
 
+	const { data: applications } = await params.supabaseAdmin
+		.from("onboarding_applications")
+		.select("company_id,business_name,responsible_name,email")
+		.in("company_id", companies.map((company) => company.id));
+
+	const applicationByCompanyId = new Map(
+		((applications ?? []) as { company_id: string | null; business_name: string; responsible_name: string; email: string }[])
+			.filter((application) => Boolean(application.company_id))
+			.map((application) => [application.company_id as string, application])
+	);
+
 	const { error: updateError } = await params.supabaseAdmin
 		.from("companies")
 		.update({ subscription_status: "suspended", updated_at: now })
@@ -105,6 +171,27 @@ export async function suspendExpiredSubscriptions(params: {
 	if (updateError) {
 		return { suspended: 0, error: updateError.message };
 	}
+
+	const resendApiKey = process.env.RESEND_API_KEY ?? "";
+	const resendFrom = process.env.RESEND_FROM ?? "noreply@example.com";
+	const panelUrl = getAppUrl();
+
+	await Promise.all(
+		companies.map(async (company) => {
+			const application = applicationByCompanyId.get(company.id);
+			if (!application?.email) return;
+
+			await sendOnboardingEmail({
+				type: "status_suspended",
+				to: application.email,
+				from: resendFrom,
+				apiKey: resendApiKey,
+				responsibleName: application.responsible_name || "",
+				businessName: application.business_name || company.id,
+				panelUrl,
+			});
+		})
+	);
 
 	return { suspended: companies.length };
 }

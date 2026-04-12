@@ -84,6 +84,42 @@ export async function GET() {
 			}>()),
 		]);
 
+		const deliveryBookingsRes = companyIds.length
+			? await (async () => {
+				const { data: tickets } = await supabaseAdmin
+					.from("saas_tickets")
+					.select("company_id,assigned_to,assigned_admin_id,resolution_due_at,status,updated_at")
+					.in("company_id", companyIds)
+					.eq("category", "onboarding_delivery")
+					.not("status", "in", "(resolved,cancelled)")
+					.order("updated_at", { ascending: false });
+
+				const byCompany = new Map<string, {
+					assigned_to: string | null;
+					assigned_admin_id: string | null;
+					resolution_due_at: string | null;
+					status: string;
+				}>();
+
+				for (const row of tickets ?? []) {
+					if (!row.company_id || byCompany.has(row.company_id)) continue;
+					byCompany.set(row.company_id, {
+						assigned_to: row.assigned_to ?? null,
+						assigned_admin_id: row.assigned_admin_id ?? null,
+						resolution_due_at: row.resolution_due_at ?? null,
+						status: row.status ?? "open",
+					});
+				}
+
+				return byCompany;
+			})()
+			: new Map<string, {
+				assigned_to: string | null;
+				assigned_admin_id: string | null;
+				resolution_due_at: string | null;
+				status: string;
+			}>();
+
 		const plansMap = new Map((plansRes.data ?? []).map((p) => [p.id, p]));
 
 		const list = listData.map((app) => {
@@ -93,6 +129,7 @@ export async function GET() {
 					? `Custom: ${app.custom_plan_name ?? "—"} – ${app.custom_plan_price ?? "—"}`
 					: plan?.name ?? (app.plan_id ? `Plan ${app.plan_id}` : "—");
 			const lastPayment = app.company_id ? lastPaymentsRes.get(app.company_id) : null;
+			const deliveryBooking = app.company_id ? deliveryBookingsRes.get(app.company_id) : null;
 			const paymentStatus = lastPayment
 				? lastPayment.status === "paid" || lastPayment.status === "approved"
 					? "paid"
@@ -112,6 +149,14 @@ export async function GET() {
 				custom_domain: !!app.custom_domain,
 				custom_domain_value: app.custom_domain ?? null,
 				payment_status: paymentStatus,
+				delivery_booking: deliveryBooking
+					? {
+						scheduled_for: deliveryBooking.resolution_due_at,
+						assigned_to: deliveryBooking.assigned_to,
+						assigned_admin_id: deliveryBooking.assigned_admin_id,
+						status: deliveryBooking.status,
+					}
+					: null,
 				last_payment: lastPayment ?? null,
 			};
 		});

@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { SAAS_READ_ROLES, validateAdminRolesOnServer } from "../../../../utils/admin/server-auth";
+import { SAAS_MUTATE_ROLES } from "../../../../utils/admin/server-auth";
 
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
+import { logAdminAudit } from "../../../../lib/admin-audit";
 
 export async function GET() {
 	const permission = await validateAdminRolesOnServer([...SAAS_READ_ROLES]);
@@ -34,4 +37,47 @@ export async function GET() {
 	);
 
 	return NextResponse.json({ data: withConfig });
+}
+
+export async function PATCH(req: NextRequest) {
+	const permission = await validateAdminRolesOnServer([...SAAS_MUTATE_ROLES]);
+	if (!permission.ok) {
+		return NextResponse.json({ error: permission.error ?? "No autorizado" }, { status: permission.status ?? 403 });
+	}
+
+	const body = (await req.json().catch(() => ({}))) as { id?: string; is_active?: boolean };
+	const methodId = typeof body.id === "string" ? body.id.trim() : "";
+	if (!methodId) {
+		return NextResponse.json({ error: "id es requerido" }, { status: 400 });
+	}
+
+	if (typeof body.is_active !== "boolean") {
+		return NextResponse.json({ error: "is_active debe ser boolean" }, { status: 400 });
+	}
+
+	const { data, error } = await supabaseAdmin
+		.from("plan_payment_methods")
+		.update({ is_active: body.is_active })
+		.eq("id", methodId)
+		.select("id,slug,name,is_active")
+		.maybeSingle();
+
+	if (error || !data) {
+		return NextResponse.json({ error: "No se pudo actualizar el método" }, { status: 500 });
+	}
+
+	await logAdminAudit({
+		actorEmail: permission.email ?? "",
+		actorRole: permission.role,
+		action: "plan_payment_method.toggle_active",
+		resourceType: "plan_payment_method",
+		resourceId: methodId,
+		metadata: {
+			slug: data.slug,
+			name: data.name,
+			is_active: data.is_active,
+		},
+	});
+
+	return NextResponse.json({ ok: true, data });
 }

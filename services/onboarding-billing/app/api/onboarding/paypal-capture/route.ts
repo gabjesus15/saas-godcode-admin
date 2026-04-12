@@ -6,6 +6,11 @@ import {
 } from "@paypal/paypal-server-sdk";
 
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
+import {
+	getBookingContactDate,
+	queueBookingReminder,
+	sendPaymentValidatedNotice,
+} from "../../../../lib/onboarding/booking-notifications";
 import { hashPaymentIdentity, normalizeEmail } from "../../../../lib/onboarding/trial-eligibility";
 
 const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID ?? "";
@@ -61,6 +66,40 @@ export async function GET(req: NextRequest) {
 					paypal_payer_id_hash: payerIdHash,
 				})
 				.eq("payment_reference", token);
+
+			const { data: payment } = await supabaseAdmin
+				.from("payments_history")
+				.select("company_id")
+				.eq("payment_reference", token)
+				.maybeSingle();
+
+			if (payment?.company_id) {
+				const { data: application } = await supabaseAdmin
+					.from("onboarding_applications")
+					.select("business_name,responsible_name,email,status")
+					.eq("company_id", payment.company_id)
+					.eq("status", "payment_pending")
+					.maybeSingle();
+
+				if (application) {
+					const preferredContactDate = getBookingContactDate();
+					const booking = await queueBookingReminder({
+						supabaseAdmin,
+						companyId: payment.company_id,
+						businessName: application.business_name,
+						requesterEmail: application.email,
+						scheduledFor: preferredContactDate,
+					});
+					await sendPaymentValidatedNotice({
+						supabaseAdmin,
+						companyId: payment.company_id,
+						businessName: application.business_name,
+						responsibleName: application.responsible_name ?? "",
+						recipientEmail: application.email,
+						contactDate: booking.scheduledFor,
+					});
+				}
+			}
 		}
 
 		const baseUrl =

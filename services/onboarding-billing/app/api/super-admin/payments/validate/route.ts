@@ -8,6 +8,11 @@ import {
 	activateCompanySubscription,
 	getMonthsPaidFromPayment,
 } from "../../../../../lib/onboarding/billing-activation";
+import {
+	getBookingContactDate,
+	queueBookingReminder,
+	sendPaymentValidatedNotice,
+} from "../../../../../lib/onboarding/booking-notifications";
 import { provisionOnboardingWelcome } from "../../../../../lib/onboarding/welcome-provisioning";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "";
@@ -53,11 +58,45 @@ export async function POST(req: NextRequest) {
 		const isCustomerPlanChange = String(payment.payment_reference ?? "").startsWith("PLANCHG-");
 		const addonRefMatch = String(payment.payment_reference ?? "").match(/^ADDON-([0-9a-f-]{36})-M(\d+)-/i);
 		const isCustomerAddonPurchase = Boolean(addonRefMatch);
+		const isOnboardingFlow = !isCustomerAccountExpansion && !isCustomerPlanChange && !isCustomerAddonPurchase;
 
 		await supabaseAdmin
 			.from("payments_history")
 			.update({ status: "paid", payment_date: now.toISOString() })
 			.eq("id", payment.id);
+
+		const { data: app } = await supabaseAdmin
+			.from("onboarding_applications")
+			.select("id,business_name,responsible_name,email,welcome_email_sent_at")
+			.eq("company_id", payment.company_id)
+			.eq("status", "payment_pending")
+			.maybeSingle();
+
+		if (app && isOnboardingFlow) {
+			try {
+				const preferredContactDate = getBookingContactDate(now);
+				const booking = await queueBookingReminder({
+					supabaseAdmin,
+					companyId: payment.company_id,
+					businessName: app.business_name,
+					requesterEmail: app.email,
+					scheduledFor: preferredContactDate,
+				});
+				await sendPaymentValidatedNotice({
+					supabaseAdmin,
+					companyId: payment.company_id,
+					businessName: app.business_name,
+					responsibleName: app.responsible_name ?? "",
+					recipientEmail: app.email,
+					contactDate: booking.scheduledFor,
+				});
+			} catch (error) {
+				logger.warn("payment_validated_email_failed", ctx, {
+					companyId: payment.company_id,
+					error: String(error),
+				});
+			}
+		}
 
 		if (isCustomerPlanChange) {
 			await supabaseAdmin
@@ -156,13 +195,6 @@ export async function POST(req: NextRequest) {
 					.eq("id", entitlement.id);
 			}
 		}
-
-		const { data: app } = await supabaseAdmin
-			.from("onboarding_applications")
-			.select("id,business_name,responsible_name,email,welcome_email_sent_at")
-			.eq("company_id", payment.company_id)
-			.eq("status", "payment_pending")
-			.maybeSingle();
 
 		let welcomeSent = false;
 		if (app && !app.welcome_email_sent_at) {
