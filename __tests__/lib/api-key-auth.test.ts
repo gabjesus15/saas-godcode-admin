@@ -16,7 +16,7 @@ describe("validateApiKey", () => {
 		process.env.SERVICE_API_KEY = "";
 		const validateApiKey = await getValidateApiKey();
 		const req = new NextRequest("http://localhost:3001/api/test");
-		const result = validateApiKey(req);
+		const result = validateApiKey(req as unknown as Parameters<typeof validateApiKey>[0]);
 
 		expect(result.ok).toBe(false);
 		if (!result.ok) {
@@ -30,7 +30,7 @@ describe("validateApiKey", () => {
 		const req = new NextRequest("http://localhost:3001/api/test", {
 			headers: { "x-internal-api-key": "wrong-key" },
 		});
-		const result = validateApiKey(req);
+		const result = validateApiKey(req as unknown as Parameters<typeof validateApiKey>[0]);
 
 		expect(result.ok).toBe(false);
 		if (!result.ok) {
@@ -42,7 +42,7 @@ describe("validateApiKey", () => {
 		process.env.SERVICE_API_KEY = "correct-key";
 		const validateApiKey = await getValidateApiKey();
 		const req = new NextRequest("http://localhost:3001/api/test");
-		const result = validateApiKey(req);
+		const result = validateApiKey(req as unknown as Parameters<typeof validateApiKey>[0]);
 
 		expect(result.ok).toBe(false);
 		if (!result.ok) {
@@ -56,7 +56,7 @@ describe("validateApiKey", () => {
 		const req = new NextRequest("http://localhost:3001/api/test", {
 			headers: { "x-internal-api-key": "my-secret" },
 		});
-		const result = validateApiKey(req);
+		const result = validateApiKey(req as unknown as Parameters<typeof validateApiKey>[0]);
 
 		expect(result.ok).toBe(true);
 	});

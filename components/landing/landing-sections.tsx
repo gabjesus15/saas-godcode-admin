@@ -9,7 +9,6 @@ import {
   Mail,
   MessageSquare,
   Minus,
-  Play,
   Plus,
   Shield,
   Sparkles,
@@ -34,11 +33,13 @@ import { LandingContactForm } from "./landing-contact-form";
 import { LandingLeadForm } from "./landing-lead-form";
 import { LandingVideoPlayer } from "./landing-video-player";
 
-const usdMonth = new Intl.NumberFormat("es-CL", {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 0,
-});
+function createUsdFormatter(locale: string): Intl.NumberFormat {
+  return new Intl.NumberFormat(locale.toLowerCase().startsWith("es") ? "es-CL" : "en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  });
+}
 
 function getPriceForContinent(plan: PublicPlanForLanding, continent: Continent): { price: number; currency: string } {
   if (plan.pricesByContinent?.[continent]) {
@@ -85,6 +86,157 @@ function getSupportEmail(): string {
   return process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || "hola@godcode.me";
 }
 
+type SupportedLocale = "es" | "en" | "pt" | "fr" | "de" | "it";
+
+const LANDING_TX: Partial<Record<string, Record<Exclude<SupportedLocale, "es" | "en">, string>>> = {
+  "Regístrate": { pt: "Cadastre-se", fr: "Inscrivez-vous", de: "Registriere dich", it: "Registrati" },
+  "¿No sé nada de tecnología, puedo usarlo?": { pt: "Nao sei nada de tecnologia, posso usar?", fr: "Je ne suis pas technique, puis-je l'utiliser ?", de: "Ich bin nicht technisch, kann ich es nutzen?", it: "Non sono tecnico, posso usarlo?" },
+  "Sí. No necesitas programar ni saber de servidores. Te registras, subes tus productos y tu tienda está lista. Si tienes dudas, nuestro soporte te guía.": { pt: "Sim. Voce nao precisa programar nem saber de servidores. Cadastre-se, suba seus produtos e sua loja fica pronta.", fr: "Oui. Vous n'avez pas besoin de coder ni de gerer des serveurs. Inscrivez-vous et votre boutique est prete.", de: "Ja. Du brauchst weder Programmierung noch Serverwissen. Registriere dich und dein Shop ist bereit.", it: "Si. Non devi programmare ne gestire server. Ti registri, carichi i prodotti e il negozio e pronto." },
+  "¿Cuánto cuesta realmente?": { pt: "Quanto custa de verdade?", fr: "Combien cela coute vraiment ?", de: "Was kostet es wirklich?", it: "Quanto costa davvero?" },
+  "Los precios están en la sección de planes arriba. No hay costos ocultos, comisiones por venta ni cargos sorpresa.": { pt: "Os precos estao na secao de planos acima. Nao ha custos ocultos nem taxas surpresa.", fr: "Les prix sont dans la section des plans ci-dessus. Aucun cout cache ni surprise.", de: "Die Preise stehen oben im Planbereich. Keine versteckten Kosten oder Uberraschungen.", it: "I prezzi sono nella sezione piani qui sopra. Nessun costo nascosto o sorpresa." },
+  "¿Puedo cancelar cuando quiera?": { pt: "Posso cancelar quando quiser?", fr: "Puis-je annuler quand je veux ?", de: "Kann ich jederzeit kundigen?", it: "Posso annullare quando voglio?" },
+  "Sí. Sin penalidad, sin permanencia mínima. Si no te sirve, cancelas y listo.": { pt: "Sim. Sem multa e sem fidelidade minima. Se nao servir, cancele e pronto.", fr: "Oui. Sans penalite ni engagement minimum. Si cela ne convient pas, vous annulez.", de: "Ja. Ohne Strafe und ohne Mindestlaufzeit. Wenn es nicht passt, kundigst du einfach.", it: "Si. Senza penali ne permanenza minima. Se non ti serve, annulli e basta." },
+  "¿Mis datos están seguros?": { pt: "Meus dados estao seguros?", fr: "Mes donnees sont-elles securisees ?", de: "Sind meine Daten sicher?", it: "I miei dati sono al sicuro?" },
+  "Usamos encriptación SSL, servidores protegidos y cada negocio tiene sus datos completamente aislados. Nadie más puede ver tu información.": { pt: "Usamos criptografia SSL e servidores protegidos. Cada negocio tem dados isolados.", fr: "Nous utilisons le chiffrement SSL et des serveurs proteges. Chaque entreprise a ses donnees isolees.", de: "Wir nutzen SSL-Verschlusselung und geschutzte Server. Jede Firma hat isolierte Daten.", it: "Usiamo crittografia SSL e server protetti. Ogni attivita ha dati completamente isolati." },
+  "¿Cuánto tardo en tener mi tienda lista?": { pt: "Quanto tempo levo para ter minha loja pronta?", fr: "Combien de temps pour avoir ma boutique prete ?", de: "Wie lange bis mein Shop bereit ist?", it: "Quanto tempo ci vuole per avere il negozio pronto?" },
+  "Si ya tienes tus productos y fotos, menos de 1 hora. El proceso de registro toma 5 minutos.": { pt: "Se voce ja tem produtos e fotos, menos de 1 hora. O cadastro leva 5 minutos.", fr: "Si vous avez deja vos produits et photos, moins d'une heure. L'inscription prend 5 minutes.", de: "Wenn du Produkte und Fotos hast, weniger als 1 Stunde. Die Registrierung dauert 5 Minuten.", it: "Se hai gia prodotti e foto, meno di 1 ora. La registrazione richiede 5 minuti." },
+  "¿Puedo tener varias sucursales?": { pt: "Posso ter varias filiais?", fr: "Puis-je avoir plusieurs succursales ?", de: "Kann ich mehrere Filialen haben?", it: "Posso avere piu filiali?" },
+  "Sí. Cada sucursal tiene su propio inventario, precios, zona de delivery y horarios.": { pt: "Sim. Cada filial tem seu proprio estoque, precos, area de delivery e horarios.", fr: "Oui. Chaque succursale a son inventaire, ses prix, sa zone de livraison et ses horaires.", de: "Ja. Jede Filiale hat eigenes Inventar, Preise, Liefergebiet und Offnungszeiten.", it: "Si. Ogni filiale ha inventario, prezzi, zona delivery e orari propri." },
+  "Crea tu cuenta con email. Sin tarjeta de crédito.": { pt: "Crie sua conta com email. Sem cartao de credito.", fr: "Creez votre compte avec email. Sans carte bancaire.", de: "Erstelle dein Konto per E-Mail. Keine Kreditkarte.", it: "Crea il tuo account con email. Senza carta di credito." },
+  "Arma tu tienda": { pt: "Monte sua loja", fr: "Creez votre boutique", de: "Baue deinen Shop", it: "Crea il tuo negozio" },
+  "Sube productos, configura delivery y sucursales.": { pt: "Adicione produtos, configure delivery e filiais.", fr: "Ajoutez des produits, configurez la livraison et les succursales.", de: "Fuege Produkte hinzu und konfiguriere Lieferung und Filialen.", it: "Carica prodotti, configura delivery e filiali." },
+  "Empieza a vender": { pt: "Comece a vender", fr: "Commencez a vendre", de: "Starte mit dem Verkauf", it: "Inizia a vendere" },
+  "Comparte tu link y recibe pedidos desde el día 1.": { pt: "Compartilhe seu link e receba pedidos desde o dia 1.", fr: "Partagez votre lien et recevez des commandes des le jour 1.", de: "Teile deinen Link und erhalte Bestellungen ab Tag 1.", it: "Condividi il tuo link e ricevi ordini dal giorno 1." },
+  "Comisión por venta": { pt: "Comissao por venda", fr: "Commission par vente", de: "Verkaufsprovision", it: "Commissione per vendita" },
+  "No aplica": { pt: "Nao se aplica", fr: "N/A", de: "Nicht anwendbar", it: "N/D" },
+  "Control de clientes": { pt: "Controle de clientes", fr: "Propriete des clients", de: "Kundenhoheit", it: "Controllo clienti" },
+  "Tu propia marca": { pt: "Sua propria marca", fr: "Votre propre marque", de: "Deine eigene Marke", it: "Il tuo brand" },
+  "Tiempo de setup": { pt: "Tempo de configuracao", fr: "Temps de mise en place", de: "Einrichtungszeit", it: "Tempo di setup" },
+  "1 día": { pt: "1 dia", fr: "1 jour", de: "1 Tag", it: "1 giorno" },
+  "1-2 sem.": { pt: "1-2 sem.", fr: "1-2 sem.", de: "1-2 Wo.", it: "1-2 sett." },
+  "2-6 meses": { pt: "2-6 meses", fr: "2-6 mois", de: "2-6 Monate", it: "2-6 mesi" },
+  "Costo mensual": { pt: "Custo mensal", fr: "Cout mensuel", de: "Monatliche Kosten", it: "Costo mensile" },
+  "Gratis*": { pt: "Gratis*", fr: "Gratuit*", de: "Kostenlos*", it: "Gratis*" },
+  "Desde $20": { pt: "A partir de $20", fr: "A partir de $20", de: "Ab $20", it: "Da $20" },
+  "Inventario y caja": { pt: "Inventario e caixa", fr: "Inventaire et caisse", de: "Inventar und Kasse", it: "Inventario e cassa" },
+  "Lanzamiento: beneficios para primeros negocios (cupos limitados)": { pt: "Lancamento: beneficios para os primeiros negocios (vagas limitadas)", fr: "Lancement: avantages pour les premieres entreprises (places limitees)", de: "Launch: Vorteile fur erste Unternehmen (begrenzte Platze)", it: "Lancio: vantaggi per le prime attivita (posti limitati)" },
+  "Todo lo que tu negocio necesita para": { pt: "Tudo o que seu negocio precisa para", fr: "Tout ce dont votre entreprise a besoin pour", de: "Alles, was dein Unternehmen braucht, um", it: "Tutto cio di cui la tua attivita ha bisogno per" },
+  "vender online": { pt: "vender online", fr: "vendre en ligne", de: "online zu verkaufen", it: "vendere online" },
+  "Menú digital, carrito, delivery, caja, comandas e inventario.": { pt: "Menu digital, carrinho, delivery, caixa, comandas e inventario.", fr: "Menu digital, panier, livraison, caisse, bons cuisine et inventaire.", de: "Digitales Menu, Warenkorb, Lieferung, POS, Kuchenbons und Inventar.", it: "Menu digitale, carrello, delivery, cassa, comande e inventario." },
+  "Crea tu tienda en minutos": { pt: "Crie sua loja em minutos", fr: "Creez votre boutique en quelques minutes", de: "Erstelle deinen Shop in Minuten", it: "Crea il tuo negozio in pochi minuti" },
+  ", sin programar.": { pt: ", sem programar.", fr: ", sans coder.", de: ", ohne Programmierung.", it: ", senza programmare." },
+  "Empezar gratis": { pt: "Comecar gratis", fr: "Commencer gratuitement", de: "Kostenlos starten", it: "Inizia gratis" },
+  "Sin tarjeta de crédito · Cancela cuando quieras": { pt: "Sem cartao de credito · Cancele quando quiser", fr: "Sans carte bancaire · Resiliez quand vous voulez", de: "Keine Kreditkarte · Jederzeit kuendbar", it: "Senza carta di credito · Annulla quando vuoi" },
+  "Descuento de lanzamiento sujeto a disponibilidad y validación de rubro.": { pt: "Desconto de lancamento sujeito a disponibilidade e validacao de segmento.", fr: "Remise de lancement soumise a disponibilite et validation du secteur.", de: "Launch-Rabatt je nach Verfugbarkeit und Branchenprufung.", it: "Sconto di lancio soggetto a disponibilita e validazione del settore." },
+  "Datos protegidos": { pt: "Dados protegidos", fr: "Donnees protegees", de: "Geschutzte Daten", it: "Dati protetti" },
+  "Pagos seguros": { pt: "Pagamentos seguros", fr: "Paiements securises", de: "Sichere Zahlungen", it: "Pagamenti sicuri" },
+  "Tu dominio propio": { pt: "Seu proprio dominio", fr: "Votre propre domaine", de: "Deine eigene Domain", it: "Il tuo dominio" },
+  "Múltiples métodos de pago": { pt: "Multiplos metodos de pagamento", fr: "Plusieurs moyens de paiement", de: "Mehrere Zahlungsmethoden", it: "Metodi di pagamento multipli" },
+  "Cifrado SSL": { pt: "Criptografia SSL", fr: "Chiffrement SSL", de: "SSL-Verschlusselung", it: "Crittografia SSL" },
+  "Soporte humano por email (<24h)": { pt: "Suporte humano por email (<24h)", fr: "Support humain par email (<24h)", de: "Menschlicher Support per E-Mail (<24h)", it: "Supporto umano via email (<24h)" },
+  "Sin comisión": { pt: "Sem comissao", fr: "Sans commission", de: "Ohne Provision", it: "Senza commissioni" },
+  "0% por venta en todos los planes": { pt: "0% por venda em todos os planos", fr: "0% par vente sur tous les plans", de: "0% pro Verkauf in allen Plaenen", it: "0% per vendita in tutti i piani" },
+  "Setup rápido": { pt: "Setup rapido", fr: "Mise en place rapide", de: "Schnelles Setup", it: "Setup rapido" },
+  "Configuración guiada en minutos": { pt: "Configuracao guiada em minutos", fr: "Configuration guidee en quelques minutes", de: "Gefuhrte Einrichtung in Minuten", it: "Configurazione guidata in pochi minuti" },
+  "Sin amarras": { pt: "Sem fidelidade", fr: "Sans engagement", de: "Ohne Bindung", it: "Nessun vincolo" },
+  "Cancela cuando quieras": { pt: "Cancele quando quiser", fr: "Resiliez quand vous voulez", de: "Jederzeit kuendbar", it: "Annulla quando vuoi" },
+  "Soporte real": { pt: "Suporte real", fr: "Support reel", de: "Echter Support", it: "Supporto reale" },
+  "Respuesta humana por correo": { pt: "Resposta humana por email", fr: "Reponse humaine par email", de: "Menschliche Antwort per E-Mail", it: "Risposta umana via email" },
+  "Todo incluido": { pt: "Tudo incluido", fr: "Tout inclus", de: "Alles enthalten", it: "Tutto incluso" },
+  "Una sola plataforma, todo lo que necesitas": { pt: "Uma unica plataforma, tudo o que voce precisa", fr: "Une seule plateforme, tout ce dont vous avez besoin", de: "Eine Plattform, alles was du brauchst", it: "Un'unica piattaforma, tutto cio che ti serve" },
+  "Deja de pagar por 5 herramientas distintas. Aquí está todo.": { pt: "Pare de pagar por 5 ferramentas diferentes. Aqui esta tudo.", fr: "Arretez de payer 5 outils differents. Tout est ici.", de: "Hoer auf, fuer 5 verschiedene Tools zu zahlen. Hier ist alles.", it: "Smetti di pagare 5 strumenti diversi. Qui hai tutto." },
+  "Ventas online": { pt: "Vendas online", fr: "Ventes en ligne", de: "Online-Verkauf", it: "Vendite online" },
+  "Menú digital y carrito inteligente": { pt: "Menu digital e carrinho inteligente", fr: "Menu digital et panier intelligent", de: "Digitales Menu und smarter Warenkorb", it: "Menu digitale e carrello intelligente" },
+  "Tus clientes ven el menú desde su celular, eligen productos, personalizan extras y pagan online. Todo sin que levantes el teléfono.": { pt: "Seus clientes veem o menu no celular, escolhem produtos, personalizam extras e pagam online. Tudo sem precisar atender telefone.", fr: "Vos clients consultent le menu sur mobile, choisissent des produits, personnalisent des extras et paient en ligne.", de: "Deine Kunden sehen das Menu am Handy, waehlen Produkte, personalisieren Extras und zahlen online.", it: "I clienti vedono il menu da mobile, scelgono prodotti, personalizzano extra e pagano online." },
+  "Categorías, fotos y precios por sucursal": { pt: "Categorias, fotos e precos por filial", fr: "Categories, photos et prix par succursale", de: "Kategorien, Fotos und Preise je Filiale", it: "Categorie, foto e prezzi per filiale" },
+  "Carrito con totales automáticos y extras": { pt: "Carrinho com totais automaticos e extras", fr: "Panier avec totaux automatiques et extras", de: "Warenkorb mit automatischen Summen und Extras", it: "Carrello con totali automatici ed extra" },
+  "Checkout rápido desde cualquier celular": { pt: "Checkout rapido de qualquer celular", fr: "Checkout rapide depuis n'importe quel mobile", de: "Schneller Checkout von jedem Handy", it: "Checkout rapido da qualsiasi cellulare" },
+  "Operaciones": { pt: "Operacoes", fr: "Operations", de: "Betrieb", it: "Operazioni" },
+  "Punto de venta y caja registradora": { pt: "Ponto de venda e caixa", fr: "Point de vente et caisse", de: "Kassensystem und POS", it: "Punto vendita e cassa" },
+  "Cobra en tu local con un sistema rápido y simple. Turnos de caja, métodos de pago y resumen de ventas en un solo lugar.": { pt: "Cobre na sua loja com um sistema rapido e simples. Turnos de caixa, metodos de pagamento e resumo de vendas no mesmo lugar.", fr: "Encaissez en boutique avec un systeme rapide et simple. Caisse, paiements et resume des ventes au meme endroit.", de: "Kassiere im Laden mit einem schnellen, einfachen System. Schichten, Zahlarten und Verkaufsubersicht an einem Ort.", it: "Incassa nel tuo locale con un sistema rapido e semplice. Turni cassa, metodi di pagamento e riepilogo vendite in un unico posto." },
+  "POS táctil rápido e intuitivo": { pt: "POS touch rapido e intuitivo", fr: "POS tactile rapide et intuitif", de: "Schnelles, intuitives Touch-POS", it: "POS touch rapido e intuitivo" },
+  "Turnos de caja con apertura y cierre": { pt: "Turnos de caixa com abertura e fechamento", fr: "Tours de caisse avec ouverture et fermeture", de: "Kassenschichten mit Offnung und Abschluss", it: "Turni cassa con apertura e chiusura" },
+  "Inventario": { pt: "Inventario", fr: "Inventaire", de: "Inventar", it: "Inventario" },
+  "Stock y control por sucursal": { pt: "Estoque e controle por filial", fr: "Stock et controle par succursale", de: "Bestand und Kontrolle je Filiale", it: "Stock e controllo per filiale" },
+  "Mantén inventario, recetas y movimientos sincronizados para evitar quiebres de stock y errores al vender.": { pt: "Mantenha estoque, receitas e movimentos sincronizados para evitar ruptura e erros na venda.", fr: "Gardez inventaire, recettes et mouvements synchronises pour eviter les ruptures.", de: "Halte Inventar, Rezepte und Bewegungen synchron, um Engpasse und Fehler zu vermeiden.", it: "Mantieni inventario, ricette e movimenti sincronizzati per evitare rotture di stock ed errori." },
+  "Stock en tiempo real por sucursal": { pt: "Estoque em tempo real por filial", fr: "Stock en temps reel par succursale", de: "Echtzeit-Bestand je Filiale", it: "Stock in tempo reale per filiale" },
+  "Alertas de inventario bajo": { pt: "Alertas de estoque baixo", fr: "Alertes de stock faible", de: "Warnungen bei niedrigem Bestand", it: "Avvisi di inventario basso" },
+  "Recetas: descuento automático al vender": { pt: "Receitas: baixa automatica ao vender", fr: "Recettes: deduction automatique a la vente", de: "Rezepte: automatischer Abzug beim Verkauf", it: "Ricette: scarico automatico alla vendita" },
+  "Historial completo de movimientos": { pt: "Historico completo de movimentos", fr: "Historique complet des mouvements", de: "Vollstandiger Bewegungsverlauf", it: "Storico completo dei movimenti" },
+  "Cómo funciona": { pt: "Como funciona", fr: "Comment ca marche", de: "So funktioniert es", it: "Come funziona" },
+  "Tu tienda lista en minutos": { pt: "Sua loja pronta em minutos", fr: "Votre boutique prete en quelques minutes", de: "Dein Shop in Minuten startklar", it: "Il tuo negozio pronto in pochi minuti" },
+  "Un flujo corto y claro para pasar de idea a ventas sin fricción. Sin configuraciones pesadas, sin curva técnica y sin perder tiempo en pasos innecesarios.": { pt: "Um fluxo curto e claro para ir da ideia as vendas sem friccao.", fr: "Un parcours court et clair pour passer de l'idee aux ventes sans friction.", de: "Ein kurzer, klarer Ablauf von der Idee zu Verkaeufen ohne Reibung.", it: "Un flusso breve e chiaro per passare dall'idea alle vendite senza attriti." },
+  "Sin tarjeta de crédito": { pt: "Sem cartao de credito", fr: "Sans carte bancaire", de: "Keine Kreditkarte", it: "Senza carta di credito" },
+  "En menos de 5 minutos": { pt: "Em menos de 5 minutos", fr: "En moins de 5 minutes", de: "In weniger als 5 Minuten", it: "In meno di 5 minuti" },
+  "Soporte incluido": { pt: "Suporte incluido", fr: "Support inclus", de: "Support inklusive", it: "Supporto incluso" },
+  "Producto": { pt: "Produto", fr: "Produit", de: "Produkt", it: "Prodotto" },
+  "Así se ve tu tienda": { pt: "Assim fica sua loja", fr: "Voila a quoi ressemble votre boutique", de: "So sieht dein Shop aus", it: "Cosi appare il tuo negozio" },
+  "Interfaz limpia para ti y para tus clientes.": { pt: "Interface limpa para voce e seus clientes.", fr: "Interface claire pour vous et vos clients.", de: "Saubere Oberflache fur dich und deine Kunden.", it: "Interfaccia pulita per te e per i tuoi clienti." },
+  "Empieza ahora": { pt: "Comece agora", fr: "Commencez maintenant", de: "Jetzt starten", it: "Inizia ora" },
+  "Crea tu tienda en menos de": { pt: "Crie sua loja em menos de", fr: "Creez votre boutique en moins de", de: "Erstelle deinen Shop in weniger als", it: "Crea il tuo negozio in meno di" },
+  "5 minutos": { pt: "5 minutos", fr: "5 minutes", de: "5 Minuten", it: "5 minuti" },
+  "Sin código, sin servidores, sin complicaciones. Solo tú y tus productos.": { pt: "Sem codigo, sem servidores, sem complicacoes. So voce e seus produtos.", fr: "Sans code, sans serveurs, sans complications. Seulement vous et vos produits.", de: "Kein Code, keine Server, keine Komplikationen. Nur du und deine Produkte.", it: "Niente codice, niente server, niente complicazioni. Solo tu e i tuoi prodotti." },
+  "Ver precios": { pt: "Ver precos", fr: "Voir les tarifs", de: "Preise ansehen", it: "Vedi prezzi" },
+  "Demo": { pt: "Demo", fr: "Demo", de: "Demo", it: "Demo" },
+  "Mira el producto en acción": { pt: "Veja o produto em acao", fr: "Voyez le produit en action", de: "Sieh das Produkt in Aktion", it: "Guarda il prodotto in azione" },
+  "Esta demo resume el flujo completo: menú, carrito, pedidos, caja e inventario en una sola presentación.": { pt: "Esta demo resume o fluxo completo: menu, carrinho, pedidos, caixa e inventario em uma unica apresentacao.", fr: "Cette demo resume le flux complet: menu, panier, commandes, caisse et inventaire.", de: "Diese Demo zeigt den kompletten Ablauf: Menu, Warenkorb, Bestellungen, POS und Inventar.", it: "Questa demo riassume il flusso completo: menu, carrello, ordini, cassa e inventario." },
+  "Video demo del producto": { pt: "Video demo do produto", fr: "Video de demo du produit", de: "Produkt-Demo-Video", it: "Video demo del prodotto" },
+  "Versión de demo privada disponible para reuniones comerciales y partners.": { pt: "Versao de demo privada disponivel para reunioes comerciais e parceiros.", fr: "Version de demo privee disponible pour reunions commerciales et partenaires.", de: "Private Demo-Version verfugbar fur Sales-Meetings und Partner.", it: "Versione demo privata disponibile per riunioni commerciali e partner." },
+  "Vista previa": { pt: "Previa", fr: "Apercu", de: "Vorschau", it: "Anteprima" },
+  "Por qué conviene usarlo": { pt: "Por que vale a pena usar", fr: "Pourquoi cela vaut le coup", de: "Warum es sich lohnt", it: "Perche conviene usarlo" },
+  "Demo comercial disponible bajo solicitud": { pt: "Demo comercial disponivel sob solicitacao", fr: "Demo commerciale disponible sur demande", de: "Kommerzielle Demo auf Anfrage verfugbar", it: "Demo commerciale disponibile su richiesta" },
+  "Menú, carrito y pago en un solo lugar": { pt: "Menu, carrinho e pagamento em um unico lugar", fr: "Menu, panier et paiement au meme endroit", de: "Menu, Warenkorb und Zahlung an einem Ort", it: "Menu, carrello e pagamento in un unico posto" },
+  "Pedidos y caja con control centralizado": { pt: "Pedidos e caixa com controle centralizado", fr: "Commandes et caisse avec controle centralise", de: "Bestellungen und POS mit zentraler Steuerung", it: "Ordini e cassa con controllo centralizzato" },
+  "Inventario por sucursal con alertas": { pt: "Inventario por filial com alertas", fr: "Inventaire par succursale avec alertes", de: "Inventar je Filiale mit Warnungen", it: "Inventario per filiale con avvisi" },
+  "Presentación lista para reuniones y demos": { pt: "Apresentacao pronta para reunioes e demos", fr: "Presentation prete pour reunions et demos", de: "Praesentation bereit fur Meetings und Demos", it: "Presentazione pronta per riunioni e demo" },
+  "¿Por qué GodCode?": { pt: "Por que GodCode?", fr: "Pourquoi GodCode ?", de: "Warum GodCode?", it: "Perche GodCode?" },
+  "Compara y decide": { pt: "Compare e decida", fr: "Comparez et decidez", de: "Vergleiche und entscheide", it: "Confronta e decidi" },
+  "Elige una opción que te deje crecer sin comisiones altas, sin depender de terceros y con control total de tu negocio.": { pt: "Escolha uma opcao para crescer sem comissoes altas e com controle total do seu negocio.", fr: "Choisissez une option qui vous permet de grandir sans fortes commissions.", de: "Waehle eine Option, mit der du ohne hohe Provisionen wachsen kannst.", it: "Scegli un'opzione che ti permetta di crescere senza commissioni alte." },
+  "Desarrollo propio": { pt: "Desenvolvimento proprio", fr: "Developpement sur mesure", de: "Eigene Entwicklung", it: "Sviluppo personalizzato" },
+  "Sí": { pt: "Sim", fr: "Oui", de: "Ja", it: "Si" },
+  "No": { pt: "Nao", fr: "Non", de: "Nein", it: "No" },
+  "* Comparativa referencial. Costos y condiciones de terceros pueden variar por país, categoría y promociones vigentes.": { pt: "* Comparacao referencial. Custos e condicoes de terceiros podem variar por pais e categoria.", fr: "* Comparaison indicative. Les couts et conditions peuvent varier selon le pays.", de: "* Referenzvergleich. Kosten und Bedingungen Dritter konnen je nach Land variieren.", it: "* Confronto indicativo. Costi e condizioni dei terzi possono variare per paese." },
+  "Testimonios": { pt: "Depoimentos", fr: "Temoignages", de: "Kundenstimmen", it: "Testimonianze" },
+  "Lo que dicen nuestros clientes": { pt: "O que dizem nossos clientes", fr: "Ce que disent nos clients", de: "Was unsere Kunden sagen", it: "Cosa dicono i nostri clienti" },
+  "Precios": { pt: "Precos", fr: "Tarifs", de: "Preise", it: "Prezzi" },
+  "Planes simples, sin sorpresas": { pt: "Planos simples, sem surpresas", fr: "Plans simples, sans surprises", de: "Einfache Plane, ohne Uberraschungen", it: "Piani semplici, senza sorprese" },
+  "Prueba gratis. Sin tarjeta. Cancela cuando quieras.": { pt: "Teste gratis. Sem cartao. Cancele quando quiser.", fr: "Essai gratuit. Sans carte. Resiliez quand vous voulez.", de: "Teste kostenlos. Keine Karte. Jederzeit kuendbar.", it: "Prova gratis. Senza carta. Annulla quando vuoi." },
+  "Estamos preparando los planes": { pt: "Estamos preparando os planos", fr: "Nous preparons les plans", de: "Wir bereiten die Plane vor", it: "Stiamo preparando i piani" },
+  "Mientras tanto, puedes crear tu cuenta y explorar la plataforma gratis.": { pt: "Enquanto isso, voce pode criar sua conta e explorar a plataforma gratis.", fr: "En attendant, vous pouvez creer votre compte et explorer la plateforme gratuitement.", de: "In der Zwischenzeit kannst du dein Konto erstellen und die Plattform kostenlos testen.", it: "Nel frattempo puoi creare il tuo account ed esplorare la piattaforma gratis." },
+  "Popular": { pt: "Popular", fr: "Populaire", de: "Beliebt", it: "Popolare" },
+  "USD / mes": { pt: "USD / mes", fr: "USD / mois", de: "USD / Monat", it: "USD / mese" },
+  "Comenzar": { pt: "Comecar", fr: "Commencer", de: "Starten", it: "Inizia" },
+  "Garantía: si no te sirve, cancela sin costo ni penalidad.": { pt: "Garantia: se nao servir, cancele sem custo.", fr: "Garantie: si cela ne vous convient pas, annulez sans frais.", de: "Garantie: Wenn es nicht passt, kundige ohne Kosten.", it: "Garanzia: se non ti serve, annulla senza costi." },
+  "Dudas": { pt: "Duvidas", fr: "Questions", de: "Fragen", it: "Dubbi" },
+  "Preguntas frecuentes": { pt: "Perguntas frequentes", fr: "Questions frequentes", de: "Haufige Fragen", it: "Domande frequenti" },
+  "Último paso": { pt: "Ultimo passo", fr: "Derniere etape", de: "Letzter Schritt", it: "Ultimo passo" },
+  "Empieza hoy: tu primera tienda es": { pt: "Comece hoje: sua primeira loja e", fr: "Commencez aujourd'hui : votre premiere boutique est", de: "Starte heute: dein erster Shop ist", it: "Inizia oggi: il tuo primo negozio e" },
+  "gratis": { pt: "gratis", fr: "gratuite", de: "kostenlos", it: "gratis" },
+  "Menú digital, pedidos, caja e inventario en un solo lugar. Sin comisiones por venta ni letra chica.": { pt: "Menu digital, pedidos, caixa e inventario em um so lugar. Sem comissoes por venda.", fr: "Menu digital, commandes, caisse et inventaire en un seul endroit. Sans commission.", de: "Digitales Menu, Bestellungen, POS und Inventar an einem Ort. Keine Verkaufsprovision.", it: "Menu digitale, ordini, cassa e inventario in un unico posto. Nessuna commissione." },
+  "Sin tarjeta para comenzar": { pt: "Sem cartao para comecar", fr: "Sans carte pour commencer", de: "Keine Karte zum Start", it: "Senza carta per iniziare" },
+  "Cancelas cuando quieras": { pt: "Cancele quando quiser", fr: "Resiliez quand vous voulez", de: "Jederzeit kuendbar", it: "Annulla quando vuoi" },
+  "Soporte en menos de 24 h": { pt: "Suporte em menos de 24 h", fr: "Support en moins de 24 h", de: "Support in weniger als 24 h", it: "Supporto in meno di 24 h" },
+  "Crear mi tienda gratis": { pt: "Criar minha loja gratis", fr: "Creer ma boutique gratuite", de: "Meinen kostenlosen Shop erstellen", it: "Crea il mio negozio gratis" },
+  "Ver preguntas frecuentes": { pt: "Ver perguntas frequentes", fr: "Voir la FAQ", de: "FAQ ansehen", it: "Vedi FAQ" },
+  "Boletín": { pt: "Boletim", fr: "Newsletter", de: "Newsletter", it: "Newsletter" },
+  "¿Aún no te decides?": { pt: "Ainda em duvida?", fr: "Toujours indecis ?", de: "Noch unsicher?", it: "Ancora indeciso?" },
+  "Deja tu correo y te escribimos solo cuando tengamos algo que te sirva. Nada de spam.": { pt: "Deixe seu email e so vamos escrever quando houver algo util. Sem spam.", fr: "Laissez votre email et nous ecrirons seulement quand ce sera utile. Pas de spam.", de: "Hinterlasse deine E-Mail, wir schreiben nur bei relevanten Infos. Kein Spam.", it: "Lascia la tua email e ti scriveremo solo quando utile. Niente spam." },
+  "Escríbenos": { pt: "Escreva para nos", fr: "Ecrivez-nous", de: "Schreib uns", it: "Scrivici" },
+  "¿Tienes dudas?": { pt: "Tem duvidas?", fr: "Vous avez des questions ?", de: "Hast du Fragen?", it: "Hai dubbi?" },
+  "Cuéntanos tu rubro y qué necesitas. Respondemos por correo en menos de 24 horas.": { pt: "Conte seu segmento e o que precisa. Respondemos por email em menos de 24 horas.", fr: "Parlez-nous de votre secteur et de vos besoins. Reponse par email en moins de 24 h.", de: "Erzaehl uns deine Branche und was du brauchst. Antwort per E-Mail in weniger als 24 h.", it: "Raccontaci il tuo settore e cosa ti serve. Rispondiamo via email in meno di 24 ore." },
+  "Crear mi tienda ya": { pt: "Criar minha loja agora", fr: "Creer ma boutique maintenant", de: "Meinen Shop jetzt erstellen", it: "Crea il mio negozio ora" },
+  "Registro en minutos, sin tarjeta.": { pt: "Cadastro em minutos, sem cartao.", fr: "Inscription en quelques minutes, sans carte.", de: "Registrierung in Minuten, ohne Karte.", it: "Registrazione in pochi minuti, senza carta." },
+  "Soporte humano si te atoras.": { pt: "Suporte humano se voce travar.", fr: "Support humain si vous bloquez.", de: "Menschlicher Support, wenn du festhangst.", it: "Supporto umano se ti blocchi." },
+};
+
+function resolveLocale(locale: string): SupportedLocale {
+  const base = locale.toLowerCase().split("-")[0];
+  if (base === "es" || base === "en" || base === "pt" || base === "fr" || base === "de" || base === "it") {
+    return base;
+  }
+  return "en";
+}
+
 /* ───── Shared UI ───── */
 
 function Eyebrow({ children, className }: { children: React.ReactNode; className?: string }) {
@@ -123,47 +275,54 @@ function SectionShell({
   );
 }
 
-/* ───── Data ───── */
-
-const steps = [
-  { n: "1", title: "Regístrate", text: "Crea tu cuenta con email. Sin tarjeta de crédito." },
-  { n: "2", title: "Arma tu tienda", text: "Sube productos, configura delivery y sucursales." },
-  { n: "3", title: "Empieza a vender", text: "Comparte tu link y recibe pedidos desde el día 1." },
-] as const;
-
-const compareRows = [
-  { feature: "Comisión por venta", ig: "No aplica", rappi: "25-30%", custom: "0%", gc: "0%" },
-  { feature: "Control de clientes", ig: false, rappi: false, custom: true, gc: true },
-  { feature: "Tu propia marca", ig: false, rappi: false, custom: true, gc: true },
-  { feature: "Tiempo de setup", ig: "1 día", rappi: "1-2 sem.", custom: "2-6 meses", gc: "5 min" },
-  { feature: "Costo mensual", ig: "Gratis*", rappi: "Gratis*", custom: "$500+", gc: "Desde $20" },
-  { feature: "Inventario y caja", ig: false, rappi: false, custom: true, gc: true },
-] as const;
-
-const faqItems = [
-  { q: "¿No sé nada de tecnología, puedo usarlo?", a: "Sí. No necesitas programar ni saber de servidores. Te registras, subes tus productos y tu tienda está lista. Si tienes dudas, nuestro soporte te guía." },
-  { q: "¿Cuánto cuesta realmente?", a: "Los precios están en la sección de planes arriba. No hay costos ocultos, comisiones por venta ni cargos sorpresa." },
-  { q: "¿Puedo cancelar cuando quiera?", a: "Sí. Sin penalidad, sin permanencia mínima. Si no te sirve, cancelas y listo." },
-  { q: "¿Mis datos están seguros?", a: "Usamos encriptación SSL, servidores protegidos y cada negocio tiene sus datos completamente aislados. Nadie más puede ver tu información." },
-  { q: "¿Cuánto tardo en tener mi tienda lista?", a: "Si ya tienes tus productos y fotos, menos de 1 hora. El proceso de registro toma 5 minutos." },
-  { q: "¿Puedo tener varias sucursales?", a: "Sí. Cada sucursal tiene su propio inventario, precios, zona de delivery y horarios." },
-] as const;
-
 /* ───── Main ───── */
 
 export function LandingSections({
   plans,
   media,
   country = "OTHER",
+  locale,
 }: {
   plans: PublicPlanForLanding[];
   media: LandingMediaBundle;
   country?: CountryCode;
+  locale: string;
 }) {
+  const localeKey = resolveLocale(locale);
+  const tx = (es: string, en: string) => {
+    if (localeKey === "es") return es;
+    if (localeKey === "en") return en;
+    return LANDING_TX[es]?.[localeKey] ?? en;
+  };
+  const usdMonth = createUsdFormatter(locale);
+
   const support = getSupportEmail();
   const popularIdx = popularPlanIndex(plans.length);
   const continent = getContinentFromCountry(country);
   const currency = getCurrencyByContinent(continent);
+  const steps = [
+    { n: "1", title: tx("Regístrate", "Sign up"), text: tx("Crea tu cuenta con email. Sin tarjeta de crédito.", "Create your account with email. No credit card.") },
+    { n: "2", title: tx("Arma tu tienda", "Build your store"), text: tx("Sube productos, configura delivery y sucursales.", "Upload products and configure delivery and branches.") },
+    { n: "3", title: tx("Empieza a vender", "Start selling"), text: tx("Comparte tu link y recibe pedidos desde el día 1.", "Share your link and receive orders from day 1.") },
+  ] as const;
+
+  const compareRows = [
+    { feature: tx("Comisión por venta", "Sales commission"), ig: tx("No aplica", "N/A"), rappi: "25-30%", custom: "0%", gc: "0%" },
+    { feature: tx("Control de clientes", "Customer ownership"), ig: false, rappi: false, custom: true, gc: true },
+    { feature: tx("Tu propia marca", "Your own brand"), ig: false, rappi: false, custom: true, gc: true },
+    { feature: tx("Tiempo de setup", "Setup time"), ig: tx("1 día", "1 day"), rappi: tx("1-2 sem.", "1-2 weeks"), custom: tx("2-6 meses", "2-6 months"), gc: "5 min" },
+    { feature: tx("Costo mensual", "Monthly cost"), ig: tx("Gratis*", "Free*"), rappi: tx("Gratis*", "Free*"), custom: "$500+", gc: tx("Desde $20", "From $20") },
+    { feature: tx("Inventario y caja", "Inventory and POS"), ig: false, rappi: false, custom: true, gc: true },
+  ] as const;
+
+  const faqItems = [
+    { q: tx("¿No sé nada de tecnología, puedo usarlo?", "I am not technical, can I use it?"), a: tx("Sí. No necesitas programar ni saber de servidores. Te registras, subes tus productos y tu tienda está lista. Si tienes dudas, nuestro soporte te guía.", "Yes. You do not need coding or server knowledge. Sign up, upload your products and your store is ready.") },
+    { q: tx("¿Cuánto cuesta realmente?", "How much does it really cost?"), a: tx("Los precios están en la sección de planes arriba. No hay costos ocultos, comisiones por venta ni cargos sorpresa.", "Prices are in the plans section above. No hidden costs, sales commissions or surprise fees.") },
+    { q: tx("¿Puedo cancelar cuando quiera?", "Can I cancel anytime?"), a: tx("Sí. Sin penalidad, sin permanencia mínima. Si no te sirve, cancelas y listo.", "Yes. No penalty and no minimum commitment.") },
+    { q: tx("¿Mis datos están seguros?", "Is my data secure?"), a: tx("Usamos encriptación SSL, servidores protegidos y cada negocio tiene sus datos completamente aislados. Nadie más puede ver tu información.", "We use SSL encryption and protected servers, and each business has fully isolated data.") },
+    { q: tx("¿Cuánto tardo en tener mi tienda lista?", "How long until my store is ready?"), a: tx("Si ya tienes tus productos y fotos, menos de 1 hora. El proceso de registro toma 5 minutos.", "If you already have products and photos, under one hour. Sign-up takes five minutes.") },
+    { q: tx("¿Puedo tener varias sucursales?", "Can I have multiple branches?"), a: tx("Sí. Cada sucursal tiene su propio inventario, precios, zona de delivery y horarios.", "Yes. Each branch has its own inventory, pricing, delivery zone and schedules.") },
+  ] as const;
 
   return (
     <main className="relative z-10">
@@ -187,23 +346,23 @@ export function LandingSections({
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-500 opacity-60" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-indigo-600 dark:bg-indigo-400" />
                 </span>
-                Lanzamiento: beneficios para primeros negocios (cupos limitados)
+                {tx("Lanzamiento: beneficios para primeros negocios (cupos limitados)", "Launch: benefits for early businesses (limited spots)")}
               </span>
             </LandingReveal>
 
             <LandingReveal delay={0.08}>
               <h1 className="mt-5 text-[1.7rem] font-bold leading-[1.08] tracking-tight text-slate-900 sm:text-4xl md:text-5xl lg:text-[3.25rem] dark:text-white">
-                Todo lo que tu negocio necesita para{" "}
+                {tx("Todo lo que tu negocio necesita para", "Everything your business needs to")}{" "}
                 <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent dark:from-indigo-400 dark:to-violet-400">
-                  vender online
+                  {tx("vender online", "sell online")}
                 </span>
               </h1>
             </LandingReveal>
 
             <LandingReveal delay={0.14}>
               <p className="mt-4 text-base leading-relaxed text-slate-600 sm:mt-5 sm:text-lg dark:text-zinc-400">
-                Menú digital, carrito, delivery, caja, comandas e inventario.
-                <strong className="font-semibold text-slate-800 dark:text-zinc-200"> Crea tu tienda en minutos</strong>, sin programar.
+                {tx("Menú digital, carrito, delivery, caja, comandas e inventario.", "Digital menu, cart, delivery, POS, kitchen orders and inventory.")}
+                <strong className="font-semibold text-slate-800 dark:text-zinc-200"> {tx("Crea tu tienda en minutos", "Build your store in minutes")}</strong>{tx(", sin programar.", ", no coding required.")}
               </p>
             </LandingReveal>
 
@@ -213,23 +372,23 @@ export function LandingSections({
                   href="/onboarding"
                   className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-7 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-700 sm:h-[3.25rem] sm:w-auto sm:px-8 sm:text-base"
                 >
-                  Empezar gratis
+                  {tx("Empezar gratis", "Start for free")}
                   <ArrowRight className="h-4 w-4" aria-hidden />
                 </Link>
               </div>
               <p className="mt-3 text-center text-xs text-slate-500 sm:text-sm lg:text-left dark:text-zinc-500">
-                Sin tarjeta de crédito · Cancela cuando quieras
+                {tx("Sin tarjeta de crédito · Cancela cuando quieras", "No credit card · Cancel anytime")}
               </p>
               <p className="mt-1 text-center text-[11px] text-slate-400 sm:text-xs lg:text-left dark:text-zinc-500">
-                Descuento de lanzamiento sujeto a disponibilidad y validación de rubro.
+                {tx("Descuento de lanzamiento sujeto a disponibilidad y validación de rubro.", "Launch discount subject to availability and business validation.")}
               </p>
             </LandingReveal>
 
             <LandingReveal delay={0.28}>
               <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-slate-500 sm:gap-x-6 sm:text-sm lg:justify-start dark:text-zinc-400">
-                <span className="inline-flex items-center gap-1.5"><Shield className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" aria-hidden />Datos protegidos</span>
-                <span className="inline-flex items-center gap-1.5"><CreditCard className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" aria-hidden />Pagos seguros</span>
-                <span className="inline-flex items-center gap-1.5"><Globe className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" aria-hidden />Tu dominio propio</span>
+                <span className="inline-flex items-center gap-1.5"><Shield className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" aria-hidden />{tx("Datos protegidos", "Protected data")}</span>
+                <span className="inline-flex items-center gap-1.5"><CreditCard className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" aria-hidden />{tx("Pagos seguros", "Secure payments")}</span>
+                <span className="inline-flex items-center gap-1.5"><Globe className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" aria-hidden />{tx("Tu dominio propio", "Your own domain")}</span>
               </div>
             </LandingReveal>
           </div>
@@ -268,19 +427,19 @@ export function LandingSections({
         <div className="mx-auto max-w-5xl px-5 sm:px-6">
           <LandingReveal>
             <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 text-sm text-slate-400 sm:gap-x-12">
-              <span className="inline-flex items-center gap-2 font-medium"><CreditCard className="h-4 w-4 text-indigo-400" aria-hidden />Múltiples métodos de pago</span>
-              <span className="inline-flex items-center gap-2 font-medium"><Shield className="h-4 w-4 text-indigo-400" aria-hidden />Cifrado SSL</span>
-              <span className="inline-flex items-center gap-2 font-medium"><Headphones className="h-4 w-4 text-indigo-400" aria-hidden />Soporte humano por email (&lt;24h)</span>
+              <span className="inline-flex items-center gap-2 font-medium"><CreditCard className="h-4 w-4 text-indigo-400" aria-hidden />{tx("Múltiples métodos de pago", "Multiple payment methods")}</span>
+              <span className="inline-flex items-center gap-2 font-medium"><Shield className="h-4 w-4 text-indigo-400" aria-hidden />{tx("Cifrado SSL", "SSL encryption")}</span>
+              <span className="inline-flex items-center gap-2 font-medium"><Headphones className="h-4 w-4 text-indigo-400" aria-hidden />{tx("Soporte humano por email (<24h)", "Human support by email (<24h)")}</span>
             </div>
           </LandingReveal>
 
           <LandingReveal delay={0.1}>
             <div className="mt-8 grid grid-cols-2 gap-4 sm:mt-10 sm:gap-6 md:grid-cols-4">
               {([
-                { title: "Sin comisión", label: "0% por venta en todos los planes" },
-                { title: "Setup rápido", label: "Configuración guiada en minutos" },
-                { title: "Sin amarras", label: "Cancela cuando quieras" },
-                { title: "Soporte real", label: "Respuesta humana por correo" },
+                { title: tx("Sin comisión", "No commission"), label: tx("0% por venta en todos los planes", "0% per sale on all plans") },
+                { title: tx("Setup rápido", "Fast setup"), label: tx("Configuración guiada en minutos", "Guided setup in minutes") },
+                { title: tx("Sin amarras", "No lock-in"), label: tx("Cancela cuando quieras", "Cancel anytime") },
+                { title: tx("Soporte real", "Real support"), label: tx("Respuesta humana por correo", "Human response by email") },
               ] as const).map((kpi) => (
                 <div key={kpi.title} className="rounded-2xl border border-slate-700/70 bg-slate-950/45 p-4 text-center">
                   <p className="text-base font-semibold text-white sm:text-lg">{kpi.title}</p>
@@ -303,25 +462,25 @@ export function LandingSections({
       <SectionShell id="funciones" variant="white" className="-mt-px">
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
           <LandingReveal>
-            <Eyebrow>Todo incluido</Eyebrow>
+            <Eyebrow>{tx("Todo incluido", "All included")}</Eyebrow>
             <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
-              Una sola plataforma, todo lo que necesitas
+              {tx("Una sola plataforma, todo lo que necesitas", "One platform, everything you need")}
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-center text-sm text-slate-500 sm:text-base dark:text-zinc-400">
-              Deja de pagar por 5 herramientas distintas. Aquí está todo.
+              {tx("Deja de pagar por 5 herramientas distintas. Aquí está todo.", "Stop paying for five tools. Everything is here.")}
             </p>
           </LandingReveal>
         </div>
 
         <div className="mt-14 space-y-16 sm:mt-20 sm:space-y-24">
           <LandingFeatureBlock
-            eyebrow="Ventas online"
-            title="Menú digital y carrito inteligente"
-            description="Tus clientes ven el menú desde su celular, eligen productos, personalizan extras y pagan online. Todo sin que levantes el teléfono."
+            eyebrow={tx("Ventas online", "Online sales")}
+            title={tx("Menú digital y carrito inteligente", "Digital menu and smart cart")}
+            description={tx("Tus clientes ven el menú desde su celular, eligen productos, personalizan extras y pagan online. Todo sin que levantes el teléfono.", "Customers browse from mobile, customize extras and pay online.")}
             bullets={[
-              "Categorías, fotos y precios por sucursal",
-              "Carrito con totales automáticos y extras",
-              "Checkout rápido desde cualquier celular",
+              tx("Categorías, fotos y precios por sucursal", "Categories, photos and pricing by branch"),
+              tx("Carrito con totales automáticos y extras", "Cart with automatic totals and extras"),
+              tx("Checkout rápido desde cualquier celular", "Fast checkout from any mobile"),
             ]}
             visual={
               <LandingFeatureShot
@@ -332,13 +491,13 @@ export function LandingSections({
           />
 
           <LandingFeatureBlock
-            eyebrow="Operaciones"
-            title="Punto de venta y caja registradora"
-            description="Cobra en tu local con un sistema rápido y simple. Turnos de caja, métodos de pago y resumen de ventas en un solo lugar."
+            eyebrow={tx("Operaciones", "Operations")}
+            title={tx("Punto de venta y caja registradora", "Point of sale and cash register")}
+            description={tx("Cobra en tu local con un sistema rápido y simple. Turnos de caja, métodos de pago y resumen de ventas en un solo lugar.", "Charge quickly in-store. Cash shifts, payment methods and sales summary in one place.")}
             bullets={[
-              "POS táctil rápido e intuitivo",
-              "Turnos de caja con apertura y cierre",
-              "Múltiples métodos de pago",
+              tx("POS táctil rápido e intuitivo", "Fast, intuitive touch POS"),
+              tx("Turnos de caja con apertura y cierre", "Cash opening and closing shifts"),
+              tx("Múltiples métodos de pago", "Multiple payment methods"),
             ]}
             visual={
               <LandingFeatureShot
@@ -351,14 +510,14 @@ export function LandingSections({
           />
 
           <LandingFeatureBlock
-            eyebrow="Inventario"
-            title="Stock y control por sucursal"
-            description="Mantén inventario, recetas y movimientos sincronizados para evitar quiebres de stock y errores al vender."
+            eyebrow={tx("Inventario", "Inventory")}
+            title={tx("Stock y control por sucursal", "Stock control by branch")}
+            description={tx("Mantén inventario, recetas y movimientos sincronizados para evitar quiebres de stock y errores al vender.", "Keep inventory, recipes and movements synced to avoid stockouts and errors.")}
             bullets={[
-              "Stock en tiempo real por sucursal",
-              "Alertas de inventario bajo",
-              "Recetas: descuento automático al vender",
-              "Historial completo de movimientos",
+              tx("Stock en tiempo real por sucursal", "Real-time stock by branch"),
+              tx("Alertas de inventario bajo", "Low inventory alerts"),
+              tx("Recetas: descuento automático al vender", "Recipes: automatic stock deduction on sale"),
+              tx("Historial completo de movimientos", "Full movement history"),
             ]}
             visual={
               <LandingFeatureShot
@@ -387,26 +546,26 @@ export function LandingSections({
           <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.92fr_1.08fr] lg:items-end lg:gap-12">
             <LandingReveal>
               <div className="max-w-2xl">
-                <Eyebrow className="text-left !text-indigo-300">Cómo funciona</Eyebrow>
+                <Eyebrow className="text-left !text-indigo-300">{tx("Cómo funciona", "How it works")}</Eyebrow>
                 <h2 className="text-left text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-[3rem]">
-                  Tu tienda lista en minutos
+                  {tx("Tu tienda lista en minutos", "Your store ready in minutes")}
                 </h2>
                 <p className="mt-4 max-w-xl text-sm leading-relaxed text-indigo-100/80 sm:text-base">
-                  Un flujo corto y claro para pasar de idea a ventas sin fricción. Sin configuraciones pesadas, sin curva técnica y sin perder tiempo en pasos innecesarios.
+                  {tx("Un flujo corto y claro para pasar de idea a ventas sin fricción. Sin configuraciones pesadas, sin curva técnica y sin perder tiempo en pasos innecesarios.", "A short and clear flow to go from idea to sales with no friction.")}
                 </p>
 
                 <div className="mt-6 flex flex-wrap gap-2">
                   <span className="inline-flex items-center gap-2 rounded-full border border-indigo-300/30 bg-indigo-500/15 px-3 py-1.5 text-xs font-medium text-indigo-100 shadow-sm backdrop-blur-sm">
                     <Check className="h-3.5 w-3.5 text-indigo-200" aria-hidden />
-                    Sin tarjeta de crédito
+                    {tx("Sin tarjeta de crédito", "No credit card")}
                   </span>
                   <span className="inline-flex items-center gap-2 rounded-full border border-violet-300/30 bg-violet-500/15 px-3 py-1.5 text-xs font-medium text-indigo-100 shadow-sm backdrop-blur-sm">
                     <Clock className="h-3.5 w-3.5 text-violet-200" aria-hidden />
-                    En menos de 5 minutos
+                    {tx("En menos de 5 minutos", "Under 5 minutes")}
                   </span>
                   <span className="inline-flex items-center gap-2 rounded-full border border-blue-300/30 bg-blue-500/15 px-3 py-1.5 text-xs font-medium text-indigo-100 shadow-sm backdrop-blur-sm">
                     <Shield className="h-3.5 w-3.5 text-blue-200" aria-hidden />
-                    Soporte incluido
+                    {tx("Soporte incluido", "Support included")}
                   </span>
                 </div>
               </div>
@@ -460,12 +619,12 @@ export function LandingSections({
       >
         <div className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col justify-center px-5 sm:px-6 lg:px-8">
           <LandingReveal>
-            <Eyebrow>Producto</Eyebrow>
+            <Eyebrow>{tx("Producto", "Product")}</Eyebrow>
             <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
-              Así se ve tu tienda
+              {tx("Así se ve tu tienda", "This is how your store looks")}
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-center text-sm text-slate-500 sm:text-base dark:text-zinc-400">
-              Interfaz limpia para ti y para tus clientes.
+              {tx("Interfaz limpia para ti y para tus clientes.", "Clean interface for you and your customers.")}
             </p>
           </LandingReveal>
 
@@ -481,30 +640,30 @@ export function LandingSections({
           <LandingReveal>
             <div className="mx-auto max-w-3xl text-center">
               <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-indigo-400">
-                Empieza ahora
+                {tx("Empieza ahora", "Start now")}
               </p>
               <h2 className="text-2xl font-bold text-white sm:text-3xl md:text-[2.75rem] md:leading-[1.15]">
-                Crea tu tienda en menos de{" "}
+                {tx("Crea tu tienda en menos de", "Create your store in under")}{" "}
                 <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
-                  5 minutos
+                  {tx("5 minutos", "5 minutes")}
                 </span>
               </h2>
               <p className="mx-auto mt-5 max-w-xl text-sm leading-relaxed text-slate-400 sm:text-base">
-                Sin código, sin servidores, sin complicaciones. Solo tú y tus productos.
+                {tx("Sin código, sin servidores, sin complicaciones. Solo tú y tus productos.", "No code, no servers, no complications. Just you and your products.")}
               </p>
               <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
                 <Link
                   href="/onboarding"
                   className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-8 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-700 sm:h-[3.25rem] sm:w-auto sm:text-base"
                 >
-                  Empezar gratis
+                  {tx("Empezar gratis", "Start for free")}
                   <ArrowRight className="h-4 w-4" aria-hidden />
                 </Link>
                 <a
                   href="#precios"
                   className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-slate-700 px-8 text-sm font-medium text-slate-300 transition hover:border-slate-600 hover:text-white sm:h-[3.25rem] sm:w-auto sm:text-base"
                 >
-                  Ver precios
+                  {tx("Ver precios", "See pricing")}
                 </a>
               </div>
             </div>
@@ -516,19 +675,19 @@ export function LandingSections({
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-300/50 to-transparent" aria-hidden />
                 <div className="flex items-center gap-2 text-indigo-400">
                   <Sparkles className="h-4 w-4 shrink-0" aria-hidden />
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">Demo</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">{tx("Demo", "Demo")}</span>
                 </div>
                 <h3 className="mt-3 text-xl font-bold tracking-tight text-white sm:text-2xl">
-                  Mira el producto en acción
+                  {tx("Mira el producto en acción", "See the product in action")}
                 </h3>
                 <p className="mt-3 max-w-lg text-sm leading-relaxed text-slate-400 sm:text-base">
-                  Esta demo resume el flujo completo: menú, carrito, pedidos, caja e inventario en una sola presentación.
+                  {tx("Esta demo resume el flujo completo: menú, carrito, pedidos, caja e inventario en una sola presentación.", "This demo summarizes the complete flow: menu, cart, orders, POS and inventory.")}
                 </p>
                 <div className="mt-6 overflow-hidden">
                   <LandingVideoPlayer
                     src="/Del_caos_al_control.mp4"
-                    title="Video demo del producto"
-                    subtitle="Versión de demo privada disponible para reuniones comerciales y partners."
+                    title={tx("Video demo del producto", "Product demo video")}
+                    subtitle={tx("Versión de demo privada disponible para reuniones comerciales y partners.", "Private demo version available for sales meetings and partners.")}
                   />
                 </div>
               </div>
@@ -537,20 +696,20 @@ export function LandingSections({
                 <div className="w-full rounded-[2rem] border border-slate-700/60 bg-slate-950/40 p-5 shadow-[0_24px_80px_-36px_rgba(0,0,0,0.85)] backdrop-blur-sm sm:p-6">
                   <div className="flex items-center justify-between border-b border-white/10 pb-3">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-300">Vista previa</p>
-                      <h3 className="mt-1 text-lg font-bold text-white">Por qué conviene usarlo</h3>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-300">{tx("Vista previa", "Preview")}</p>
+                      <h3 className="mt-1 text-lg font-bold text-white">{tx("Por qué conviene usarlo", "Why it is worth it")}</h3>
                     </div>
                       <span className="inline-flex items-center gap-1 rounded-full bg-indigo-500/15 px-3 py-1 text-xs font-medium text-indigo-100 ring-1 ring-indigo-300/25">
-                      Demo comercial disponible bajo solicitud
+                      {tx("Demo comercial disponible bajo solicitud", "Commercial demo available on request")}
                     </span>
                   </div>
 
                   <div className="mt-5 grid gap-3 sm:grid-cols-2">
                     {[
-                      "Menú, carrito y pago en un solo lugar",
-                      "Pedidos y caja con control centralizado",
-                      "Inventario por sucursal con alertas",
-                      "Presentación lista para reuniones y demos",
+                      tx("Menú, carrito y pago en un solo lugar", "Menu, cart and payment in one place"),
+                      tx("Pedidos y caja con control centralizado", "Orders and POS with centralized control"),
+                      tx("Inventario por sucursal con alertas", "Inventory by branch with alerts"),
+                      tx("Presentación lista para reuniones y demos", "Presentation ready for meetings and demos"),
                     ].map((item) => (
                       <div key={item} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm leading-relaxed text-slate-300">
                         {item}
@@ -576,12 +735,12 @@ export function LandingSections({
         </div>
         <div className="mx-auto w-full max-w-5xl px-5 sm:px-6 lg:px-8">
           <LandingReveal>
-            <Eyebrow>¿Por qué GodCode?</Eyebrow>
+            <Eyebrow>{tx("¿Por qué GodCode?", "Why GodCode?")}</Eyebrow>
             <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
-              Compara y decide
+              {tx("Compara y decide", "Compare and decide")}
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-center text-sm leading-relaxed text-slate-600 sm:text-base dark:text-zinc-400">
-              Elige una opción que te deje crecer sin comisiones altas, sin depender de terceros y con control total de tu negocio.
+              {tx("Elige una opción que te deje crecer sin comisiones altas, sin depender de terceros y con control total de tu negocio.", "Choose an option that lets you grow without high commissions and with full control.")}
             </p>
           </LandingReveal>
 
@@ -594,7 +753,7 @@ export function LandingSections({
                     <th className="pb-4 pr-4 text-left font-medium text-slate-500 dark:text-zinc-400" />
                     <th className="pb-4 px-3 text-center font-medium text-slate-500 dark:text-zinc-400">IG / WhatsApp</th>
                     <th className="pb-4 px-3 text-center font-medium text-slate-500 dark:text-zinc-400">Rappi / Uber</th>
-                    <th className="pb-4 px-3 text-center font-medium text-slate-500 dark:text-zinc-400">Desarrollo propio</th>
+                    <th className="pb-4 px-3 text-center font-medium text-slate-500 dark:text-zinc-400">{tx("Desarrollo propio", "Custom development")}</th>
                     <th className="pb-4 px-3 text-center font-bold text-indigo-600 dark:text-indigo-300">
                       <span className="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-indigo-700 ring-1 ring-indigo-100 dark:bg-indigo-500/15 dark:text-indigo-200 dark:ring-indigo-400/30">
                         GodCode
@@ -616,8 +775,8 @@ export function LandingSections({
                         >
                           {typeof val === "boolean"
                             ? val
-                              ? <Check className="mx-auto h-4 w-4 text-emerald-500" aria-label="Sí" />
-                              : <X className="mx-auto h-4 w-4 text-slate-300 dark:text-zinc-600" aria-label="No" />
+                              ? <Check className="mx-auto h-4 w-4 text-emerald-500" aria-label={tx("Sí", "Yes")} />
+                              : <X className="mx-auto h-4 w-4 text-slate-300 dark:text-zinc-600" aria-label={tx("No", "No")} />
                             : val}
                         </td>
                       ))}
@@ -627,7 +786,7 @@ export function LandingSections({
                 </table>
               </div>
               <p className="px-1 pt-3 text-xs text-slate-500 dark:text-zinc-400">
-                * Comparativa referencial. Costos y condiciones de terceros pueden variar por país, categoría y promociones vigentes.
+                {tx("* Comparativa referencial. Costos y condiciones de terceros pueden variar por país, categoría y promociones vigentes.", "* Reference comparison. Third-party costs and terms may vary by country and category.")}
               </p>
             </div>
           </LandingReveal>
@@ -647,9 +806,9 @@ export function LandingSections({
         </div>
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
           <LandingReveal>
-            <Eyebrow className="!text-indigo-300">Testimonios</Eyebrow>
+            <Eyebrow className="!text-indigo-300">{tx("Testimonios", "Testimonials")}</Eyebrow>
             <h2 className="text-center text-2xl font-bold tracking-tight text-white sm:text-3xl">
-              Lo que dicen nuestros clientes
+              {tx("Lo que dicen nuestros clientes", "What our customers say")}
             </h2>
           </LandingReveal>
           <LandingTestimonials />
@@ -660,25 +819,25 @@ export function LandingSections({
       <SectionShell id="precios" variant="white" className="min-h-0">
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
           <LandingReveal>
-            <Eyebrow>Precios</Eyebrow>
+            <Eyebrow>{tx("Precios", "Pricing")}</Eyebrow>
             <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
-              Planes simples, sin sorpresas
+              {tx("Planes simples, sin sorpresas", "Simple plans, no surprises")}
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-center text-sm text-slate-500 sm:text-base dark:text-zinc-400">
-              Prueba gratis. Sin tarjeta. Cancela cuando quieras.
+              {tx("Prueba gratis. Sin tarjeta. Cancela cuando quieras.", "Try it free. No card. Cancel anytime.")}
             </p>
           </LandingReveal>
 
           {plans.length === 0 ? (
             <LandingReveal delay={0.1}>
               <div className="mx-auto mt-10 max-w-lg rounded-2xl border border-dashed border-slate-300/80 bg-slate-50/80 px-5 py-8 text-center dark:border-zinc-600 dark:bg-zinc-900/40">
-                <p className="text-sm font-medium text-slate-700 dark:text-zinc-200">Estamos preparando los planes</p>
-                <p className="mt-2 text-xs text-slate-500 dark:text-zinc-400">Mientras tanto, puedes crear tu cuenta y explorar la plataforma gratis.</p>
+                <p className="text-sm font-medium text-slate-700 dark:text-zinc-200">{tx("Estamos preparando los planes", "We are preparing the plans")}</p>
+                <p className="mt-2 text-xs text-slate-500 dark:text-zinc-400">{tx("Mientras tanto, puedes crear tu cuenta y explorar la plataforma gratis.", "Meanwhile, you can create your account and explore the platform for free.")}</p>
                 <Link
                   href="/onboarding"
                   className="mt-5 inline-flex h-10 items-center justify-center rounded-xl bg-indigo-600 px-6 text-sm font-semibold text-white hover:bg-indigo-700"
                 >
-                  Empezar gratis
+                  {tx("Empezar gratis", "Start for free")}
                 </Link>
               </div>
             </LandingReveal>
@@ -706,13 +865,13 @@ export function LandingSections({
                     >
                       {isPopular && (
                         <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow sm:text-xs">
-                          Popular
+                          {tx("Popular", "Popular")}
                         </span>
                       )}
                       <h3 className="text-lg font-bold text-slate-900 dark:text-white">{plan.name}</h3>
                       <div className="mt-4 border-b border-slate-100 pb-4 dark:border-zinc-800">
                         <p className="text-3xl font-bold text-slate-900 sm:text-4xl dark:text-white">{formatPrice(priceData.price, priceData.currency)}</p>
-                        <p className="text-xs text-slate-500 dark:text-zinc-500">{priceData.currency} / mes</p>
+                        <p className="text-xs text-slate-500 dark:text-zinc-500">{priceData.currency} / {tx("mes", "month")}</p>
                       </div>
                       <ul className="mt-5 flex-1 space-y-2.5 text-sm text-slate-600 dark:text-zinc-300">
                         {plan.featureBullets.map((b, bi) => (
@@ -731,7 +890,7 @@ export function LandingSections({
                             : "border border-slate-200 bg-white text-slate-800 hover:bg-slate-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800",
                         )}
                       >
-                        Comenzar
+                        {tx("Comenzar", "Start")}
                       </Link>
                     </div>
                   </LandingReveal>
@@ -743,7 +902,7 @@ export function LandingSections({
           <LandingReveal delay={0.2}>
             <p className="mt-8 text-center text-xs text-slate-400 dark:text-zinc-500">
               <Shield className="mr-1 inline h-3 w-3" aria-hidden />
-              Garantía: si no te sirve, cancela sin costo ni penalidad.
+              {tx("Garantía: si no te sirve, cancela sin costo ni penalidad.", "Guarantee: if it does not work for you, cancel with no penalty.")}
             </p>
           </LandingReveal>
         </div>
@@ -753,9 +912,9 @@ export function LandingSections({
       <SectionShell id="faq" variant="muted" className="flex items-center">
         <div className="mx-auto w-full max-w-3xl px-5 sm:px-6 lg:px-8">
           <LandingReveal>
-            <Eyebrow>Dudas</Eyebrow>
+            <Eyebrow>{tx("Dudas", "Questions")}</Eyebrow>
             <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
-              Preguntas frecuentes
+              {tx("Preguntas frecuentes", "Frequently asked questions")}
             </h2>
           </LandingReveal>
 
@@ -795,28 +954,28 @@ export function LandingSections({
           {/* Hero CTA */}
           <LandingReveal>
             <div className="mx-auto max-w-3xl text-center">
-              <Eyebrow className="!text-indigo-400">Último paso</Eyebrow>
+              <Eyebrow className="!text-indigo-400">{tx("Último paso", "Final step")}</Eyebrow>
               <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl md:text-[2.75rem] md:leading-[1.12]">
-                Empieza hoy: tu primera tienda es{" "}
+                {tx("Empieza hoy: tu primera tienda es", "Start today: your first store is")}{" "}
                 <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
-                  gratis
+                  {tx("gratis", "free")}
                 </span>
               </h2>
               <p className="mx-auto mt-4 max-w-xl text-pretty text-sm leading-relaxed text-slate-400 sm:text-base">
-                Menú digital, pedidos, caja e inventario en un solo lugar. Sin comisiones por venta ni letra chica.
+                {tx("Menú digital, pedidos, caja e inventario en un solo lugar. Sin comisiones por venta ni letra chica.", "Digital menu, orders, POS and inventory in one place. No sales commissions.")}
               </p>
               <ul className="mt-6 flex flex-col items-center gap-2 text-xs text-slate-400 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-6 sm:gap-y-2 sm:text-sm">
                 <li className="inline-flex items-center gap-2">
                   <Check className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden />
-                  Sin tarjeta para comenzar
+                  {tx("Sin tarjeta para comenzar", "No card to start")}
                 </li>
                 <li className="inline-flex items-center gap-2">
                   <Check className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden />
-                  Cancelas cuando quieras
+                  {tx("Cancelas cuando quieras", "Cancel anytime")}
                 </li>
                 <li className="inline-flex items-center gap-2">
                   <Clock className="h-4 w-4 shrink-0 text-indigo-400" aria-hidden />
-                  Soporte en menos de 24 h
+                  {tx("Soporte en menos de 24 h", "Support in under 24h")}
                 </li>
               </ul>
               <div className="mt-8 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-center">
@@ -824,14 +983,14 @@ export function LandingSections({
                   href="/onboarding"
                   className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-8 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-500 sm:h-[3.25rem] sm:text-base"
                 >
-                  Crear mi tienda gratis
+                  {tx("Crear mi tienda gratis", "Create my free store")}
                   <ArrowRight className="h-4 w-4" aria-hidden />
                 </Link>
                 <a
                   href="#faq"
                   className="inline-flex h-12 items-center justify-center rounded-xl border border-slate-600/80 bg-slate-800/40 px-6 text-sm font-medium text-slate-200 backdrop-blur transition hover:border-slate-500 hover:bg-slate-800/70 sm:h-[3.25rem]"
                 >
-                  Ver preguntas frecuentes
+                  {tx("Ver preguntas frecuentes", "View FAQ")}
                 </a>
               </div>
             </div>
@@ -845,13 +1004,13 @@ export function LandingSections({
                 <div className="flex flex-col p-5 sm:p-6">
                   <div className="flex items-center gap-2 text-indigo-400">
                     <Mail className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">Boletín</span>
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">{tx("Boletín", "Newsletter")}</span>
                   </div>
                   <h3 className="mt-2 text-lg font-bold tracking-tight text-white sm:text-xl">
-                    ¿Aún no te decides?
+                    {tx("¿Aún no te decides?", "Still unsure?")}
                   </h3>
                   <p className="mt-1.5 max-w-md text-pretty text-sm leading-snug text-slate-400">
-                    Deja tu correo y te escribimos solo cuando tengamos algo que te sirva. Nada de spam.
+                    {tx("Deja tu correo y te escribimos solo cuando tengamos algo que te sirva. Nada de spam.", "Leave your email and we will only message you when useful. No spam.")}
                   </p>
                   <div className="mt-4 rounded-xl border border-slate-700/50 bg-slate-900/50 p-3.5 sm:p-4">
                     <LandingLeadForm dark layout="stacked" />
@@ -869,11 +1028,11 @@ export function LandingSections({
                 <div className="flex flex-col p-5 sm:p-6">
                   <div className="flex items-center gap-2 text-violet-400">
                     <MessageSquare className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">Escríbenos</span>
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">{tx("Escríbenos", "Contact us")}</span>
                   </div>
-                  <h3 className="mt-2 text-lg font-bold tracking-tight text-white sm:text-xl">¿Tienes dudas?</h3>
+                  <h3 className="mt-2 text-lg font-bold tracking-tight text-white sm:text-xl">{tx("¿Tienes dudas?", "Have questions?")}</h3>
                   <p className="mt-1.5 max-w-md text-pretty text-sm leading-snug text-slate-400">
-                    Cuéntanos tu rubro y qué necesitas. Respondemos por correo en menos de 24 horas.
+                    {tx("Cuéntanos tu rubro y qué necesitas. Respondemos por correo en menos de 24 horas.", "Tell us your business type and what you need. We reply by email within 24 hours.")}
                   </p>
                   <div className="mt-4 rounded-xl border border-slate-700/50 bg-slate-900/50 p-3.5 sm:p-4">
                     <LandingContactForm supportEmail={support} dark className="mt-0 space-y-3" />
@@ -891,17 +1050,17 @@ export function LandingSections({
                         href="/onboarding"
                         className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-slate-600/70 bg-slate-900/40 px-4 text-sm font-semibold text-white transition hover:border-slate-500 hover:bg-slate-800/50 sm:w-auto sm:shrink-0"
                       >
-                        Crear mi tienda ya
+                        {tx("Crear mi tienda ya", "Create my store now")}
                       </Link>
                     </div>
                     <ul className="mt-3 space-y-1.5 text-xs text-slate-500">
                       <li className="flex gap-2">
                         <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500/90" aria-hidden />
-                        Registro en minutos, sin tarjeta.
+                        {tx("Registro en minutos, sin tarjeta.", "Sign up in minutes, no card.")}
                       </li>
                       <li className="flex gap-2">
                         <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500/90" aria-hidden />
-                        Soporte humano si te atoras.
+                        {tx("Soporte humano si te atoras.", "Human support if you get stuck.")}
                       </li>
                     </ul>
                   </div>

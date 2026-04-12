@@ -366,7 +366,7 @@ export function normalizeDeliverySettings(raw: unknown): DeliverySettingsNormali
 		baseFee = clampNonNeg(Number(o.base_fee ?? base) || 0, DELIVERY_MAX_BASE_FEE);
 	}
 
-	let deliveryPricingStrategy = parseDeliveryPricingStrategy(
+	const deliveryPricingStrategy = parseDeliveryPricingStrategy(
 		stratRaw,
 		namedParsed.length,
 	);

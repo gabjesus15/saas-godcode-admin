@@ -47,6 +47,50 @@ jobs:
       - name: Run strict lint
         run: npm run lint:strict
 
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: lint
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Run TypeScript check
+        run: npx tsc --noEmit
+
+  i18n:
+    name: i18n Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: lint
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Validate locale files
+        run: npm run i18n:validate
+
   test:
     name: Tests
     runs-on: ubuntu-latest
@@ -73,7 +117,7 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [lint, test]
+    needs: [lint, typecheck, test, i18n]
 
     env:
       CI: true

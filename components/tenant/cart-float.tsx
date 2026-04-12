@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, ShoppingBag } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useCart } from "./use-cart";
 import { formatCartMoney } from "./utils/format-cart-money";
 import "../../app/[subdomain]/styles/CartFloat.css";
 
 export function CartFloat() {
+  const t = useTranslations("tenant.cart.float");
   const { totalItems, grandTotal, toggleCart } = useCart();
   const hasItems = totalItems > 0;
   const [isIdle, setIsIdle] = useState(false);
@@ -78,10 +80,10 @@ export function CartFloat() {
         <span className="cart-label-text">
           {hasItems ? (
             <>
-              <span className="cart-total-prefix">Total:</span> ${formatCartMoney(grandTotal)}
+              <span className="cart-total-prefix">{t("totalPrefix")}</span> ${formatCartMoney(grandTotal)}
             </>
           ) : (
-            "Tu Bandeja"
+            t("emptyLabel")
           )}
         </span>
         <ArrowRight size={16} className="cart-arrow" />

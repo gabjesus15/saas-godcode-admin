@@ -1,12 +1,21 @@
 import { Check } from "lucide-react";
+import { useLocale } from "next-intl";
 
-const steps = [
-  { n: 1, label: "Registro" },
-  { n: 2, label: "Plan" },
-  { n: 3, label: "Pago" },
-] as const;
+const COPY = {
+  es: ["Registro", "Plan", "Pago"],
+  en: ["Sign up", "Plan", "Payment"],
+} as const;
 
 export function OnboardingStepBar({ current }: { current: 1 | 2 | 3 }) {
+  const locale = useLocale();
+  const lang = locale.toLowerCase().startsWith("es") ? "es" : "en";
+  const labels = COPY[lang];
+  const steps = [
+    { n: 1, label: labels[0] },
+    { n: 2, label: labels[1] },
+    { n: 3, label: labels[2] },
+  ] as const;
+
   return (
     <div className="mb-8 flex justify-center sm:mb-10">
       <ol className="flex items-center gap-0">

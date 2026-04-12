@@ -25,7 +25,9 @@ export function LandingPhoneCarousel({ slides }: { slides: LandingSlide[] }) {
   const queuedTargetRef = useRef<number | null>(null);
   const unlockTimerRef = useRef<number | null>(null);
 
-  activeRef.current = active;
+  useEffect(() => {
+    activeRef.current = active;
+  }, [active]);
 
   const normalizeIndex = useCallback((i: number) => {
     const len = slides.length;
@@ -44,14 +46,17 @@ export function LandingPhoneCarousel({ slides }: { slides: LandingSlide[] }) {
 
   const runTransition = useCallback(
     (targetIndex: number) => {
-      const nextIdx = normalizeIndex(targetIndex);
-      const currentIdx = activeRef.current;
-      if (nextIdx === currentIdx) return;
+      const applyTransition = (idx: number) => {
+        const currentIdx = activeRef.current;
+        if (idx === currentIdx) return;
+        const nextDirection = getDirectionToTarget(currentIdx, idx);
+        setDirection(nextDirection);
+        setActive(idx);
+        activeRef.current = idx;
+      };
 
-      const nextDirection = getDirectionToTarget(currentIdx, nextIdx);
-      setDirection(nextDirection);
-      setActive(nextIdx);
-      activeRef.current = nextIdx;
+      const nextIdx = normalizeIndex(targetIndex);
+      applyTransition(nextIdx);
 
       if (prefersReduced) return;
 
@@ -64,7 +69,7 @@ export function LandingPhoneCarousel({ slides }: { slides: LandingSlide[] }) {
         const queuedTarget = queuedTargetRef.current;
         queuedTargetRef.current = null;
         if (queuedTarget !== null && queuedTarget !== activeRef.current) {
-          runTransition(queuedTarget);
+          applyTransition(normalizeIndex(queuedTarget));
         }
       }, 360);
     },
@@ -104,29 +109,17 @@ export function LandingPhoneCarousel({ slides }: { slides: LandingSlide[] }) {
   }, []);
 
   useEffect(() => {
-    if (slides.length === 0) {
-      setActive(0);
-      activeRef.current = 0;
-      return;
-    }
-    if (activeRef.current > slides.length - 1) {
-      setActive(0);
-      activeRef.current = 0;
-    }
-  }, [slides.length]);
-
-  useEffect(() => {
     if (paused || prefersReduced) return;
     if (slides.length <= 1) return;
     const id = setInterval(next, AUTO_INTERVAL);
     return () => clearInterval(id);
   }, [paused, next, prefersReduced, slides.length]);
 
-  if (slides.length === 0) return null;
-
-  const current = slides[active];
-  const prevIdx = (active - 1 + slides.length) % slides.length;
-  const nextIdx = (active + 1) % slides.length;
+  const hasSlides = slides.length > 0;
+  const safeActive = hasSlides ? normalizeIndex(active) : 0;
+  const current = hasSlides ? slides[safeActive] : null;
+  const prevIdx = hasSlides ? (safeActive - 1 + slides.length) % slides.length : 0;
+  const nextIdx = hasSlides ? (safeActive + 1) % slides.length : 0;
 
   const slideTransition = prefersReduced
     ? { duration: 0 }
@@ -186,6 +179,8 @@ export function LandingPhoneCarousel({ slides }: { slides: LandingSlide[] }) {
   const stopCarouselPointerBubble = useCallback((e: ReactPointerEvent) => {
     e.stopPropagation();
   }, []);
+
+  if (!hasSlides || current === null) return null;
 
   return (
     <div

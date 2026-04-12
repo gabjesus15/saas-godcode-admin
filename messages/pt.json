@@ -1,0 +1,167 @@
+{
+  "common": {
+    "language": "Idioma",
+    "languages": {
+      "es": "Espanhol",
+      "en": "Ingles",
+      "pt": "Portugues",
+      "fr": "Frances",
+      "de": "Alemao",
+      "it": "Italiano"
+    }
+  },
+  "landing": {
+    "meta": {
+      "title": "GodCode - Crie sua loja online em minutos",
+      "description": "Menu digital, carrinho, delivery, caixa, pedidos de cozinha e inventario para seu negocio. Sem programar e sem comissoes por venda. Comece gratis."
+    },
+    "nav": {
+      "goHome": "Ir para o inicio",
+      "main": "Principal",
+      "mobile": "Navegacao movel",
+      "openMenu": "Abrir menu",
+      "closeMenu": "Fechar menu",
+      "login": "Entrar",
+      "createAccount": "Criar conta",
+      "links": {
+        "features": "Recursos",
+        "howItWorks": "Como funciona",
+        "product": "Produto",
+        "demo": "Demo",
+        "compare": "Comparar",
+        "testimonials": "Depoimentos",
+        "pricing": "Precos",
+        "faq": "FAQ",
+        "contact": "Contato"
+      }
+    },
+    "footer": {
+      "brandDescription": "Tudo o que seu negocio precisa para vender online. Menu, carrinho, caixa, inventario e mais.",
+      "sections": {
+        "product": "Produto",
+        "support": "Suporte",
+        "legal": "Legal"
+      },
+      "links": {
+        "createStore": "Criar loja",
+        "features": "Recursos",
+        "demo": "Demo",
+        "pricing": "Precos",
+        "howItWorks": "Como funciona",
+        "compare": "Comparar",
+        "testimonials": "Depoimentos",
+        "faq": "FAQ",
+        "contact": "Contato",
+        "login": "Entrar",
+        "terms": "Termos de servico",
+        "privacy": "Politica de privacidade",
+        "backToTop": "Voltar ao topo"
+      }
+    }
+  },
+  "onboarding": {
+    "layout": {
+      "viewBusinesses": "Ver negocios",
+      "businesses": "Negocios",
+      "securityFooter": "Protegido com verificacao de email e criptografia SSL."
+    },
+    "start": {
+      "title": "Cadastre seu negocio",
+      "subtitle": "Complete seus dados e enviaremos um email de verificacao.",
+      "trust": {
+        "email": "Verificacao por email",
+        "encrypted": "Dados criptografados",
+        "time": "Menos de 5 minutos"
+      }
+    }
+  },
+  "tenant": {
+    "cart": {
+      "float": {
+        "totalPrefix": "Total:",
+        "emptyLabel": "Seu Carrinho"
+      },
+      "modal": {
+        "common": { "unknown": "Desconhecido" },
+        "dialog": { "currentOrderAria": "Seu pedido" },
+        "header": { "title": "Seu Pedido" },
+        "branchSelector": { "title": "Escolha sua filial", "subtitle": "Selecione a localizacao mais proxima", "closeAria": "Fechar modal", "checkingBranches": "Verificando filiais disponiveis...", "noBranchesReceiving": "Nao ha filiais recebendo pedidos", "attentionSchedule": "Horario de atendimento: {schedule}", "openCashAnyBranch": "Abra o caixa no painel de administracao de alguma filial para habilitar compras.", "openCash": "Abra o caixa no painel de administracao para habilitar compras.", "openBadge": "ABERTO", "closedBadge": "FECHADO" },
+        "contactBranch": { "title": "Escolha sua filial", "subtitle": "De qual loja voce quer obter informacoes?", "closeAria": "Fechar modal", "loading": "Carregando filiais...", "empty": "Nao ha filiais configuradas." },
+        "previewMap": { "locationLabel": "Localizacao no mapa", "openMap": "Abrir mapa" },
+        "notes": { "label": "Notas da cozinha", "placeholder": "Ex: Sem gergelim..." },
+        "summary": { "subtotal": "Subtotal", "shipping": "Entrega", "free": "Gratis", "total": "Total" },
+        "actions": {
+          "close": "Fechar", "loading": "Carregando...", "goToPay": "Ir para pagamento",
+          "continueToPaymentMethods": "Continuar para metodos de pagamento", "backToSummary": "Voltar ao resumo",
+          "sending": "Enviando...", "confirmOrder": "Confirmar Pedido", "back": "Voltar",
+          "alreadyPaid": "Ja paguei", "continue": "Continuar", "chooseAnotherMethod": "Escolher outro metodo",
+          "cancel": "Cancelar", "newOrder": "Novo Pedido", "backToMenu": "Voltar ao Menu"
+        },
+        "delivery": {
+          "pickNamedArea": "Escolha uma area", "selectAreaAria": "Selecionar area de entrega",
+          "searchUnavailable": "Servico de enderecos indisponivel. Tente novamente mais tarde.",
+          "addressFoundReviewFee": "Endereco encontrado. Revise o custo de entrega.",
+          "geoNotAvailable": "Seu navegador nao permite localizacao. Digite o endereco.",
+          "geoNeedsHttps": "A localizacao so funciona em HTTPS (ou localhost).",
+          "searchingLocation": "Buscando localizacao...", "searchingAddress": "Buscando endereco...",
+          "locationSavedReview": "Localizacao salva. Revise rua, bairro e custo de entrega.",
+          "locationSavedCompleteManually": "Localizacao salva. Complete rua e bairro manualmente se necessario.",
+          "permissionDenied": "Permissao negada. Permita localizacao no navegador.",
+          "noSignal": "Sem sinal de localizacao. Digite rua e bairro.",
+          "timeout": "Tempo esgotado. Tente novamente ou digite o endereco.",
+          "cannotReadLocation": "Nao foi possivel ler sua localizacao.",
+          "addressFoundReview": "Endereco encontrado. Revise rua, bairro e custo de entrega.",
+          "addressLabel": "Endereco", "howReceiveOrder": "Como deseja receber seu pedido",
+          "fulfillmentSubtitle": "Escolha uma opcao para continuar.", "pickup": "Retirada", "delivery": "Entrega", "zoneLabel": "Zona de entrega", "writeStreetNumberCommune": "Digite rua, numero e bairro/cidade; calculamos a tarifa com base nas zonas da loja.", "useCurrentLocation": "Usar localizacao atual", "preciseShippingHint": "Calculamos o frete com mais precisao.", "fullAddressHint": "Digite seu endereco completo (rua e numero e, se possivel, bairro/cidade). Assim cotamos o frete e coordenamos o pedido no WhatsApp.", "approxHintPrefix": "Esta sugestao e apenas por zona/cidade: o ponto no mapa pode ficar longe da sua porta. Prefira uma opcao com endereco mais especifico, ajuste rua ou bairro/cidade, ou use", "useMyLocationStrong": "Usar minha localizacao", "communeOrCity": "Bairro ou cidade", "communePlaceholder": "Ex: Centro", "street": "Rua", "streetPlaceholder": "Ex: Avenida Paulista", "number": "Numero", "numberPlaceholder": "Ex: 1432", "searchingAddresses": "Buscando enderecos...", "addressSuggestionsAria": "Sugestoes de endereco", "updatingLocationFromStreet": "Atualizando localizacao com rua e numero (recalculando frete)...", "driverInstructionsRequired": "Instrucoes para o entregador (obrigatorio)", "driverInstructionsPlaceholder": "Apto, interfone, cor do portao, referencias...", "driverInstructionsMin": "Minimo de {min} caracteres para o entregador encontrar voce.", "calculatingShipping": "Calculando frete...", "detectedZone": "Zona detectada: {zone}", "approxDistance": "Distancia aprox. (linha reta)", "shippingCost": "Custo de entrega", "outOfZone": "Fora da zona", "minOrderForDelivery": "O minimo para entrega e ${amount}.", "locationExceedsMaxKm": "Sua localizacao excede a distancia maxima desta loja.", "pickupOnlyBranch": "Esta filial aceita apenas retirada no local.", "needLocationForUber": "Para cotar a entrega (Uber), marque o ponto no mapa ou toque em Usar localizacao atual.", "needLocationStreetOrKm": "Informe sua localizacao no mapa, digite rua e numero com bairro/cidade, ou informe os km manualmente para continuar.", "addDriverInstructionsMin": "Adicione instrucoes para o entregador (minimo de {min} caracteres).", "locationOutsideArea": "Sua localizacao esta fora da area de entrega desta loja.", "minAmountForDelivery": "Valor minimo para entrega: ${amount}.", "calculatingWithLocation": "Calculando frete com sua localizacao...", "completeDataToContinue": "Complete os dados de entrega para continuar."
+        },
+        "errors": {
+          "noOrdersNow": "Nao estamos recebendo pedidos neste momento.",
+          "noBranchSelected": "Nenhuma filial selecionada.",
+          "completeDeliveryOrMin": "Complete o endereco ou revise o minimo.",
+          "paymentNotAllowedForDelivery": "Metodo de pagamento nao permitido para entrega.",
+          "whatsappNotConfigured": "Este negocio nao possui WhatsApp configurado.",
+          "processOrderTryAgain": "Erro ao processar pedido. Tente novamente."
+        },
+        "validation": {
+          "nameShort": "Nome muito curto", "nameInvalid": "Nome invalido", "phoneShort": "Telefone muito curto",
+          "phoneLong": "Telefone muito longo", "phoneInvalid": "Telefone invalido", "invalidFile": "Arquivo invalido.",
+          "reviewFields": "Revise os campos", "completeCorrectly": "Por favor preencha corretamente"
+        },
+        "validationItems": {
+          "validName": "nome valido", "validRut": "RUT valido", "validPhone": "telefone completo (+56 9)",
+          "transferReceipt": "comprovante de transferencia", "name": "nome", "phone": "telefone", "receipt": "comprovante"
+        },
+        "catalog": {
+          "suggestedDrink": "Bebida sugerida", "globalExtra": "Extra global", "globalExtraDescription": "Extra global do pedido",
+          "inYourOrder": "No seu pedido", "addDrinksOrExtras": "Adicionar bebidas ou extras ao pedido",
+          "drinksForOrder": "Bebidas para seu pedido", "globalExtrasForOrder": "Extras globais do pedido"
+        },
+        "paymentMethods": {
+          "unknown": "Nao definido", "efectivo": "Dinheiro", "tarjeta": "Cartao (Presencial)", "pago_movil": "Pagamento movel",
+          "zelle": "Zelle", "transferencia_bancaria": "Transferencia", "stripe": "Cartao (Online)", "mercadopago": "MercadoPago", "paypal": "PayPal"
+        },
+        "payment": {
+          "clientData": "Dados do cliente", "title": "Metodo de pagamento", "noMethodsForFulfillment": "Sem metodos disponiveis para esta entrega.",
+          "payInStoreHelp": "Voce paga em dinheiro ou cartao na retirada.", "noDataConfiguredFor": "Sem dados configurados para",
+          "noBankData": "Sem dados bancarios configurados.", "noMobilePaymentData": "Sem dados de pagamento movel.", "noZelleData": "Sem dados de Zelle.",
+          "followInstructions": "Siga as instrucoes para pagar com", "detailsTitle": "Dados de pagamento", "configLabels": { "bank": "Banco", "accountType": "Tipo de conta", "accountNumber": "Numero da conta", "document": "Documento", "holder": "Titular", "email": "Email", "phone": "Telefone", "idCard": "Documento", "zelleEmail": "Email Zelle", "connected": "Conectado" },
+          "fields": {
+            "name": "Nome", "namePlaceholder": "Seu nome", "phone": "Telefone", "receipt": "Comprovante",
+            "uploadReceipt": "Enviar comprovante", "imageLoaded": "Imagem enviada", "uploadCapture": "Enviar captura"
+          }
+        },
+        "success": {
+          "sentAria": "Pedido enviado", "sentTitle": "Pedido Enviado", "title": "Pedido Recebido",
+          "description": "Tudo certo. Vamos falar com voce no WhatsApp para coordenar o pagamento.",
+          "receiptUploadFailed": "Nao foi possivel enviar o comprovante. Envie pelo WhatsApp.",
+          "yourOrder": "Seu pedido", "copyOrderNumber": "Copiar numero do pedido", "deliveryCode": "Codigo de entrega", "copyDeliveryCode": "Copiar codigo de entrega",
+          "pickupAt": "Retirada em", "addressUnavailable": "Endereco indisponivel", "storeNameFallback": "Nome da loja", "orderNumber": "Pedido #"
+        },
+        "empty": { "title": "Carrinho vazio" },
+        "item": { "productFallback": "Produto", "removeProduct": "Remover produto", "decreaseQuantity": "Diminuir quantidade", "increaseQuantity": "Aumentar quantidade" },
+        "ws": { "titlePrefix": "NOVO PEDIDO WEB", "businessFallback": "RESTAURANTE", "customer": "Cliente", "rut": "Documento", "phone": "Telefone", "typeLabel": "Tipo", "typeDelivery": "ENTREGA", "typePickup": "RETIRADA NO LOCAL", "shipping": "Entrega", "subtotalProducts": "Subtotal dos produtos", "orderNumber": "Pedido #", "orderId": "ID do pedido", "handoffCode": "Codigo de entrega", "detail": "DETALHE", "doLabel": "Fazer", "total": "TOTAL", "payment": "Pagamento", "bankTransferTitle": "Transferencia bancaria", "bank": "Banco", "accountType": "Tipo", "account": "Conta", "holder": "Titular", "bankTransferHint": "Quando concluir a transferencia, anexe o comprovante ao seu pedido.", "note": "Observacao" }
+      }
+      }
+    }
+  }
+}

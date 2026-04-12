@@ -16,7 +16,8 @@ export function FloatingWhatsappButton({
 
   useEffect(() => {
     // Hacer visible después del montaje para evitar hidratación
-    setIsVisible(true);
+    const id = window.setTimeout(() => setIsVisible(true), 0);
+    return () => window.clearTimeout(id);
   }, []);
 
   if (!isVisible) return null;

@@ -23,12 +23,13 @@ function setEnvFull() {
 describe("validateEnv", () => {
 	beforeEach(() => {
 		vi.restoreAllMocks();
+		vi.unstubAllEnvs();
 		for (const k of [...REQUIRED_KEYS, ...OPTIONAL_KEYS]) {
 			delete process.env[k];
 		}
 		delete process.env.NEXT_PHASE;
 		delete process.env.CI;
-		process.env.NODE_ENV = "test";
+		vi.stubEnv("NODE_ENV", "test");
 	});
 
 	it("no lanza error cuando todas las variables requeridas estan definidas", async () => {
@@ -47,13 +48,13 @@ describe("validateEnv", () => {
 	});
 
 	it("lanza Error en produccion cuando faltan variables requeridas", async () => {
-		process.env.NODE_ENV = "production";
+		vi.stubEnv("NODE_ENV", "production");
 		const validateEnv = await freshValidateEnv();
 		expect(() => validateEnv()).toThrow("Variables obligatorias faltantes");
 	});
 
 	it("NO lanza en produccion si NEXT_PHASE es build", async () => {
-		process.env.NODE_ENV = "production";
+		vi.stubEnv("NODE_ENV", "production");
 		process.env.NEXT_PHASE = "phase-production-build";
 		const spy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const validateEnv = await freshValidateEnv();
@@ -62,7 +63,7 @@ describe("validateEnv", () => {
 	});
 
 	it("NO lanza en produccion si CI es true", async () => {
-		process.env.NODE_ENV = "production";
+		vi.stubEnv("NODE_ENV", "production");
 		process.env.CI = "true";
 		const spy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const validateEnv = await freshValidateEnv();

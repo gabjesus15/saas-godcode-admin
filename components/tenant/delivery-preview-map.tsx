@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { useLocale, useTranslations } from "next-intl";
 
 import { isValidLatLng } from "../../lib/geo";
 
@@ -25,6 +26,8 @@ type DeliveryPreviewMapProps = {
 const ZOOM = 15;
 
 export function DeliveryPreviewMap({ lat, lng }: DeliveryPreviewMapProps) {
+  const t = useTranslations("tenant.cart.modal");
+  const locale = useLocale();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
@@ -87,19 +90,20 @@ export function DeliveryPreviewMap({ lat, lng }: DeliveryPreviewMapProps) {
 
   const la = lat as number;
   const lo = lng as number;
-  const openHref = `https://www.google.com/maps?q=${encodeURIComponent(`${la},${lo}`)}&z=${ZOOM}&hl=es`;
+  const localeCode = locale.toLowerCase().split("-")[0] || "en";
+  const openHref = `https://www.google.com/maps?q=${encodeURIComponent(`${la},${lo}`)}&z=${ZOOM}&hl=${encodeURIComponent(localeCode)}`;
 
   return (
     <div className="cart-delivery-preview-map">
       <div className="cart-delivery-preview-map-head">
-        <span className="cart-delivery-preview-map-label">Ubicación en el mapa</span>
+        <span className="cart-delivery-preview-map-label">{t("previewMap.locationLabel")}</span>
         <a
           className="cart-delivery-preview-map-link"
           href={openHref}
           target="_blank"
           rel="noopener noreferrer"
         >
-          Abrir mapa
+          {t("previewMap.openMap")}
         </a>
       </div>
       <div
