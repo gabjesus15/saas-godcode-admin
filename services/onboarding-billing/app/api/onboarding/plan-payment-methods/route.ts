@@ -9,6 +9,24 @@ const COUNTRY_NORMALIZE: Record<string, string> = {
 	VE: "VE",
 };
 
+const ALWAYS_AVAILABLE_METHODS = new Set(["stripe", "paypal"]);
+
+function getMethodCountries(method: { countries?: string[] | null }): string[] {
+	return Array.isArray(method.countries)
+		? method.countries.map((value) => String(value).trim()).filter(Boolean)
+		: [];
+}
+
+function isAvailableForCountry(method: { slug?: string | null; countries?: string[] | null }, normalizedCountry: string | null, rawCountry: string | null): boolean {
+	const slug = String(method.slug ?? "").trim().toLowerCase();
+	if (ALWAYS_AVAILABLE_METHODS.has(slug)) return true;
+	if (!normalizedCountry && !rawCountry) return true;
+
+	const countries = getMethodCountries(method);
+	if (countries.length === 0) return false;
+	return countries.includes(normalizedCountry ?? "") || countries.includes(rawCountry ?? "");
+}
+
 export async function GET(req: NextRequest) {
 	const country = req.nextUrl.searchParams.get("country");
 	const normalized = country ? COUNTRY_NORMALIZE[country.trim()] ?? country.trim() : null;
@@ -25,11 +43,9 @@ export async function GET(req: NextRequest) {
 
 	let list = methods ?? [];
 	if (normalized) {
-		list = list.filter(
-			(m) =>
-				Array.isArray(m.countries) &&
-				(m.countries.includes(normalized) || m.countries.includes(country?.trim() ?? ""))
-		);
+		list = list.filter((m) => isAvailableForCountry(m, normalized, country?.trim() ?? null));
+	} else {
+		list = list.filter((m) => isAvailableForCountry(m, null, null));
 	}
 
 	const withConfig = await Promise.all(

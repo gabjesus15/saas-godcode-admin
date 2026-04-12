@@ -72,17 +72,16 @@ export async function POST(req: NextRequest) {
 
 		const subscriptionMethod = (app.subscription_payment_method ?? "").trim().toLowerCase();
 		const isPayPal = subscriptionMethod === "paypal";
+		const isManualPayment = isManualMethod(subscriptionMethod);
 		const paypalClientId = process.env.PAYPAL_CLIENT_ID ?? "";
 		const paypalClientSecret = process.env.PAYPAL_CLIENT_SECRET ?? "";
 
-		if (!STRIPE_SECRET && !isPayPal) {
+		if (!isManualPayment && !STRIPE_SECRET && !isPayPal) {
 			return NextResponse.json({ error: "Integración de pago no configurada" }, { status: 503 });
 		}
 		if (isPayPal && (!paypalClientId || !paypalClientSecret)) {
 			return NextResponse.json({ error: "PayPal no configurado (PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET)" }, { status: 503 });
 		}
-
-		const isManualPayment = isManualMethod(subscriptionMethod);
 
 		const planResult = await resolveCheckoutPlan(supabaseAdmin, app);
 		if (!planResult.plan) {

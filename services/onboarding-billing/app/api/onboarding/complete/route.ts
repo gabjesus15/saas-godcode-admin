@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
 
-const VALID_STATUSES = new Set(["email_verified", "form_completed", "payment_pending"]);
+const VALID_STATUSES = new Set(["email_verified", "form_completed", "payment_pending", "paid", "approved"]);
 
 type AddonChoice = { addon_id: string; quantity?: number; price_snapshot?: number };
 
