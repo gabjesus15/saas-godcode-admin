@@ -103,7 +103,6 @@
         "item": { "productFallback": "Prodotto", "removeProduct": "Rimuovi prodotto", "decreaseQuantity": "Diminuisci quantita", "increaseQuantity": "Aumenta quantita" },
         "ws": { "titlePrefix": "NUOVO ORDINE WEB", "businessFallback": "RISTORANTE", "customer": "Cliente", "rut": "Codice fiscale", "phone": "Telefono", "typeLabel": "Tipo", "typeDelivery": "CONSEGNA", "typePickup": "RITIRO IN LOCALE", "shipping": "Consegna", "subtotalProducts": "Subtotale prodotti", "orderNumber": "Ordine #", "orderId": "ID ordine", "handoffCode": "Codice consegna", "detail": "DETTAGLIO", "doLabel": "Fare", "total": "TOTALE", "payment": "Pagamento", "bankTransferTitle": "Bonifico bancario", "bank": "Banca", "accountType": "Tipo", "account": "Conto", "holder": "Intestatario", "bankTransferHint": "Quando completi il bonifico, allega la ricevuta al tuo ordine.", "note": "Nota" }
       }
-      }
     }
   }
 }

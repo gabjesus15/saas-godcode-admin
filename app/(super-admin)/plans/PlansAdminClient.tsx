@@ -8,6 +8,14 @@ import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { Textarea } from "../../../components/ui/textarea";
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES, type AppLocale } from "../../../lib/i18n/config";
+import {
+	buildPlanMarketingLinesI18nPayload,
+	buildPlanNameI18nPayload,
+	createLocalizedPlanMarketingLinesState,
+	createLocalizedPlanNameState,
+	resolvePlanMarketingLines,
+} from "../../../lib/plan-i18n";
 import { normalizeMarketingLines } from "../../../lib/plan-marketing-lines";
 
 function newDescriptionLineId(): string {
@@ -32,12 +40,14 @@ const clpCurrency = new Intl.NumberFormat("es-CL", {
 type Plan = {
 	id: string;
 	name: string | null;
+	name_i18n?: unknown;
 	price: number | null;
 	max_branches: number | null;
 	max_users: number | null;
 	is_public: boolean | null;
 	is_active: boolean | null;
 	marketing_lines?: unknown;
+	marketing_lines_i18n?: unknown;
 };
 
 function planCardLines(plan: Plan): string[] {
@@ -48,11 +58,43 @@ function planCardLines(plan: Plan): string[] {
 	if (mu > 0) {
 		base.push(mu === 1 ? "Hasta 1 usuario." : `Hasta ${mu} usuarios.`);
 	}
-	const custom = normalizeMarketingLines(plan.marketing_lines);
+	const custom = resolvePlanMarketingLines({
+		locale: DEFAULT_LOCALE,
+		marketingLines: plan.marketing_lines,
+		marketingLinesI18n: plan.marketing_lines_i18n,
+	});
 	return [...base, ...custom];
 }
 
 type DescriptionLine = { id: string; text: string };
+type LocalizedDescriptionLines = Record<AppLocale, DescriptionLine[]>;
+type LocalizedNames = Record<AppLocale, string>;
+
+const LOCALE_LABELS: Record<AppLocale, string> = {
+	es: "Español",
+	en: "English",
+	pt: "Português",
+	fr: "Français",
+	de: "Deutsch",
+	it: "Italiano",
+};
+
+function toDescriptionLines(lines: string[]): DescriptionLine[] {
+	return normalizeMarketingLines(lines).map((text) => ({ id: newDescriptionLineId(), text }));
+}
+
+function localeNamesFromUnknown(fallbackName: string, raw: unknown): LocalizedNames {
+	return createLocalizedPlanNameState({ fallbackName, nameI18n: raw });
+}
+
+function localeLinesFromUnknown(fallbackLines: string[], raw: unknown): LocalizedDescriptionLines {
+	const source = createLocalizedPlanMarketingLinesState({ fallbackLines, marketingLinesI18n: raw });
+	const out = {} as LocalizedDescriptionLines;
+	for (const locale of SUPPORTED_LOCALES) {
+		out[locale] = toDescriptionLines(source[locale] ?? fallbackLines);
+	}
+	return out;
+}
 
 type PlanFormState = {
 	name: string;
@@ -62,6 +104,8 @@ type PlanFormState = {
 	is_public: boolean;
 	is_active: boolean;
 	descriptionLines: DescriptionLine[];
+	nameByLocale: LocalizedNames;
+	descriptionLinesByLocale: LocalizedDescriptionLines;
 };
 
 const emptyForm = (): PlanFormState => ({
@@ -72,6 +116,8 @@ const emptyForm = (): PlanFormState => ({
 	is_public: true,
 	is_active: true,
 	descriptionLines: [],
+	nameByLocale: localeNamesFromUnknown("", {}),
+	descriptionLinesByLocale: localeLinesFromUnknown([], {}),
 });
 
 export function PlansAdminClient({
@@ -106,18 +152,22 @@ export function PlansAdminClient({
 	};
 
 	const startEdit = (p: Plan) => {
+		const baseName = (p.name ?? "").trim();
+		const baseLines = normalizeMarketingLines(p.marketing_lines);
+		const baseDescriptionLines = toDescriptionLines(baseLines);
+		const localizedLines = localeLinesFromUnknown(baseLines, p.marketing_lines_i18n);
+		localizedLines[DEFAULT_LOCALE] = baseDescriptionLines.map((line) => ({ ...line }));
 		setNotice(null);
 		setForm({
-			name: (p.name ?? "").trim(),
+			name: baseName,
 			price: p.price ?? "",
 			max_branches: p.max_branches ?? "",
 			max_users: p.max_users ?? "",
 			is_public: p.is_public !== false,
 			is_active: p.is_active !== false,
-			descriptionLines: normalizeMarketingLines(p.marketing_lines).map((text) => ({
-				id: newDescriptionLineId(),
-				text,
-			})),
+			descriptionLines: baseDescriptionLines,
+			nameByLocale: localeNamesFromUnknown(baseName, p.name_i18n),
+			descriptionLinesByLocale: localizedLines,
 		});
 		setEditingId(p.id);
 		setShowNew(false);
@@ -153,6 +203,16 @@ export function PlansAdminClient({
 			is_public: form.is_public,
 			is_active: form.is_active,
 			marketing_lines: normalizeMarketingLines(form.descriptionLines.map((l) => l.text)),
+			name_i18n: buildPlanNameI18nPayload(form.nameByLocale, nameTrimmed),
+			marketing_lines_i18n: buildPlanMarketingLinesI18nPayload(
+				Object.fromEntries(
+					SUPPORTED_LOCALES.map((locale) => [
+						locale,
+						normalizeMarketingLines(form.descriptionLinesByLocale[locale].map((line) => line.text)),
+					])
+				),
+				normalizeMarketingLines(form.descriptionLines.map((l) => l.text))
+			),
 		};
 
 		setSaving(true);
@@ -241,7 +301,16 @@ export function PlansAdminClient({
 							<span className="font-medium text-zinc-700 dark:text-zinc-300">Nombre</span>
 							<Input
 								value={form.name}
-								onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+								onChange={(e) =>
+									setForm((p) => ({
+										...p,
+										name: e.target.value,
+										nameByLocale: {
+											...p.nameByLocale,
+											[DEFAULT_LOCALE]: e.target.value,
+										},
+									}))
+								}
 								placeholder="Básico"
 								className="h-10"
 							/>
@@ -284,7 +353,13 @@ export function PlansAdminClient({
 														...prev,
 														descriptionLines: prev.descriptionLines.map((row) =>
 															row.id === line.id ? { ...row, text: v } : row
-														),
+															),
+															descriptionLinesByLocale: {
+																...prev.descriptionLinesByLocale,
+																[DEFAULT_LOCALE]: prev.descriptionLinesByLocale[DEFAULT_LOCALE].map((row) =>
+																	row.id === line.id ? { ...row, text: v } : row
+																),
+															},
 													}));
 												}}
 												placeholder="Ej. Incluye menú digital, caja y soporte por chat."
@@ -300,6 +375,10 @@ export function PlansAdminClient({
 													setForm((prev) => ({
 														...prev,
 														descriptionLines: prev.descriptionLines.filter((row) => row.id !== line.id),
+															descriptionLinesByLocale: {
+																...prev.descriptionLinesByLocale,
+																[DEFAULT_LOCALE]: prev.descriptionLinesByLocale[DEFAULT_LOCALE].filter((row) => row.id !== line.id),
+															},
 													}))
 												}
 												aria-label={`Quitar descripción ${i + 1}`}
@@ -316,11 +395,20 @@ export function PlansAdminClient({
 									className="w-fit gap-1.5"
 									onClick={() =>
 										setForm((prev) => ({
-											...prev,
-											descriptionLines: [
-												...prev.descriptionLines,
-												{ id: newDescriptionLineId(), text: "" },
-											],
+											...(() => {
+												const newLine = { id: newDescriptionLineId(), text: "" };
+												return {
+													...prev,
+													descriptionLinesByLocale: {
+														...prev.descriptionLinesByLocale,
+														[DEFAULT_LOCALE]: [
+															...prev.descriptionLinesByLocale[DEFAULT_LOCALE],
+															{ ...newLine },
+														],
+													},
+													descriptionLines: [...prev.descriptionLines, newLine],
+												};
+											})(),
 										}))
 									}
 								>
@@ -329,6 +417,126 @@ export function PlansAdminClient({
 								</Button>
 							</div>
 						</div>
+
+						<details className="sm:col-span-2 rounded-xl border border-zinc-200 bg-zinc-50/60 p-3 dark:border-zinc-700 dark:bg-zinc-900/40">
+							<summary className="cursor-pointer list-none text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+								Traducciones por idioma
+							</summary>
+							<p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+								Edita cada idioma en este bloque plegable. Si dejas algo vacío, se usa fallback automático.
+							</p>
+							<div className="mt-4 grid gap-4">
+								{SUPPORTED_LOCALES.map((locale) => (
+									<div key={locale} className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-950/40">
+										<p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+											{LOCALE_LABELS[locale]} ({locale})
+										</p>
+										<label className="mt-2 flex flex-col gap-1 text-sm">
+											<span className="font-medium text-zinc-700 dark:text-zinc-300">Nombre</span>
+											<Input
+												value={form.nameByLocale[locale] ?? ""}
+												onChange={(e) =>
+													setForm((prev) => ({
+														...prev,
+														...(locale === DEFAULT_LOCALE ? { name: e.target.value } : {}),
+														nameByLocale: {
+															...prev.nameByLocale,
+															[locale]: e.target.value,
+														},
+													}))
+												}
+												placeholder={`Nombre en ${LOCALE_LABELS[locale]}`}
+												className="h-10"
+											/>
+										</label>
+
+										<div className="mt-2 flex flex-col gap-3">
+											<p className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Descripciones</p>
+											{form.descriptionLinesByLocale[locale].map((line, i) => (
+												<div key={line.id} className="flex gap-2">
+													<Textarea
+														value={line.text}
+														onChange={(e) => {
+															const value = e.target.value;
+															setForm((prev) => ({
+																...prev,
+																...(locale === DEFAULT_LOCALE
+																	? {
+																		descriptionLines: prev.descriptionLines.map((row) =>
+																			row.id === line.id ? { ...row, text: value } : row
+																		),
+																	}
+																	: {}),
+																descriptionLinesByLocale: {
+																	...prev.descriptionLinesByLocale,
+																	[locale]: prev.descriptionLinesByLocale[locale].map((row) =>
+																		row.id === line.id ? { ...row, text: value } : row
+																	),
+																},
+															}));
+														}}
+														rows={2}
+														placeholder={`Descripcion ${i + 1} en ${LOCALE_LABELS[locale]}`}
+														className="flex-1"
+													/>
+													<Button
+														type="button"
+														variant="outline"
+														size="sm"
+														className="h-10 w-10 shrink-0 p-0"
+														onClick={() =>
+															setForm((prev) => ({
+																...prev,
+																...(locale === DEFAULT_LOCALE
+																	? {
+																		descriptionLines: prev.descriptionLines.filter((row) => row.id !== line.id),
+																	}
+																	: {}),
+																descriptionLinesByLocale: {
+																	...prev.descriptionLinesByLocale,
+																	[locale]: prev.descriptionLinesByLocale[locale].filter((row) => row.id !== line.id),
+																},
+															}))
+														}
+														aria-label={`Quitar descripcion ${i + 1} de ${locale}`}
+													>
+														<Trash2 className="h-4 w-4" aria-hidden />
+													</Button>
+												</div>
+											))}
+											<Button
+												type="button"
+												variant="outline"
+												size="sm"
+												className="w-fit gap-1.5"
+												onClick={() =>
+													setForm((prev) => ({
+														...(() => {
+															const newLine = { id: newDescriptionLineId(), text: "" };
+															return {
+																...prev,
+																...(locale === DEFAULT_LOCALE
+																	? {
+																		descriptionLines: [...prev.descriptionLines, newLine],
+																	}
+																	: {}),
+																descriptionLinesByLocale: {
+																	...prev.descriptionLinesByLocale,
+																	[locale]: [...prev.descriptionLinesByLocale[locale], newLine],
+																},
+															};
+														})(),
+													}))
+												}
+											>
+												<Plus className="h-4 w-4" aria-hidden />
+												Añadir descripcion en {LOCALE_LABELS[locale]}
+											</Button>
+										</div>
+									</div>
+								))}
+							</div>
+						</details>
 
 						<label className="flex flex-col gap-1 text-sm">
 							<span className="font-medium text-zinc-700 dark:text-zinc-300">Max sucursales</span>

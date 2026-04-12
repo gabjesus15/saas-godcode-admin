@@ -103,7 +103,6 @@
         "item": { "productFallback": "Produkt", "removeProduct": "Produkt entfernen", "decreaseQuantity": "Menge verringern", "increaseQuantity": "Menge erhohen" },
         "ws": { "titlePrefix": "NEUE WEB-BESTELLUNG", "businessFallback": "RESTAURANT", "customer": "Kunde", "rut": "Steuer-ID", "phone": "Telefon", "typeLabel": "Typ", "typeDelivery": "LIEFERUNG", "typePickup": "ABHOLUNG", "shipping": "Lieferung", "subtotalProducts": "Zwischensumme Produkte", "orderNumber": "Bestellung #", "orderId": "Bestell-ID", "handoffCode": "Ubergabecode", "detail": "DETAIL", "doLabel": "Machen", "total": "GESAMT", "payment": "Zahlung", "bankTransferTitle": "Bankuberweisung", "bank": "Bank", "accountType": "Typ", "account": "Konto", "holder": "Inhaber", "bankTransferHint": "Wenn du die Uberweisung abgeschlossen hast, hange den Beleg an deine Bestellung an.", "note": "Hinweis" }
       }
-      }
     }
   }
 }

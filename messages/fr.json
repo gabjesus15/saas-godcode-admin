@@ -122,7 +122,6 @@
         "item": { "productFallback": "Produit", "removeProduct": "Retirer produit", "decreaseQuantity": "Diminuer quantite", "increaseQuantity": "Augmenter quantite" },
         "ws": { "titlePrefix": "NOUVELLE COMMANDE WEB", "businessFallback": "RESTAURANT", "customer": "Client", "rut": "Identifiant fiscal", "phone": "Telephone", "typeLabel": "Type", "typeDelivery": "LIVRAISON", "typePickup": "RETRAIT SUR PLACE", "shipping": "Livraison", "subtotalProducts": "Sous-total produits", "orderNumber": "Commande #", "orderId": "ID commande", "handoffCode": "Code de remise", "detail": "DETAIL", "doLabel": "Faire", "total": "TOTAL", "payment": "Paiement", "bankTransferTitle": "Virement bancaire", "bank": "Banque", "accountType": "Type", "account": "Compte", "holder": "Titulaire", "bankTransferHint": "Une fois le virement effectue, joignez le recu a votre commande.", "note": "Note" }
       }
-      }
     }
   }
 }

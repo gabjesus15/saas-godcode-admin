@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { SAAS_READ_ROLES, validateAdminRolesOnServer } from "../../../../utils/admin/server-auth";
 
 import { logAdminAudit } from "../../../../lib/admin-audit";
+import { buildPlanMarketingLinesI18nPayload, buildPlanNameI18nPayload } from "../../../../lib/plan-i18n";
 import { normalizeMarketingLines } from "../../../../lib/plan-marketing-lines";
 import { adminInsertPlan, queryAdminPlansList } from "../../../../lib/plans-db-query";
 
@@ -30,6 +31,8 @@ type CreateBody = {
 	is_active?: boolean;
 	features?: Record<string, boolean>;
 	marketing_lines?: unknown;
+	name_i18n?: unknown;
+	marketing_lines_i18n?: unknown;
 };
 
 export async function POST(req: NextRequest) {
@@ -53,8 +56,10 @@ export async function POST(req: NextRequest) {
 		is_active: body.is_active !== false,
 		features: body.features && typeof body.features === "object" ? body.features : {},
 		marketing_lines: normalizeMarketingLines(body.marketing_lines),
+		name_i18n: buildPlanNameI18nPayload(body.name_i18n, name),
+		marketing_lines_i18n: buildPlanMarketingLinesI18nPayload(body.marketing_lines_i18n, body.marketing_lines),
 	};
-	const { error, marketingLinesSkipped, singleId } = await adminInsertPlan(payload);
+	const { error, optionalColumnsSkipped, singleId } = await adminInsertPlan(payload);
 
 	if (error) {
 		console.error("[plans/create] DB error:", error.message);
@@ -73,10 +78,10 @@ export async function POST(req: NextRequest) {
 	return NextResponse.json({
 		ok: true,
 		id: singleId,
-		...(marketingLinesSkipped
+		...(optionalColumnsSkipped
 			? {
 					warning:
-						"Las viñetas no se guardaron: falta la columna marketing_lines en la base de datos. Ejecuta la migración en Supabase.",
+						"Las traducciones no se guardaron: faltan columnas opcionales de i18n en la base de datos. Ejecuta las migraciones de planes.",
 				}
 			: {}),
 	});

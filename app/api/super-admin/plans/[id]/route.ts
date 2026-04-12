@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { logAdminAudit } from "../../../../../lib/admin-audit";
+import { buildPlanMarketingLinesI18nPayload, buildPlanNameI18nPayload } from "../../../../../lib/plan-i18n";
 import { normalizeMarketingLines } from "../../../../../lib/plan-marketing-lines";
 import { adminUpdatePlanById } from "../../../../../lib/plans-db-query";
 import { supabaseAdmin } from "../../../../../lib/supabase-admin";
@@ -15,6 +16,8 @@ type PatchBody = {
 	is_active?: boolean;
 	features?: Record<string, boolean>;
 	marketing_lines?: unknown;
+	name_i18n?: unknown;
+	marketing_lines_i18n?: unknown;
 };
 
 export async function PATCH(
@@ -50,12 +53,20 @@ export async function PATCH(
 	if (body.marketing_lines !== undefined) {
 		updates.marketing_lines = normalizeMarketingLines(body.marketing_lines);
 	}
+	if (body.name_i18n !== undefined) {
+		const fallbackName = body.name !== undefined ? body.name : "Plan";
+		updates.name_i18n = buildPlanNameI18nPayload(body.name_i18n, fallbackName);
+	}
+	if (body.marketing_lines_i18n !== undefined) {
+		const fallbackLines = body.marketing_lines !== undefined ? body.marketing_lines : [];
+		updates.marketing_lines_i18n = buildPlanMarketingLinesI18nPayload(body.marketing_lines_i18n, fallbackLines);
+	}
 
 	if (Object.keys(updates).length === 0) {
 		return NextResponse.json({ error: "No hay cambios que guardar." }, { status: 400 });
 	}
 
-	const { data: updatedRows, error, marketingLinesSkipped } = await adminUpdatePlanById(id, updates);
+	const { data: updatedRows, error, optionalColumnsSkipped } = await adminUpdatePlanById(id, updates);
 
 	if (error) {
 		console.error("[plans/update] DB error:", error.message);
@@ -90,10 +101,10 @@ export async function PATCH(
 	revalidatePath("/");
 	return NextResponse.json({
 		ok: true,
-		...(marketingLinesSkipped
+		...(optionalColumnsSkipped
 			? {
 					warning:
-						"Las viñetas no se guardaron: falta la columna marketing_lines en la base de datos. Ejecuta la migración en Supabase.",
+						"Las traducciones no se guardaron: faltan columnas opcionales de i18n en la base de datos. Ejecuta las migraciones de planes.",
 				}
 			: {}),
 	});

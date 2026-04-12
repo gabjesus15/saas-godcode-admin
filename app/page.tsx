@@ -133,8 +133,9 @@ export default async function Home() {
   const hdrs = await headers();
   const host = hdrs.get("host") || "";
   if (isMainDomain(host)) {
+    const locale = await getCurrentLocale();
     const [plans, media] = await Promise.all([
-      getPublicPlansForLanding(),
+      getPublicPlansForLanding(locale),
       getLandingMediaBundle(),
     ]);
     return (

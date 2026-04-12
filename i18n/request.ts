@@ -7,6 +7,7 @@ import {
   normalizeLocale,
 } from "@/lib/i18n/config";
 import { getMessagesForLocale } from "@/lib/i18n/messages";
+import { resolveTenantPreferredLocale } from "@/lib/i18n/tenant-locale";
 
 export default getRequestConfig(async () => {
   const cookieStore = await cookies();
@@ -18,9 +19,14 @@ export default getRequestConfig(async () => {
     locale = normalizeLocale(cookieLocale);
   } else {
     const requestHeaders = await headers();
-    const acceptLanguage = requestHeaders.get("accept-language") ?? "";
-    const preferred = acceptLanguage.split(",")[0] ?? "";
-    locale = normalizeLocale(preferred);
+    const tenantLocale = await resolveTenantPreferredLocale(requestHeaders.get("host"));
+    if (tenantLocale) {
+      locale = tenantLocale;
+    } else {
+      const acceptLanguage = requestHeaders.get("accept-language") ?? "";
+      const preferred = acceptLanguage.split(",")[0] ?? "";
+      locale = normalizeLocale(preferred);
+    }
   }
 
   return {

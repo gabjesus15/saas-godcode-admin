@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { supabaseAdmin } from "../../../lib/supabase-admin";
+import { getCurrentLocale } from "@/lib/i18n/server";
+import { resolvePlanName } from "../../../lib/plan-i18n";
 import { OnboardingStep2Form } from "../../../components/onboarding/OnboardingStep2Form";
 import { OnboardingStepBar } from "../../../components/onboarding/OnboardingStepBar";
 
@@ -72,8 +74,10 @@ export default async function OnboardingCompletePage({
     return <ErrorCard title="Correo no verificado" text="Debes verificar tu correo antes de continuar. Revisa tu bandeja y haz clic en el enlace de verificación." />;
   }
 
+  const locale = await getCurrentLocale();
+
   const [plansResult, addonsResult, applicationAddonsResult] = await Promise.all([
-    supabaseAdmin.from("plans").select("id,name,price,max_branches").eq("is_active", true).order("price", { ascending: true }),
+    supabaseAdmin.from("plans").select("id,name,name_i18n,price,max_branches").eq("is_active", true).order("price", { ascending: true }),
     supabaseAdmin.from("addons").select("id,slug,name,description,price_one_time,price_monthly,type,sort_order").eq("is_active", true).order("sort_order", { ascending: true }),
     supabaseAdmin.from("onboarding_application_addons").select("addon_id,quantity,price_snapshot").eq("application_id", app.id),
   ]);
@@ -83,7 +87,10 @@ export default async function OnboardingCompletePage({
     return <ErrorCard title="Error al cargar planes" text="No pudimos obtener los planes disponibles. Intenta de nuevo en unos minutos." />;
   }
 
-  const plans = plansResult.data ?? [];
+  const plans = (plansResult.data ?? []).map((plan) => ({
+    ...plan,
+    name: resolvePlanName({ locale, name: plan.name, nameI18n: (plan as { name_i18n?: unknown }).name_i18n }),
+  }));
   const addons = addonsResult.data ?? [];
   const applicationAddons = applicationAddonsResult.data ?? [];
 

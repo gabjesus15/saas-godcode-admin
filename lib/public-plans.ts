@@ -1,6 +1,8 @@
 import "server-only";
 
-import { normalizeMarketingLines } from "./plan-marketing-lines";
+import type { AppLocale } from "@/lib/i18n/config";
+
+import { resolvePlanMarketingLines, resolvePlanName } from "./plan-i18n";
 import { queryPublicPlansLandingRows } from "./plans-db-query";
 
 export type PublicPlanForLanding = {
@@ -16,20 +18,65 @@ function bulletsFromPlan(row: {
   max_branches: number | null;
   max_users: number | null;
   marketing_lines?: unknown;
-}): string[] {
-  const custom = normalizeMarketingLines(row.marketing_lines);
+  marketing_lines_i18n?: unknown;
+}, locale: AppLocale): string[] {
+  const custom = resolvePlanMarketingLines({
+    locale,
+    marketingLines: row.marketing_lines,
+    marketingLinesI18n: row.marketing_lines_i18n,
+  });
   const base: string[] = [];
   const maxB = row.max_branches ?? 0;
   const maxU = row.max_users ?? 0;
+
+  const suffixByLocale: Record<AppLocale, {
+    empty: string;
+    branches: (n: number) => string;
+    users: (n: number) => string;
+  }> = {
+    es: {
+      empty: "Detalles del plan configurables desde el panel",
+      branches: (n) => `Hasta ${n} sucursal${n === 1 ? "" : "es"}`,
+      users: (n) => `Hasta ${n} usuario${n === 1 ? "" : "s"}`,
+    },
+    en: {
+      empty: "Plan details configurable from the admin panel",
+      branches: (n) => `Up to ${n} branch${n === 1 ? "" : "es"}`,
+      users: (n) => `Up to ${n} user${n === 1 ? "" : "s"}`,
+    },
+    pt: {
+      empty: "Detalhes do plano configuraveis no painel",
+      branches: (n) => `Ate ${n} filial${n === 1 ? "" : "is"}`,
+      users: (n) => `Ate ${n} usuario${n === 1 ? "" : "s"}`,
+    },
+    fr: {
+      empty: "Details du plan configurables depuis le panneau",
+      branches: (n) => `Jusqu'a ${n} succursale${n === 1 ? "" : "s"}`,
+      users: (n) => `Jusqu'a ${n} utilisateur${n === 1 ? "" : "s"}`,
+    },
+    de: {
+      empty: "Plangetails sind im Admin-Panel konfigurierbar",
+      branches: (n) => `Bis zu ${n} Filiale${n === 1 ? "" : "n"}`,
+      users: (n) => `Bis zu ${n} Benutzer${n === 1 ? "" : "n"}`,
+    },
+    it: {
+      empty: "Dettagli del piano configurabili dal pannello",
+      branches: (n) => `Fino a ${n} filiale${n === 1 ? "" : "i"}`,
+      users: (n) => `Fino a ${n} utente${n === 1 ? "" : "i"}`,
+    },
+  };
+
+  const copy = suffixByLocale[locale] ?? suffixByLocale.es;
   if (maxB > 0) {
-    base.push(`Hasta ${maxB} sucursal${maxB === 1 ? "" : "es"}`);
+    base.push(copy.branches(maxB));
   }
   if (maxU > 0) {
-    base.push(`Hasta ${maxU} usuario${maxU === 1 ? "" : "s"}`);
+    base.push(copy.users(maxU));
   }
+
   const merged = [...base, ...custom];
   if (merged.length === 0) {
-    return ["Detalles del plan configurables desde el panel"];
+    return [copy.empty];
   }
   return merged;
 }
@@ -38,7 +85,7 @@ function bulletsFromPlan(row: {
  * Planes visibles en la landing: `is_public` y activos (`is_active` no es false).
  * Orden por precio ascendente (como en el panel de planes).
  */
-export async function getPublicPlansForLanding(): Promise<PublicPlanForLanding[]> {
+export async function getPublicPlansForLanding(locale: AppLocale): Promise<PublicPlanForLanding[]> {
   const { data, error } = await queryPublicPlansLandingRows();
 
   if (error) {
@@ -50,11 +97,11 @@ export async function getPublicPlansForLanding(): Promise<PublicPlanForLanding[]
 
   return rows.map((p) => ({
     id: p.id,
-    name: (p.name ?? "Plan").trim() || "Plan",
+    name: resolvePlanName({ locale, name: p.name, nameI18n: p.name_i18n }),
     price: Number(p.price ?? 0),
     max_branches: p.max_branches ?? 0,
     max_users: p.max_users ?? 0,
-    featureBullets: bulletsFromPlan(p),
+    featureBullets: bulletsFromPlan(p, locale),
   }));
 }
 

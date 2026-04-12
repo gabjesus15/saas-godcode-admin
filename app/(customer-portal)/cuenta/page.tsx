@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 
 import { CustomerAccountClient } from "./CustomerAccountClient";
 import { getCustomerMembership } from "../../../lib/account-access";
+import { getCurrentLocale } from "@/lib/i18n/server";
+import { resolvePlanName } from "../../../lib/plan-i18n";
 import { supabaseAdmin } from "../../../lib/supabase-admin";
 import { createSupabaseServerClient } from "../../../utils/supabase/server";
 
@@ -48,6 +50,7 @@ function resolveTenantAdminUrl(publicSlug: string | null): string | null {
 export const dynamic = "force-dynamic";
 
 export default async function CustomerAccountPage() {
+  const locale = await getCurrentLocale();
   const supabase = await createSupabaseServerClient("super-admin");
   const {
     data: { user },
@@ -68,7 +71,7 @@ export default async function CustomerAccountPage() {
   const [{ data: company }, { data: branches }, { data: payments }, { data: companyAddons }, { data: plans }, { data: addons }, { data: tickets }, { data: branchEntitlements }] = await Promise.all([
     supabaseAdmin
       .from("companies")
-      .select("id,name,public_slug,subscription_status,subscription_ends_at,plan:plans(name,price,max_branches,max_users)")
+      .select("id,name,public_slug,subscription_status,subscription_ends_at,plan:plans(name,name_i18n,price,max_branches,max_users)")
       .eq("id", companyId)
       .maybeSingle(),
     supabaseAdmin
@@ -89,7 +92,7 @@ export default async function CustomerAccountPage() {
       .order("created_at", { ascending: false }),
     supabaseAdmin
       .from("plans")
-      .select("id,name,price,max_branches,max_users")
+      .select("id,name,name_i18n,price,max_branches,max_users")
       .eq("is_active", true)
       .order("price", { ascending: true }),
     supabaseAdmin
@@ -119,7 +122,11 @@ export default async function CustomerAccountPage() {
     publicSlug: (company?.public_slug as string | null) ?? null,
     subscriptionStatus: (company?.subscription_status as string | null) ?? null,
     subscriptionEndsAt: (company?.subscription_ends_at as string | null) ?? null,
-    planName: ((company?.plan as { name?: string | null } | null)?.name ?? null) as string | null,
+    planName: resolvePlanName({
+      locale,
+      name: ((company?.plan as { name?: string | null } | null)?.name ?? null) as string | null,
+      nameI18n: (company?.plan as { name_i18n?: unknown } | null)?.name_i18n,
+    }),
     planPrice: ((company?.plan as { price?: number | null } | null)?.price ?? null) as number | null,
     planMaxBranches: ((company?.plan as { max_branches?: number | null } | null)?.max_branches ?? null) as number | null,
     planMaxUsers: ((company?.plan as { max_users?: number | null } | null)?.max_users ?? null) as number | null,
@@ -196,7 +203,13 @@ export default async function CustomerAccountPage() {
         }
         activeAddons={activeAddons}
         availablePlans={
-          ((plans ?? []) as Array<{ id: string; name: string; price: number | null; max_branches: number | null; max_users: number | null }>)
+          ((plans ?? []) as Array<{ id: string; name: string; name_i18n?: unknown; price: number | null; max_branches: number | null; max_users: number | null }>).map((plan) => ({
+            id: plan.id,
+            name: resolvePlanName({ locale, name: plan.name, nameI18n: plan.name_i18n }),
+            price: plan.price,
+            max_branches: plan.max_branches,
+            max_users: plan.max_users,
+          }))
         }
         availableAddons={
           ((addons ?? []) as Array<{ id: string; name: string; type: string | null; price_monthly: number | null; price_one_time: number | null }>)

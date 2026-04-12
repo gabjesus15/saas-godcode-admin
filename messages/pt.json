@@ -161,7 +161,6 @@
         "item": { "productFallback": "Produto", "removeProduct": "Remover produto", "decreaseQuantity": "Diminuir quantidade", "increaseQuantity": "Aumentar quantidade" },
         "ws": { "titlePrefix": "NOVO PEDIDO WEB", "businessFallback": "RESTAURANTE", "customer": "Cliente", "rut": "Documento", "phone": "Telefone", "typeLabel": "Tipo", "typeDelivery": "ENTREGA", "typePickup": "RETIRADA NO LOCAL", "shipping": "Entrega", "subtotalProducts": "Subtotal dos produtos", "orderNumber": "Pedido #", "orderId": "ID do pedido", "handoffCode": "Codigo de entrega", "detail": "DETALHE", "doLabel": "Fazer", "total": "TOTAL", "payment": "Pagamento", "bankTransferTitle": "Transferencia bancaria", "bank": "Banco", "accountType": "Tipo", "account": "Conta", "holder": "Titular", "bankTransferHint": "Quando concluir a transferencia, anexe o comprovante ao seu pedido.", "note": "Observacao" }
       }
-      }
     }
   }
 }
