@@ -229,7 +229,15 @@ function PagoContent() {
 
 		w.paypal
 			.Buttons({
-				createOrder: async () => createPaypalOrder(),
+				createOrder: async () => {
+					try {
+						return await createPaypalOrder();
+					} catch (err) {
+						const message = err instanceof Error ? err.message : copy.errors.unexpected;
+						setError(message);
+						throw err;
+					}
+				},
 				onApprove: async (data) => {
 					trackAnalyticsEvent("onboarding_paypal_inline_approved", {
 						orderId: data.orderID ?? null,
@@ -265,15 +273,17 @@ function PagoContent() {
 					trackAnalyticsEvent("onboarding_paypal_inline_canceled", { months });
 					setError(copy.errors.paypalCanceled);
 				},
-				onError: () => {
+				onError: (err: unknown) => {
 					trackAnalyticsEvent("onboarding_paypal_inline_error", { months });
-					setError(copy.errors.unexpected);
+					const message = err instanceof Error ? err.message : copy.errors.unexpected;
+					setError(message);
 				},
 			})
 			.render(`#${paypalContainerId}`)
-			.catch(() => {
+			.catch((err: unknown) => {
 				trackAnalyticsEvent("onboarding_paypal_inline_render_error", { months });
-				setError(copy.errors.unexpected);
+				const message = err instanceof Error ? err.message : copy.errors.unexpected;
+				setError(message);
 			});
 	}, [
 		isPaypalSelected,
