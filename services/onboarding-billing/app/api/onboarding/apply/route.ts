@@ -63,19 +63,6 @@ export async function POST(req: NextRequest) {
 			return NextResponse.json({ error: "Demasiados intentos con este correo. Intenta más tarde." }, { status: 429 });
 		}
 
-		const { data: existingCompany } = await supabaseAdmin
-			.from("companies")
-			.select("id")
-			.ilike("email", emailRaw)
-			.limit(1)
-			.maybeSingle();
-
-		if (existingCompany?.id) {
-			return NextResponse.json(
-				{ error: "Este correo ya usó un período promocional. Inicia sesión o elige un plan de pago." },
-				{ status: 409 }
-			);
-		}
 		if (body.terms_accepted !== true || body.privacy_accepted !== true) {
 			return NextResponse.json({ error: "Debes aceptar los términos y la política de privacidad" }, { status: 400 });
 		}

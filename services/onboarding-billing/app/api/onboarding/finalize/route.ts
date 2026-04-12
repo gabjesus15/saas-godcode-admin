@@ -69,6 +69,7 @@ export async function POST(req: NextRequest) {
 			{ months_paid: paymentUpdated?.months_paid },
 			1
 		);
+		const enforceTrialReuseGuard = monthsPaid === 1;
 		if (status !== "paid" && status !== "approved") {
 			return NextResponse.json({ ok: true, message: "Pago aún no confirmado" });
 		}
@@ -81,7 +82,7 @@ export async function POST(req: NextRequest) {
 			.maybeSingle();
 
 		const payerEmail = normalizeEmail(appGuard?.email);
-		if (payerEmail) {
+		if (enforceTrialReuseGuard && payerEmail) {
 			const { data: duplicateEmailCompany } = await supabaseAdmin
 				.from("companies")
 				.select("id")
@@ -92,7 +93,7 @@ export async function POST(req: NextRequest) {
 
 			if (duplicateEmailCompany?.id) {
 				return NextResponse.json(
-					{ error: "Este correo ya usó el primer mes gratis. Usa una cuenta existente o un plan de pago." },
+					{ error: "Este correo ya usó el plan de prueba de 1 mes. Usa una cuenta existente o un plan de pago." },
 					{ status: 409 }
 				);
 			}
@@ -106,20 +107,22 @@ export async function POST(req: NextRequest) {
 			const fingerprint = await getStripeCardFingerprintFromCheckoutSession(ref, stripeSecret);
 			if (fingerprint) {
 				cardFingerprintHash = hashCardFingerprint(fingerprint);
-				const { data: duplicateCardPayment } = await supabaseAdmin
-					.from("payments_history")
-					.select("id,company_id")
-					.eq("card_fingerprint_hash", cardFingerprintHash)
-					.in("status", ["paid", "approved"])
-					.neq("id", payment.id)
-					.limit(1)
-					.maybeSingle();
+				if (enforceTrialReuseGuard) {
+					const { data: duplicateCardPayment } = await supabaseAdmin
+						.from("payments_history")
+						.select("id,company_id")
+						.eq("card_fingerprint_hash", cardFingerprintHash)
+						.in("status", ["paid", "approved"])
+						.neq("id", payment.id)
+						.limit(1)
+						.maybeSingle();
 
-				if (duplicateCardPayment?.id && duplicateCardPayment.company_id !== payment.company_id) {
-					return NextResponse.json(
-						{ error: "Esta tarjeta ya fue usada para un primer mes gratis. Usa una cuenta existente o un plan de pago." },
-						{ status: 409 }
-					);
+					if (duplicateCardPayment?.id && duplicateCardPayment.company_id !== payment.company_id) {
+						return NextResponse.json(
+							{ error: "Esta tarjeta ya fue usada para un plan de prueba de 1 mes. Usa una cuenta existente o un plan de pago." },
+							{ status: 409 }
+						);
+					}
 				}
 			}
 		}
@@ -129,7 +132,7 @@ export async function POST(req: NextRequest) {
 			const storedPayerEmail = normalizeEmail(payment.payer_email_normalized);
 			paypalPayerIdHash = storedPayerIdHash;
 
-			if (storedPayerIdHash) {
+			if (enforceTrialReuseGuard && storedPayerIdHash) {
 				const { data: duplicatePaypalPayment } = await supabaseAdmin
 					.from("payments_history")
 					.select("id,company_id")
@@ -141,13 +144,13 @@ export async function POST(req: NextRequest) {
 
 				if (duplicatePaypalPayment?.id && duplicatePaypalPayment.company_id !== payment.company_id) {
 					return NextResponse.json(
-						{ error: "Esta cuenta de PayPal ya fue usada para un primer mes gratis. Usa una cuenta existente o un plan de pago." },
+						{ error: "Esta cuenta de PayPal ya fue usada para un plan de prueba de 1 mes. Usa una cuenta existente o un plan de pago." },
 						{ status: 409 }
 					);
 				}
 			}
 
-			if (storedPayerEmail) {
+			if (enforceTrialReuseGuard && storedPayerEmail) {
 				const { data: duplicatePaypalEmailPayment } = await supabaseAdmin
 					.from("payments_history")
 					.select("id,company_id")
@@ -159,7 +162,7 @@ export async function POST(req: NextRequest) {
 
 				if (duplicatePaypalEmailPayment?.id && duplicatePaypalEmailPayment.company_id !== payment.company_id) {
 					return NextResponse.json(
-						{ error: "Este correo de PayPal ya fue usado para un primer mes gratis. Usa una cuenta existente o un plan de pago." },
+						{ error: "Este correo de PayPal ya fue usado para un plan de prueba de 1 mes. Usa una cuenta existente o un plan de pago." },
 						{ status: 409 }
 					);
 				}

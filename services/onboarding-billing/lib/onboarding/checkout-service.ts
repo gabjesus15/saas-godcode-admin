@@ -115,6 +115,40 @@ export type ProvisionCompanyResult =
 	| { ok: true; company: { id: string } }
 	| { ok: false; error: string; status: number };
 
+function resolveCompanyInsertErrorMessage(err: { code?: string; message?: string } | null | undefined): {
+	error: string;
+	status: number;
+} {
+	if (!err) return { error: "Error al crear la empresa", status: 500 };
+
+	if (err.code === "23505") {
+		return { error: "Ya existe una empresa con datos similares", status: 409 };
+	}
+
+	if (err.code === "23503") {
+		return {
+			error: "No se pudo crear la empresa por una referencia interna invalida. Contacta soporte.",
+			status: 500,
+		};
+	}
+
+	if (err.code === "42501") {
+		return {
+			error: "No se pudo crear la empresa por permisos insuficientes del servicio.",
+			status: 500,
+		};
+	}
+
+	if ((err.message ?? "").toLowerCase().includes("created_by")) {
+		return {
+			error: "No se pudo crear la empresa por configuracion incompleta de usuarios internos.",
+			status: 500,
+		};
+	}
+
+	return { error: "Error al crear la empresa", status: 500 };
+}
+
 async function resolveCompanyCreatorId(supabaseAdmin: SupabaseClient): Promise<string | null> {
 	const { data: existingCompany } = await supabaseAdmin
 		.from("companies")
@@ -224,11 +258,9 @@ export async function provisionCompanyFromApplication(
 		.single();
 
 	if (companyError || !inserted) {
-		if (companyError?.code === "23505") {
-			return { ok: false, error: "Ya existe una empresa con datos similares", status: 409 };
-		}
 		console.error("onboarding checkout company insert:", companyError);
-		return { ok: false, error: "Error al crear la empresa", status: 500 };
+		const mapped = resolveCompanyInsertErrorMessage(companyError);
+		return { ok: false, error: mapped.error, status: mapped.status };
 	}
 
 	const { error: branchError } = await supabaseAdmin.from("branches").insert({

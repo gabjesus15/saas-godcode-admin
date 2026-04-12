@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
 		const body = (await req.json().catch(() => ({}))) as { token: string; months?: number };
 		const token = typeof body.token === "string" ? body.token.trim() : "";
 		const months = Math.min(12, Math.max(1, Number(body.months) || 1));
+		const isOneMonthTrialAttempt = months === 1;
 
 		if (!token) {
 			return NextResponse.json({ error: "Token faltante" }, { status: 400 });
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
 		}
 
 		const normalizedEmail = normalizeEmail(app.email);
-		if (normalizedEmail) {
+		if (isOneMonthTrialAttempt && normalizedEmail) {
 			const companyQuery = supabaseAdmin
 				.from("companies")
 				.select("id")
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest) {
 			const { data: duplicateCompany } = await companyQuery.maybeSingle();
 			if (duplicateCompany?.id) {
 				return NextResponse.json(
-					{ error: "Este correo ya usó el primer mes gratis. Inicia sesión o elige un plan de pago." },
+					{ error: "Este correo ya usó el plan de prueba de 1 mes. Inicia sesión o elige un plan de pago." },
 					{ status: 409 }
 				);
 			}
