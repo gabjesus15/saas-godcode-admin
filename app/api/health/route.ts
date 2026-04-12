@@ -6,6 +6,11 @@ import { startTimer } from "../../../lib/logger";
 
 const startedAt = new Date().toISOString();
 
+function isLoopbackHostname(hostname: string): boolean {
+	const value = hostname.trim().toLowerCase();
+	return value === "localhost" || value === "127.0.0.1" || value === "::1";
+}
+
 function isAuthorized(req: NextRequest): boolean {
   const secret = process.env.HEALTH_CHECK_SECRET;
   if (!secret) return false;
@@ -52,17 +57,33 @@ export async function GET(req: NextRequest) {
 		const microUrl = getOnboardingBillingBaseUrl();
 		proxy.target_url = microUrl || "(not configured)";
 
-		if (microUrl) {
+		if (!microUrl) {
+			proxy.status = "missing_config";
+			healthy = false;
+		} else {
+			let parsedUrl: URL | null = null;
 			try {
-				const elapsed = startTimer();
-				const resp = await fetch(`${microUrl}/api/health`, {
-					signal: AbortSignal.timeout(5000),
-				});
-				proxy.status = resp.ok ? "reachable" : `http_${resp.status}`;
-				proxy.latency_ms = String(elapsed());
+				parsedUrl = new URL(microUrl);
 			} catch {
-				proxy.status = "unreachable";
+				proxy.status = "invalid_config";
 				healthy = false;
+			}
+
+			if (parsedUrl && process.env.NODE_ENV === "production" && isLoopbackHostname(parsedUrl.hostname)) {
+				proxy.status = "invalid_config_localhost_in_production";
+				healthy = false;
+			} else if (parsedUrl) {
+				try {
+					const elapsed = startTimer();
+					const resp = await fetch(`${microUrl}/api/health`, {
+						signal: AbortSignal.timeout(5000),
+					});
+					proxy.status = resp.ok ? "reachable" : `http_${resp.status}`;
+					proxy.latency_ms = String(elapsed());
+				} catch {
+					proxy.status = "unreachable";
+					healthy = false;
+				}
 			}
 		}
 	}

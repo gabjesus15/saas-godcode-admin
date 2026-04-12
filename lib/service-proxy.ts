@@ -4,6 +4,11 @@ import { logger, createRequestContext, startTimer } from "./logger";
 
 const SERVICE_API_KEY = process.env.SERVICE_API_KEY ?? "";
 
+function isLoopbackHostname(hostname: string): boolean {
+	const value = hostname.trim().toLowerCase();
+	return value === "localhost" || value === "127.0.0.1" || value === "::1";
+}
+
 export async function proxyToOnboardingBilling(
 	req: NextRequest,
 	path: string
@@ -22,11 +27,28 @@ export async function proxyToOnboardingBilling(
 		return null;
 	}
 
+	let upstreamOrigin: URL;
+	try {
+		upstreamOrigin = new URL(baseUrl);
+	} catch {
+		return NextResponse.json(
+			{ error: "Microservicio mal configurado (ONBOARDING_BILLING_SERVICE_URL invalida)" },
+			{ status: 503 }
+		);
+	}
+
+	if (process.env.NODE_ENV === "production" && isLoopbackHostname(upstreamOrigin.hostname)) {
+		return NextResponse.json(
+			{ error: "Microservicio mal configurado (URL local no valida en produccion)" },
+			{ status: 503 }
+		);
+	}
+
 	const ctx = createRequestContext(path, req.method, "bff-proxy");
 	const elapsed = startTimer();
 
 	try {
-		const url = new URL(path, baseUrl);
+		const url = new URL(path, upstreamOrigin);
 		url.search = req.nextUrl.search;
 
 		const headers = new Headers();
