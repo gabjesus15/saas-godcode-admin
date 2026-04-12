@@ -30,6 +30,33 @@ const STRIPE_CANCEL_URL =
 		? `${process.env.NEXT_PUBLIC_TENANT_PROTOCOL || "https"}://${process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN}/onboarding/pago`
 		: "http://localhost:3001/onboarding/pago");
 
+const COUNTRY_NORMALIZE: Record<string, string> = {
+	Chile: "CL",
+	Venezuela: "VE",
+	CL: "CL",
+	VE: "VE",
+};
+
+const ALWAYS_AVAILABLE_METHODS = new Set(["stripe", "paypal"]);
+
+function getMethodCountries(method: { countries?: string[] | null }): string[] {
+	return Array.isArray(method.countries)
+		? method.countries.map((value) => String(value).trim()).filter(Boolean)
+		: [];
+}
+
+function isMethodAvailableForCountry(method: { slug?: string | null; countries?: string[] | null }, country: string | null | undefined): boolean {
+	const rawCountry = country?.trim() ?? null;
+	const normalizedCountry = rawCountry ? COUNTRY_NORMALIZE[rawCountry] ?? rawCountry : null;
+	const slug = String(method.slug ?? "").trim().toLowerCase();
+	if (ALWAYS_AVAILABLE_METHODS.has(slug)) return true;
+	if (!normalizedCountry && !rawCountry) return true;
+
+	const countries = getMethodCountries(method);
+	if (countries.length === 0) return false;
+	return countries.includes(normalizedCountry ?? "") || countries.includes(rawCountry ?? "");
+}
+
 export async function POST(req: NextRequest) {
 	try {
 		const body = (await req.json().catch(() => ({}))) as { token: string; months?: number };
@@ -72,6 +99,23 @@ export async function POST(req: NextRequest) {
 		}
 
 		const subscriptionMethod = (app.subscription_payment_method ?? "").trim().toLowerCase();
+		if (!subscriptionMethod) {
+			return NextResponse.json({ error: "Selecciona un metodo de pago" }, { status: 400 });
+		}
+
+		const { data: methodRow } = await supabaseAdmin
+			.from("plan_payment_methods")
+			.select("slug,is_active,countries")
+			.eq("slug", subscriptionMethod)
+			.maybeSingle();
+
+		if (!methodRow?.is_active || !isMethodAvailableForCountry(methodRow, app.country ?? null)) {
+			return NextResponse.json(
+				{ error: "El metodo de pago seleccionado no esta disponible" },
+				{ status: 400 }
+			);
+		}
+
 		const isPayPal = subscriptionMethod === "paypal";
 		const isManualPayment = isManualMethod(subscriptionMethod);
 		const paypalClientId = process.env.PAYPAL_CLIENT_ID ?? "";

@@ -39,6 +39,16 @@ interface CompaniesTableProps {
 }
 
 type StatusVariant = "success" | "warning" | "destructive" | "neutral";
+const VERIFIED_ONBOARDING_STATUSES = new Set([
+  "email_verified",
+  "form_completed",
+  "payment_pending",
+  "payment_validated",
+  "active",
+  "paid",
+  "approved",
+]);
+
 const statusMap: Record<string, { label: string; variant: StatusVariant }> = {
   active: { label: "Activo", variant: "success" },
   suspended: { label: "Suspendido", variant: "warning" },
@@ -180,7 +190,7 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
                       <div className="md:col-span-1 flex flex-col items-start">
                         <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 md:normal-case md:tracking-normal md:text-zinc-900 dark:md:text-zinc-100">EMAIL VERIFICADO</p>
                         <div className="flex flex-wrap gap-2 items-center">
-                          {company.status === "email_verified" || company.status === "form_completed" || company.email_verified_at ? (
+                          {Boolean(company.email_verified_at || VERIFIED_ONBOARDING_STATUSES.has((company.status ?? "").toLowerCase())) ? (
                             <span className="text-green-600 font-medium text-sm">Sí</span>
                           ) : (
                             <span className="text-red-600 font-medium text-sm">No</span>

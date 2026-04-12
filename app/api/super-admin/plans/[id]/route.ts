@@ -5,7 +5,7 @@ import { buildPlanMarketingLinesI18nPayload, buildPlanNameI18nPayload } from "..
 import { normalizeMarketingLines } from "../../../../../lib/plan-marketing-lines";
 import { adminUpdatePlanById } from "../../../../../lib/plans-db-query";
 import { supabaseAdmin } from "../../../../../lib/supabase-admin";
-import { SAAS_READ_ROLES, validateAdminRolesOnServer } from "../../../../../utils/admin/server-auth";
+import { SAAS_MUTATE_ROLES, validateAdminRolesOnServer } from "../../../../../utils/admin/server-auth";
 
 type PatchBody = {
 	name?: string;
@@ -25,7 +25,7 @@ export async function PATCH(
 	req: NextRequest,
 	{ params }: { params: Promise<{ id: string }> }
 ) {
-	const permission = await validateAdminRolesOnServer([...SAAS_READ_ROLES]);
+	const permission = await validateAdminRolesOnServer([...SAAS_MUTATE_ROLES]);
 	if (!permission.ok) {
 		return NextResponse.json({ error: permission.error ?? "No autorizado" }, { status: permission.status ?? 403 });
 	}

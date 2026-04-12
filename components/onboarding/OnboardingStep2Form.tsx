@@ -15,6 +15,12 @@ type Plan = {
   max_branches: number | null;
 };
 
+type PaymentMethodOption = {
+  slug: string;
+  label: string;
+  description: string;
+};
+
 const INTERNAL_PLAN_NAMES = ["dev", "desarrollo", "internal", "test"];
 const BETA_PLAN_NAMES = ["beta"];
 
@@ -308,13 +314,37 @@ export function OnboardingStep2Form({
   useEffect(() => {
     if (planMethodsLoadState !== "ready") return;
     setSubMethod((prev) => {
-      if (!MANUAL_SUBSCRIPTION_SLUGS.has(prev)) return prev;
-      const allowed = new Set(planPaymentMethods.map((p) => p.slug));
-      return allowed.has(prev) ? prev : "stripe";
+      const allowed = new Set(planPaymentMethods.map((p) => (p.slug ?? "").trim().toLowerCase()).filter(Boolean));
+      if (allowed.has(prev)) return prev;
+      const fallback = planPaymentMethods[0]?.slug?.trim().toLowerCase() ?? "";
+      return fallback;
     });
   }, [planPaymentMethods, planMethodsLoadState]);
 
-  const manualMethods = planPaymentMethods.filter((m) => MANUAL_SUBSCRIPTION_SLUGS.has(m.slug));
+  const paymentMethodOptions = useMemo<PaymentMethodOption[]>(() => {
+    return planPaymentMethods.map((method) => {
+      const slug = (method.slug ?? "").trim().toLowerCase();
+      if (slug === "stripe") {
+        return {
+          slug,
+          label: copy.cardTitle,
+          description: copy.cardDescription,
+        };
+      }
+      if (slug === "paypal") {
+        return {
+          slug,
+          label: "PayPal",
+          description: copy.paypalDescription,
+        };
+      }
+      return {
+        slug,
+        label: method.name ?? method.slug,
+        description: copy.manualDescription,
+      };
+    });
+  }, [copy.cardDescription, copy.cardTitle, copy.manualDescription, copy.paypalDescription, planPaymentMethods]);
   const selectedPlan = plans.find((p) => p.id === planId);
   const selectedCountryRegion = useMemo(() => resolveContinentFromCountryInput(country), [country]);
   const selectedPlanRegionalPrice = useMemo(
@@ -540,37 +570,9 @@ export function OnboardingStep2Form({
       <div>
         <h3 className="mb-3 text-sm font-semibold text-slate-900">{copy.paymentMethodLabel}</h3>
         <div className="space-y-2">
-          <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-slate-200 bg-white p-4 transition hover:border-slate-300">
-            <input
-              type="radio"
-              name="sub_method"
-              value="stripe"
-              checked={subMethod === "stripe"}
-              onChange={() => setSubMethod("stripe")}
-              className="h-4 w-4 border-slate-300 text-indigo-600 focus:ring-indigo-500"
-            />
-            <div>
-              <span className="text-sm font-medium text-slate-900">{copy.cardTitle}</span>
-              <p className="text-xs text-slate-400">{copy.cardDescription}</p>
-            </div>
-          </label>
-          <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-slate-200 bg-white p-4 transition hover:border-slate-300">
-            <input
-              type="radio"
-              name="sub_method"
-              value="paypal"
-              checked={subMethod === "paypal"}
-              onChange={() => setSubMethod("paypal")}
-              className="h-4 w-4 border-slate-300 text-indigo-600 focus:ring-indigo-500"
-            />
-            <div>
-              <span className="text-sm font-medium text-slate-900">PayPal</span>
-              <p className="text-xs text-slate-400">{copy.paypalDescription}</p>
-            </div>
-          </label>
-          {manualMethods.map((method) => (
+          {paymentMethodOptions.map((method) => (
             <label
-              key={method.id}
+              key={method.slug}
               className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-slate-200 bg-white p-4 transition hover:border-slate-300"
             >
               <input
@@ -582,11 +584,16 @@ export function OnboardingStep2Form({
                 className="h-4 w-4 border-slate-300 text-indigo-600 focus:ring-indigo-500"
               />
               <div>
-                <span className="text-sm font-medium text-slate-900">{method.name ?? method.slug}</span>
-                <p className="text-xs text-slate-400">{copy.manualDescription}</p>
+                <span className="text-sm font-medium text-slate-900">{method.label}</span>
+                <p className="text-xs text-slate-400">{method.description}</p>
               </div>
             </label>
           ))}
+          {planMethodsLoadState === "ready" && paymentMethodOptions.length === 0 ? (
+            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              No hay metodos de pago activos para este pais. Contacta al administrador.
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -599,7 +606,7 @@ export function OnboardingStep2Form({
       <Button
         type="submit"
         loading={loading}
-        disabled={!planId || !country || !currency}
+        disabled={!planId || !country || !currency || !subMethod}
         size="lg"
         className="onboarding-btn-primary w-full rounded-xl py-5 text-sm font-semibold sm:text-base"
       >

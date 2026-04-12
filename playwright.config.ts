@@ -23,9 +23,9 @@ export default defineConfig({
 				reuseExistingServer: false,
 			}
 		: {
-				command: "npm run start",
+				command: "npm run build && npm run start",
 				url: webServerReadyURL,
-				timeout: 60_000,
-				reuseExistingServer: true,
+				timeout: 180_000,
+				reuseExistingServer: false,
 			},
 });

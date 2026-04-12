@@ -11,6 +11,7 @@ const STATUS_LABELS: Record<string, string> = {
 	email_verified: "Email verificado",
 	form_completed: "Formulario completo",
 	payment_pending: "Pago pendiente",
+	payment_validated: "Pago validado",
 	active: "Activo",
 	rejected: "Rechazado",
 };
@@ -20,6 +21,7 @@ const STATUS_VARIANTS: Record<string, "success" | "warning" | "destructive" | "n
 	email_verified: "neutral",
 	form_completed: "neutral",
 	payment_pending: "warning",
+	payment_validated: "neutral",
 	active: "success",
 	rejected: "destructive",
 };
@@ -215,6 +217,10 @@ export default function OnboardingSolicitudesPage() {
 		if (!filteredApps.length) return null;
 		return filteredApps.find((row) => row.id === selectedId) ?? filteredApps[0] ?? null;
 	}, [filteredApps, selectedId]);
+
+	const canReviewSelectedPayment =
+		selectedApp?.payment_status === "pending_validation" &&
+		Boolean(selectedApp.last_payment?.payment_reference);
 
 	const filterChips: Array<{
 		id: typeof statusFilter;
@@ -510,6 +516,8 @@ export default function OnboardingSolicitudesPage() {
 							</div>
 
 							<div className="flex flex-col gap-2">
+								{canReviewSelectedPayment ? (
+									<>
 								<Button
 									type="button"
 									size="sm"
@@ -527,15 +535,8 @@ export default function OnboardingSolicitudesPage() {
 								>
 									{actionKey === `reject:${selectedApp.last_payment?.payment_reference ?? selectedApp.id}` ? "Rechazando..." : "Rechazar"}
 								</Button>
-								<Button
-									type="button"
-									size="sm"
-									variant="outline"
-									disabled={actionKey === `reject:${selectedApp.last_payment?.payment_reference ?? selectedApp.id}` || !selectedApp.last_payment?.payment_reference}
-									onClick={() => void handleValidatePayment(selectedApp.last_payment?.payment_reference ?? null, "reject")}
-								>
-									Pago inválido
-								</Button>
+									</>
+								) : null}
 								<Button
 									type="button"
 									variant="ghost"

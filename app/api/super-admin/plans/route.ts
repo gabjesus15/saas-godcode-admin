@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
-import { SAAS_READ_ROLES, validateAdminRolesOnServer } from "../../../../utils/admin/server-auth";
+import { SAAS_MUTATE_ROLES, SAAS_READ_ROLES, validateAdminRolesOnServer } from "../../../../utils/admin/server-auth";
 
 import { logAdminAudit } from "../../../../lib/admin-audit";
 import { buildPlanMarketingLinesI18nPayload, buildPlanNameI18nPayload } from "../../../../lib/plan-i18n";
@@ -37,7 +37,7 @@ type CreateBody = {
 };
 
 export async function POST(req: NextRequest) {
-	const permission = await validateAdminRolesOnServer([...SAAS_READ_ROLES]);
+	const permission = await validateAdminRolesOnServer([...SAAS_MUTATE_ROLES]);
 	if (!permission.ok) {
 		return NextResponse.json({ error: permission.error ?? "No autorizado" }, { status: permission.status ?? 403 });
 	}

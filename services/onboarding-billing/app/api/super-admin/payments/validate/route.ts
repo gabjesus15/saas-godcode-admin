@@ -5,7 +5,6 @@ import { logger, createRequestContext } from "../../../../../lib/logger";
 import { validateApiKey } from "../../../../../lib/api-key-auth";
 import {
 	activateCompanyAddonsFromApplication,
-	activateCompanySubscription,
 	getMonthsPaidFromPayment,
 } from "../../../../../lib/onboarding/billing-activation";
 import {
@@ -139,12 +138,13 @@ export async function POST(req: NextRequest) {
 				{ onConflict: "company_id,addon_id" }
 			);
 		} else if (!isCustomerAccountExpansion) {
-			await activateCompanySubscription({
-				supabaseAdmin,
-				companyId: payment.company_id,
-				monthsPaid,
-				now,
-			});
+			if (app?.id) {
+				await supabaseAdmin
+					.from("onboarding_applications")
+					.update({ status: "payment_validated", updated_at: now.toISOString() })
+					.eq("id", app.id)
+					.eq("status", "payment_pending");
+			}
 		} else {
 			const [{ data: company }, { data: addons }, { data: entitlement }] = await Promise.all([
 				supabaseAdmin
@@ -197,7 +197,7 @@ export async function POST(req: NextRequest) {
 		}
 
 		let welcomeSent = false;
-		if (app && !app.welcome_email_sent_at) {
+		if (app && !isOnboardingFlow && !app.welcome_email_sent_at) {
 			try {
 				await provisionOnboardingWelcome({
 					supabaseAdmin,
@@ -212,7 +212,7 @@ export async function POST(req: NextRequest) {
 			}
 		}
 
-		if (app?.id && !isCustomerAccountExpansion && !isCustomerPlanChange && !isCustomerAddonPurchase) {
+		if (app?.id && !isOnboardingFlow && !isCustomerAccountExpansion && !isCustomerPlanChange && !isCustomerAddonPurchase) {
 			await activateCompanyAddonsFromApplication({
 				supabaseAdmin,
 				applicationId: app.id,
@@ -237,7 +237,7 @@ export async function POST(req: NextRequest) {
 					? "Pago validado. El extra se activo correctamente."
 				: isCustomerAccountExpansion
 					? "Pago validado. Se registro el extra de sucursal en la cuenta del cliente."
-					: "Pago validado. Suscripción activada.",
+					: "Pago validado. Quedo pendiente activacion manual tras la configuracion.",
 			welcome_email_sent: welcomeSent,
 		});
 	} catch (err) {
