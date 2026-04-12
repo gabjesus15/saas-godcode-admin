@@ -105,8 +105,8 @@ export function PhoneFrame({
                   width={430}
                   height={932}
                   quality={95}
-                  sizes="(max-width: 640px) 120px, (max-width: 1024px) 170px, 190px"
-                  className={cn("h-full w-full object-cover object-top", imageClassName)}
+                  sizes="(max-width: 640px) 62vw, (max-width: 1024px) 26vw, 342px"
+                  className={cn("h-full w-full object-contain object-center", imageClassName)}
                   priority={priority}
                 />
               </div>

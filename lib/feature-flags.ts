@@ -13,5 +13,29 @@ export const flags = {
 } as const;
 
 export function getOnboardingBillingBaseUrl(): string {
-	return process.env.ONBOARDING_BILLING_SERVICE_URL?.trim().replace(/\/$/, "") ?? "";
+	const raw = process.env.ONBOARDING_BILLING_SERVICE_URL?.trim() ?? "";
+	if (!raw) return "";
+
+	// Allow values wrapped in quotes from env dashboards.
+	const unquoted =
+		(raw.startsWith('"') && raw.endsWith('"')) ||
+		(raw.startsWith("'") && raw.endsWith("'"))
+			? raw.slice(1, -1).trim()
+			: raw;
+
+	const clean = unquoted.replace(/\/$/, "");
+	if (!clean) return "";
+
+	if (/^https?:\/\//i.test(clean)) return clean;
+
+	// If protocol is omitted, default to http for loopback and https for public hosts.
+	if (/^(localhost|127\.0\.0\.1|::1)(:\d+)?(\/.*)?$/i.test(clean)) {
+		return `http://${clean}`.replace(/\/$/, "");
+	}
+
+	if (/^[a-z0-9.-]+(:\d+)?(\/.*)?$/i.test(clean)) {
+		return `https://${clean}`.replace(/\/$/, "");
+	}
+
+	return clean;
 }

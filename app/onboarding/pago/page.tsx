@@ -466,6 +466,12 @@ function PagoContent() {
 				<p className="mx-auto mt-3 max-w-md text-sm text-slate-500 sm:text-base">
 						{copy.subtitle}
 				</p>
+				<Link
+					href={`/onboarding/complete?token=${encodeURIComponent(token)}`}
+					className="mt-4 inline-block text-sm font-medium text-indigo-600 hover:underline"
+				>
+					{copy.backToStep2}
+				</Link>
 			</div>
 
 			<div className="onboarding-card space-y-5 p-5 sm:p-7">

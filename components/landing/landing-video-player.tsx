@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Play, Pause, Volume2, VolumeX } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Maximize2, Minimize2, Pause, Play, Volume2, VolumeX } from "lucide-react";
 
 interface LandingVideoPlayerProps {
   src: string;
@@ -20,8 +20,27 @@ export function LandingVideoPlayer({
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
+  const [volume, setVolume] = useState(0.8);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [isBuffering, setIsBuffering] = useState(false);
   const [showControls, setShowControls] = useState(false);
+
+  useEffect(() => {
+    if (!videoRef.current) return;
+    videoRef.current.volume = volume;
+    videoRef.current.muted = isMuted;
+  }, [volume, isMuted]);
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === containerRef.current);
+    };
+
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
 
   const togglePlay = (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -52,19 +71,53 @@ export function LandingVideoPlayer({
     }
   };
 
-  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleLoadedMetadata = () => {
+    if (!videoRef.current) return;
+    setDuration(videoRef.current.duration || 0);
+  };
+
+  const handleSeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.stopPropagation();
-    if (videoRef.current && containerRef.current) {
-      const rect = containerRef.current.querySelector('[data-progress-bar]')?.getBoundingClientRect();
-      if (rect) {
-        const percent = (e.clientX - rect.left) / rect.width;
-        videoRef.current.currentTime = percent * videoRef.current.duration;
+    const nextProgress = Number(e.target.value);
+    setProgress(nextProgress);
+
+    if (!videoRef.current || !Number.isFinite(videoRef.current.duration) || videoRef.current.duration <= 0) {
+      return;
+    }
+
+    videoRef.current.currentTime = (nextProgress / 100) * videoRef.current.duration;
+  };
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    const nextVolume = Number(e.target.value);
+    setVolume(nextVolume);
+    setIsMuted(nextVolume === 0);
+  };
+
+  const toggleFullscreen = async (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    try {
+      if (document.fullscreenElement === container) {
+        await document.exitFullscreen();
+        return;
       }
+
+      if (container.requestFullscreen) {
+        await container.requestFullscreen();
+      }
+    } catch {
+      // Ignore fullscreen permission failures.
     }
   };
 
   const handlePlayEnded = () => {
     setIsPlaying(false);
+    setIsBuffering(false);
   };
 
   return (
@@ -83,11 +136,29 @@ export function LandingVideoPlayer({
         className="relative z-10 h-full w-full object-cover"
         src={src}
         poster={poster}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onLoadedMetadata={handleLoadedMetadata}
         onTimeUpdate={handleTimeUpdate}
+        onWaiting={() => setIsBuffering(true)}
+        onStalled={() => setIsBuffering(true)}
+        onSeeking={() => setIsBuffering(true)}
+        onCanPlay={() => setIsBuffering(false)}
+        onPlaying={() => setIsBuffering(false)}
+        onSeeked={() => setIsBuffering(false)}
         onEnded={handlePlayEnded}
         playsInline
         onClick={togglePlay}
       />
+
+      {isBuffering && (
+        <div className="pointer-events-none absolute inset-0 z-25 flex items-center justify-center bg-black/25">
+          <div className="flex items-center gap-2 rounded-full bg-slate-900/80 px-3 py-2 text-xs text-slate-100 ring-1 ring-white/10">
+            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-indigo-300" aria-hidden />
+            Cargando video...
+          </div>
+        </div>
+      )}
 
       {/* Overlay when not playing */}
       {!isPlaying && (
@@ -119,16 +190,18 @@ export function LandingVideoPlayer({
           onMouseLeave={() => setShowControls(false)}
         >
           {/* Progress Bar */}
-          <div
-            data-progress-bar
-            onClick={handleProgressClick}
-            className="h-1 w-full cursor-pointer overflow-hidden rounded-full bg-white/20 hover:h-1.5"
-          >
-            <div
-              className="h-full bg-gradient-to-r from-indigo-500 to-indigo-400 transition-all"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={0.1}
+            value={progress}
+            onChange={handleSeekChange}
+            onClick={(e) => e.stopPropagation()}
+            aria-label="Barra de progreso del video"
+            disabled={duration <= 0}
+            className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/20 accent-indigo-400 disabled:cursor-not-allowed disabled:opacity-40"
+          />
 
           {/* Control Buttons */}
           <div className="flex items-center justify-between">
@@ -154,6 +227,32 @@ export function LandingVideoPlayer({
                   <VolumeX className="h-4 w-4" />
                 ) : (
                   <Volume2 className="h-4 w-4" />
+                )}
+              </button>
+
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={isMuted ? 0 : volume}
+                onChange={handleVolumeChange}
+                onClick={(e) => e.stopPropagation()}
+                aria-label="Ajustar volumen"
+                className="h-1.5 w-24 cursor-pointer appearance-none rounded-full bg-white/20 accent-indigo-400"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={toggleFullscreen}
+                className="rounded p-1.5 text-white/70 transition hover:bg-white/10 hover:text-white"
+                aria-label={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+              >
+                {isFullscreen ? (
+                  <Minimize2 className="h-4 w-4" />
+                ) : (
+                  <Maximize2 className="h-4 w-4" />
                 )}
               </button>
             </div>
