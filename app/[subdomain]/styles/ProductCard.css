@@ -171,6 +171,14 @@
   animation: fadeInText 0.3s ease-out forwards;
 }
 
+.product-desc-scrollable.is-closing {
+  animation: fadeOutText 0.22s ease-in forwards;
+}
+
+.product-desc-scrollable.is-opening {
+  animation: fadeInText 0.3s ease-out forwards;
+}
+
 .desc-header {
   display: flex;
   justify-content: space-between;
@@ -216,6 +224,18 @@
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+@keyframes fadeOutText {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(4px) scale(0.985);
+  }
 }
 
 /* --- FOOTER (PC - MEJORADO) --- */

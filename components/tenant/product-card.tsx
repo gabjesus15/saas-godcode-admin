@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 // Define ProductType interface based on usage
 interface ProductType {
   id: string;
@@ -28,9 +28,12 @@ const formatPrice = (price: number, currency: string = 'CLP') => {
 export const ProductCard = React.memo(function ProductCard({ product, priority = false, country = "CL", currency = "CLP" }: { product: ProductType; priority?: boolean; country?: string; currency?: string }) {
   const { cart, addToCart, decreaseQuantity } = useCart();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [isBumping, setIsBumping] = useState(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Removed unused failedSrc and setFailedSrc
+  const CLOSE_ANIMATION_MS = 220;
 
   const quantity = useMemo(
     () =>
@@ -52,15 +55,38 @@ export const ProductCard = React.memo(function ProductCard({ product, priority =
   });
   const initialImageUrl = resolvedImageUrl || FALLBACK_IMAGE;
 
+  const closeDetails = useCallback(() => {
+    if (!isExpanded || isClosing) return;
+    setIsClosing(true);
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+    }
+    closeTimerRef.current = setTimeout(() => {
+      setIsExpanded(false);
+      setIsClosing(false);
+      closeTimerRef.current = null;
+    }, CLOSE_ANIMATION_MS);
+  }, [isClosing, isExpanded]);
+
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
-    if (isExpanded) {
-      timer = setTimeout(() => setIsExpanded(false), 15000);
+    if (isExpanded && !isClosing) {
+      timer = setTimeout(() => {
+        closeDetails();
+      }, 8000);
     }
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [isExpanded]);
+  }, [closeDetails, isClosing, isExpanded]);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleAdd = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -75,8 +101,18 @@ export const ProductCard = React.memo(function ProductCard({ product, priority =
   }, [decreaseQuantity, product.id]);
 
   const toggleExpand = useCallback(() => {
-    if (isLongDesc) setIsExpanded((prev) => !prev);
-  }, [isLongDesc]);
+    if (!isLongDesc) return;
+    if (isExpanded) {
+      closeDetails();
+      return;
+    }
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+    setIsClosing(false);
+    setIsExpanded(true);
+  }, [closeDetails, isExpanded, isLongDesc]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -89,7 +125,7 @@ export const ProductCard = React.memo(function ProductCard({ product, priority =
 
   return (
     <div
-      className={`product-card glass ${isExpanded ? "is-viewing-info" : ""} ${!isLongDesc ? "cursor-default" : "cursor-pointer"}`}
+      className={`product-card glass ${(isExpanded || isClosing) ? "is-viewing-info" : ""} ${!isLongDesc ? "cursor-default" : "cursor-pointer"}`}
       onClick={toggleExpand}
       {...(isLongDesc ? { role: "button" } : {})}
       tabIndex={isLongDesc ? 0 : -1}
@@ -126,12 +162,12 @@ export const ProductCard = React.memo(function ProductCard({ product, priority =
               <h3 className="product-name">{product.name}</h3>
               <p className="product-desc-clamped">{product.description}</p>
             </>
-          ) : (
-            <div className="product-desc-scrollable animate-in-fade" onClick={(e) => e.stopPropagation()}>
+          ) : isExpanded || isClosing ? (
+            <div className={`product-desc-scrollable ${isClosing ? "is-closing" : "is-opening"}`} onClick={(e) => e.stopPropagation()}>
               <div className="desc-header">
                 <span>Detalles</span>
                 <button
-                  onClick={(e) => { e.stopPropagation(); setIsExpanded(false); }}
+                  onClick={(e) => { e.stopPropagation(); closeDetails(); }}
                   className="btn-icon-sm"
                   aria-label="Cerrar detalles"
                 >
@@ -142,10 +178,10 @@ export const ProductCard = React.memo(function ProductCard({ product, priority =
                 <p>{product.description}</p>
               </div>
             </div>
-          )}
+          ) : null}
         </div>
 
-        {isLongDesc && !isExpanded && (
+        {isLongDesc && !isExpanded && !isClosing && (
           <div className="info-hint">
             <ChevronDown size={14} /> Ver detalles
           </div>
