@@ -25,6 +25,7 @@ export async function GET() {
 type CreateBody = {
 	name: string;
 	price?: number;
+	prices_by_continent?: Record<string, { price: number; currency: string }>;
 	max_branches?: number;
 	max_users?: number;
 	is_public?: boolean;

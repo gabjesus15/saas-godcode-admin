@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import type { LandingMediaBundle } from "../../lib/landing-media-types";
 import type { PublicPlanForLanding } from "../../lib/public-plans";
+import type { CountryCode } from "../../lib/landing-geo-plans";
 import { getCurrentLocale, getCurrentMessages } from "@/lib/i18n/server";
 
 import { LandingNav } from "./landing-nav";
@@ -13,9 +14,10 @@ import { LandingThemeEnforcer } from "../theme/landing-theme-enforcer";
 type GodcodeLandingProps = {
   plans: PublicPlanForLanding[];
   media: LandingMediaBundle;
+  country?: CountryCode;
 };
 
-export async function GodcodeLanding({ plans, media }: GodcodeLandingProps) {
+export async function GodcodeLanding({ plans, media, country = "OTHER" }: GodcodeLandingProps) {
   const locale = await getCurrentLocale();
   const messages = await getCurrentMessages();
   const t = messages.landing;
@@ -24,7 +26,7 @@ export async function GodcodeLanding({ plans, media }: GodcodeLandingProps) {
     <div className="relative min-h-screen overflow-x-hidden bg-white text-slate-800 dark:bg-zinc-950 dark:text-zinc-100">
       <LandingThemeEnforcer />
       <LandingNav />
-      <LandingSections plans={plans} media={media} locale={locale} />
+      <LandingSections plans={plans} media={media} country={country} locale={locale} />
 
       <footer className="relative z-10 bg-black px-5 py-12 text-slate-400 sm:px-6 sm:py-16 lg:px-8">
         <div className="mx-auto max-w-7xl">

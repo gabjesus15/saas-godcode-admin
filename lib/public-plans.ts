@@ -4,11 +4,13 @@ import type { AppLocale } from "@/lib/i18n/config";
 
 import { resolvePlanMarketingLines, resolvePlanName } from "./plan-i18n";
 import { queryPublicPlansLandingRows } from "./plans-db-query";
+import type { CountryCode } from "./landing-geo-plans";
+import { getPlanTagByCountry } from "./landing-geo-plans";
 
 export type PublicPlanForLanding = {
   id: string;
   name: string;
-  price: number;
+  pricesByContinent: Record<string, { price: number; currency: string }>;
   max_branches: number;
   max_users: number;
   featureBullets: string[];
@@ -83,6 +85,7 @@ function bulletsFromPlan(row: {
 
 /**
  * Planes visibles en la landing: `is_public` y activos (`is_active` no es false).
+ * Si se especifica un país, intenta filtrar por un tag específico del país.
  * Orden por precio ascendente (como en el panel de planes).
  */
 export async function getPublicPlansForLanding(locale: AppLocale): Promise<PublicPlanForLanding[]> {

@@ -17,6 +17,8 @@ import {
 
 import type { LandingMediaBundle } from "../../lib/landing-media-types";
 import { popularPlanIndex, type PublicPlanForLanding } from "../../lib/public-plans";
+import type { Continent } from "../../lib/landing-geo-plans";
+import { getCurrencyByContinent, getContinentFromCountry } from "../../lib/landing-geo-plans";
 import { cn } from "../../utils/cn";
 import { Card } from "../ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../ui/accordion";
@@ -37,6 +39,47 @@ function createUsdFormatter(locale: string): Intl.NumberFormat {
     currency: "USD",
     maximumFractionDigits: 0,
   });
+}
+
+function getPriceForContinent(plan: PublicPlanForLanding, continent: Continent): { price: number; currency: string } {
+  if (plan.pricesByContinent?.[continent]) {
+    return plan.pricesByContinent[continent];
+  }
+  
+  // Fallback a Latinoamérica (default para compatibilidad)
+  if (plan.pricesByContinent?.['Latinoamérica']) {
+    return plan.pricesByContinent['Latinoamérica'];
+  }
+  
+  // Intenta cualquier continente disponible como último recurso
+  const availableContinents = Object.keys(plan.pricesByContinent || {});
+  if (availableContinents.length > 0) {
+    return plan.pricesByContinent[availableContinents[0]];
+  }
+  
+  // Esto no debería suceder si los datos están correctos
+  return {
+    price: 0,
+    currency: "USD",
+  };
+}
+
+function formatPrice(price: number, currency: string): string {
+  const locales: Record<string, string> = {
+    CLP: "es-CL",
+    VES: "es-VE",
+    USD: "en-US",
+    MXN: "es-MX",
+    ARS: "es-AR",
+  };
+
+  const formatter = new Intl.NumberFormat(locales[currency] || "es-CL", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: currency === "CLP" || currency === "VES" ? 0 : 2,
+  });
+
+  return formatter.format(price);
 }
 
 function getSupportEmail(): string {
@@ -237,10 +280,12 @@ function SectionShell({
 export function LandingSections({
   plans,
   media,
+  country = "OTHER",
   locale,
 }: {
   plans: PublicPlanForLanding[];
   media: LandingMediaBundle;
+  country?: CountryCode;
   locale: string;
 }) {
   const localeKey = resolveLocale(locale);
@@ -253,6 +298,8 @@ export function LandingSections({
 
   const support = getSupportEmail();
   const popularIdx = popularPlanIndex(plans.length);
+  const continent = getContinentFromCountry(country);
+  const currency = getCurrencyByContinent(continent);
   const steps = [
     { n: "1", title: tx("Regístrate", "Sign up"), text: tx("Crea tu cuenta con email. Sin tarjeta de crédito.", "Create your account with email. No credit card.") },
     { n: "2", title: tx("Arma tu tienda", "Build your store"), text: tx("Sube productos, configura delivery y sucursales.", "Upload products and configure delivery and branches.") },
@@ -805,6 +852,7 @@ export function LandingSections({
             >
               {plans.map((plan, index) => {
                 const isPopular = index === popularIdx;
+                const priceData = getPriceForContinent(plan, continent);
                 return (
                   <LandingReveal key={plan.id} delay={index * 0.08}>
                     <div
@@ -822,8 +870,8 @@ export function LandingSections({
                       )}
                       <h3 className="text-lg font-bold text-slate-900 dark:text-white">{plan.name}</h3>
                       <div className="mt-4 border-b border-slate-100 pb-4 dark:border-zinc-800">
-                        <p className="text-3xl font-bold text-slate-900 sm:text-4xl dark:text-white">{usdMonth.format(plan.price)}</p>
-                        <p className="text-xs text-slate-500 dark:text-zinc-500">{tx("USD / mes", "USD / month")}</p>
+                        <p className="text-3xl font-bold text-slate-900 sm:text-4xl dark:text-white">{formatPrice(priceData.price, priceData.currency)}</p>
+                        <p className="text-xs text-slate-500 dark:text-zinc-500">{priceData.currency} / {tx("mes", "month")}</p>
                       </div>
                       <ul className="mt-5 flex-1 space-y-2.5 text-sm text-slate-600 dark:text-zinc-300">
                         {plan.featureBullets.map((b, bi) => (

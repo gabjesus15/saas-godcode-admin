@@ -10,6 +10,7 @@ import { SAAS_READ_ROLES, validateAdminRolesOnServer } from "../../../../../util
 type PatchBody = {
 	name?: string;
 	price?: number;
+	prices_by_continent?: Record<string, { price: number; currency: string }>;
 	max_branches?: number;
 	max_users?: number;
 	is_public?: boolean;
@@ -45,6 +46,9 @@ export async function PATCH(
 		updates.name = trimmed;
 	}
 	if (body.price !== undefined) updates.price = Math.max(0, Number(body.price));
+	if (body.prices_by_continent !== undefined) {
+		updates.prices_by_continent = typeof body.prices_by_continent === "object" ? body.prices_by_continent : {};
+	}
 	if (body.max_branches !== undefined) updates.max_branches = Math.max(0, Math.min(9999, Number(body.max_branches)));
 	if (body.max_users !== undefined) updates.max_users = Math.max(0, Math.min(999999, Number(body.max_users)));
 	if (body.is_public !== undefined) updates.is_public = Boolean(body.is_public);
