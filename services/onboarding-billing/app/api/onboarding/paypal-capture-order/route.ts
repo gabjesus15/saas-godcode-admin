@@ -6,10 +6,24 @@ import {
 } from "@paypal/paypal-server-sdk";
 
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
+import {
+	provisionCompanyFromApplication,
+	recordPayment,
+	type OnboardingApplication,
+} from "../../../../lib/onboarding/checkout-service";
 import { hashPaymentIdentity, normalizeEmail } from "../../../../lib/onboarding/trial-eligibility";
 
 const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID ?? "";
 const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET ?? "";
+
+function parsePayPalCustomId(customId: string | null | undefined): { appId: string | null; months: number } {
+	if (!customId) return { appId: null, months: 1 };
+	const [rawAppId, rawMonths] = String(customId).split("|");
+	const appId = rawAppId?.trim() || null;
+	const monthsParsed = Number(rawMonths);
+	const months = Number.isFinite(monthsParsed) ? Math.min(12, Math.max(1, Math.floor(monthsParsed))) : 1;
+	return { appId, months };
+}
 
 export async function POST(req: NextRequest) {
 	try {
@@ -25,29 +39,13 @@ export async function POST(req: NextRequest) {
 			return NextResponse.json({ error: "PayPal no configurado" }, { status: 503 });
 		}
 
-		const { data: payment, error: paymentError } = await supabaseAdmin
+		const { data: existingPayment } = await supabaseAdmin
 			.from("payments_history")
-			.select("id,company_id,status")
+			.select("id,status")
 			.eq("payment_reference", orderId)
 			.maybeSingle();
 
-		if (paymentError || !payment) {
-			return NextResponse.json({ error: "Pago no encontrado" }, { status: 404 });
-		}
-
-		if (token) {
-			const { data: app } = await supabaseAdmin
-				.from("onboarding_applications")
-				.select("company_id")
-				.eq("verification_token", token)
-				.maybeSingle();
-
-			if (!app?.company_id || app.company_id !== payment.company_id) {
-				return NextResponse.json({ error: "Token inválido para este pago" }, { status: 403 });
-			}
-		}
-
-		if (payment.status === "paid" || payment.status === "approved") {
+		if (existingPayment?.status === "paid" || existingPayment?.status === "approved") {
 			return NextResponse.json({ ok: true, ref: orderId });
 		}
 
@@ -69,6 +67,41 @@ export async function POST(req: NextRequest) {
 			return NextResponse.json({ error: "Pago aún no aprobado" }, { status: 409 });
 		}
 
+		const customId = captureRes.result?.purchaseUnits?.[0]?.customId ?? null;
+		const amountValue = captureRes.result?.purchaseUnits?.[0]?.amount?.value;
+		const amountPaid = Number(amountValue ?? 0);
+		const { appId, months } = parsePayPalCustomId(customId);
+
+		if (!appId) {
+			return NextResponse.json({ error: "No se pudo resolver la solicitud asociada" }, { status: 400 });
+		}
+
+		const { data: app } = await supabaseAdmin
+			.from("onboarding_applications")
+			.select("id,status,company_id,plan_id,business_name,email,billing_rut,fiscal_address,logo_url,social_instagram,custom_domain,custom_plan_name,custom_plan_price,subscription_payment_method,verification_token")
+			.eq("id", appId)
+			.maybeSingle();
+
+		if (!app) {
+			return NextResponse.json({ error: "Solicitud no encontrada" }, { status: 404 });
+		}
+
+		if (token) {
+			const expectedToken = String(app.verification_token ?? "").trim();
+			if (!expectedToken || expectedToken !== token) {
+				return NextResponse.json({ error: "Token inválido para este pago" }, { status: 403 });
+			}
+		}
+
+		const companyResult = await provisionCompanyFromApplication(
+			supabaseAdmin,
+			app as OnboardingApplication,
+			false,
+		);
+		if (!companyResult.ok) {
+			return NextResponse.json({ error: companyResult.error }, { status: companyResult.status });
+		}
+
 		const payer = captureRes.result?.payer as {
 			email_address?: string | null;
 			payer_id?: string | null;
@@ -78,15 +111,42 @@ export async function POST(req: NextRequest) {
 			? hashPaymentIdentity(payer.payer_id.trim())
 			: null;
 
-		await supabaseAdmin
-			.from("payments_history")
-			.update({
+		if (existingPayment?.id) {
+			await supabaseAdmin
+				.from("payments_history")
+				.update({
+					company_id: companyResult.company.id,
+					plan_id: app.plan_id,
+					amount_paid: Number.isFinite(amountPaid) ? amountPaid : 0,
+					status: "paid",
+					months_paid: months,
+					payment_date: new Date().toISOString(),
+					payer_email_normalized: payerEmail || null,
+					paypal_payer_id_hash: payerIdHash,
+				})
+				.eq("id", existingPayment.id);
+		} else {
+			const paymentInsert = await recordPayment(supabaseAdmin, {
+				companyId: companyResult.company.id,
+				planId: app.plan_id,
+				amountPaid: Number.isFinite(amountPaid) ? amountPaid : 0,
+				paymentMethod: "paypal",
+				paymentMethodSlug: "paypal",
+				paymentReference: orderId,
 				status: "paid",
-				payment_date: new Date().toISOString(),
-				payer_email_normalized: payerEmail || null,
-				paypal_payer_id_hash: payerIdHash,
-			})
-			.eq("id", payment.id);
+				monthsPaid: months,
+			});
+			if (!paymentInsert.id) {
+				return NextResponse.json({ error: "No se pudo registrar el pago" }, { status: 500 });
+			}
+			await supabaseAdmin
+				.from("payments_history")
+				.update({
+					payer_email_normalized: payerEmail || null,
+					paypal_payer_id_hash: payerIdHash,
+				})
+				.eq("id", paymentInsert.id);
+		}
 
 		return NextResponse.json({ ok: true, ref: orderId });
 	} catch (err) {

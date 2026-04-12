@@ -91,9 +91,27 @@ function trackAnalyticsEvent(event: string, metadata?: Record<string, unknown>) 
 	}).catch(() => {});
 }
 
+function getChangeMethodLabel(locale: string): string {
+	switch (locale) {
+		case "en":
+			return "Change payment method";
+		case "pt":
+			return "Alterar método de pagamento";
+		case "fr":
+			return "Changer le mode de paiement";
+		case "de":
+			return "Zahlungsmethode ändern";
+		case "it":
+			return "Cambia metodo di pagamento";
+		default:
+			return "Cambiar metodo de pago";
+	}
+}
+
 function PagoContent() {
   const locale = useLocale();
   const copy = getOnboardingPaymentCopy(locale);
+	const changeMethodLabel = getChangeMethodLabel(locale);
 	const searchParams = useSearchParams();
 	const token = searchParams ? searchParams.get("token") : null;
 	const [loading, setLoading] = useState(false);
@@ -396,6 +414,14 @@ function PagoContent() {
 		return (
 			<main className="onboarding-main relative mx-auto max-w-lg px-5 py-8 sm:px-6 sm:py-12 md:py-16">
 				<OnboardingStepBar current={3} />
+				<div className="mb-5 text-center">
+					<Link
+						href={`/onboarding/complete?token=${encodeURIComponent(token)}`}
+						className="inline-block rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+					>
+						{changeMethodLabel}
+					</Link>
+				</div>
 				<div className="onboarding-card space-y-5 p-5 sm:p-7">
 					{referenceSubmitted ? (
 						<div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm">
@@ -476,12 +502,20 @@ function PagoContent() {
 				<p className="mx-auto mt-3 max-w-md text-sm text-slate-500 sm:text-base">
 						{copy.subtitle}
 				</p>
-				<Link
-					href={`/onboarding/complete?token=${encodeURIComponent(token)}`}
-					className="mt-4 inline-block text-sm font-medium text-indigo-600 hover:underline"
-				>
-					{copy.backToStep2}
-				</Link>
+				<div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+					<Link
+						href={`/onboarding/complete?token=${encodeURIComponent(token)}`}
+						className="text-sm font-medium text-indigo-600 hover:underline"
+					>
+						{copy.backToStep2}
+					</Link>
+					<Link
+						href={`/onboarding/complete?token=${encodeURIComponent(token)}`}
+						className="inline-block rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+					>
+						{changeMethodLabel}
+					</Link>
+				</div>
 			</div>
 
 			<div className="onboarding-card space-y-5 p-5 sm:p-7">

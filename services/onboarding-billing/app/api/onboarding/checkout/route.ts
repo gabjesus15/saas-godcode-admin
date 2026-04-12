@@ -138,20 +138,20 @@ export async function POST(req: NextRequest) {
 
 		const addonsTotalUsd = await calculateAddonsTotalUsd(supabaseAdmin, app.id, months);
 
+		const amountUsd = Number(chargedPlan.price ?? 0) * months + addonsTotalUsd;
+
+		if (isPayPal) {
+			return handlePayPalCheckout({
+				app, plan: chargedPlan, planPricing, amountUsd, months, token,
+				paypalClientId, paypalClientSecret,
+			});
+		}
+
 		const companyResult = await provisionCompanyFromApplication(supabaseAdmin, app, isManualPayment);
 		if (!companyResult.ok) {
 			return NextResponse.json({ error: companyResult.error }, { status: companyResult.status });
 		}
 		const company = companyResult.company;
-
-		const amountUsd = Number(chargedPlan.price ?? 0) * months + addonsTotalUsd;
-
-		if (isPayPal) {
-			return handlePayPalCheckout({
-				app, plan: chargedPlan, planPricing, company, amountUsd, months, token,
-				paypalClientId, paypalClientSecret,
-			});
-		}
 
 		if (isManualPayment) {
 			return handleManualCheckout({
@@ -172,7 +172,6 @@ async function handlePayPalCheckout(params: {
 	app: { id: string; country?: string | null; payment_methods?: string[] | null; currency?: string | null; plan_id: string };
 	plan: { name: string };
 	planPricing: { continent: string; price: number; currency: string };
-	company: { id: string };
 	amountUsd: number;
 	months: number;
 	token: string;
@@ -205,6 +204,7 @@ async function handlePayPalCheckout(params: {
 			intent: CheckoutPaymentIntent.Capture,
 			purchaseUnits: [
 				{
+					customId: `${params.app.id}|${params.months}`,
 					amount: { currencyCode: "USD", value: params.amountUsd.toFixed(2) },
 					description: params.plan.name ?? "Plan",
 				},
@@ -221,17 +221,6 @@ async function handlePayPalCheckout(params: {
 		console.error("paypal create order:", createRes);
 		return NextResponse.json({ error: "Error al crear la orden de PayPal" }, { status: 502 });
 	}
-
-	await recordPayment(supabaseAdmin, {
-		companyId: params.company.id,
-		planId: params.app.plan_id,
-		amountPaid: params.amountUsd,
-		paymentMethod: "paypal",
-		paymentMethodSlug: "paypal",
-		paymentReference: orderId,
-		status: "pending",
-		monthsPaid: params.months,
-	});
 
 	return NextResponse.json({
 		ok: true,
