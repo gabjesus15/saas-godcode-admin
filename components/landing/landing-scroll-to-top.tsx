@@ -105,7 +105,7 @@ export function LandingScrollToTop() {
     <AnimatePresence>
       {visible && sectionEls.length > 0 && (
         <motion.div
-          className="fixed bottom-6 right-6 z-40 sm:bottom-8 sm:right-8"
+          className="fixed bottom-6 left-6 z-40 sm:bottom-8 sm:left-8"
           initial={{ opacity: 0, scale: 0.88, y: 12 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.88, y: 12 }}

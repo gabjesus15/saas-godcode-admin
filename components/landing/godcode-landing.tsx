@@ -6,6 +6,7 @@ import type { PublicPlanForLanding } from "../../lib/public-plans";
 import { LandingNav } from "./landing-nav";
 import { LandingSections } from "./landing-sections";
 import { LandingScrollToTop } from "./landing-scroll-to-top";
+import { FloatingWhatsappButton } from "./floating-whatsapp-button";
 
 type GodcodeLandingProps = {
   plans: PublicPlanForLanding[];
@@ -96,6 +97,7 @@ export function GodcodeLanding({ plans, media }: GodcodeLandingProps) {
       </footer>
 
       <LandingScrollToTop />
+      <FloatingWhatsappButton phoneNumber="56943848080" />
     </div>
   );
 }
