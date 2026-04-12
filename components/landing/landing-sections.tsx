@@ -30,6 +30,7 @@ import { LandingAnimatedGrid } from "./landing-animated-grid";
 import { LandingPhoneCarousel } from "./landing-phone-carousel";
 import { LandingContactForm } from "./landing-contact-form";
 import { LandingLeadForm } from "./landing-lead-form";
+import { LandingVideoPlayer } from "./landing-video-player";
 
 const usdMonth = new Intl.NumberFormat("es-CL", {
   style: "currency",
@@ -476,21 +477,12 @@ export function LandingSections({
                 <p className="mt-3 max-w-lg text-sm leading-relaxed text-slate-400 sm:text-base">
                   Esta demo resume el flujo completo: menú, carrito, pedidos, caja e inventario en una sola presentación.
                 </p>
-                <div className="mt-6 overflow-hidden rounded-[1.5rem] border border-white/10 bg-slate-950 shadow-inner">
-                  <div className="relative aspect-video w-full overflow-hidden">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.35),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.18),transparent_30%),linear-gradient(180deg,rgba(15,23,42,0.96),rgba(2,6,23,0.96))]" />
-                    <div className="absolute inset-0 flex items-center justify-center px-6 text-center">
-                      <div className="flex flex-col items-center">
-                        <div className="flex h-18 w-18 items-center justify-center rounded-full bg-white/10 text-indigo-200 ring-1 ring-white/10 backdrop-blur-sm">
-                          <Play className="h-7 w-7 fill-current" aria-hidden />
-                        </div>
-                        <p className="mt-5 text-sm font-semibold text-white">Video demo del producto</p>
-                        <p className="mt-2 max-w-md text-xs leading-relaxed text-slate-300">
-                          Versión de demo privada disponible para reuniones comerciales y partners.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                <div className="mt-6 overflow-hidden">
+                  <LandingVideoPlayer
+                    src="/Del_caos_al_control.mp4"
+                    title="Video demo del producto"
+                    subtitle="Versión de demo privada disponible para reuniones comerciales y partners."
+                  />
                 </div>
               </div>
 

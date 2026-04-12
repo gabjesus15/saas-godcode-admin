@@ -1,4 +1,4 @@
-import { ArrowRight, Play, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 
 import { LandingReveal } from "./landing-reveal";
 
@@ -56,18 +56,15 @@ export function LandingDemoSection() {
 
             <div className="mt-4 overflow-hidden rounded-[1.5rem] border border-white/10 bg-slate-950 shadow-inner">
               <div className="relative aspect-video w-full overflow-hidden">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.35),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.18),transparent_30%),linear-gradient(180deg,rgba(15,23,42,0.96),rgba(2,6,23,0.96))]" />
-                <div className="absolute inset-0 flex items-center justify-center px-6 text-center">
-                  <div className="flex flex-col items-center">
-                    <div className="flex h-18 w-18 items-center justify-center rounded-full bg-white/10 text-indigo-200 ring-1 ring-white/10 backdrop-blur-sm">
-                      <Play className="h-7 w-7 fill-current" aria-hidden />
-                    </div>
-                    <p className="mt-5 text-sm font-semibold text-white">Video demo del producto</p>
-                    <p className="mt-2 max-w-md text-xs leading-relaxed text-slate-300">
-                      Aquí irá el video final mostrando el flujo completo de GodCode. Ideal para presentar la plataforma en ventas o landing.
-                    </p>
-                  </div>
-                </div>
+                <video
+                  className="h-full w-full object-cover"
+                  src="/Del_caos_al_control.mp4"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  controls
+                />
               </div>
             </div>
 
