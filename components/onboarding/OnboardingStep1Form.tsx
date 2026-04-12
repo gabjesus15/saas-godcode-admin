@@ -3,11 +3,54 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
+import { useLocale } from "next-intl";
 
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 
+const COPY = {
+	es: {
+		errorSubmit: "Error al enviar la solicitud",
+		errorUnexpected: "Error inesperado",
+		successTitle: "Solicitud enviada",
+		successPrefix: "Enviamos un correo de verificación a",
+		successSuffix: "Revisa tu bandeja y haz clic en el enlace para continuar.",
+		successSpam: "Si no ves el correo, revisa la carpeta de spam.",
+		businessName: "Nombre del negocio",
+		businessPlaceholder: "Ej: Mi Restaurante",
+		yourName: "Tu nombre",
+		yourNamePlaceholder: "Ej: Juan Pérez",
+		email: "Email",
+		acceptTermsPrefix: "Acepto los",
+		acceptTermsLink: "términos de servicio",
+		acceptPrivacyPrefix: "Acepto la",
+		acceptPrivacyLink: "política de privacidad",
+		continue: "Continuar",
+	},
+	en: {
+		errorSubmit: "Could not submit the request",
+		errorUnexpected: "Unexpected error",
+		successTitle: "Request sent",
+		successPrefix: "We sent a verification email to",
+		successSuffix: "Check your inbox and click the link to continue.",
+		successSpam: "If you do not see the email, check your spam folder.",
+		businessName: "Business name",
+		businessPlaceholder: "Ex: My Restaurant",
+		yourName: "Your name",
+		yourNamePlaceholder: "Ex: John Doe",
+		email: "Email",
+		acceptTermsPrefix: "I accept the",
+		acceptTermsLink: "terms of service",
+		acceptPrivacyPrefix: "I accept the",
+		acceptPrivacyLink: "privacy policy",
+		continue: "Continue",
+	},
+} as const;
+
 export function OnboardingStep1Form() {
+	const locale = useLocale();
+	const t = COPY[locale.toLowerCase().startsWith("es") ? "es" : "en"];
+
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [success, setSuccess] = useState(false);
@@ -40,11 +83,11 @@ export function OnboardingStep1Form() {
 			const data = await res.json().catch(() => ({}));
 
 			if (!res.ok) {
-				throw new Error(data.error ?? "Error al enviar la solicitud");
+				throw new Error(data.error ?? t.errorSubmit);
 			}
 			setSuccess(true);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Error inesperado");
+			setError(err instanceof Error ? err.message : t.errorUnexpected);
 		} finally {
 			setLoading(false);
 		}
@@ -56,13 +99,12 @@ export function OnboardingStep1Form() {
 				<div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500 text-white">
 					<Check className="h-6 w-6" />
 				</div>
-				<h2 className="text-lg font-bold text-slate-900 sm:text-xl">Solicitud enviada</h2>
+				<h2 className="text-lg font-bold text-slate-900 sm:text-xl">{t.successTitle}</h2>
 				<p className="mt-3 text-sm text-slate-600">
-					Enviamos un correo de verificación a <strong className="font-semibold text-slate-800">{form.email}</strong>.
-					Revisa tu bandeja y haz clic en el enlace para continuar.
+					{t.successPrefix} <strong className="font-semibold text-slate-800">{form.email}</strong>. {t.successSuffix}
 				</p>
 				<p className="mt-3 text-xs text-slate-400">
-					Si no ves el correo, revisa la carpeta de spam.
+					{t.successSpam}
 				</p>
 			</div>
 		);
@@ -72,31 +114,31 @@ export function OnboardingStep1Form() {
 		<form onSubmit={handleSubmit} className="w-full max-w-md space-y-5">
 			<div className="onboarding-card space-y-5 p-5 sm:p-7">
 				<label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-					<span>Nombre del negocio <span className="text-red-500" aria-hidden>*</span></span>
+					<span>{t.businessName} <span className="text-red-500" aria-hidden>*</span></span>
 					<Input
 						className="onboarding-input"
 						value={form.business_name}
 						onChange={(e) => setForm((p) => ({ ...p, business_name: e.target.value }))}
-						placeholder="Ej: Mi Restaurante"
+						placeholder={t.businessPlaceholder}
 						required
 						minLength={2}
 					/>
 				</label>
 
 				<label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-					<span>Tu nombre <span className="text-red-500" aria-hidden>*</span></span>
+					<span>{t.yourName} <span className="text-red-500" aria-hidden>*</span></span>
 					<Input
 						className="onboarding-input"
 						value={form.responsible_name}
 						onChange={(e) => setForm((p) => ({ ...p, responsible_name: e.target.value }))}
-						placeholder="Ej: Juan Pérez"
+						placeholder={t.yourNamePlaceholder}
 						required
 						minLength={2}
 					/>
 				</label>
 
 				<label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-					<span>Email <span className="text-red-500" aria-hidden>*</span></span>
+					<span>{t.email} <span className="text-red-500" aria-hidden>*</span></span>
 					<Input
 						className="onboarding-input"
 						type="email"
@@ -117,7 +159,7 @@ export function OnboardingStep1Form() {
 							required
 						/>
 						<span className="text-sm text-slate-600">
-							Acepto los <Link href="/onboarding/terminos" className="font-medium text-indigo-600 hover:underline">términos de servicio</Link> <span className="text-red-500">*</span>
+							{t.acceptTermsPrefix} <Link href="/onboarding/terminos" className="font-medium text-indigo-600 hover:underline">{t.acceptTermsLink}</Link> <span className="text-red-500">*</span>
 						</span>
 					</label>
 					<label className="flex cursor-pointer items-start gap-3">
@@ -129,7 +171,7 @@ export function OnboardingStep1Form() {
 							required
 						/>
 						<span className="text-sm text-slate-600">
-							Acepto la <Link href="/onboarding/privacidad" className="font-medium text-indigo-600 hover:underline">política de privacidad</Link> <span className="text-red-500">*</span>
+							{t.acceptPrivacyPrefix} <Link href="/onboarding/privacidad" className="font-medium text-indigo-600 hover:underline">{t.acceptPrivacyLink}</Link> <span className="text-red-500">*</span>
 						</span>
 					</label>
 				</div>
@@ -147,7 +189,7 @@ export function OnboardingStep1Form() {
 				size="lg"
 				className="onboarding-btn-primary w-full rounded-xl py-5 text-sm font-semibold sm:text-base"
 			>
-				Continuar
+				{t.continue}
 			</Button>
 		</form>
 	);

@@ -2,8 +2,73 @@
 
 import { useState } from "react";
 import { Check } from "lucide-react";
+import { useLocale } from "next-intl";
 
 import { cn } from "../../utils/cn";
+
+const COPY = {
+  es: {
+    notify: "Te avisaremos a",
+    saveError: "No se pudo guardar tu correo.",
+    emailLabel: "Tu correo electrónico",
+    emailPlaceholder: "tu@email.com",
+    saving: "Guardando...",
+    cta: "Avisame",
+    noShare: "No compartimos tu correo con terceros. Puedes darte de baja cuando quieras.",
+  },
+  en: {
+    notify: "We will notify you at",
+    saveError: "Could not save your email.",
+    emailLabel: "Your email",
+    emailPlaceholder: "you@email.com",
+    saving: "Saving...",
+    cta: "Notify me",
+    noShare: "We do not share your email with third parties. You can unsubscribe anytime.",
+  },
+  pt: {
+    notify: "Vamos avisar voce no",
+    saveError: "Nao foi possivel salvar seu email.",
+    emailLabel: "Seu email",
+    emailPlaceholder: "voce@email.com",
+    saving: "Salvando...",
+    cta: "Avise-me",
+    noShare: "Nao compartilhamos seu email com terceiros. Voce pode cancelar quando quiser.",
+  },
+  fr: {
+    notify: "Nous vous informerons a",
+    saveError: "Impossible d'enregistrer votre email.",
+    emailLabel: "Votre email",
+    emailPlaceholder: "vous@email.com",
+    saving: "Enregistrement...",
+    cta: "M'avertir",
+    noShare: "Nous ne partageons pas votre email avec des tiers. Vous pouvez vous desabonner a tout moment.",
+  },
+  de: {
+    notify: "Wir benachrichtigen Sie unter",
+    saveError: "Ihre E-Mail konnte nicht gespeichert werden.",
+    emailLabel: "Ihre E-Mail",
+    emailPlaceholder: "sie@email.com",
+    saving: "Wird gespeichert...",
+    cta: "Benachrichtige mich",
+    noShare: "Wir teilen Ihre E-Mail nicht mit Dritten. Sie konnen sich jederzeit abmelden.",
+  },
+  it: {
+    notify: "Ti avviseremo a",
+    saveError: "Impossibile salvare la tua email.",
+    emailLabel: "La tua email",
+    emailPlaceholder: "tu@email.com",
+    saving: "Salvataggio...",
+    cta: "Avvisami",
+    noShare: "Non condividiamo la tua email con terze parti. Puoi annullare quando vuoi.",
+  },
+} as const;
+
+type SupportedLocale = keyof typeof COPY;
+
+function getLocaleKey(locale: string): SupportedLocale {
+  const code = locale.toLowerCase().split("-")[0];
+  return (code in COPY ? (code as SupportedLocale) : "en");
+}
 
 export function LandingLeadForm({
   dark = false,
@@ -15,6 +80,8 @@ export function LandingLeadForm({
   /** `stacked`: columna y controles a ancho completo (tarjetas estrechas) */
   layout?: "inline" | "stacked";
 }) {
+  const locale = useLocale();
+  const t = COPY[getLocaleKey(locale)];
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -30,7 +97,7 @@ export function LandingLeadForm({
         )}
       >
         <Check className="h-4 w-4 shrink-0" aria-hidden />
-        <span>Te avisaremos a {email}</span>
+        <span>{t.notify} {email}</span>
       </p>
     );
   }
@@ -72,11 +139,11 @@ export function LandingLeadForm({
           });
           const data = await res.json().catch(() => ({}));
           if (!res.ok) {
-            throw new Error(data.error ?? "No se pudo guardar tu correo.");
+            throw new Error(data.error ?? t.saveError);
           }
           setSubmitted(true);
         } catch (err) {
-          setError(err instanceof Error ? err.message : "No se pudo guardar tu correo.");
+          setError(err instanceof Error ? err.message : t.saveError);
         } finally {
           setLoading(false);
         }
@@ -84,7 +151,7 @@ export function LandingLeadForm({
     >
       <div className={rowCls}>
         <label className="sr-only" htmlFor="lead-email">
-          Tu correo electrónico
+          {t.emailLabel}
         </label>
         <input
           id="lead-email"
@@ -92,11 +159,11 @@ export function LandingLeadForm({
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="tu@email.com"
+          placeholder={t.emailPlaceholder}
           className={darkInputStacked ?? inputCls}
         />
         <button type="submit" className={btnCls}>
-          {loading ? "Guardando..." : "Avísame"}
+          {loading ? t.saving : t.cta}
         </button>
       </div>
       {error ? (
@@ -104,7 +171,7 @@ export function LandingLeadForm({
       ) : null}
       {dark ? (
         <p className="text-center text-[11px] leading-relaxed text-slate-500 sm:text-left">
-          No compartimos tu correo con terceros. Puedes darte de baja cuando quieras.
+          {t.noShare}
         </p>
       ) : null}
     </form>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { AlertCircle, Loader2, MapPin, Phone, Store, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface BranchData {
   id: string;
@@ -33,6 +34,7 @@ export function BranchSelectorModal({
   allowClose = true,
   schedule,
 }: BranchSelectorModalProps) {
+  const t = useTranslations("tenant.cart.modal");
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -58,12 +60,12 @@ export function BranchSelectorModal({
     let cleanName = rawName;
     let badge: React.ReactNode = null;
 
-    if (rawName.includes("ABIERTO")) {
-      cleanName = rawName.replace("ABIERTO", "").trim();
-      badge = <span className="badge-open">ABIERTO</span>;
-    } else if (rawName.includes("CERRADO")) {
-      cleanName = rawName.replace("CERRADO", "").trim();
-      badge = <span className="badge-closed">CERRADO</span>;
+    if (rawName.includes("ABIERTO") || rawName.includes("OPEN")) {
+      cleanName = rawName.replace(/ABIERTO|OPEN/g, "").trim();
+      badge = <span className="badge-open">{t("branchSelector.openBadge")}</span>;
+    } else if (rawName.includes("CERRADO") || rawName.includes("CLOSED")) {
+      cleanName = rawName.replace(/CERRADO|CLOSED/g, "").trim();
+      badge = <span className="badge-closed">{t("branchSelector.closedBadge")}</span>;
     }
 
     return (
@@ -81,11 +83,11 @@ export function BranchSelectorModal({
         <div className="branch-modal-content">
           <header className="branch-modal-header">
             <div className="branch-modal-title-section">
-              <h2 className="branch-modal-title">Elige tu Sucursal</h2>
-              <p className="branch-modal-subtitle">Selecciona la ubicación más cercana</p>
+              <h2 className="branch-modal-title">{t("branchSelector.title")}</h2>
+              <p className="branch-modal-subtitle">{t("branchSelector.subtitle")}</p>
             </div>
             {allowClose ? (
-              <button onClick={onClose} className="branch-modal-close-btn" aria-label="Cerrar modal">
+              <button onClick={onClose} className="branch-modal-close-btn" aria-label={t("branchSelector.closeAria")}>
                 <X size={20} />
               </button>
             ) : null}
@@ -95,20 +97,20 @@ export function BranchSelectorModal({
             {isLoadingCaja ? (
               <div className="branch-empty-state">
                 <Loader2 size={32} className="branch-loading-spinner" />
-                <p>Verificando sucursales disponibles...</p>
+                <p>{t("branchSelector.checkingBranches")}</p>
               </div>
             ) : !hasBranchesWithCaja ? (
               <div className="branch-empty-state">
                 <AlertCircle size={40} className="branch-empty-icon-alert" />
                 <p className="branch-empty-title">
-                  No hay sucursales recibiendo pedidos
+                  {t("branchSelector.noBranchesReceiving")}
                 </p>
                 <p className="branch-empty-description">
                   {schedule
-                    ? `Horario de atención: ${schedule}`
+                    ? t("branchSelector.attentionSchedule", { schedule })
                     : hasOtherBranches
-                    ? "Abre la caja en el panel de administración de alguna sucursal para habilitar compras."
-                    : "Abre la caja en el panel de administración para habilitar compras."}
+                    ? t("branchSelector.openCashAnyBranch")
+                    : t("branchSelector.openCash")}
                 </p>
               </div>
             ) : (

@@ -24,3 +24,14 @@ export const LIGHT_ONLY_THEME_SCRIPT = `
 	} catch (_) {}
 })();
 `;
+
+export const LANDING_LIGHT_SCOPE_SCRIPT = `
+(function() {
+	try {
+		if (window.location.pathname === '/') {
+			document.documentElement.classList.remove('dark');
+			document.documentElement.setAttribute('data-theme', 'light');
+		}
+	} catch (_) {}
+})();
+`;

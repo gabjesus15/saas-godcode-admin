@@ -2,6 +2,7 @@
 
 import { createPortal } from "react-dom";
 import { Loader2, Store, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface BranchInfo {
   id: string;
@@ -26,6 +27,7 @@ export function ContactBranchModal({
   isLoading,
   onSelectBranch,
 }: ContactBranchModalProps) {
+  const t = useTranslations("tenant.cart.modal");
   if (!isOpen) return null;
 
   const handleBranchSelect = (branch: BranchInfo) => {
@@ -38,12 +40,12 @@ export function ContactBranchModal({
       return { name: "", status: null as "open" | "closed" | null };
     }
 
-    if (rawName.includes("ABIERTO")) {
-      return { name: rawName.replace("ABIERTO", "").trim(), status: "open" as const };
+    if (rawName.includes("ABIERTO") || rawName.includes("OPEN")) {
+      return { name: rawName.replace(/ABIERTO|OPEN/g, "").trim(), status: "open" as const };
     }
 
-    if (rawName.includes("CERRADO")) {
-      return { name: rawName.replace("CERRADO", "").trim(), status: "closed" as const };
+    if (rawName.includes("CERRADO") || rawName.includes("CLOSED")) {
+      return { name: rawName.replace(/CERRADO|CLOSED/g, "").trim(), status: "closed" as const };
     }
 
     return { name: rawName, status: null as "open" | "closed" | null };
@@ -55,12 +57,12 @@ export function ContactBranchModal({
         <div className="branch-modal-content">
           <header className="branch-modal-header">
             <div className="branch-modal-title-section">
-              <h2 className="branch-modal-title">Elige tu Sucursal</h2>
+              <h2 className="branch-modal-title">{t("contactBranch.title")}</h2>
               <p className="branch-modal-subtitle">
-                ¿De qué local quieres obtener información?
+                {t("contactBranch.subtitle")}
               </p>
             </div>
-            <button onClick={onClose} className="branch-modal-close-btn" aria-label="Cerrar modal">
+            <button onClick={onClose} className="branch-modal-close-btn" aria-label={t("contactBranch.closeAria")}>
               <X size={20} />
             </button>
           </header>
@@ -69,11 +71,11 @@ export function ContactBranchModal({
             {isLoading ? (
               <div className="branch-empty-state">
                 <Loader2 size={32} className="branch-loading-spinner" />
-                <p>Cargando sucursales...</p>
+                <p>{t("contactBranch.loading")}</p>
               </div>
             ) : branches.length === 0 ? (
               <div className="branch-empty-state">
-                <p>No hay sucursales configuradas.</p>
+                <p>{t("contactBranch.empty")}</p>
               </div>
             ) : (
               branches.map((branch) => {
@@ -83,7 +85,6 @@ export function ContactBranchModal({
                     key={branch.id}
                     onClick={() => handleBranchSelect(branch)}
                     className="branch-button"
-                    style={{ padding: "20px" }}
                   >
                     <div className="branch-item-row">
                       <div className="branch-name-group">
@@ -101,7 +102,7 @@ export function ContactBranchModal({
                             status === "open" ? "status-open" : "status-closed"
                           }`}
                         >
-                          {status === "open" ? "ABIERTO" : "CERRADO"}
+                          {status === "open" ? t("branchSelector.openBadge") : t("branchSelector.closedBadge")}
                         </span>
                       ) : null}
                     </div>

@@ -5,20 +5,23 @@ import Script from "next/script";
 
 import { GodcodeLanding } from "../components/landing/godcode-landing";
 import { getAppUrl } from "../lib/app-url";
+import { getMessagesForLocale } from "@/lib/i18n/messages";
+import { getCurrentLocale } from "@/lib/i18n/server";
 import { getLandingMediaBundle } from "../lib/landing-media";
 import { getPublicPlansForLanding } from "../lib/public-plans";
 import { getSubdomainFromHost, isMainDomain } from "../lib/main-domain-host";
 
 export async function generateMetadata(): Promise<Metadata> {
   const hdrs = await headers();
+  const locale = await getCurrentLocale();
+  const messages = getMessagesForLocale(locale);
   const host = hdrs.get("host") || "";
   if (!isMainDomain(host)) {
     return {};
   }
   const base = getAppUrl();
-  const shareTitle = "GodCode — Crea tu tienda online en minutos";
-  const description =
-    "Menú digital, carrito, delivery, caja, comandas e inventario para tu negocio. Sin programar, sin comisiones por venta. Empieza gratis.";
+  const shareTitle = messages.landing.meta.title;
+  const description = messages.landing.meta.description;
 
   return {
     title: { absolute: "GodCode" },
@@ -112,7 +115,7 @@ function JsonLd({ plans }: { plans: { price?: number | null }[] }) {
         "@type": "ContactPoint",
         email: process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || "hola@godcode.me",
         contactType: "customer support",
-        availableLanguage: ["es"],
+        availableLanguage: ["es", "en", "pt", "fr", "de", "it"],
       },
     },
   ];

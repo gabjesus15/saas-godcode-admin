@@ -103,7 +103,8 @@ export async function adminUpdatePlanById(
 		return { data: first.data, error: first.error, marketingLinesSkipped: false };
 	}
 
-	const { marketing_lines: _removed, ...rest } = updates;
+	const rest = { ...updates };
+	delete (rest as Record<string, unknown>).marketing_lines;
 	if (Object.keys(rest).length === 0) {
 		return { data: null, error: first.error, marketingLinesSkipped: false };
 	}
@@ -136,7 +137,8 @@ export async function adminInsertPlan(payload: Record<string, unknown>): Promise
 		return { data: null, error: first.error, marketingLinesSkipped: false, singleId: null };
 	}
 
-	const { marketing_lines: _removed, ...rest } = payload;
+	const rest = { ...payload };
+	delete (rest as Record<string, unknown>).marketing_lines;
 	const second = await supabaseAdmin.from("plans").insert(rest).select("id").single();
 
 	if (second.error) {

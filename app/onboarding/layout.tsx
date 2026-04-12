@@ -2,6 +2,8 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import { OnboardingAntiZoom } from "../../components/onboarding/OnboardingAntiZoom";
+import { LanguageSwitcher } from "@/components/i18n/language-switcher";
+import { getCurrentMessages } from "@/lib/i18n/server";
 import { LandingLogo } from "../../components/landing/landing-logo";
 import "../super-admin.tailwind.css";
 import "./onboarding.css";
@@ -11,11 +13,14 @@ export const viewport = {
 	initialScale: 1,
 };
 
-export default function OnboardingLayout({
+export default async function OnboardingLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const messages = await getCurrentMessages();
+  const t = messages.onboarding.layout;
+
   return (
     <OnboardingAntiZoom>
     <div className="onboarding-page flex min-h-screen flex-col">
@@ -27,21 +32,24 @@ export default function OnboardingLayout({
           >
             <LandingLogo />
           </Link>
-          <Link
-            href="/onboarding/negocios"
-            className="onboarding-header-cta flex shrink-0 items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-medium sm:gap-2 sm:px-4 sm:text-sm"
-          >
-            <span className="hidden sm:inline">Ver negocios</span>
-            <span className="sm:hidden">Negocios</span>
-            <ArrowRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          </Link>
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher />
+            <Link
+              href="/onboarding/negocios"
+              className="onboarding-header-cta flex shrink-0 items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-medium sm:gap-2 sm:px-4 sm:text-sm"
+            >
+              <span className="hidden sm:inline">{t.viewBusinesses}</span>
+              <span className="sm:hidden">{t.businesses}</span>
+              <ArrowRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            </Link>
+          </div>
         </div>
       </header>
 
       <div className="flex-1">{children}</div>
 
       <footer className="border-t border-slate-100 px-5 py-4 text-center text-xs text-slate-400 sm:py-5 sm:text-sm">
-        Protegido con verificación de correo y encriptación SSL.
+        {t.securityFooter}
       </footer>
     </div>
     </OnboardingAntiZoom>

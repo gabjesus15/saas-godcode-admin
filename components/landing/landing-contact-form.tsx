@@ -1,9 +1,104 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale } from "next-intl";
 
 import { cn } from "../../utils/cn";
 import { Button } from "../ui/button";
+
+const COPY = {
+  es: {
+    sendError: "No se pudo enviar tu mensaje.",
+    sentTitle: "Mensaje enviado.",
+    sentDesc: "Gracias por escribirnos. Te responderemos dentro de 24 horas al correo que ingresaste.",
+    name: "Nombre",
+    namePlaceholder: "Tu nombre",
+    email: "Email",
+    emailPlaceholder: "tu@email.com",
+    message: "Mensaje",
+    messagePlaceholder: "Cuéntanos tu rubro, tu ciudad y qué te gustaría lograr con tu tienda/menu.",
+    sending: "Enviando...",
+    send: "Enviar mensaje",
+    direct: "También puedes escribir directo a",
+  },
+  en: {
+    sendError: "Could not send your message.",
+    sentTitle: "Message sent.",
+    sentDesc: "Thanks for reaching out. We will reply within 24 hours to your email.",
+    name: "Name",
+    namePlaceholder: "Your name",
+    email: "Email",
+    emailPlaceholder: "you@email.com",
+    message: "Message",
+    messagePlaceholder: "Tell us your business type, city, and what you want to achieve with your store/menu.",
+    sending: "Sending...",
+    send: "Send message",
+    direct: "You can also email us directly at",
+  },
+  pt: {
+    sendError: "Nao foi possivel enviar sua mensagem.",
+    sentTitle: "Mensagem enviada.",
+    sentDesc: "Obrigado por nos escrever. Responderemos em ate 24 horas para o email informado.",
+    name: "Nome",
+    namePlaceholder: "Seu nome",
+    email: "Email",
+    emailPlaceholder: "voce@email.com",
+    message: "Mensagem",
+    messagePlaceholder: "Conte seu segmento, sua cidade e o que voce quer alcancar com sua loja/menu.",
+    sending: "Enviando...",
+    send: "Enviar mensagem",
+    direct: "Voce tambem pode escrever direto para",
+  },
+  fr: {
+    sendError: "Impossible d'envoyer votre message.",
+    sentTitle: "Message envoye.",
+    sentDesc: "Merci de nous avoir ecrit. Nous repondrons sous 24 heures a votre email.",
+    name: "Nom",
+    namePlaceholder: "Votre nom",
+    email: "Email",
+    emailPlaceholder: "vous@email.com",
+    message: "Message",
+    messagePlaceholder: "Dites-nous votre secteur, votre ville et ce que vous voulez accomplir avec votre boutique/menu.",
+    sending: "Envoi...",
+    send: "Envoyer le message",
+    direct: "Vous pouvez aussi nous ecrire directement a",
+  },
+  de: {
+    sendError: "Ihre Nachricht konnte nicht gesendet werden.",
+    sentTitle: "Nachricht gesendet.",
+    sentDesc: "Danke fur Ihre Nachricht. Wir antworten innerhalb von 24 Stunden an Ihre E-Mail.",
+    name: "Name",
+    namePlaceholder: "Ihr Name",
+    email: "E-Mail",
+    emailPlaceholder: "sie@email.com",
+    message: "Nachricht",
+    messagePlaceholder: "Nennen Sie Ihre Branche, Ihre Stadt und was Sie mit Ihrem Shop/Menu erreichen mochten.",
+    sending: "Wird gesendet...",
+    send: "Nachricht senden",
+    direct: "Sie konnen uns auch direkt schreiben an",
+  },
+  it: {
+    sendError: "Impossibile inviare il tuo messaggio.",
+    sentTitle: "Messaggio inviato.",
+    sentDesc: "Grazie per averci scritto. Ti risponderemo entro 24 ore all'email inserita.",
+    name: "Nome",
+    namePlaceholder: "Il tuo nome",
+    email: "Email",
+    emailPlaceholder: "tu@email.com",
+    message: "Messaggio",
+    messagePlaceholder: "Raccontaci il tuo settore, la tua citta e cosa vuoi ottenere con il tuo negozio/menu.",
+    sending: "Invio in corso...",
+    send: "Invia messaggio",
+    direct: "Puoi anche scriverci direttamente a",
+  },
+} as const;
+
+type SupportedLocale = keyof typeof COPY;
+
+function getLocaleKey(locale: string): SupportedLocale {
+  const code = locale.toLowerCase().split("-")[0];
+  return (code in COPY ? (code as SupportedLocale) : "en");
+}
 
 export function LandingContactForm({
   supportEmail,
@@ -14,6 +109,8 @@ export function LandingContactForm({
   dark?: boolean;
   className?: string;
 }) {
+  const locale = useLocale();
+  const t = COPY[getLocaleKey(locale)];
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
@@ -41,14 +138,14 @@ export function LandingContactForm({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data.error ?? "No se pudo enviar tu mensaje.");
+        throw new Error(data.error ?? t.sendError);
       }
       setSubmitted(true);
       setName("");
       setEmail("");
       setMessage("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo enviar tu mensaje.");
+      setError(err instanceof Error ? err.message : t.sendError);
     } finally {
       setSubmitting(false);
     }
@@ -69,9 +166,9 @@ export function LandingContactForm({
   if (submitted) {
     return (
       <div className={cn("mt-6 rounded-xl border px-4 py-3 text-sm", dark ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200" : "border-emerald-200 bg-emerald-50 text-emerald-700", className)}>
-        <p className="font-medium">Mensaje enviado.</p>
+        <p className="font-medium">{t.sentTitle}</p>
         <p className="mt-1 text-xs opacity-90">
-          Gracias por escribirnos. Te responderemos dentro de 24 horas al correo que ingresaste.
+          {t.sentDesc}
         </p>
       </div>
     );
@@ -81,37 +178,37 @@ export function LandingContactForm({
     <form suppressHydrationWarning onSubmit={onSubmit} className={cn("mt-6 space-y-4", className)}>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className={labelCls}>
-          Nombre
+          {t.name}
           <input
             name="name"
             autoComplete="name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Tu nombre"
+            placeholder={t.namePlaceholder}
             className={inputCls}
           />
         </label>
         <label className={labelCls}>
-          Email
+          {t.email}
           <input
             type="email"
             name="email"
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="tu@email.com"
+            placeholder={t.emailPlaceholder}
             className={inputCls}
           />
         </label>
       </div>
       <label className={labelCls}>
-        Mensaje
+        {t.message}
         <textarea
           name="message"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           rows={dark ? 3 : 4}
-          placeholder="Cuéntanos tu rubro, tu ciudad y qué te gustaría lograr con tu tienda/menu."
+          placeholder={t.messagePlaceholder}
           className={textareaCls}
         />
       </label>
@@ -126,13 +223,13 @@ export function LandingContactForm({
             : "h-10 w-full rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 px-6 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:from-indigo-700 hover:to-violet-700 disabled:cursor-not-allowed disabled:opacity-70 sm:h-12 sm:w-auto",
         )}
       >
-        {submitting ? "Enviando..." : "Enviar mensaje"}
+        {submitting ? t.sending : t.send}
       </Button>
       {error ? (
         <p className={cn("text-xs", dark ? "text-red-300" : "text-red-600")}>{error}</p>
       ) : null}
       <p className={cn("text-xs", dark ? "text-slate-500" : "text-slate-500 dark:text-zinc-400")}>
-        También puedes escribir directo a {supportEmail}.
+        {t.direct} {supportEmail}.
       </p>
     </form>
   );

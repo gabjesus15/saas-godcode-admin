@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { DevServiceWorkerCleanup } from "../components/dev-sw-cleanup";
+import { getMessagesForLocale } from "@/lib/i18n/messages";
+import { getCurrentLocale } from "@/lib/i18n/server";
 
 import "./globals.css";
 
@@ -27,13 +30,16 @@ export const metadata: Metadata = {
     "Panel de administración multi-tenant: empresas, planes, onboarding y soporte.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getCurrentLocale();
+  const messages = getMessagesForLocale(locale);
+
   return (
-    <html lang="es" suppressHydrationWarning data-scroll-behavior="smooth">
+    <html lang={locale} suppressHydrationWarning data-scroll-behavior="smooth">
       <head>
         <link rel="preconnect" href="https://saas-godcode-admin.vercel.app" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://res.cloudinary.com" crossOrigin="anonymous" />
@@ -48,15 +54,17 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} bg-background text-foreground antialiased transition-colors duration-200`}
       >
-        {/* Logo y slogan eliminados del layout global por petición del usuario */}
-        {process.env.NODE_ENV !== "production" ? <DevServiceWorkerCleanup /> : null}
-        {children}
-        {process.env.NODE_ENV === "production" ? (
-          <>
-            <Analytics />
-            <SpeedInsights />
-          </>
-        ) : null}
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          {/* Logo y slogan eliminados del layout global por petición del usuario */}
+          {process.env.NODE_ENV !== "production" ? <DevServiceWorkerCleanup /> : null}
+          {children}
+          {process.env.NODE_ENV === "production" ? (
+            <>
+              <Analytics />
+              <SpeedInsights />
+            </>
+          ) : null}
+        </NextIntlClientProvider>
       </body>
     </html>
   );

@@ -31,10 +31,7 @@ export function LandingCountUp({
 
   useEffect(() => {
     if (!started) return;
-    if (prefersReduced) {
-      setValue(end);
-      return;
-    }
+    if (prefersReduced) return;
 
     const startTime = performance.now();
     let raf: number;
@@ -51,9 +48,11 @@ export function LandingCountUp({
     return () => cancelAnimationFrame(raf);
   }, [started, end, duration, prefersReduced]);
 
+  const displayValue = prefersReduced && started ? end : value;
+
   return (
     <span ref={ref}>
-      {value.toLocaleString("es")}{suffix}
+      {displayValue.toLocaleString("es")}{suffix}
     </span>
   );
 }

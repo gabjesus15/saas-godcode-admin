@@ -33,6 +33,7 @@ import type { ComponentType } from "react";
 import type { LucideProps } from "lucide-react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
+import { useTranslations } from "next-intl";
 
 import { useCart } from "./use-cart";
 import { ordersService } from "./orders-service";
@@ -180,16 +181,36 @@ interface CartLineItem {
 // Tipo unificado para manejar la información activa
 type ActiveSessionInfo = BusinessInfo & Partial<BranchInfo>;
 
-const PAYMENT_METHOD_CONFIG: Record<string, { label: string; icon: ComponentType<LucideProps>; isOnline: boolean }> = {
-  efectivo: { label: "Efectivo", icon: Banknote, isOnline: false },
-  tarjeta: { label: "Tarjeta (Presencial)", icon: CreditCard, isOnline: false },
-  pago_movil: { label: "Pago Móvil", icon: Smartphone, isOnline: true },
-  zelle: { label: "Zelle", icon: DollarSign, isOnline: true },
-  transferencia_bancaria: { label: "Transferencia", icon: Building, isOnline: true },
-  stripe: { label: "Tarjeta (Online)", icon: CreditCard, isOnline: true },
-  mercadopago: { label: "MercadoPago", icon: CreditCard, isOnline: true },
-  paypal: { label: "PayPal", icon: DollarSign, isOnline: true },
+const PAYMENT_METHOD_CONFIG: Record<string, { icon: ComponentType<LucideProps>; isOnline: boolean }> = {
+  efectivo: { icon: Banknote, isOnline: false },
+  tarjeta: { icon: CreditCard, isOnline: false },
+  pago_movil: { icon: Smartphone, isOnline: true },
+  zelle: { icon: DollarSign, isOnline: true },
+  transferencia_bancaria: { icon: Building, isOnline: true },
+  stripe: { icon: CreditCard, isOnline: true },
+  mercadopago: { icon: CreditCard, isOnline: true },
+  paypal: { icon: DollarSign, isOnline: true },
 };
+
+const PAYMENT_METHOD_LABEL_BY_KEY: Record<string, string> = {
+  efectivo: "paymentMethods.efectivo",
+  tarjeta: "paymentMethods.tarjeta",
+  pago_movil: "paymentMethods.pago_movil",
+  zelle: "paymentMethods.zelle",
+  transferencia_bancaria: "paymentMethods.transferencia_bancaria",
+  stripe: "paymentMethods.stripe",
+  mercadopago: "paymentMethods.mercadopago",
+  paypal: "paymentMethods.paypal",
+};
+
+function resolvePaymentMethodLabel(
+  methodKey: string | null | undefined,
+  t: (key: string) => string,
+): string {
+  if (!methodKey) return t("paymentMethods.unknown");
+  const labelKey = PAYMENT_METHOD_LABEL_BY_KEY[methodKey];
+  return labelKey ? t(labelKey) : methodKey;
+}
 
 type WsFulfillmentMeta = {
   fulfillment: CartFulfillment;
@@ -202,6 +223,62 @@ type WsFulfillmentMeta = {
   handoffCode?: string | null;
 };
 
+type WsMessageCopy = {
+  titlePrefix: string;
+  businessFallback: string;
+  customer: string;
+  rut: string;
+  phone: string;
+  typeLabel: string;
+  typeDelivery: string;
+  typePickup: string;
+  shipping: string;
+  subtotalProducts: string;
+  orderNumber: string;
+  orderId: string;
+  handoffCode: string;
+  detail: string;
+  doLabel: string;
+  total: string;
+  payment: string;
+  paymentUnknown: string;
+  bankTransferTitle: string;
+  bank: string;
+  accountType: string;
+  account: string;
+  holder: string;
+  bankTransferHint: string;
+  note: string;
+};
+
+const DEFAULT_WS_MESSAGE_COPY: WsMessageCopy = {
+  titlePrefix: "NUEVO PEDIDO WEB",
+  businessFallback: "RESTAURANTE",
+  customer: "Cliente",
+  rut: "RUT",
+  phone: "Fono",
+  typeLabel: "Tipo",
+  typeDelivery: "DELIVERY",
+  typePickup: "RETIRO EN LOCAL",
+  shipping: "Envio",
+  subtotalProducts: "Subtotal productos",
+  orderNumber: "N pedido",
+  orderId: "ID pedido",
+  handoffCode: "Codigo de entrega",
+  detail: "DETALLE",
+  doLabel: "Hacer",
+  total: "TOTAL",
+  payment: "Pago",
+  paymentUnknown: "Por definir",
+  bankTransferTitle: "Transferencia bancaria",
+  bank: "Banco",
+  accountType: "Tipo",
+  account: "Cuenta",
+  holder: "Titular",
+  bankTransferHint: "Cuando completes la transferencia, adjunta el comprobante en tu pedido.",
+  note: "Nota",
+};
+
 const generateWSMessage = (
   formData: { name: string; rut: string; phone: string },
   cart: Array<{ name?: string | null; quantity: number; description?: string | null }>,
@@ -210,37 +287,40 @@ const generateWSMessage = (
   note: string,
   businessName?: string | null,
   paymentData?: unknown,
-  meta?: WsFulfillmentMeta
+  meta?: WsFulfillmentMeta,
+  copy?: Partial<WsMessageCopy>,
+  paymentMethodLabel?: string,
 ) => {
-  let msg = `*NUEVO PEDIDO WEB - ${businessName || "RESTAURANTE"}*\n`;
+  const c: WsMessageCopy = { ...DEFAULT_WS_MESSAGE_COPY, ...(copy ?? {}) };
+  let msg = `*${c.titlePrefix} - ${businessName || c.businessFallback}*\n`;
   msg += "================================\n\n";
-  msg += `Cliente: ${formData.name}\n`;
-  msg += `RUT: ${formData.rut}\n`;
-  msg += `Fono: ${formData.phone}\n\n`;
+  msg += `${c.customer}: ${formData.name}\n`;
+  msg += `${c.rut}: ${formData.rut}\n`;
+  msg += `${c.phone}: ${formData.phone}\n\n`;
   if (meta) {
-    msg += `Tipo: ${meta.fulfillment === "delivery" ? "DELIVERY" : "RETIRO EN LOCAL"}\n`;
+    msg += `${c.typeLabel}: ${meta.fulfillment === "delivery" ? c.typeDelivery : c.typePickup}\n`;
     if (meta.fulfillment === "delivery" && meta.deliverySummary) {
       msg += `${meta.deliverySummary}\n`;
     }
     if (meta.fulfillment === "delivery" && meta.deliveryFee > 0) {
-      msg += `Envio: $${formatCartMoney(meta.deliveryFee)}\n`;
+      msg += `${c.shipping}: $${formatCartMoney(meta.deliveryFee)}\n`;
     }
-    msg += `Subtotal productos: $${formatCartMoney(meta.cartSubtotal)}\n`;
-    if (meta.orderNumber != null) msg += `N° pedido: #${meta.orderNumber}\n`;
-    else if (meta.orderId != null) msg += `ID pedido: ${meta.orderId}\n`;
-    if (meta.handoffCode) msg += `Codigo de entrega: ${meta.handoffCode}\n`;
+    msg += `${c.subtotalProducts}: $${formatCartMoney(meta.cartSubtotal)}\n`;
+    if (meta.orderNumber != null) msg += `${c.orderNumber}: #${meta.orderNumber}\n`;
+    else if (meta.orderId != null) msg += `${c.orderId}: ${meta.orderId}\n`;
+    if (meta.handoffCode) msg += `${c.handoffCode}: ${meta.handoffCode}\n`;
     msg += "\n";
   }
-  msg += "DETALLE:\n";
+  msg += `${c.detail}:\n`;
   cart.forEach((item) => {
     msg += `+ ${item.quantity} x ${(item.name ?? "").toUpperCase()}\n`;
     if (item.description) {
-      msg += `   (Hacer: ${item.description})\n`;
+      msg += `   (${c.doLabel}: ${item.description})\n`;
     }
   });
-  msg += `\n*TOTAL: $${formatCartMoney(grandTotal)}*\n`;
-  const methodLabel = paymentMethodKey && PAYMENT_METHOD_CONFIG[paymentMethodKey] ? PAYMENT_METHOD_CONFIG[paymentMethodKey].label : "Por definir";
-  msg += `Pago: ${methodLabel}\n`;
+  msg += `\n*${c.total}: $${formatCartMoney(grandTotal)}*\n`;
+  const methodLabel = paymentMethodLabel ?? paymentMethodKey ?? c.paymentUnknown;
+  msg += `${c.payment}: ${methodLabel}\n`;
 
   if (paymentMethodKey === "transferencia_bancaria" && paymentData) {
     const td = paymentData as Record<string, unknown>;
@@ -248,15 +328,15 @@ const generateWSMessage = (
     const nroCuenta = typeof td.nro_cuenta === "string" ? td.nro_cuenta : "";
     const tipoCuenta = typeof td.tipo_cuenta === "string" ? td.tipo_cuenta : "";
     const titular = typeof td.titular === "string" ? td.titular : "";
-    msg += `\n*Transferencia bancaria*\n`;
-    if (banco) msg += `Banco: ${banco}\n`;
-    if (tipoCuenta) msg += `Tipo: ${tipoCuenta}\n`;
-    if (nroCuenta) msg += `Cuenta: ${nroCuenta}\n`;
-    if (titular) msg += `Titular: ${titular}\n`;
-    msg += `\nCuando completes la transferencia, adjuntá el comprobante en tu pedido.\n`;
+    msg += `\n*${c.bankTransferTitle}*\n`;
+    if (banco) msg += `${c.bank}: ${banco}\n`;
+    if (tipoCuenta) msg += `${c.accountType}: ${tipoCuenta}\n`;
+    if (nroCuenta) msg += `${c.account}: ${nroCuenta}\n`;
+    if (titular) msg += `${c.holder}: ${titular}\n`;
+    msg += `\n${c.bankTransferHint}\n`;
   }
 
-  if (note && note.trim()) msg += `\nNota: ${note}\n`;
+  if (note && note.trim()) msg += `\n${c.note}: ${note}\n`;
   return msg;
 };
 
@@ -293,6 +373,7 @@ function CartNamedAreaSelect({
   onPick: (id: string | null) => void;
   formatMoney: (n: number) => string;
 }) {
+  const t = useTranslations("tenant.cart.modal");
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -324,7 +405,7 @@ function CartNamedAreaSelect({
         <span className="cart-named-area-select-value">
           {selected
             ? `${selected.name} — $${formatMoney(selected.feeFlat)}`
-            : "Elegi una zona"}
+            : t("delivery.pickNamedArea")}
         </span>
         <ChevronDown
           size={18}
@@ -333,7 +414,7 @@ function CartNamedAreaSelect({
         />
       </button>
       {open ? (
-        <ul className="cart-named-area-select-list" aria-label="Seleccionar zona de reparto">
+        <ul className="cart-named-area-select-list" aria-label={t("delivery.selectAreaAria")}>
           <li>
             <button
               type="button"
@@ -343,7 +424,7 @@ function CartNamedAreaSelect({
                 setOpen(false);
               }}
             >
-              Elegi una zona
+              {t("delivery.pickNamedArea")}
             </button>
           </li>
           {areas.map((a) => (
@@ -375,6 +456,7 @@ export function CartModal({
   businessInfo?: BusinessInfo | null;
   selectedBranch?: BranchInfo | null;
 }) {
+  const t = useTranslations("tenant.cart.modal");
     // const router = useRouter(); // No usado
     // const pathname = usePathname(); // No usado
     const supabase = useMemo(() => createSupabaseBrowserClient("tenant"), []);
@@ -743,7 +825,7 @@ export function CartModal({
           };
           if (r.status === 503) {
             setAddressSearchConfigError(
-              "Servicio de direcciones no disponible. Intenta más tarde."
+              t("delivery.searchUnavailable")
             );
             setAddressHits([]);
             return;
@@ -760,7 +842,7 @@ export function CartModal({
               setDeliveryAddressPrecision(
                 first.precision === "exact" ? "exact" : "approx"
               );
-              setGeoHint("Dirección encontrada. Revisa el costo de envío.");
+              setGeoHint(t("delivery.addressFoundReviewFee"));
               setShowDeliveryReference(true);
             }
           }
@@ -787,6 +869,7 @@ export function CartModal({
       SHOW_ADDRESS_SUGGESTIONS,
       setDeliveryCoords,
       setShowDeliveryReference,
+      t,
     ]);
 
     useEffect(() => {
@@ -956,12 +1039,12 @@ export function CartModal({
 
   const clientSchema = z.object({
       name: z.string()
-        .min(3, "Nombre muy corto")
+        .min(3, t("validation.nameShort"))
         .max(50)
-        .regex(/^[\p{L} .'-]+$/u, "Nombre inválido"),
+        .regex(/^[\p{L} .'-]+$/u, t("validation.nameInvalid")),
       phone: z.string()
         .transform((v) => v.replace(/\s/g, ""))
-        .pipe(z.string().min(7, "Teléfono muy corto").max(20, "Teléfono muy largo").regex(/^\+?\d{7,15}$/, "Teléfono inválido")),
+        .pipe(z.string().min(7, t("validation.phoneShort")).max(20, t("validation.phoneLong")).regex(/^\+?\d{7,15}$/, t("validation.phoneInvalid"))),
       rut: z.string().optional().default(""),
       receiptFile: z.any().optional(),
       receiptPreview: z.string().optional(),
@@ -1142,23 +1225,23 @@ export function CartModal({
 
   const requestDeliveryGeo = useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setGeoHint("Tu navegador no permite ubicacion. Escribi la direccion.");
+      setGeoHint(t("delivery.geoNotAvailable"));
       return;
     }
     if (typeof window !== "undefined" && !window.isSecureContext) {
       setGeoHint(
-        "La ubicacion solo funciona en HTTPS (o localhost). Abrí el sitio con https o desde produccion."
+        t("delivery.geoNeedsHttps")
       );
       return;
     }
-    setGeoHint("Buscando ubicacion...");
+    setGeoHint(t("delivery.searchingLocation"));
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
         setDeliveryCoords(lat, lng);
         setDeliveryAddressPrecision("exact");
-        setGeoHint("Buscando direccion...");
+        setGeoHint(t("delivery.searchingAddress"));
         fetch(
           `/api/reverse-geocode?lat=${encodeURIComponent(String(lat))}&lng=${encodeURIComponent(String(lng))}`
         )
@@ -1173,14 +1256,14 @@ export function CartModal({
             }
             suppressLineGeocodeUntilRef.current = Date.now() + 1200;
             setGeoHint(
-              "Ubicacion guardada. Revisa calle, comuna y el costo de envio."
+              t("delivery.locationSavedReview")
             );
             setShowDeliveryReference(true);
           })
           .catch(() => {
             suppressLineGeocodeUntilRef.current = Date.now() + 1200;
             setGeoHint(
-              "Ubicacion guardada. Completa calle y comuna a mano si no se rellenaron."
+              t("delivery.locationSavedCompleteManually")
             );
             setShowDeliveryReference(true);
           });
@@ -1188,14 +1271,14 @@ export function CartModal({
       (err) => {
         if (err.code === err.PERMISSION_DENIED) {
           setGeoHint(
-            "Permiso denegado. En el candado del navegador, permiti ubicacion para este sitio."
+            t("delivery.permissionDenied")
           );
         } else if (err.code === err.POSITION_UNAVAILABLE) {
-          setGeoHint("No hay señal de ubicacion. Escribi calle y comuna.");
+          setGeoHint(t("delivery.noSignal"));
         } else if (err.code === err.TIMEOUT) {
-          setGeoHint("Tiempo agotado. Proba de nuevo o escribi la direccion.");
+          setGeoHint(t("delivery.timeout"));
         } else {
-          setGeoHint("No pudimos leer tu ubicacion. Escribi calle y comuna.");
+          setGeoHint(t("delivery.cannotReadLocation"));
         }
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
@@ -1206,6 +1289,7 @@ export function CartModal({
     setDeliveryCommune,
     setShowDeliveryReference,
     setUnifiedAddressSearch,
+    t,
   ]);
 
   const selectAddressSearchHit = useCallback(
@@ -1261,7 +1345,7 @@ export function CartModal({
       setAddressHitsOpen(false);
       setDeliveryAddressPrecision(hit.precision === "exact" ? "exact" : "approx");
       setGeoHint(
-        "Direccion encontrada. Revisa calle, comuna y el costo de envio."
+        t("delivery.addressFoundReview")
       );
       setShowDeliveryReference(true);
     },
@@ -1273,6 +1357,7 @@ export function CartModal({
       setShowDeliveryReference,
       setUnifiedAddressSearch,
       unifiedAddressSearch,
+      t,
     ]
   );
 
@@ -1344,7 +1429,7 @@ export function CartModal({
         if (!valid) {
           setViewState((prev) => ({
             ...prev,
-            error: validationError || "Archivo no valido.",
+            error: validationError || t("validation.invalidFile"),
           }));
           return;
         }
@@ -1353,7 +1438,7 @@ export function CartModal({
         setViewState((prev) => ({ ...prev, error: null }));
       }
     },
-    [setValue]
+    [setValue, t]
   );
 
   const resetFlow = useCallback(() => {
@@ -1433,7 +1518,7 @@ export function CartModal({
         {
           id: `upsell_beverage_${bev.id}`,
           name: bev.name,
-          description: "Bebida sugerida",
+          description: t("catalog.suggestedDrink"),
           image_url: null,
           price: bev.price,
           has_discount: false,
@@ -1445,7 +1530,7 @@ export function CartModal({
         },
       );
     },
-    [addToCart],
+    [addToCart, t],
   );
 
   const handleSendOrder = handleSubmit(async (data) => {
@@ -1455,7 +1540,7 @@ export function CartModal({
         ? `Esta sucursal (${selectedBranch.name}) no esta recibiendo pedidos. Abre la caja en el admin para habilitar compras.`
         : businessInfo?.schedule
           ? `Nuestro horario es: ${businessInfo.schedule}`
-          : "No se pueden recibir pedidos en este momento.";
+          : t("errors.noOrdersNow");
       // ...existing code...
       setViewState((v) => ({ ...v, isSaving: false, error: msg }));
       return;
@@ -1468,7 +1553,7 @@ export function CartModal({
       // ...existing code...
       setViewState((prev) => ({
         ...prev,
-        error: "No hay sucursal seleccionada. Elige una sucursal para enviar el pedido.",
+        error: t("errors.noBranchSelected"),
       }));
       return;
     }
@@ -1476,7 +1561,7 @@ export function CartModal({
       setViewState((v) => ({
         ...v,
         isSaving: false,
-        error: "Completa la direccion de delivery o revisa el monto minimo.",
+        error: t("errors.completeDeliveryOrMin"),
       }));
       return;
     }
@@ -1490,7 +1575,7 @@ export function CartModal({
         ...v,
         isSaving: false,
         error:
-          "El metodo de pago no esta permitido para delivery en esta sucursal. Elige otro.",
+          t("errors.paymentNotAllowedForDelivery"),
       }));
       return;
     }
@@ -1549,12 +1634,12 @@ export function CartModal({
       });
       const globalExtrasLines = (globalExtras ?? []).map((ex, idx) => ({
         id: `global_extra_${idx}_${ex.id}`,
-        name: String(ex.name ?? "Extra global"),
+        name: String(ex.name ?? t("catalog.globalExtra")),
         quantity: Math.max(1, Number(ex.qty) || 1),
         price: Math.max(0, Number(ex.price) || 0),
         has_discount: false,
         discount_price: null,
-        description: "Extra global del pedido",
+        description: t("catalog.globalExtraDescription"),
         extras_total: 0,
         extras: [],
         custom_item: true,
@@ -1607,7 +1692,7 @@ export function CartModal({
         status: "pending",
         receiptFile: data.receiptFile,
         branch_id: selectedBranch.id,
-        branch_name: selectedBranch.name || "Desconocido",
+        branch_name: selectedBranch.name || t("common.unknown"),
         company_id: selectedBranch.company_id || null,
         order_type:
           snapFulfillment === "delivery" && deliverySettings.enabled
@@ -1643,7 +1728,7 @@ export function CartModal({
       setShowFieldErrors(false);
       const deliverySummary =
         snapFulfillment === "delivery" && deliverySnapshot
-          ? `Direccion: ${deliverySnapshot.line1}, ${deliverySnapshot.commune}`
+          ? `${t("delivery.addressLabel")}: ${deliverySnapshot.line1}, ${deliverySnapshot.commune}`
           : undefined;
       setTimeout(() => {
         const paymentData = paymentMethodKey
@@ -1666,14 +1751,42 @@ export function CartModal({
             orderId: parsed?.id ?? null,
             orderNumber: parsed?.order_number ?? null,
             handoffCode: parsed?.handoff_code ?? null,
-          }
+          },
+          {
+            titlePrefix: t("ws.titlePrefix"),
+            businessFallback: t("ws.businessFallback"),
+            customer: t("ws.customer"),
+            rut: t("ws.rut"),
+            phone: t("ws.phone"),
+            typeLabel: t("ws.typeLabel"),
+            typeDelivery: t("ws.typeDelivery"),
+            typePickup: t("ws.typePickup"),
+            shipping: t("ws.shipping"),
+            subtotalProducts: t("ws.subtotalProducts"),
+            orderNumber: t("ws.orderNumber"),
+            orderId: t("ws.orderId"),
+            handoffCode: t("ws.handoffCode"),
+            detail: t("ws.detail"),
+            doLabel: t("ws.doLabel"),
+            total: t("ws.total"),
+            payment: t("ws.payment"),
+            paymentUnknown: t("paymentMethods.unknown"),
+            bankTransferTitle: t("ws.bankTransferTitle"),
+            bank: t("ws.bank"),
+            accountType: t("ws.accountType"),
+            account: t("ws.account"),
+            holder: t("ws.holder"),
+            bankTransferHint: t("ws.bankTransferHint"),
+            note: t("ws.note"),
+          },
+          resolvePaymentMethodLabel(paymentMethodKey, t),
         );
         const rawPhone = (activeInfo.phone || "").replace(/\D/g, "");
         if (!rawPhone) {
           setViewState((v) => ({
             ...v,
             isSaving: false,
-            error: "Este negocio no tiene un número de WhatsApp configurado.",
+            error: t("errors.whatsappNotConfigured"),
           }));
           return;
         }
@@ -1683,7 +1796,7 @@ export function CartModal({
       }, 1500);
     } catch (error: unknown) {
       const errorRecord = (error ?? {}) as Record<string, unknown>;
-      const message = String(errorRecord.message || "Error al procesar el pedido. Intenta nuevamente.");
+      const message = String(errorRecord.message || t("errors.processOrderTryAgain"));
       setViewState((v) => ({ ...v, isSaving: false, error: message }));
     }
   });
@@ -1701,13 +1814,13 @@ export function CartModal({
           className="cart-panel"
           role="dialog"
           aria-modal="true"
-          aria-label="Pedido enviado"
+          aria-label={t("success.sentAria")}
           tabIndex={-1}
           onClick={(e) => e.stopPropagation()}
         >
           <header className="cart-header">
-            <h3>¡Pedido Enviado!</h3>
-            <button onClick={handleCloseCart} className="btn-close-cart" aria-label="Cerrar"><X size={20} /></button>
+            <h3>{t("success.sentTitle")}</h3>
+            <button onClick={handleCloseCart} className="btn-close-cart" aria-label={t("actions.close")}><X size={20} /></button>
           </header>
           <SuccessView
             onNewOrder={resetFlow}
@@ -1728,7 +1841,7 @@ export function CartModal({
         className="cart-panel"
         role="dialog"
         aria-modal="true"
-        aria-label="Tu pedido"
+        aria-label={t("dialog.currentOrderAria")}
         tabIndex={-1}
         data-checkout-phase={checkoutPhase}
         onClick={(e) => e.stopPropagation()}
@@ -1736,7 +1849,7 @@ export function CartModal({
         <header className="cart-header">
           <div className="cart-header-main">
             <div className="cart-header-title-row">
-              <h3>Tu Pedido</h3>
+              <h3>{t("header.title")}</h3>
               <span className="cart-count-badge">{filteredCart.length}</span>
             </div>
             {selectedBranch ? (
@@ -1746,7 +1859,7 @@ export function CartModal({
               </div>
             ) : null}
           </div>
-          <button onClick={handleCloseCart} className="btn-close-cart" aria-label="Cerrar"><X size={20} /></button>
+          <button onClick={handleCloseCart} className="btn-close-cart" aria-label={t("actions.close")}><X size={20} /></button>
         </header>
 
         {viewState.error ? (
@@ -1779,10 +1892,10 @@ export function CartModal({
                 ))}
               </div>
               <div className="cart-notes">
-                <label>Notas de cocina</label>
+                <label>{t("notes.label")}</label>
                 <textarea
                   className="form-input"
-                  placeholder="Ej: Sin sésamo..."
+                  placeholder={t("notes.placeholder")}
                   value={orderNote}
                   onChange={(event) => setOrderNote(event.target.value)}
                   rows={2}
@@ -1877,7 +1990,7 @@ export function CartModal({
                                     <span className="cart-enhance-tile-title">{extra.name}</span>
                                     <span className="cart-enhance-tile-sub">
                                       {active ? (
-                                        <span className="cart-enhance-tile-pill">En tu pedido</span>
+                                        <span className="cart-enhance-tile-pill">{t("catalog.inYourOrder")}</span>
                                       ) : (
                                         `$${formatCartMoney(extra.price)}`
                                       )}
@@ -1917,10 +2030,10 @@ export function CartModal({
                     role="group"
                     aria-label={
                       beveragesUpsellEnabledByBranch && extrasEnabledByBranch
-                        ? "Agregar bebidas o extras al pedido"
+                        ? t("catalog.addDrinksOrExtras")
                         : beveragesUpsellEnabledByBranch
-                          ? "Bebidas para tu pedido"
-                          : "Extras globales del pedido"
+                          ? t("catalog.drinksForOrder")
+                          : t("catalog.globalExtrasForOrder")
                     }
                   >
                     {beveragesUpsellEnabledByBranch ? (
@@ -1974,15 +2087,15 @@ export function CartModal({
             {!viewState.showPaymentInfo ? (
               <>
                 <div className="total-row">
-                  <span>Subtotal</span>
+                  <span>{t("summary.subtotal")}</span>
                   <span>${formatCartMoney(cartSubtotal)}</span>
                 </div>
                 {fulfillment === "delivery" && deliverySettings.enabled ? (
                   <div className="total-row total-row-delivery">
-                    <span>Envio</span>
+                    <span>{t("summary.shipping")}</span>
                     <span>
                       {deliveryWaivedFree
-                        ? "Gratis"
+                        ? t("summary.free")
                         : isDeliveryOutOfZone
                           ? "—"
                           : !deliveryShowNumericFee && deliveryExternalHintText
@@ -1992,13 +2105,13 @@ export function CartModal({
                   </div>
                 ) : null}
                 <div className="total-row total-row-grand">
-                  <span>Total</span>
+                  <span>{t("summary.total")}</span>
                   <span className="total-price">${formatCartMoney(grandTotal)}</span>
                 </div>
 
                 {isShiftLoading ? (
                   <button className="btn btn-primary btn-block btn-lg" disabled>
-                    Cargando...
+                    {t("actions.loading")}
                   </button>
                 ) : !canCheckout ? (
                   <div className="cash-closed-banner">
@@ -2022,7 +2135,7 @@ export function CartModal({
                     }}
                     className="btn btn-primary btn-block btn-lg"
                   >
-                    Ir a Pagar
+                    {t("actions.goToPay")}
                   </button>
                 )}
               </>
@@ -2038,9 +2151,9 @@ export function CartModal({
                             : "glass"
                         } ${fulfillment === "delivery" ? "cart-fulfillment-block--delivery-open" : ""}`}
                       >
-                      <div className="cart-fulfillment-title">Como quieres recibir tu pedido</div>
+                      <div className="cart-fulfillment-title">{t("delivery.howReceiveOrder")}</div>
                       <p className="cart-fulfillment-subtitle">
-                        Elige una opcion para continuar con el checkout.
+                        {t("delivery.fulfillmentSubtitle")}
                       </p>
                       <div className="cart-fulfillment-choice" ref={fulfillmentChoiceRef}>
                         <button
@@ -2049,7 +2162,7 @@ export function CartModal({
                           onClick={() => handleFulfillmentChange("pickup")}
                         >
                           <Store size={18} />
-                          Retiro
+                          {t("delivery.pickup")}
                         </button>
                         <button
                           type="button"
@@ -2057,7 +2170,7 @@ export function CartModal({
                           onClick={() => handleFulfillmentChange("delivery")}
                         >
                           <Truck size={18} />
-                          Delivery
+                          {t("delivery.delivery")}
                         </button>
                       </div>
                       {fulfillment === "delivery" && deliverySettings.enabled ? (
@@ -2070,7 +2183,7 @@ export function CartModal({
                           deliverySettings.namedAreaResolution === "manual_select" ? (
                             <>
                               <label className="cart-field-label" id="cart-named-area-label">
-                                Zona de entrega
+                                {t("delivery.zoneLabel")}
                               </label>
                               <CartNamedAreaSelect
                                 areas={deliverySettings.namedAreas}
@@ -2090,7 +2203,7 @@ export function CartModal({
                           {deliveryPriceMode === "named" &&
                           deliverySettings.namedAreaResolution === "address_matched" ? (
                             <p className="cart-delivery-note">
-                              Escribi calle, número y comuna; calculamos la tarifa según las zonas del local.
+                              {t("delivery.writeStreetNumberCommune")}
                             </p>
                           ) : null}
 
@@ -2102,22 +2215,18 @@ export function CartModal({
                                 onClick={requestDeliveryGeo}
                               >
                                 <MapPin size={17} aria-hidden />
-                                <span className="cart-geo-btn-copy">Usar ubicación actual</span>
+                                <span className="cart-geo-btn-copy">{t("delivery.useCurrentLocation")}</span>
                               </button>
                               <p className="cart-geo-helper">
-                                Calculamos el envío con mayor precisión.
+                                {t("delivery.preciseShippingHint")}
                               </p>
                               {geoHint ? <p className="cart-geo-hint">{geoHint}</p> : null}
                               <p className="cart-delivery-note">
-                                Escribí tu dirección completa (calle y número y, si puedes,
-                                la comuna). Con eso te cotizamos el envío y coordinamos
-                                el pedido por WhatsApp.
+                                {t("delivery.fullAddressHint")}
                               </p>
                               {deliveryAddressPrecision === "approx" ? (
                                 <p className="cart-fulfillment-warn">
-                                  Esta sugerencia es solo zona o ciudad: el mapa puede quedar lejos de
-                                  tu puerta. Preferí otra opción con dirección más específica, ajustá
-                                  calle o comuna, o usá <strong>Usar mi ubicación</strong>.
+                                  {t("delivery.approxHintPrefix")} <strong>{t("delivery.useMyLocationStrong")}</strong>.
                                 </p>
                               ) : null}
                             </>
@@ -2141,7 +2250,7 @@ export function CartModal({
                                 className="cart-field-label"
                                 htmlFor="cart-delivery-commune"
                               >
-                                Comuna o ciudad
+                                {t("delivery.communeOrCity")}
                               </label>
                               <input
                                 id="cart-delivery-commune"
@@ -2165,14 +2274,14 @@ export function CartModal({
                                     .join(", ");
                                   setUnifiedAddressSearch(merged);
                                 }}
-                                placeholder="Ej: Ñuñoa"
+                                placeholder={t("delivery.communePlaceholder")}
                               />
 
                               <label
                                 className="cart-field-label"
                                 htmlFor="cart-delivery-street"
                               >
-                                Calle
+                                {t("delivery.street")}
                               </label>
                               <input
                                 id="cart-delivery-street"
@@ -2194,14 +2303,14 @@ export function CartModal({
                                     .join(", ");
                                   setUnifiedAddressSearch(merged);
                                 }}
-                                placeholder="Ej: Avenida Vicuña Mackenna"
+                                placeholder={t("delivery.streetPlaceholder")}
                               />
 
                               <label
                                 className="cart-field-label"
                                 htmlFor="cart-delivery-number"
                               >
-                                Número
+                                {t("delivery.number")}
                               </label>
                               <input
                                 id="cart-delivery-number"
@@ -2224,14 +2333,14 @@ export function CartModal({
                                   setUnifiedAddressSearch(merged);
                                 }}
                                 inputMode="numeric"
-                                placeholder="Ej: 1432"
+                                placeholder={t("delivery.numberPlaceholder")}
                               />
                               </>
                             ) : null}
                         {SHOW_ADDRESS_SUGGESTIONS &&
                         mapAddressMode &&
                             addressSearchLoading ? (
-                              <p className="cart-geo-hint">Buscando direcciones…</p>
+                              <p className="cart-geo-hint">{t("delivery.searchingAddresses")}</p>
                             ) : null}
                         {SHOW_ADDRESS_SUGGESTIONS &&
                         mapAddressMode &&
@@ -2246,7 +2355,7 @@ export function CartModal({
                             addressHits.length > 0 ? (
                               <ul
                                 className="cart-address-hits"
-                                aria-label="Sugerencias de dirección"
+                                aria-label={t("delivery.addressSuggestionsAria")}
                               >
                                 {addressHits.map((hit, idx) => {
                                   const subtitle = hit.commune?.trim() || "";
@@ -2283,7 +2392,7 @@ export function CartModal({
                           mapAddressMode &&
                           lineGeocodeLoading ? (
                             <p className="cart-geo-hint">
-                              Actualizando ubicación con calle y número (recalculamos envío)…
+                              {t("delivery.updatingLocationFromStreet")}
                             </p>
                           ) : null}
 
@@ -2293,29 +2402,29 @@ export function CartModal({
                           ) : null}
 
                           <label className="cart-field-label">
-                            Indicaciones para el repartidor (obligatorio)
+                            {t("delivery.driverInstructionsRequired")}
                           </label>
                           <textarea
                             className="form-input"
                             rows={2}
                             value={deliveryReference}
                             onChange={(e) => setDeliveryReference(e.target.value)}
-                            placeholder="Depto, timbre, color de portón, referencias…"
+                            placeholder={t("delivery.driverInstructionsPlaceholder")}
                           />
                           {!deliveryReferenceOk && fulfillment === "delivery" ? (
                             <p className="cart-geo-hint">
-                              Minimo {MIN_DRIVER_REFERENCE_LEN} caracteres para que el repartidor te encuentre.
+                              {t("delivery.driverInstructionsMin", { min: MIN_DRIVER_REFERENCE_LEN })}
                             </p>
                           ) : null}
 
                           {deliveryQuoteLoading ? (
-                            <p className="cart-geo-hint">Calculando envío…</p>
+                            <p className="cart-geo-hint">{t("delivery.calculatingShipping")}</p>
                           ) : null}
                           {deliveryQuoteError ? (
                             <p className="cart-fulfillment-warn">{deliveryQuoteError}</p>
                           ) : null}
                           {deliveryNamedAreaLabel ? (
-                            <p className="cart-geo-hint">Zona detectada: {deliveryNamedAreaLabel}</p>
+                            <p className="cart-geo-hint">{t("delivery.detectedZone", { zone: deliveryNamedAreaLabel })}</p>
                           ) : null}
 
                           {fulfillment === "delivery" &&
@@ -2323,17 +2432,17 @@ export function CartModal({
                           quotedRouteKm != null &&
                           quotedRouteKm > 0 ? (
                             <div className="cart-delivery-quote">
-                              <span>Distancia aprox. (línea recta)</span>
+                              <span>{t("delivery.approxDistance")}</span>
                               <strong>{Math.round(Number(quotedRouteKm))} km</strong>
                             </div>
                           ) : null}
                           <div className="cart-delivery-quote cart-delivery-fee-row">
-                            <span>Costo de envío</span>
+                            <span>{t("delivery.shippingCost")}</span>
                             <strong>
                               {deliveryWaivedFree
-                                ? "Gratis"
+                                ? t("summary.free")
                                 : isDeliveryOutOfZone
-                                  ? "Fuera de zona"
+                                  ? t("delivery.outOfZone")
                                   : !deliveryShowNumericFee && deliveryExternalHintText
                                     ? deliveryExternalHintText
                                     : `$${formatCartMoney(deliveryFee)}`}
@@ -2341,12 +2450,12 @@ export function CartModal({
                           </div>
                           {!meetsMinDelivery ? (
                             <p className="cart-fulfillment-warn">
-                              El mínimo para delivery es ${formatCartMoney(minOrder)}.
+                              {t("delivery.minOrderForDelivery", { amount: formatCartMoney(minOrder) })}
                             </p>
                           ) : null}
                           {isDeliveryOutOfZone ? (
                             <p className="cart-fulfillment-warn">
-                              Tu ubicación supera el máximo de kilómetros de este local.
+                              {t("delivery.locationExceedsMaxKm")}
                             </p>
                           ) : null}
                         </div>
@@ -2354,7 +2463,7 @@ export function CartModal({
                     </div>
                     ) : (
                       <p className="cart-pickup-only-hint cart-pickup-only-hint--in-footer">
-                        Esta sucursal solo acepta retiro en el local.
+                        {t("delivery.pickupOnlyBranch")}
                       </p>
                     )}
                   </div>
@@ -2369,22 +2478,22 @@ export function CartModal({
                       mapAddressMode &&
                       !isValidCoordsForQuote()
                         ? deliveryPriceMode === "external"
-                          ? "Para cotizar el envío (Uber), ubicá el punto en el mapa o tocá «Usar ubicación actual»."
-                          : "Indicá tu ubicación en el mapa, escribí calle y número con comuna, o ingresá los km a mano para continuar."
+                          ? t("delivery.needLocationForUber")
+                          : t("delivery.needLocationStreetOrKm")
                         : fulfillment === "delivery" && !deliveryReferenceOk
-                          ? `Agrega indicaciones para el repartidor (minimo ${MIN_DRIVER_REFERENCE_LEN} caracteres).`
+                          ? t("delivery.addDriverInstructionsMin", { min: MIN_DRIVER_REFERENCE_LEN })
                           : isDeliveryOutOfZone
-                            ? "Tu ubicacion esta fuera del area de delivery de este local."
+                            ? t("delivery.locationOutsideArea")
                             : !meetsMinDelivery
-                              ? `Monto minimo para delivery: $${formatCartMoney(minOrder)}.`
+                              ? t("delivery.minAmountForDelivery", { amount: formatCartMoney(minOrder) })
                               : deliveryQuoteLoading &&
                                   (deliveryPriceMode === "distance" ||
                                     deliveryPriceMode === "external") &&
                                   isValidCoordsForQuote()
-                                ? "Calculando envio con tu ubicacion…"
+                                ? t("delivery.calculatingWithLocation")
                                 : deliveryQuoteError
                                   ? deliveryQuoteError
-                                  : "Completa los datos de envio para continuar."}
+                                  : t("delivery.completeDataToContinue")}
                     </span>
                   </div>
                 ) : (
@@ -2395,7 +2504,7 @@ export function CartModal({
                     }}
                     className="btn btn-primary btn-block btn-lg"
                   >
-                    Continuar a métodos de pago
+                    {t("actions.continueToPaymentMethods")}
                   </button>
                 )}
                 <button
@@ -2409,7 +2518,7 @@ export function CartModal({
                   className="btn btn-text btn-block mt-2"
                 >
                   <ArrowLeft size={16} className="mr-5" />
-                  Volver al resumen
+                  {t("actions.backToSummary")}
                 </button>
                 </div>
               </>
@@ -2502,6 +2611,7 @@ const PaymentFlow = ({
   setViewState: React.Dispatch<React.SetStateAction<CartModalViewState>>;
   viewState: CartModalViewState;
 }) => {
+  const t = useTranslations("tenant.cart.modal");
   const isOnline = paymentMethodKey && PAYMENT_METHOD_CONFIG[paymentMethodKey]?.isOnline;
   const requiresReceipt = Boolean(
     paymentMethodKey &&
@@ -2513,10 +2623,10 @@ const PaymentFlow = ({
   const showReceiptError = showFieldErrors && requiresReceipt && !validation.receipt;
   const topValidationMessage = showFieldErrors
     ? [
-        showNameError ? "nombre válido" : null,
-        showRutError ? "RUT válido" : null,
-        showPhoneError ? "teléfono completo (+56 9)" : null,
-        showReceiptError ? "comprobante de transferencia" : null,
+        showNameError ? t("validationItems.validName") : null,
+        showRutError ? t("validationItems.validRut") : null,
+        showPhoneError ? t("validationItems.validPhone") : null,
+        showReceiptError ? t("validationItems.transferReceipt") : null,
       ]
         .filter(Boolean)
         .join(", ")
@@ -2531,23 +2641,23 @@ const PaymentFlow = ({
           className="checkout-form payment-flow-surface payment-flow-surface--form"
         >
         <h4 className="form-title">
-          <MessageCircle size={18} /> Datos del Cliente
+          <MessageCircle size={18} /> {t("payment.clientData")}
         </h4>
         {topValidationMessage ? (
           <div className="checkout-validation-banner">
-            Revisa los siguientes campos: {topValidationMessage}.
+            {t("validation.reviewFields")}: {topValidationMessage}.
           </div>
         ) : null}
 
         <div className="form-group">
-          <label>Nombre</label>
+          <label>{t("payment.fields.name")}</label>
           <input
             type="text"
             required
             value={formData.name}
             onChange={(event) => onInputChange("name", event.target.value)}
             className={`form-input ${showNameError ? "input-error" : ""}`}
-            placeholder="Tu nombre"
+            placeholder={t("payment.fields.namePlaceholder")}
           />
         </div>
 
@@ -2566,7 +2676,7 @@ const PaymentFlow = ({
 
           <div className="form-group">
             <label>
-              Teléfono {validation.phone ? <CheckCircle2 size={14} color="#25d366" /> : null}
+              {t("payment.fields.phone")} {validation.phone ? <CheckCircle2 size={14} color="#25d366" /> : null}
             </label>
             <input
               type="tel"
@@ -2582,22 +2692,22 @@ const PaymentFlow = ({
         {requiresReceipt ? (
           <div className="form-group">
             <label>
-              Comprobante {validation.receipt ? <CheckCircle2 size={14} color="#25d366" /> : <span className="text-accent">*</span>}
+              {t("payment.fields.receipt")} {validation.receipt ? <CheckCircle2 size={14} color="#25d366" /> : <span className="text-accent">*</span>}
             </label>
             <div
               className="upload-box"
               onClick={() => document.getElementById("receipt-upload")?.click()}
               data-has-preview={formData.receiptPreview ? "true" : "false"}
             >
-              <input type="file" id="receipt-upload" accept="image/*" hidden onChange={onFileChange} aria-label="Subir comprobante" title="Subir comprobante" />
+              <input type="file" id="receipt-upload" accept="image/*" hidden onChange={onFileChange} aria-label={t("payment.fields.uploadReceipt")} title={t("payment.fields.uploadReceipt")} />
               {formData.receiptPreview ? (
                 <div className="file-preview-row">
-                  <Image src={formData.receiptPreview} alt="Comprobante" width={40} height={40} unoptimized />
-                  <span>Imagen cargada</span>
+                  <Image src={formData.receiptPreview} alt={t("payment.fields.receipt")} width={40} height={40} unoptimized />
+                  <span>{t("payment.fields.imageLoaded")}</span>
                 </div>
               ) : (
                 <div className="upload-placeholder">
-                  <Upload size={20} /> <span>Subir captura</span>
+                  <Upload size={20} /> <span>{t("payment.fields.uploadCapture")}</span>
                 </div>
               )}
             </div>
@@ -2612,21 +2722,21 @@ const PaymentFlow = ({
             onClick={() => {
               if (!validation.isReady) {
                 setShowFieldErrors(true);
-                let errorMsg = "Por favor completa correctamente:";
+                let errorMsg = `${t("validation.completeCorrectly")}:`;
                 const errors = [];
-                if (!validation.name) errors.push("nombre");
+                if (!validation.name) errors.push(t("validationItems.name"));
                 if (!validation.rut) errors.push("RUT");
-                if (!validation.phone) errors.push("teléfono");
-                if (!validation.receipt && requiresReceipt) errors.push("comprobante");
+                if (!validation.phone) errors.push(t("validationItems.phone"));
+                if (!validation.receipt && requiresReceipt) errors.push(t("validationItems.receipt"));
                 if (errors.length > 0) errorMsg += " " + errors.join(", ");
                 setViewState((prev) => ({ ...prev, error: errorMsg }));
               }
             }}
           >
-            {isSaving ? "Enviando..." : "Confirmar Pedido"}
+            {isSaving ? t("actions.sending") : t("actions.confirmOrder")}
           </button>
           <button type="button" className="btn btn-text btn-block" onClick={() => setShowForm(false)}>
-            <ArrowLeft size={16} className="mr-5" /> Volver atras
+            <ArrowLeft size={16} className="mr-5" /> {t("actions.back")}
           </button>
         </div>
       </form>
@@ -2647,19 +2757,19 @@ const PaymentFlow = ({
           <div key={paymentMethodKey} className="store-pay-info glass mb-20 payment-method-store-card">
             <Store size={32} className="text-accent" />
             <div>
-              <h4>{PAYMENT_METHOD_CONFIG[paymentMethodKey]?.label || "Pagar en Local"}</h4>
-              <p className="text-muted">Pagas en efectivo o tarjeta al retirar.</p>
+              <h4>{resolvePaymentMethodLabel(paymentMethodKey, t)}</h4>
+              <p className="text-muted">{t("payment.payInStoreHelp")}</p>
             </div>
-            <div className="pay-total">Total: ${formatCartMoney(cartTotal)}</div>
+            <div className="pay-total">{t("summary.total")}: ${formatCartMoney(cartTotal)}</div>
           </div>
         )}
 
         <button onClick={() => setShowForm(true)} className="btn btn-primary btn-block mt-4">
-          {isOnline ? "Ya pagué" : "Continuar"}
+          {isOnline ? t("actions.alreadyPaid") : t("actions.continue")}
         </button>
 
         <button onClick={() => setPaymentMethodKey(null)} className="btn btn-text btn-block mt-2">
-          <ArrowLeft size={16} className="mr-5" /> Elegir otro metodo
+          <ArrowLeft size={16} className="mr-5" /> {t("actions.chooseAnotherMethod")}
         </button>
       </div>
       </div>
@@ -2671,9 +2781,9 @@ const PaymentFlow = ({
   return (
     <div className="payment-flow">
       <div key="pick" className="payment-options payment-flow-surface payment-flow-surface--pick">
-      <h4 className="text-center mb-15 text-white">Metodo de Pago</h4>
+      <h4 className="text-center mb-15 text-white">{t("payment.title")}</h4>
       {activeMethods.length === 0 ? (
-        <div className="text-center text-sm text-gray-400 py-4">No hay métodos de pago disponibles para esta forma de entrega.</div>
+        <div className="text-center text-sm text-gray-400 py-4">{t("payment.noMethodsForFulfillment")}</div>
       ) : (
         activeMethods.map((methodKey, idx) => {
           const config = PAYMENT_METHOD_CONFIG[methodKey];
@@ -2686,13 +2796,13 @@ const PaymentFlow = ({
               className={`btn btn-secondary btn-block payment-opt payment-opt--delay-${Math.min(idx, 10)}`}
               onClick={() => setPaymentMethodKey(methodKey)}
             >
-              {Icon && <Icon size={20} className="mr-5" />} {config.label}
+              {Icon && <Icon size={20} className="mr-5" />} {resolvePaymentMethodLabel(methodKey, t)}
             </button>
           );
         })
       )}
       <button onClick={onBack} className="btn btn-text btn-block mt-2">
-        Cancelar
+        {t("actions.cancel")}
       </button>
     </div>
     </div>
@@ -2700,6 +2810,7 @@ const PaymentFlow = ({
 };
 
 const OnlinePaymentDetails = ({ methodKey, cartTotal, activeInfo }: { methodKey: string; cartTotal: number; activeInfo: ActiveSessionInfo }) => {
+  const t = useTranslations("tenant.cart.modal");
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
   };
@@ -2727,61 +2838,61 @@ const OnlinePaymentDetails = ({ methodKey, cartTotal, activeInfo }: { methodKey:
     }
 
     if (!methodData || typeof methodData !== "object") {
-      return <p className="bank-empty-msg">Sin datos configurados para {PAYMENT_METHOD_CONFIG[methodKey]?.label || methodKey}.</p>;
+      return <p className="bank-empty-msg">{t("payment.noDataConfiguredFor")} {resolvePaymentMethodLabel(methodKey, t)}.</p>;
     }
 
     if (methodKey === 'transferencia_bancaria') {
       const data = methodData as BranchInfo['transferencia_bancaria'] | null | undefined;
-      if (!data) return <p className="bank-empty-msg">Sin datos bancarios configurados.</p>;
+      if (!data) return <p className="bank-empty-msg">{t("payment.noBankData")}</p>;
       const bankName = data.banco;
       const hasAccount = data.nro_cuenta || data.identificacion;
-      if (!bankName && !hasAccount) return <p className="bank-empty-msg">Sin datos bancarios configurados.</p>;
+      if (!bankName && !hasAccount) return <p className="bank-empty-msg">{t("payment.noBankData")}</p>;
       return (
         <ul className="bank-details-list">
-          {bankName && <li><span>Banco:</span> <b>{bankName}</b></li>}
-          {data.tipo_cuenta && <li><span>Tipo de cuenta:</span> <b>{data.tipo_cuenta}</b></li>}
-          {renderRow("Número de cuenta", data.nro_cuenta)}
-          {renderRow("RUT / Cédula", data.identificacion)}
-          {data.titular && <li><span>Titular:</span> <b>{data.titular}</b></li>}
-          {renderRow("Correo", data.email)}
+          {bankName && <li><span>{t("payment.configLabels.bank")}:</span> <b>{bankName}</b></li>}
+          {data.tipo_cuenta && <li><span>{t("payment.configLabels.accountType")}:</span> <b>{data.tipo_cuenta}</b></li>}
+          {renderRow(t("payment.configLabels.accountNumber"), data.nro_cuenta)}
+          {renderRow(t("payment.configLabels.document"), data.identificacion)}
+          {data.titular && <li><span>{t("payment.configLabels.holder")}:</span> <b>{data.titular}</b></li>}
+          {renderRow(t("payment.configLabels.email"), data.email)}
         </ul>
       );
     }
 
     if (methodKey === 'pago_movil') {
       const data = methodData as BranchInfo['pago_movil'] | null | undefined;
-      if (!data || !data.telefono || !data.banco) return <p className="bank-empty-msg">Sin datos de Pago Móvil.</p>;
+      if (!data || !data.telefono || !data.banco) return <p className="bank-empty-msg">{t("payment.noMobilePaymentData")}</p>;
       return (
         <ul className="bank-details-list">
-          {data.banco && <li><span>Banco:</span> <b>{data.banco}</b></li>}
-          {renderRow("Teléfono", data.telefono)}
-          {renderRow("Cédula", data.identificacion)}
+          {data.banco && <li><span>{t("payment.configLabels.bank")}:</span> <b>{data.banco}</b></li>}
+          {renderRow(t("payment.configLabels.phone"), data.telefono)}
+          {renderRow(t("payment.configLabels.idCard"), data.identificacion)}
         </ul>
       );
     }
 
     if (methodKey === 'zelle') {
       const data = methodData as BranchInfo['zelle'] | null | undefined;
-      if (!data || !data.email) return <p className="bank-empty-msg">Sin datos de Zelle.</p>;
+      if (!data || !data.email) return <p className="bank-empty-msg">{t("payment.noZelleData")}</p>;
       return (
         <ul className="bank-details-list">
-          {renderRow("Correo Zelle", data.email)}
-          {data.name && <li><span>Titular:</span> <b>{data.name}</b></li>}
+          {renderRow(t("payment.configLabels.zelleEmail"), data.email)}
+          {data.name && <li><span>{t("payment.configLabels.holder")}:</span> <b>{data.name}</b></li>}
         </ul>
       );
     }
 
     // Fallback genérico para otros métodos (stripe, mercadopago, paypal, etc)
     const CART_CONFIG_LABELS: Record<string, string> = {
-      email: "Correo",
-      name: "Titular",
-      banco: "Banco",
-      telefono: "Teléfono",
-      identificacion: "RUT / Cédula",
-      tipo_cuenta: "Tipo de cuenta",
-      nro_cuenta: "Número de cuenta",
-      titular: "Titular",
-      connected: "Conectado",
+      email: t("payment.configLabels.email"),
+      name: t("payment.configLabels.holder"),
+      banco: t("payment.configLabels.bank"),
+      telefono: t("payment.configLabels.phone"),
+      identificacion: t("payment.configLabels.document"),
+      tipo_cuenta: t("payment.configLabels.accountType"),
+      nro_cuenta: t("payment.configLabels.accountNumber"),
+      titular: t("payment.configLabels.holder"),
+      connected: t("payment.configLabels.connected"),
     };
     const entries = Object.entries(methodData).filter(([, v]) => v && typeof v === "string");
     if (entries.length > 0) {
@@ -2797,14 +2908,14 @@ const OnlinePaymentDetails = ({ methodKey, cartTotal, activeInfo }: { methodKey:
       );
     }
 
-    return <p className="bank-empty-msg">Sigue las instrucciones para pagar con {PAYMENT_METHOD_CONFIG[methodKey]?.label}.</p>;
+    return <p className="bank-empty-msg">{t("payment.followInstructions")} {resolvePaymentMethodLabel(methodKey, t)}.</p>;
   };
 
   return (
     <div className="bank-info glass payment-method-bank-card" key={methodKey}>
-      <h4>Datos de Pago</h4>
+      <h4>{t("payment.detailsTitle")}</h4>
       {renderDetails()}
-      <div className="pay-total">Total: ${formatCartMoney(cartTotal)}</div>
+      <div className="pay-total">{t("summary.total")}: ${formatCartMoney(cartTotal)}</div>
     </div>
   );
 };
@@ -2827,6 +2938,7 @@ const SuccessView = ({
     fulfillment: CartFulfillment;
   } | null;
 }) => {
+  const t = useTranslations("tenant.cart.modal");
   const copyText = (text: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(text).catch(() => {});
@@ -2846,13 +2958,13 @@ const SuccessView = ({
       <div className="success-icon-circle">
         <Check size={40} />
       </div>
-      <h2 className="text-accent">¡Pedido Recibido!</h2>
+      <h2 className="text-accent">{t("success.title")}</h2>
       <p className="success-description">
-        Listo. Te contactaremos por WhatsApp para coordinar tu pago.
+        {t("success.description")}
       </p>
       {receiptUploadFailed ? (
         <p className="cart-receipt-fallback cart-receipt-fallback-warning">
-          No se pudo subir el comprobante. Por favor envialo por WhatsApp cuando abras el chat.
+          {t("success.receiptUploadFailed")}
         </p>
       ) : null}
       {showDeliveryCodes ? (
@@ -2866,23 +2978,23 @@ const SuccessView = ({
           <div className="order-summary-card cart-success-codes-card">
             {orderLabel ? (
               <>
-                <div className="summary-label">Tu pedido</div>
+                <div className="summary-label">{t("success.yourOrder")}</div>
                 <button
                   type="button"
                   className="summary-value summary-copy-row"
                   onClick={() => copyText(orderLabel.replace("#", ""))}
-                  aria-label="Copiar número de pedido"
+                  aria-label={t("success.copyOrderNumber")}
                 >
                   <b>{orderLabel}</b> <Copy size={14} />
                 </button>
               </>
             ) : null}
-            <div className="summary-label">Codigo de entrega</div>
+            <div className="summary-label">{t("success.deliveryCode")}</div>
             <button
               type="button"
               className="summary-value summary-mono summary-copy-row"
               onClick={() => copyText(lastOrder?.handoff_code ?? "")}
-              aria-label="Copiar código de entrega"
+              aria-label={t("success.copyDeliveryCode")}
             >
               <b>{lastOrder?.handoff_code}</b> <Copy size={14} />
             </button>
@@ -2890,12 +3002,12 @@ const SuccessView = ({
         </>
       ) : (
         <div className="order-summary-card">
-          <div className="summary-label">Retiro en</div>
-          <div className="summary-value">{activeInfo?.address || "Direccion no disponible"}</div>
-          <div className="text-xs text-muted">{activeInfo?.name || "Nombre del local"}</div>
+          <div className="summary-label">{t("success.pickupAt")}</div>
+          <div className="summary-value">{activeInfo?.address || t("success.addressUnavailable")}</div>
+          <div className="text-xs text-muted">{activeInfo?.name || t("success.storeNameFallback")}</div>
           {orderLabel ? (
             <>
-              <div className="summary-label">N° pedido</div>
+              <div className="summary-label">{t("success.orderNumber")}</div>
               <div className="summary-value">{orderLabel}</div>
             </>
           ) : null}
@@ -2903,10 +3015,10 @@ const SuccessView = ({
       )}
       <div className="success-actions">
         <button className="btn btn-primary btn-block" onClick={onNewOrder}>
-          Nuevo Pedido
+          {t("actions.newOrder")}
         </button>
         <button className="btn btn-secondary btn-block" onClick={onGoHome}>
-          Volver al Menu
+          {t("actions.backToMenu")}
         </button>
       </div>
     </div>
@@ -2951,15 +3063,18 @@ function CartEnhanceCatalogGlyph({
   );
 }
 
-const EmptyState = ({ onMenu }: { onMenu: () => void }) => (
+const EmptyState = ({ onMenu }: { onMenu: () => void }) => {
+  const t = useTranslations("tenant.cart.modal");
+  return (
   <div className="empty-state">
     <span className="empty-emoji">🍽️</span>
-    <h3>Bandeja Vacia</h3>
+    <h3>{t("empty.title")}</h3>
     <button onClick={onMenu} className="btn btn-secondary mt-20">
-      Ir al Menu
+      {t("actions.backToMenu")}
     </button>
   </div>
-);
+  );
+};
 
 const CartItem = ({
   item,
@@ -2980,6 +3095,7 @@ const CartItem = ({
   ) => void;
   onDecrease: (id: string) => void;
 }) => {
+  const t = useTranslations("tenant.cart.modal");
   const optimizedSrc = getCloudinaryOptimizedUrl(item.image_url ?? null, {
     width: 120,
     height: 120,
@@ -3020,7 +3136,7 @@ const CartItem = ({
       ) : (
         <Image
           src={imageSrc}
-          alt={item.name ?? "Producto"}
+          alt={item.name ?? t("item.productFallback")}
           width={65}
           height={65}
           unoptimized
@@ -3036,8 +3152,8 @@ const CartItem = ({
         <button
           onClick={() => onRemove(item.lineId ?? item.id)}
           className="btn-trash"
-          aria-label="Quitar producto"
-          title="Quitar producto"
+          aria-label={t("item.removeProduct")}
+          title={t("item.removeProduct")}
         >
           <Trash2 size={16} />
         </button>
@@ -3050,8 +3166,8 @@ const CartItem = ({
         <div className="qty-control-sm">
           <button
             onClick={() => onDecrease(item.lineId ?? item.id)}
-            aria-label="Disminuir cantidad"
-            title="Disminuir cantidad"
+            aria-label={t("item.decreaseQuantity")}
+            title={t("item.decreaseQuantity")}
           >
             <Minus size={12} />
           </button>
@@ -3063,8 +3179,8 @@ const CartItem = ({
                 selectedBeverages: item.selected_beverages ?? [],
               })
             }
-            aria-label="Aumentar cantidad"
-            title="Aumentar cantidad"
+            aria-label={t("item.increaseQuantity")}
+            title={t("item.increaseQuantity")}
           >
             <Plus size={12} />
           </button>
