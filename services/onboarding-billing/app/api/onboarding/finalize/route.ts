@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
 
 		const { data: payment, error: payError } = await supabaseAdmin
 			.from("payments_history")
-			.select("id,company_id,plan_id,status")
+			.select("id,company_id,plan_id,status,payment_method_slug,payer_email_normalized,paypal_payer_id_hash")
 			.eq("payment_reference", ref)
 			.maybeSingle();
 
@@ -100,6 +100,8 @@ export async function POST(req: NextRequest) {
 
 		const stripeSecret = process.env.STRIPE_SECRET_KEY ?? "";
 		let cardFingerprintHash: string | null = null;
+		const isPayPalPayment = (payment.payment_method_slug ?? "").trim().toLowerCase() === "paypal";
+		let paypalPayerIdHash: string | null = null;
 		if (ref.startsWith("cs_") && stripeSecret) {
 			const fingerprint = await getStripeCardFingerprintFromCheckoutSession(ref, stripeSecret);
 			if (fingerprint) {
@@ -122,12 +124,55 @@ export async function POST(req: NextRequest) {
 			}
 		}
 
-		if (payerEmail || cardFingerprintHash) {
+		if (isPayPalPayment) {
+			const storedPayerIdHash = payment.paypal_payer_id_hash?.trim() || null;
+			const storedPayerEmail = normalizeEmail(payment.payer_email_normalized);
+			paypalPayerIdHash = storedPayerIdHash;
+
+			if (storedPayerIdHash) {
+				const { data: duplicatePaypalPayment } = await supabaseAdmin
+					.from("payments_history")
+					.select("id,company_id")
+					.eq("paypal_payer_id_hash", storedPayerIdHash)
+					.in("status", ["paid", "approved"])
+					.neq("id", payment.id)
+					.limit(1)
+					.maybeSingle();
+
+				if (duplicatePaypalPayment?.id && duplicatePaypalPayment.company_id !== payment.company_id) {
+					return NextResponse.json(
+						{ error: "Esta cuenta de PayPal ya fue usada para un primer mes gratis. Usa una cuenta existente o un plan de pago." },
+						{ status: 409 }
+					);
+				}
+			}
+
+			if (storedPayerEmail) {
+				const { data: duplicatePaypalEmailPayment } = await supabaseAdmin
+					.from("payments_history")
+					.select("id,company_id")
+					.eq("payer_email_normalized", storedPayerEmail)
+					.in("status", ["paid", "approved"])
+					.neq("id", payment.id)
+					.limit(1)
+					.maybeSingle();
+
+				if (duplicatePaypalEmailPayment?.id && duplicatePaypalEmailPayment.company_id !== payment.company_id) {
+					return NextResponse.json(
+						{ error: "Este correo de PayPal ya fue usado para un primer mes gratis. Usa una cuenta existente o un plan de pago." },
+						{ status: 409 }
+					);
+				}
+			}
+		}
+
+		if (payerEmail || cardFingerprintHash || paypalPayerIdHash) {
 			await supabaseAdmin
 				.from("payments_history")
 				.update({
 					payer_email_normalized: payerEmail || null,
 					card_fingerprint_hash: cardFingerprintHash,
+					paypal_payer_id_hash: paypalPayerIdHash,
 				})
 				.eq("id", payment.id);
 		}

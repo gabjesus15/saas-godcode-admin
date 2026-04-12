@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { useLocale } from "next-intl";
@@ -12,6 +12,12 @@ const COPY = {
 	es: {
 		errorSubmit: "Error al enviar la solicitud",
 		errorUnexpected: "Error inesperado",
+		resend: "Reenviar correo",
+		resending: "Reenviando...",
+		resendWait: "Espera {seconds}s para reenviar",
+		resendSuccess: "Correo reenviado. Revisa tu bandeja.",
+		resendAlready: "Tu correo ya fue verificado. Puedes continuar.",
+		resendError: "No pudimos reenviar el correo",
 		successTitle: "Solicitud enviada",
 		successPrefix: "Enviamos un correo de verificación a",
 		successSuffix: "Revisa tu bandeja y haz clic en el enlace para continuar.",
@@ -30,6 +36,12 @@ const COPY = {
 	en: {
 		errorSubmit: "Could not submit the request",
 		errorUnexpected: "Unexpected error",
+		resend: "Resend email",
+		resending: "Resending...",
+		resendWait: "Wait {seconds}s to resend",
+		resendSuccess: "Email resent. Check your inbox.",
+		resendAlready: "Your email is already verified. You can continue.",
+		resendError: "Could not resend email",
 		successTitle: "Request sent",
 		successPrefix: "We sent a verification email to",
 		successSuffix: "Check your inbox and click the link to continue.",
@@ -52,6 +64,9 @@ export function OnboardingStep1Form() {
 	const t = COPY[locale.toLowerCase().startsWith("es") ? "es" : "en"];
 
 	const [loading, setLoading] = useState(false);
+	const [resending, setResending] = useState(false);
+	const [resendCooldown, setResendCooldown] = useState(0);
+	const [resendMessage, setResendMessage] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [success, setSuccess] = useState(false);
 	const [form, setForm] = useState({
@@ -93,6 +108,37 @@ export function OnboardingStep1Form() {
 		}
 	};
 
+	const handleResend = async () => {
+		if (!form.email || resendCooldown > 0 || resending) return;
+		setResending(true);
+		setResendMessage(null);
+		try {
+			const res = await fetch("/api/onboarding/resend-verification", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ email: form.email }),
+			});
+			const data = await res.json().catch(() => ({}));
+			if (!res.ok) {
+				throw new Error(data.error ?? t.resendError);
+			}
+			setResendMessage(data.alreadyVerified ? t.resendAlready : t.resendSuccess);
+			setResendCooldown(45);
+		} catch (err) {
+			setResendMessage(err instanceof Error ? err.message : t.resendError);
+		} finally {
+			setResending(false);
+		}
+	};
+
+	useEffect(() => {
+		if (resendCooldown <= 0) return undefined;
+		const timer = setInterval(() => {
+			setResendCooldown((prev) => (prev <= 1 ? 0 : prev - 1));
+		}, 1000);
+		return () => clearInterval(timer);
+	}, [resendCooldown]);
+
 	if (success) {
 		return (
 			<div className="onboarding-success-card w-full max-w-lg p-6 text-center sm:p-8">
@@ -106,6 +152,24 @@ export function OnboardingStep1Form() {
 				<p className="mt-3 text-xs text-slate-400">
 					{t.successSpam}
 				</p>
+				<div className="mt-5 space-y-2">
+					<Button
+						type="button"
+						variant="outline"
+						onClick={handleResend}
+						disabled={resending || resendCooldown > 0}
+						className="w-full"
+					>
+						{resending
+							? t.resending
+							: resendCooldown > 0
+								? t.resendWait.replace("{seconds}", String(resendCooldown))
+								: t.resend}
+					</Button>
+					{resendMessage ? (
+						<p className="text-xs text-slate-500">{resendMessage}</p>
+					) : null}
+				</div>
 			</div>
 		);
 	}

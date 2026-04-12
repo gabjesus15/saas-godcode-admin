@@ -1,11 +1,19 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useLocale } from "next-intl";
 import { Check } from "lucide-react";
 
 import { Button } from "../ui/button";
+import { resolveRegionalPlanPrice, resolveContinentFromCountryInput } from "../../lib/plan-regional-pricing";
 
-type Plan = { id: string; name: string | null; price: number | null; max_branches: number | null };
+type Plan = {
+  id: string;
+  name: string | null;
+  price: number | null;
+  pricesByContinent?: Record<string, { price: number; currency: string }> | null;
+  max_branches: number | null;
+};
 
 const INTERNAL_PLAN_NAMES = ["dev", "desarrollo", "internal", "test"];
 const BETA_PLAN_NAMES = ["beta"];
@@ -33,6 +41,157 @@ type Addon = {
 type AddonChoice = { addon_id: string; quantity: number; price_snapshot: number | null };
 
 const MANUAL_SUBSCRIPTION_SLUGS = new Set(["pago_movil", "zelle", "transferencia"]);
+
+const STEP2_COPY = {
+  es: {
+    countryLabel: "País *",
+    countryPlaceholder: "Selecciona tu país",
+    currencyLabel: "Moneda del negocio *",
+    currencyPlaceholder: "Selecciona moneda",
+    planLabel: "Elige tu plan *",
+    addonsLabel: "Servicios extra",
+    summaryLabel: "Resumen",
+    monthlyTotalLabel: "Total mensual",
+    oneTimeLabel: "Pago único",
+    paymentMethodLabel: "Método de pago *",
+    cardTitle: "Tarjeta (Stripe)",
+    cardDescription: "Débito o crédito.",
+    paypalDescription: "Redirigido a PayPal.",
+    manualDescription: "Instrucciones en el siguiente paso.",
+    continueButton: "Ir a pagar",
+    betaUsedLabel: "Ya usaste el plan beta.",
+    monthsSuffix: "/mes",
+    planRegionPrefix: "Precio para",
+    branchesSuffixSingular: "sucursal",
+    branchesSuffixPlural: "sucursales",
+  },
+  en: {
+    countryLabel: "Country *",
+    countryPlaceholder: "Select your country",
+    currencyLabel: "Business currency *",
+    currencyPlaceholder: "Select currency",
+    planLabel: "Choose your plan *",
+    addonsLabel: "Extra services",
+    summaryLabel: "Summary",
+    monthlyTotalLabel: "Monthly total",
+    oneTimeLabel: "One-time payment",
+    paymentMethodLabel: "Payment method *",
+    cardTitle: "Card (Stripe)",
+    cardDescription: "Debit or credit.",
+    paypalDescription: "Redirected to PayPal.",
+    manualDescription: "Instructions in the next step.",
+    continueButton: "Go to payment",
+    betaUsedLabel: "You already used the beta plan.",
+    monthsSuffix: "/month",
+    planRegionPrefix: "Price for",
+    branchesSuffixSingular: "branch",
+    branchesSuffixPlural: "branches",
+  },
+  pt: {
+    countryLabel: "País *",
+    countryPlaceholder: "Selecione seu país",
+    currencyLabel: "Moeda do negócio *",
+    currencyPlaceholder: "Selecione a moeda",
+    planLabel: "Escolha seu plano *",
+    addonsLabel: "Serviços extras",
+    summaryLabel: "Resumo",
+    monthlyTotalLabel: "Total mensal",
+    oneTimeLabel: "Pagamento único",
+    paymentMethodLabel: "Método de pagamento *",
+    cardTitle: "Cartão (Stripe)",
+    cardDescription: "Débito ou crédito.",
+    paypalDescription: "Redirecionado para o PayPal.",
+    manualDescription: "Instruções na próxima etapa.",
+    continueButton: "Ir para o pagamento",
+    betaUsedLabel: "Você já usou o plano beta.",
+    monthsSuffix: "/mês",
+    planRegionPrefix: "Preço para",
+    branchesSuffixSingular: "filial",
+    branchesSuffixPlural: "filiais",
+  },
+  fr: {
+    countryLabel: "Pays *",
+    countryPlaceholder: "Sélectionnez votre pays",
+    currencyLabel: "Devise de l’entreprise *",
+    currencyPlaceholder: "Sélectionnez la devise",
+    planLabel: "Choisissez votre offre *",
+    addonsLabel: "Services supplémentaires",
+    summaryLabel: "Résumé",
+    monthlyTotalLabel: "Total mensuel",
+    oneTimeLabel: "Paiement unique",
+    paymentMethodLabel: "Moyen de paiement *",
+    cardTitle: "Carte (Stripe)",
+    cardDescription: "Débit ou crédit.",
+    paypalDescription: "Redirigé vers PayPal.",
+    manualDescription: "Instructions à l’étape suivante.",
+    continueButton: "Aller au paiement",
+    betaUsedLabel: "Vous avez déjà utilisé l’offre bêta.",
+    monthsSuffix: "/mois",
+    planRegionPrefix: "Prix pour",
+    branchesSuffixSingular: "succursale",
+    branchesSuffixPlural: "succursales",
+  },
+  de: {
+    countryLabel: "Land *",
+    countryPlaceholder: "Land auswählen",
+    currencyLabel: "Währung des Unternehmens *",
+    currencyPlaceholder: "Währung auswählen",
+    planLabel: "Wählen Sie Ihren Plan *",
+    addonsLabel: "Zusatzleistungen",
+    summaryLabel: "Zusammenfassung",
+    monthlyTotalLabel: "Monatliche Gesamtsumme",
+    oneTimeLabel: "Einmalige Zahlung",
+    paymentMethodLabel: "Zahlungsmethode *",
+    cardTitle: "Karte (Stripe)",
+    cardDescription: "Debit oder Kredit.",
+    paypalDescription: "Weiterleitung zu PayPal.",
+    manualDescription: "Anweisungen im nächsten Schritt.",
+    continueButton: "Zur Zahlung",
+    betaUsedLabel: "Sie haben den Beta-Plan bereits genutzt.",
+    monthsSuffix: "/Monat",
+    planRegionPrefix: "Preis für",
+    branchesSuffixSingular: "Filiale",
+    branchesSuffixPlural: "Filialen",
+  },
+  it: {
+    countryLabel: "Paese *",
+    countryPlaceholder: "Seleziona il tuo paese",
+    currencyLabel: "Valuta dell’attività *",
+    currencyPlaceholder: "Seleziona la valuta",
+    planLabel: "Scegli il tuo piano *",
+    addonsLabel: "Servizi extra",
+    summaryLabel: "Riepilogo",
+    monthlyTotalLabel: "Totale mensile",
+    oneTimeLabel: "Pagamento unico",
+    paymentMethodLabel: "Metodo di pagamento *",
+    cardTitle: "Carta (Stripe)",
+    cardDescription: "Debito o credito.",
+    paypalDescription: "Reindirizzato a PayPal.",
+    manualDescription: "Istruzioni nel passaggio successivo.",
+    continueButton: "Vai al pagamento",
+    betaUsedLabel: "Hai già usato il piano beta.",
+    monthsSuffix: "/mese",
+    planRegionPrefix: "Prezzo per",
+    branchesSuffixSingular: "filiale",
+    branchesSuffixPlural: "filiali",
+  },
+} as const;
+
+function getStep2Copy(locale: string) {
+  const normalized = String(locale ?? "es").toLowerCase();
+  const short = normalized.startsWith("en")
+    ? "en"
+    : normalized.startsWith("pt")
+      ? "pt"
+      : normalized.startsWith("fr")
+        ? "fr"
+        : normalized.startsWith("de")
+          ? "de"
+          : normalized.startsWith("it")
+            ? "it"
+            : "es";
+  return STEP2_COPY[short as keyof typeof STEP2_COPY] ?? STEP2_COPY.es;
+}
 
 function normalizeSubscriptionMethod(raw: string | null | undefined): string {
   const t = (raw ?? "").trim().toLowerCase();
@@ -89,6 +248,8 @@ export function OnboardingStep2Form({
   plans: Plan[];
   addons?: Addon[];
 }) {
+  const locale = useLocale();
+  const copy = useMemo(() => getStep2Copy(locale), [locale]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [planPaymentMethods, setPlanPaymentMethods] = useState<PlanPaymentMethod[]>([]);
@@ -155,12 +316,21 @@ export function OnboardingStep2Form({
 
   const manualMethods = planPaymentMethods.filter((m) => MANUAL_SUBSCRIPTION_SLUGS.has(m.slug));
   const selectedPlan = plans.find((p) => p.id === planId);
+  const selectedCountryRegion = useMemo(() => resolveContinentFromCountryInput(country), [country]);
+  const selectedPlanRegionalPrice = useMemo(
+    () => (selectedPlan ? resolveRegionalPlanPrice(selectedPlan, country) : null),
+    [selectedPlan, country],
+  );
 
   // Cart summary
   const cartLines = useMemo(() => {
     const lines: { label: string; amount: number; type: "monthly" | "one_time" }[] = [];
     if (selectedPlan) {
-      lines.push({ label: selectedPlan.name ?? "Plan", amount: Number(selectedPlan.price ?? 0), type: "monthly" });
+      lines.push({
+        label: `${selectedPlan.name ?? "Plan"} · ${selectedCountryRegion}`,
+        amount: Number(selectedPlanRegionalPrice?.price ?? selectedPlan.price ?? 0),
+        type: "monthly",
+      });
     }
     for (const sa of selectedAddons) {
       const addon = addons.find((a) => a.id === sa.addon_id);
@@ -173,7 +343,7 @@ export function OnboardingStep2Form({
       });
     }
     return lines;
-  }, [selectedPlan, selectedAddons, addons]);
+  }, [selectedPlan, selectedCountryRegion, selectedPlanRegionalPrice, selectedAddons, addons]);
 
   const monthlyTotal = cartLines.filter((l) => l.type === "monthly").reduce((s, l) => s + l.amount, 0);
   const oneTimeTotal = cartLines.filter((l) => l.type === "one_time").reduce((s, l) => s + l.amount, 0);
@@ -214,26 +384,26 @@ export function OnboardingStep2Form({
       {/* Country + Currency */}
       <div className="onboarding-card grid gap-4 p-5 sm:grid-cols-2 sm:p-7">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          País *
+          {copy.countryLabel}
           <select
             className="onboarding-input h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none"
             value={country}
             onChange={(e) => setCountry(e.target.value)}
             required
           >
-            <option value="">Selecciona tu país</option>
+            <option value="">{copy.countryPlaceholder}</option>
             {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </label>
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Moneda del negocio *
+          {copy.currencyLabel}
           <select
             className="onboarding-input h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none"
             value={currency}
             onChange={(e) => setCurrency(e.target.value)}
             required
           >
-            <option value="">Selecciona moneda</option>
+            <option value="">{copy.currencyPlaceholder}</option>
             {CURRENCIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
         </label>
@@ -241,7 +411,7 @@ export function OnboardingStep2Form({
 
       {/* Plans */}
       <div>
-        <h3 className="mb-3 text-sm font-semibold text-slate-900">Elige tu plan *</h3>
+        <h3 className="mb-3 text-sm font-semibold text-slate-900">{copy.planLabel}</h3>
         <div className={`grid gap-3 ${visiblePlans.length >= 3 ? "sm:grid-cols-3" : visiblePlans.length === 2 ? "sm:grid-cols-2" : ""}`}>
           {visiblePlans.map((plan) => {
             const isBeta = isPlanBeta(plan);
@@ -266,14 +436,17 @@ export function OnboardingStep2Form({
                 )}
                 <span className="text-sm font-bold text-slate-900">{plan.name ?? "Plan"}</span>
                 <span className="mt-1 text-2xl font-bold text-slate-900">
-                  {usdFmt.format(Number(plan.price ?? 0))}
-                  <span className="text-sm font-normal text-slate-400">/mes</span>
+                  {usdFmt.format(Number(resolveRegionalPlanPrice(plan, country).price))}
+                  <span className="text-sm font-normal text-slate-400">{copy.monthsSuffix}</span>
                 </span>
-                <span className="mt-2 text-xs text-slate-500">
-                  Hasta {isBeta ? 2 : plan.max_branches ?? 1} sucursal{(isBeta ? 2 : Number(plan.max_branches)) > 1 ? "es" : ""}
+                <span className="text-xs text-slate-400">
+                  {copy.planRegionPrefix} {resolveRegionalPlanPrice(plan, country).continent}
+                </span>
+                <span className="text-xs text-slate-400">
+                  Hasta {isBeta ? 2 : plan.max_branches ?? 1} {((isBeta ? 2 : Number(plan.max_branches ?? 1)) > 1) ? copy.branchesSuffixPlural : copy.branchesSuffixSingular}
                 </span>
                 {isBeta && betaDisabled && (
-                  <span className="mt-2 text-xs text-red-500">Ya usaste el plan beta.</span>
+                  <span className="mt-2 text-xs text-red-500">{copy.betaUsedLabel}</span>
                 )}
               </button>
             );
@@ -284,11 +457,11 @@ export function OnboardingStep2Form({
       {/* Addons */}
       {addons.length > 0 && (
         <div>
-          <h3 className="mb-3 text-sm font-semibold text-slate-900">Servicios extra</h3>
+          <h3 className="mb-3 text-sm font-semibold text-slate-900">{copy.addonsLabel}</h3>
           <div className="space-y-2">
             {addons.map((addon) => {
               const price = addon.type === "monthly" ? addon.price_monthly : addon.price_one_time;
-              const suffix = addon.type === "monthly" ? "/mes" : " único";
+              const suffix = addon.type === "monthly" ? copy.monthsSuffix : " único";
               const isSelected = selectedAddons.some((a) => a.addon_id === addon.id);
               return (
                 <label
@@ -335,13 +508,13 @@ export function OnboardingStep2Form({
       {/* Cart summary */}
       {cartLines.length > 0 && (
         <div className="onboarding-card p-5 sm:p-7">
-          <h3 className="mb-4 text-sm font-semibold text-slate-900">Resumen</h3>
+          <h3 className="mb-4 text-sm font-semibold text-slate-900">{copy.summaryLabel}</h3>
           <div className="space-y-2">
             {cartLines.map((line, i) => (
               <div key={i} className="flex items-center justify-between text-sm">
                 <span className="text-slate-600">{line.label}</span>
                 <span className="font-medium text-slate-900">
-                  {usdFmt.format(line.amount)}{line.type === "monthly" ? "/mes" : ""}
+                  {usdFmt.format(line.amount)}{line.type === "monthly" ? copy.monthsSuffix : ""}
                 </span>
               </div>
             ))}
@@ -349,13 +522,13 @@ export function OnboardingStep2Form({
           <div className="mt-4 border-t border-slate-100 pt-4">
             {monthlyTotal > 0 && (
               <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-slate-900">Total mensual</span>
-                <span className="text-lg font-bold text-slate-900">{usdFmt.format(monthlyTotal)}/mes</span>
+                <span className="text-sm font-semibold text-slate-900">{copy.monthlyTotalLabel}</span>
+                <span className="text-lg font-bold text-slate-900">{usdFmt.format(monthlyTotal)}{copy.monthsSuffix}</span>
               </div>
             )}
             {oneTimeTotal > 0 && (
               <div className="mt-1 flex items-center justify-between">
-                <span className="text-sm text-slate-500">Pago único</span>
+                <span className="text-sm text-slate-500">{copy.oneTimeLabel}</span>
                 <span className="text-sm font-semibold text-slate-700">{usdFmt.format(oneTimeTotal)}</span>
               </div>
             )}
@@ -365,7 +538,7 @@ export function OnboardingStep2Form({
 
       {/* Payment method */}
       <div>
-        <h3 className="mb-3 text-sm font-semibold text-slate-900">Método de pago *</h3>
+        <h3 className="mb-3 text-sm font-semibold text-slate-900">{copy.paymentMethodLabel}</h3>
         <div className="space-y-2">
           <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-slate-200 bg-white p-4 transition hover:border-slate-300">
             <input
@@ -377,8 +550,8 @@ export function OnboardingStep2Form({
               className="h-4 w-4 border-slate-300 text-indigo-600 focus:ring-indigo-500"
             />
             <div>
-              <span className="text-sm font-medium text-slate-900">Tarjeta (Stripe)</span>
-              <p className="text-xs text-slate-400">Débito o crédito.</p>
+              <span className="text-sm font-medium text-slate-900">{copy.cardTitle}</span>
+              <p className="text-xs text-slate-400">{copy.cardDescription}</p>
             </div>
           </label>
           <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-slate-200 bg-white p-4 transition hover:border-slate-300">
@@ -392,7 +565,7 @@ export function OnboardingStep2Form({
             />
             <div>
               <span className="text-sm font-medium text-slate-900">PayPal</span>
-              <p className="text-xs text-slate-400">Redirigido a PayPal.</p>
+              <p className="text-xs text-slate-400">{copy.paypalDescription}</p>
             </div>
           </label>
           {manualMethods.map((method) => (
@@ -410,7 +583,7 @@ export function OnboardingStep2Form({
               />
               <div>
                 <span className="text-sm font-medium text-slate-900">{method.name ?? method.slug}</span>
-                <p className="text-xs text-slate-400">Instrucciones en el siguiente paso.</p>
+                <p className="text-xs text-slate-400">{copy.manualDescription}</p>
               </div>
             </label>
           ))}
@@ -430,7 +603,7 @@ export function OnboardingStep2Form({
         size="lg"
         className="onboarding-btn-primary w-full rounded-xl py-5 text-sm font-semibold sm:text-base"
       >
-        Ir a pagar
+        {copy.continueButton}
       </Button>
     </form>
   );

@@ -28,7 +28,7 @@ export const LIGHT_ONLY_THEME_SCRIPT = `
 export const LANDING_LIGHT_SCOPE_SCRIPT = `
 (function() {
 	try {
-		if (window.location.pathname === '/') {
+		if (window.location.pathname === '/' || window.location.pathname.startsWith('/landing')) {
 			document.documentElement.classList.remove('dark');
 			document.documentElement.setAttribute('data-theme', 'light');
 		}

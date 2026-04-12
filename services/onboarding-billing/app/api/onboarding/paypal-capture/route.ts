@@ -6,6 +6,7 @@ import {
 } from "@paypal/paypal-server-sdk";
 
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
+import { hashPaymentIdentity, normalizeEmail } from "../../../../lib/onboarding/trial-eligibility";
 
 const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID ?? "";
 const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET ?? "";
@@ -43,9 +44,22 @@ export async function GET(req: NextRequest) {
 
 		const status = captureRes.result?.status;
 		if (status === "COMPLETED" || status === "APPROVED") {
+			const payer = captureRes.result?.payer as {
+				email_address?: string | null;
+				payer_id?: string | null;
+			} | undefined;
+			const payerEmail = normalizeEmail(payer?.email_address);
+			const payerIdHash = typeof payer?.payer_id === "string" && payer.payer_id.trim()
+				? hashPaymentIdentity(payer.payer_id.trim())
+				: null;
 			await supabaseAdmin
 				.from("payments_history")
-				.update({ status: "paid", payment_date: new Date().toISOString() })
+				.update({
+					status: "paid",
+					payment_date: new Date().toISOString(),
+					payer_email_normalized: payerEmail || null,
+					paypal_payer_id_hash: payerIdHash,
+				})
 				.eq("payment_reference", token);
 		}
 

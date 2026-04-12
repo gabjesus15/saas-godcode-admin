@@ -9,6 +9,11 @@ export function hashCardFingerprint(fingerprint: string): string {
 	return createHash("sha256").update(`${salt}:${fingerprint}`).digest("hex");
 }
 
+export function hashPaymentIdentity(identity: string): string {
+	const salt = process.env.TRIAL_CARD_FINGERPRINT_SALT || process.env.SUPABASE_SERVICE_ROLE_KEY || "trial-fingerprint-salt";
+	return createHash("sha256").update(`${salt}:${identity}`).digest("hex");
+}
+
 export async function getStripeCardFingerprintFromCheckoutSession(
 	checkoutSessionId: string,
 	stripeSecret: string,

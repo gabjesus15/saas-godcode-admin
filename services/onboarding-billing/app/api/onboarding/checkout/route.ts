@@ -10,6 +10,7 @@ import { supabaseAdmin } from "../../../../lib/supabase-admin";
 import {
 	isManualMethod,
 	resolveCheckoutPlan,
+	resolveCheckoutPlanPrice,
 	calculateAddonsTotalUsd,
 	provisionCompanyFromApplication,
 	recordPayment,
@@ -88,6 +89,8 @@ export async function POST(req: NextRequest) {
 			return NextResponse.json({ error: planResult.error }, { status: planResult.status });
 		}
 		const plan = planResult.plan;
+		const planPricing = resolveCheckoutPlanPrice(plan, app.country);
+		const chargedPlan = { ...plan, price: planPricing.price };
 
 		const addonsTotalUsd = await calculateAddonsTotalUsd(supabaseAdmin, app.id, months);
 
@@ -97,23 +100,23 @@ export async function POST(req: NextRequest) {
 		}
 		const company = companyResult.company;
 
-		const amountUsd = Number(plan.price ?? 0) * months + addonsTotalUsd;
+		const amountUsd = Number(chargedPlan.price ?? 0) * months + addonsTotalUsd;
 
 		if (isPayPal) {
 			return handlePayPalCheckout({
-				app, plan, company, amountUsd, months, token,
+				app, plan: chargedPlan, planPricing, company, amountUsd, months, token,
 				paypalClientId, paypalClientSecret,
 			});
 		}
 
 		if (isManualPayment) {
 			return handleManualCheckout({
-				app, company, amountUsd, months, subscriptionMethod,
+				app, company, amountUsd, months, subscriptionMethod, plan: chargedPlan, planPricing,
 			});
 		}
 
 		return handleStripeCheckout({
-			app, plan, company, amountUsd, addonsTotalUsd, months,
+			app, plan: chargedPlan, planPricing, company, amountUsd, addonsTotalUsd, months, token,
 		});
 	} catch (err) {
 		console.error("onboarding checkout error:", err);
@@ -124,6 +127,7 @@ export async function POST(req: NextRequest) {
 async function handlePayPalCheckout(params: {
 	app: { id: string; country?: string | null; payment_methods?: string[] | null; currency?: string | null; plan_id: string };
 	plan: { name: string };
+	planPricing: { continent: string; price: number; currency: string };
 	company: { id: string };
 	amountUsd: number;
 	months: number;
@@ -190,6 +194,10 @@ async function handlePayPalCheckout(params: {
 		url: approveLink,
 		sessionId: orderId,
 		country: params.app.country,
+		plan_name: params.plan.name,
+		plan_price: params.planPricing.price,
+		plan_region: params.planPricing.continent,
+		plan_currency: params.planPricing.currency,
 		paymentOptions:
 			Array.isArray(params.app.payment_methods) && params.app.payment_methods.length > 0
 				? params.app.payment_methods
@@ -200,6 +208,8 @@ async function handlePayPalCheckout(params: {
 
 async function handleManualCheckout(params: {
 	app: { id: string; country?: string | null; currency?: string | null; plan_id: string; subscription_payment_method?: string | null };
+	plan: { name: string; price: number };
+	planPricing: { continent: string; price: number; currency: string };
 	company: { id: string };
 	amountUsd: number;
 	months: number;
@@ -234,6 +244,10 @@ async function handleManualCheckout(params: {
 		months: params.months,
 		currency: params.app.currency || "USD",
 		country: params.app.country ?? null,
+		plan_name: params.plan.name,
+		plan_price: params.planPricing.price,
+		plan_region: params.planPricing.continent,
+		plan_currency: params.planPricing.currency,
 		method_slug: params.subscriptionMethod,
 		method_config: methodConfig,
 	});
@@ -249,20 +263,24 @@ async function handleStripeCheckout(params: {
 		plan_id: string;
 	};
 	plan: { name: string; price: number };
+	planPricing: { continent: string; price: number; currency: string };
 	company: { id: string };
 	amountUsd: number;
 	addonsTotalUsd: number;
 	months: number;
+	token: string;
 }) {
 	if (!STRIPE_SECRET) {
 		return NextResponse.json({ error: "Integración de pago con tarjeta no configurada" }, { status: 503 });
 	}
 
 	const planAmountCents = Math.round(Number(params.plan.price ?? 0) * params.months * 100);
+	const cancelUrl = new URL(STRIPE_CANCEL_URL);
+	cancelUrl.searchParams.set("token", params.token);
 	const stripeParams = new URLSearchParams();
 	stripeParams.append("mode", "payment");
 	stripeParams.append("success_url", `${STRIPE_SUCCESS_URL}?ref={CHECKOUT_SESSION_ID}`);
-	stripeParams.append("cancel_url", STRIPE_CANCEL_URL);
+	stripeParams.append("cancel_url", cancelUrl.toString());
 	stripeParams.append("line_items[0][price_data][currency]", "usd");
 	stripeParams.append("line_items[0][price_data][product_data][name]", params.plan.name ?? "Plan");
 	stripeParams.append("line_items[0][price_data][unit_amount]", planAmountCents.toString());
@@ -315,6 +333,10 @@ async function handleStripeCheckout(params: {
 		url: session.url,
 		sessionId: session.id,
 		country: params.app.country,
+		plan_name: params.plan.name,
+		plan_price: params.planPricing.price,
+		plan_region: params.planPricing.continent,
+		plan_currency: params.planPricing.currency,
 		paymentOptions: Array.isArray(params.app.payment_methods) && params.app.payment_methods.length > 0
 			? params.app.payment_methods
 			: (params.app.country === "Venezuela" ? ["Pago Móvil", "Zelle", "Transferencia", "Stripe"] : ["Stripe"]),

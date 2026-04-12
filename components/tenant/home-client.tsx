@@ -144,7 +144,7 @@ export function HomeClient(props: HomeClientProps) {
     {
       label: "Registrar mi negocio",
       icon: <Building2 size={20} />,
-      onClick: () => { window.location.href = "https://www.godcode.me/onboarding"; },
+      onClick: () => { window.location.href = "https://www.godcode.me/landing"; },
     },
   ], [handleActionClick, router, menuPath]); // Dependencias actualizadas
 

@@ -5,6 +5,7 @@ import { supabaseAdmin } from "../../../../lib/supabase-admin";
 import { getAppUrl } from "../../../../lib/app-url";
 import { sendOnboardingEmail } from "../../../../lib/onboarding/emails";
 import { verifyRecaptcha } from "../../../../lib/onboarding/recaptcha";
+import { isRateLimited } from "../../../../lib/onboarding/rate-limit";
 import { normalizeEmail } from "../../../../lib/onboarding/trial-eligibility";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "";
@@ -29,6 +30,10 @@ function sanitize(str: string | undefined, maxLen: number): string {
 	return String(str).trim().slice(0, maxLen);
 }
 
+function getClientIp(req: NextRequest): string {
+	return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown";
+}
+
 export async function POST(req: NextRequest) {
 	try {
 		const body = (await req.json().catch(() => ({}))) as ApplyBody;
@@ -36,6 +41,7 @@ export async function POST(req: NextRequest) {
 		const businessName = sanitize(body.business_name, 200);
 		const responsibleName = sanitize(body.responsible_name, 200);
 		const emailRaw = normalizeEmail(sanitize(body.email, 255));
+		const ip = getClientIp(req);
 		const phone = sanitize(body.phone, 50);
 		const sector = sanitize(body.sector, 100);
 		const message = sanitize(body.message, 2000);
@@ -49,6 +55,12 @@ export async function POST(req: NextRequest) {
 		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 		if (!emailRaw || !emailRegex.test(emailRaw)) {
 			return NextResponse.json({ error: "Email inválido" }, { status: 400 });
+		}
+		if (isRateLimited(`onboarding_apply:ip:${ip}`, 12, 60_000)) {
+			return NextResponse.json({ error: "Demasiados intentos. Intenta de nuevo en un minuto." }, { status: 429 });
+		}
+		if (isRateLimited(`onboarding_apply:email:${emailRaw}`, 5, 10 * 60_000)) {
+			return NextResponse.json({ error: "Demasiados intentos con este correo. Intenta más tarde." }, { status: 429 });
 		}
 
 		const { data: existingCompany } = await supabaseAdmin
@@ -74,7 +86,7 @@ export async function POST(req: NextRequest) {
 		}
 
 		const verificationToken = randomUUID();
-		const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || null;
+		const ipToStore = ip || null;
 		const userAgent = req.headers.get("user-agent")?.slice(0, 500) || null;
 
 		const { error: insertError } = await supabaseAdmin
@@ -90,7 +102,7 @@ export async function POST(req: NextRequest) {
 				privacy_accepted: true,
 				verification_token: verificationToken,
 				status: "pending_verification",
-				ip_address: ip,
+				ip_address: ipToStore,
 				user_agent: userAgent,
 			})
 			.select("id")

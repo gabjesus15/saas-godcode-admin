@@ -18,7 +18,7 @@ import {
 import type { LandingMediaBundle } from "../../lib/landing-media-types";
 import { popularPlanIndex, type PublicPlanForLanding } from "../../lib/public-plans";
 import type { Continent, CountryCode } from "../../lib/landing-geo-plans";
-import { getCurrencyByContinent, getContinentFromCountry } from "../../lib/landing-geo-plans";
+import { getContinentFromCountry } from "../../lib/landing-geo-plans";
 import { cn } from "../../utils/cn";
 import { Card } from "../ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../ui/accordion";
@@ -32,14 +32,6 @@ import { LandingPhoneCarousel } from "./landing-phone-carousel";
 import { LandingContactForm } from "./landing-contact-form";
 import { LandingLeadForm } from "./landing-lead-form";
 import { LandingVideoPlayer } from "./landing-video-player";
-
-function createUsdFormatter(locale: string): Intl.NumberFormat {
-  return new Intl.NumberFormat(locale.toLowerCase().startsWith("es") ? "es-CL" : "en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  });
-}
 
 function getPriceForContinent(plan: PublicPlanForLanding, continent: Continent): { price: number; currency: string } {
   if (plan.pricesByContinent?.[continent]) {
@@ -294,12 +286,10 @@ export function LandingSections({
     if (localeKey === "en") return en;
     return LANDING_TX[es]?.[localeKey] ?? en;
   };
-  const usdMonth = createUsdFormatter(locale);
 
   const support = getSupportEmail();
   const popularIdx = popularPlanIndex(plans.length);
   const continent = getContinentFromCountry(country);
-  const currency = getCurrencyByContinent(continent);
   const steps = [
     { n: "1", title: tx("Regístrate", "Sign up"), text: tx("Crea tu cuenta con email. El primer mes es gratis.", "Create your account with email. The first month is free.") },
     { n: "2", title: tx("Arma tu tienda", "Build your store"), text: tx("Sube productos, configura delivery y sucursales.", "Upload products and configure delivery and branches.") },

@@ -3,36 +3,15 @@
 import { Suspense, useCallback, useState, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useLocale } from "next-intl";
 
 import { Button } from "../../../components/ui/button";
 import { OnboardingStepBar } from "../../../components/onboarding/OnboardingStepBar";
 import { uploadImage } from "../../../components/tenant/utils/cloudinary";
+import { getOnboardingPaymentCopy } from "../../../lib/onboarding-payment-copy";
 
-const PAYMENT_INSTRUCTIONS_FALLBACK: Record<string, string> = {
-	pago_movil: "Realiza el pago por Pago Móvil con los datos que se muestran abajo. Luego sube el comprobante.",
-	zelle: "Realiza el pago por Zelle al correo indicado. Luego sube el comprobante.",
-	transferencia: "Realiza la transferencia a los datos bancarios indicados. Luego sube el comprobante.",
-	transferencia_bancaria: "Realiza la transferencia a los datos bancarios indicados. Luego sube el comprobante.",
-};
-
-const CONFIG_KEY_LABELS: Record<string, string> = {
-	banco: "Banco",
-	telefono: "Teléfono",
-	identificacion: "Cédula / RUT",
-	email: "Correo",
-	name: "Nombre del titular",
-	tipo_cuenta: "Tipo de cuenta",
-	nro_cuenta: "Número de cuenta",
-	titular: "Nombre del titular",
-	reference: "Referencia",
-	instructions: "Instrucciones",
-	phone: "Teléfono",
-	bank: "Banco",
-	account_number: "Número de cuenta",
-};
-
-function getConfigLabel(key: string): string {
-	return CONFIG_KEY_LABELS[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+function getConfigLabel(key: string, labels: Record<string, string>): string {
+	return labels[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 type ManualData = {
@@ -45,7 +24,76 @@ type ManualData = {
 	payment_reference: string;
 };
 
+type PayPalWindow = Window & {
+	paypal?: {
+		Buttons: (config: {
+			createOrder: () => Promise<string>;
+			onApprove: (data: { orderID?: string }) => Promise<void>;
+			onError?: (err: unknown) => void;
+			onCancel?: () => void;
+		}) => { render: (selector: string) => Promise<void> };
+	};
+};
+
+const VISITOR_KEY = "gc_visitor_id";
+const SESSION_KEY = "gc_session_id";
+
+function randomId(prefix: string): string {
+	if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+		return `${prefix}_${crypto.randomUUID()}`;
+	}
+	return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function getOrCreateStorageId(storage: "local" | "session", key: string, prefix: string): string {
+	if (typeof window === "undefined") return randomId(prefix);
+	try {
+		const api = storage === "local" ? window.localStorage : window.sessionStorage;
+		const existing = api.getItem(key);
+		if (existing && existing.trim()) return existing;
+		const created = randomId(prefix);
+		api.setItem(key, created);
+		return created;
+	} catch {
+		return randomId(prefix);
+	}
+}
+
+function trackAnalyticsEvent(event: string, metadata?: Record<string, unknown>) {
+	if (typeof window === "undefined") return;
+	const payload = {
+		event,
+		path: "/onboarding/pago",
+		referrer: document.referrer || null,
+		title: document.title || null,
+		visitorId: getOrCreateStorageId("local", VISITOR_KEY, "v"),
+		sessionId: getOrCreateStorageId("session", SESSION_KEY, "s"),
+		metadata: metadata ?? {},
+	};
+	const body = JSON.stringify(payload);
+
+	try {
+		if (navigator.sendBeacon) {
+			const blob = new Blob([body], { type: "application/json" });
+			navigator.sendBeacon("/api/analytics/events", blob);
+			return;
+		}
+	} catch {
+		// Ignore and use fetch fallback below.
+	}
+
+	void fetch("/api/analytics/events", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body,
+		keepalive: true,
+		cache: "no-store",
+	}).catch(() => {});
+}
+
 function PagoContent() {
+  const locale = useLocale();
+  const copy = getOnboardingPaymentCopy(locale);
 	const searchParams = useSearchParams();
 	const token = searchParams ? searchParams.get("token") : null;
 	const [loading, setLoading] = useState(false);
@@ -57,8 +105,13 @@ function PagoContent() {
 	const [referenceUploading, setReferenceUploading] = useState(false);
 	const [referenceSubmitted, setReferenceSubmitted] = useState(false);
 	const [planSummary, setPlanSummary] = useState<{ name: string; price: number; addons: Array<{ name: string; price: number }> } | null>(null);
+	const [subscriptionMethod, setSubscriptionMethod] = useState<string>("");
+	const [paypalClientId, setPaypalClientId] = useState<string>("");
+	const [paypalSdkReady, setPaypalSdkReady] = useState(false);
+	const paypalContainerId = "onboarding-paypal-buttons";
 
 	const isVenezuela = manualData?.country === "Venezuela" || manualData?.country === "VE";
+	const isPaypalSelected = subscriptionMethod === "paypal";
 
 	useEffect(() => {
 		if (!isVenezuela) return;
@@ -71,6 +124,166 @@ function PagoContent() {
 			.catch(() => {});
 		return () => { cancelled = true; };
 	}, [isVenezuela]);
+
+	useEffect(() => {
+		if (!token) return;
+		let cancelled = false;
+		fetch(`/api/onboarding/application?token=${encodeURIComponent(token)}`)
+			.then((r) => r.json())
+			.then((data: { subscription_payment_method?: string | null }) => {
+				if (cancelled) return;
+				setSubscriptionMethod((data.subscription_payment_method ?? "").trim().toLowerCase());
+			})
+			.catch(() => {
+				if (!cancelled) setSubscriptionMethod("");
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [token]);
+
+	useEffect(() => {
+		if (!isPaypalSelected) return;
+		let cancelled = false;
+		fetch("/api/onboarding/paypal-client")
+			.then((r) => r.json())
+			.then((data: { clientId?: string }) => {
+				if (!cancelled && typeof data.clientId === "string") setPaypalClientId(data.clientId);
+			})
+			.catch(() => {
+				if (!cancelled) setPaypalClientId("");
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [isPaypalSelected]);
+
+	useEffect(() => {
+		if (!isPaypalSelected || !paypalClientId || paypalSdkReady) return;
+		const script = document.createElement("script");
+		script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(paypalClientId)}&currency=USD&intent=capture`;
+		script.async = true;
+		script.onload = () => setPaypalSdkReady(true);
+		script.onerror = () => setError(copy.errors.unexpected);
+		document.body.appendChild(script);
+	}, [isPaypalSelected, paypalClientId, paypalSdkReady, copy.errors.unexpected]);
+
+	useEffect(() => {
+		if (!isPaypalSelected) return;
+		trackAnalyticsEvent("onboarding_paypal_inline_view", { months });
+	}, [isPaypalSelected, months]);
+
+	const createPaypalOrder = useCallback(async (): Promise<string> => {
+		if (!token) {
+			throw new Error(copy.errors.createSession);
+		}
+
+		trackAnalyticsEvent("onboarding_paypal_inline_attempt", { months });
+		setError(null);
+		setLoading(true);
+		try {
+			const res = await fetch("/api/onboarding/checkout", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ token, months }),
+			});
+
+			const data = (await res.json().catch(() => ({}))) as {
+				error?: string;
+				sessionId?: string;
+				plan_name?: string;
+				plan_price?: number;
+				addons?: Array<{ name: string; price: number }>;
+			};
+
+			if (!res.ok) {
+				throw new Error(data.error ?? copy.errors.createSession);
+			}
+
+			if (data.plan_name && typeof data.plan_price === "number") {
+				setPlanSummary({
+					name: data.plan_name,
+					price: data.plan_price,
+					addons: Array.isArray(data.addons) ? data.addons : [],
+				});
+			}
+
+			if (!data.sessionId) {
+				throw new Error(copy.errors.missingUrl);
+			}
+
+			return data.sessionId;
+		} finally {
+			setLoading(false);
+		}
+	}, [token, months, copy.errors.createSession, copy.errors.missingUrl]);
+
+	useEffect(() => {
+		if (!isPaypalSelected || !paypalSdkReady) return;
+		const container = document.getElementById(paypalContainerId);
+		if (!container) return;
+		container.innerHTML = "";
+
+		const w = window as PayPalWindow;
+		if (!w.paypal) return;
+
+		w.paypal
+			.Buttons({
+				createOrder: async () => createPaypalOrder(),
+				onApprove: async (data) => {
+					trackAnalyticsEvent("onboarding_paypal_inline_approved", {
+						orderId: data.orderID ?? null,
+						months,
+					});
+					if (!data.orderID) {
+						setError(copy.errors.unexpected);
+						return;
+					}
+					const res = await fetch("/api/onboarding/paypal-capture-order", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ orderId: data.orderID, token }),
+					});
+					const json = (await res.json().catch(() => ({}))) as { error?: string; ref?: string };
+					if (!res.ok) {
+						trackAnalyticsEvent("onboarding_paypal_inline_capture_error", {
+							orderId: data.orderID,
+							message: json.error ?? "unknown_error",
+						});
+						setError(json.error ?? copy.errors.unexpected);
+						return;
+					}
+					const ref = typeof json.ref === "string" && json.ref.trim() ? json.ref : data.orderID;
+					trackAnalyticsEvent("onboarding_paypal_inline_captured", {
+						orderId: data.orderID,
+						ref,
+						months,
+					});
+					window.location.href = `/checkout/success?ref=${encodeURIComponent(ref)}`;
+				},
+				onCancel: () => {
+					trackAnalyticsEvent("onboarding_paypal_inline_canceled", { months });
+					setError(copy.errors.paypalCanceled);
+				},
+				onError: () => {
+					trackAnalyticsEvent("onboarding_paypal_inline_error", { months });
+					setError(copy.errors.unexpected);
+				},
+			})
+			.render(`#${paypalContainerId}`)
+			.catch(() => {
+				trackAnalyticsEvent("onboarding_paypal_inline_render_error", { months });
+				setError(copy.errors.unexpected);
+			});
+	}, [
+		isPaypalSelected,
+		paypalSdkReady,
+		createPaypalOrder,
+		token,
+		months,
+		copy.errors.unexpected,
+		copy.errors.paypalCanceled,
+	]);
 
 	const handlePay = useCallback(async () => {
 		if (!token) return;
@@ -88,7 +301,7 @@ function PagoContent() {
 			const data = await res.json().catch(() => ({}));
 
 			if (!res.ok) {
-				throw new Error(data.error ?? "Error al crear sesión de pago");
+				throw new Error(data.error ?? copy.errors.createSession);
 			}
 
 			if (data.plan_name && data.plan_price) {
@@ -117,17 +330,17 @@ function PagoContent() {
 				return;
 			}
 
-			throw new Error("No se recibió la URL de pago. Contacta a soporte.");
+			throw new Error(copy.errors.missingUrl);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Error inesperado");
+			setError(err instanceof Error ? err.message : copy.errors.unexpected);
 		} finally {
 			setLoading(false);
 		}
-	}, [token, months]);
+	}, [token, months, copy]);
 
 	const handleSubmitReference = useCallback(async () => {
 		if (!token || !manualData || !referenceFile) {
-			setError("Selecciona el comprobante de pago (imagen o PDF).");
+			setError(copy.errors.missingReceipt);
 			return;
 		}
 		setReferenceUploading(true);
@@ -144,24 +357,24 @@ function PagoContent() {
 				}),
 			});
 			const json = await res.json().catch(() => ({}));
-			if (!res.ok) throw new Error(json.error ?? "Error al enviar");
+			if (!res.ok) throw new Error(json.error ?? copy.errors.uploadError);
 			setReferenceSubmitted(true);
 			setReferenceFile(null);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Error al subir");
+			setError(err instanceof Error ? err.message : copy.errors.uploadError);
 		} finally {
 			setReferenceUploading(false);
 		}
-	}, [token, manualData, referenceFile]);
+	}, [token, manualData, referenceFile, copy]);
 
 	if (!token) {
 		return (
 			<main className="onboarding-main relative mx-auto w-full max-w-lg px-5 py-8 sm:px-6 sm:py-12 md:py-16">
 				<OnboardingStepBar current={3} />
 				<div className="onboarding-card max-w-md p-6 text-center sm:p-8">
-					<p className="text-sm text-red-600">Token faltante. Vuelve al formulario.</p>
+					<p className="text-sm text-red-600">{copy.noTokenTitle}. {copy.noTokenBody}</p>
 					<Link href="/onboarding" className="mt-4 inline-block text-sm font-medium text-indigo-600 hover:underline">
-						Volver al inicio
+						{copy.backHome}
 					</Link>
 				</div>
 			</main>
@@ -176,38 +389,38 @@ function PagoContent() {
 				<div className="onboarding-card space-y-5 p-5 sm:p-7">
 					{referenceSubmitted ? (
 						<div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm">
-							<p className="font-medium text-emerald-800">Comprobante registrado</p>
-							<p className="mt-2 text-emerald-700">Te avisaremos por correo cuando validemos el pago. Puedes cerrar esta página.</p>
+							<p className="font-medium text-emerald-800">{copy.manualSuccessTitle}</p>
+							<p className="mt-2 text-emerald-700">{copy.manualSuccessBody}</p>
 						</div>
 					) : (
 						<>
 							<div>
-								<p className="text-sm font-medium text-slate-500">Monto a pagar</p>
+								<p className="text-sm font-medium text-slate-500">{copy.amountLabel}</p>
 								<p className="mt-1 text-2xl font-bold text-slate-900">
 									${manualData.amount_usd.toFixed(2)} USD
 									{manualData.months > 1 && (
-										<span className="ml-2 text-base font-normal text-slate-400">({manualData.months} meses)</span>
+										<span className="ml-2 text-base font-normal text-slate-400">({manualData.months} {manualData.months === 1 ? copy.monthsLabelSingular : copy.monthsLabelPlural})</span>
 									)}
 								</p>
 							</div>
 							{isVenezuela && bcvRate != null && (
 								<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-									<p className="text-slate-500">Equivalente aprox. (tasa BCV):</p>
+									<p className="text-slate-500">{copy.approxLabel}:</p>
 									<p className="font-semibold text-slate-900">{(manualData.amount_usd * bcvRate).toFixed(2)} VES</p>
-									<p className="mt-1 text-xs text-slate-400">Tasa de referencia; el monto oficial es en USD.</p>
+									<p className="mt-1 text-xs text-slate-400">{copy.referenceNote}</p>
 								</div>
 							)}
 							<div className="rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-4 text-sm">
-								<p className="font-medium text-slate-800">Instrucciones</p>
+								<p className="font-medium text-slate-800">{copy.instructionsTitle}</p>
 								<p className="mt-2 text-slate-600">
-									{PAYMENT_INSTRUCTIONS_FALLBACK[manualData.method_slug] ?? "Realiza el pago con los datos indicados y sube tu comprobante."}
+									{copy.paymentInstructionsFallback[manualData.method_slug] ?? copy.supportHint}
 								</p>
 								{Object.keys(manualData.method_config).length > 0 && (
 									<dl className="mt-3 space-y-1.5 text-sm">
 										{Object.entries(manualData.method_config).map(([key, value]) => (
 											value ? (
 												<div key={key}>
-													<dt className="font-medium text-slate-700">{getConfigLabel(key)}</dt>
+													<dt className="font-medium text-slate-700">{getConfigLabel(key, copy.configLabels)}</dt>
 													<dd className="mt-0.5 font-mono text-slate-600">{value}</dd>
 												</div>
 											) : null
@@ -217,7 +430,7 @@ function PagoContent() {
 							</div>
 							<div>
 								<label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
-									Subir comprobante de pago *
+									{copy.uploadLabel}
 									<input
 										type="file"
 										accept="image/*,.pdf"
@@ -233,7 +446,7 @@ function PagoContent() {
 									size="lg"
 									className="onboarding-btn-primary mt-4 w-full rounded-xl py-5"
 								>
-									Enviar comprobante
+									{copy.uploadButton}
 								</Button>
 							</div>
 						</>
@@ -249,22 +462,22 @@ function PagoContent() {
 			<OnboardingStepBar current={3} />
 
 			<div className="mb-8 text-center sm:mb-10">
-				<h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Activar suscripción</h1>
+					<h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{copy.title}</h1>
 				<p className="mx-auto mt-3 max-w-md text-sm text-slate-500 sm:text-base">
-					Elige los meses y completa el pago.
+						{copy.subtitle}
 				</p>
 			</div>
 
 			<div className="onboarding-card space-y-5 p-5 sm:p-7">
 				{planSummary && (
 					<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-						<div className="font-medium text-slate-900">Plan: {planSummary.name}</div>
+						<div className="font-medium text-slate-900">{copy.planLabel}: {planSummary.name}</div>
 						<div className="mt-1 text-slate-600">
-							Precio: <span className="font-semibold text-slate-900">${planSummary.price.toFixed(2)} USD</span>
+							{copy.priceLabel}: <span className="font-semibold text-slate-900">${planSummary.price.toFixed(2)} USD</span>
 						</div>
 						{planSummary.addons.length > 0 && (
 							<div className="mt-2">
-								<div className="font-medium text-slate-900">Servicios extra:</div>
+								<div className="font-medium text-slate-900">{copy.extrasLabel}:</div>
 								<ul className="ml-4 mt-1 list-disc text-slate-600">
 									{planSummary.addons.map((addon, idx) => (
 										<li key={idx}>{addon.name} <span className="font-semibold">${addon.price.toFixed(2)} USD</span></li>
@@ -276,7 +489,7 @@ function PagoContent() {
 				)}
 
 				<label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-					¿Por cuántos meses?
+					{copy.monthsPrompt}
 					<select
 						value={months}
 						onChange={(e) => setMonths(Number(e.target.value))}
@@ -284,7 +497,7 @@ function PagoContent() {
 					>
 						{[1, 3, 6, 12].map((m) => (
 							<option key={m} value={m}>
-								{m} {m === 1 ? "mes" : "meses"}
+								{m} {m === 1 ? copy.monthsLabelSingular : copy.monthsLabelPlural}
 							</option>
 						))}
 					</select>
@@ -296,17 +509,31 @@ function PagoContent() {
 					</div>
 				)}
 
-				<Button
-					onClick={handlePay}
-					loading={loading}
-					size="lg"
-					className="onboarding-btn-primary w-full rounded-xl py-5 text-sm font-semibold sm:text-base"
-				>
-					Ir a pagar
-				</Button>
+				{!isPaypalSelected && (
+					<Button
+						onClick={handlePay}
+						loading={loading}
+						size="lg"
+						className="onboarding-btn-primary w-full rounded-xl py-5 text-sm font-semibold sm:text-base"
+					>
+						{copy.continueButton}
+					</Button>
+				)}
+
+				{isPaypalSelected && (
+					<div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+						<p className="text-center text-sm font-medium text-slate-800">{copy.paypalInlineTitle}</p>
+						<p className="text-center text-xs text-slate-500">{copy.paypalInlineHint}</p>
+						{paypalSdkReady ? (
+							<div id={paypalContainerId} className="min-h-[44px]" />
+						) : (
+							<p className="text-center text-xs text-slate-500">{copy.paypalInlineLoading}</p>
+						)}
+					</div>
+				)}
 
 				<p className="text-center text-xs text-slate-400">
-					Al continuar aceptas los términos. Puedes cancelar en cualquier momento.
+					{copy.footerNote}
 				</p>
 			</div>
 		</main>

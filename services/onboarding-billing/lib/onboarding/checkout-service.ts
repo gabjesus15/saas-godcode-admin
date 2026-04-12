@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { slugify as slugifyBase } from "../../utils/slugify";
+import { resolveRegionalPlanPrice } from "../plan-regional-pricing";
 
 function slugifyCompanyPublicSlug(value: string): string {
 	return slugifyBase(value, { maxLength: 80, emptyFallback: "negocio" });
@@ -10,6 +11,7 @@ export type OnboardingApplication = {
 	id: string;
 	business_name: string;
 	email: string;
+	country?: string | null;
 	billing_rut?: string | null;
 	fiscal_address?: string | null;
 	logo_url?: string | null;
@@ -26,6 +28,7 @@ export type CheckoutPlan = {
 	id: string;
 	name: string;
 	price: number;
+	prices_by_continent?: Record<string, { price: number; currency: string }> | null;
 };
 
 const MANUAL_METHOD_SLUGS = new Set(["pago_movil", "zelle", "transferencia"]);
@@ -54,7 +57,7 @@ export async function resolveCheckoutPlan(
 
 	const { data: planData, error: planError } = await supabaseAdmin
 		.from("plans")
-		.select("id,name,price")
+		.select("id,name,price,prices_by_continent")
 		.eq("id", app.plan_id)
 		.maybeSingle();
 
@@ -63,6 +66,15 @@ export async function resolveCheckoutPlan(
 	}
 
 	return { plan: planData as CheckoutPlan };
+}
+
+export function resolveCheckoutPlanPrice(plan: CheckoutPlan, country: string | null | undefined): {
+	price: number;
+	currency: string;
+	continent: string;
+	source: "regional" | "fallback";
+} {
+	return resolveRegionalPlanPrice(plan, country);
 }
 
 export async function calculateAddonsTotalUsd(
