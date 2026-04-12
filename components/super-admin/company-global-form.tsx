@@ -618,22 +618,24 @@ export function CompanyGlobalForm({
     cancelled: "destructive",
   };
 
-  const [validatingPaymentId, setValidatingPaymentId] = useState<string | null>(null);
-  const handleValidatePayment = async (paymentId: string) => {
-    setValidatingPaymentId(paymentId);
+  const [processingPaymentAction, setProcessingPaymentAction] = useState<string | null>(null);
+
+  const handlePaymentAction = async (paymentId: string, action: "validate" | "reject") => {
+    setProcessingPaymentAction(`${action}:${paymentId}`);
     try {
-      const res = await fetch("/api/super-admin/payments/validate", {
+      const reason = action === "reject" ? window.prompt("Motivo del rechazo (opcional)")?.trim() || undefined : undefined;
+      const res = await fetch(action === "validate" ? "/api/super-admin/payments/validate" : "/api/super-admin/payments/reject", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ payment_id: paymentId }),
+        body: JSON.stringify({ payment_id: paymentId, reason }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? "Error al validar");
+      if (!res.ok) throw new Error(data.error ?? "Error al procesar el pago");
       router.refresh();
     } catch (err) {
-      setBillingError(err instanceof Error ? err.message : "Error al validar pago");
+      setBillingError(err instanceof Error ? err.message : "Error al procesar pago");
     } finally {
-      setValidatingPaymentId(null);
+      setProcessingPaymentAction(null);
     }
   };
 
@@ -1441,15 +1443,25 @@ export function CompanyGlobalForm({
                         </a>
                       )}
                       {isPendingValidation && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="mt-2"
-                          disabled={readOnly || validatingPaymentId !== null}
-                          onClick={() => handleValidatePayment(payment.id)}
-                        >
-                          {validatingPaymentId === payment.id ? "Validando…" : "Validar pago"}
-                        </Button>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={readOnly || processingPaymentAction !== null}
+                            onClick={() => void handlePaymentAction(payment.id, "validate")}
+                          >
+                            {processingPaymentAction === `validate:${payment.id}` ? "Validando…" : "Validar pago"}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            disabled={readOnly || processingPaymentAction !== null}
+                            onClick={() => void handlePaymentAction(payment.id, "reject")}
+                          >
+                            {processingPaymentAction === `reject:${payment.id}` ? "Rechazando…" : "Rechazar"}
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </div>

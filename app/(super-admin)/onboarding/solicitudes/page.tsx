@@ -27,12 +27,14 @@ const PAYMENT_STATUS_LABELS: Record<string, string> = {
 	paid: "Pagado",
 	pending: "Pendiente",
 	pending_validation: "Pend. validación",
+	rejected: "Rechazado",
 };
 
 const PAYMENT_STATUS_VARIANTS: Record<string, "success" | "warning" | "destructive" | "neutral"> = {
 	paid: "success",
 	pending: "warning",
 	pending_validation: "warning",
+	rejected: "destructive",
 };
 
 interface SolicitudRow {
@@ -58,13 +60,20 @@ interface SolicitudRow {
 	plan_label: string;
 	plan_price: number | null;
 	payment_status: string | null;
-	last_payment: { status: string; amount_paid: number; payment_date: string } | null;
+	last_payment: {
+		status: string;
+		amount_paid: number;
+		payment_date: string;
+		payment_reference: string | null;
+		reference_file_url: string | null;
+	} | null;
 }
 
 export default function OnboardingSolicitudesPage() {
 	const [apps, setApps] = useState<SolicitudRow[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const [actionKey, setActionKey] = useState<string | null>(null);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -90,6 +99,33 @@ export default function OnboardingSolicitudesPage() {
 			cancelled = true;
 		};
 	}, []);
+
+	const handleValidatePayment = async (paymentReference: string | null, action: "validate" | "reject") => {
+		if (!paymentReference) return;
+		const key = `${action}:${paymentReference}`;
+		setActionKey(key);
+		try {
+			let reason: string | undefined;
+			if (action === "reject") {
+				reason = window.prompt("Motivo del rechazo (opcional)")?.trim() || undefined;
+			}
+			const endpoint = action === "validate" ? "/api/super-admin/payments/validate" : "/api/super-admin/payments/reject";
+			const res = await fetch(endpoint, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ payment_reference: paymentReference, reason }),
+			});
+			const json = await res.json().catch(() => ({}));
+			if (!res.ok) {
+				throw new Error(json?.error ?? "No se pudo procesar el pago");
+			}
+			window.location.reload();
+		} catch (err) {
+			alert(err instanceof Error ? err.message : "No se pudo procesar el pago");
+		} finally {
+			setActionKey(null);
+		}
+	};
 
 	if (loading) {
 		return (
@@ -129,6 +165,7 @@ export default function OnboardingSolicitudesPage() {
 								<th className="px-3 py-2 font-medium text-zinc-700 dark:text-zinc-300 sm:px-4 sm:py-3">Plan</th>
 								<th className="px-3 py-2 font-medium text-zinc-700 dark:text-zinc-300 sm:px-4 sm:py-3">Extras</th>
 								<th className="px-3 py-2 font-medium text-zinc-700 dark:text-zinc-300 sm:px-4 sm:py-3">Pago</th>
+								<th className="px-3 py-2 font-medium text-zinc-700 dark:text-zinc-300 sm:px-4 sm:py-3">Comprobante</th>
 								<th className="px-3 py-2 font-medium text-zinc-700 dark:text-zinc-300 sm:px-4 sm:py-3">Método pago</th>
 								<th className="px-3 py-2 font-medium text-zinc-700 dark:text-zinc-300 sm:px-4 sm:py-3">Estado</th>
 								<th className="hidden px-3 py-2 font-medium text-zinc-700 dark:text-zinc-300 md:table-cell sm:px-4 sm:py-3">Fecha</th>
@@ -176,6 +213,20 @@ export default function OnboardingSolicitudesPage() {
 											<span className="text-zinc-400">—</span>
 										)}
 									</td>
+									<td className="px-3 py-2 sm:px-4 sm:py-3">
+										{row.last_payment?.reference_file_url ? (
+											<a
+												href={row.last_payment.reference_file_url}
+												target="_blank"
+												rel="noreferrer noopener"
+												className="text-zinc-900 underline hover:no-underline dark:text-zinc-100"
+											>
+												Ver comprobante
+											</a>
+										) : (
+											<span className="text-zinc-400">—</span>
+										)}
+									</td>
 									<td className="px-3 py-2 text-zinc-600 dark:text-zinc-400 sm:px-4 sm:py-3">
 										{row.subscription_payment_method
 											? String(row.subscription_payment_method).replace(/_/g, " ")
@@ -209,6 +260,28 @@ export default function OnboardingSolicitudesPage() {
 											) : (
 												<span className="text-zinc-400">—</span>
 											)}
+											{row.last_payment?.status === "pending_validation" && row.last_payment.payment_reference ? (
+												<>
+													<Button
+														variant="default"
+														size="sm"
+														type="button"
+														disabled={actionKey === `validate:${row.last_payment.payment_reference}`}
+														onClick={() => void handleValidatePayment(row.last_payment?.payment_reference ?? null, "validate")}
+													>
+														{actionKey === `validate:${row.last_payment.payment_reference}` ? "Validando..." : "Aprobar"}
+													</Button>
+													<Button
+														variant="destructive"
+														size="sm"
+														type="button"
+														disabled={actionKey === `reject:${row.last_payment.payment_reference}`}
+														onClick={() => void handleValidatePayment(row.last_payment?.payment_reference ?? null, "reject")}
+													>
+														{actionKey === `reject:${row.last_payment.payment_reference}` ? "Rechazando..." : "Rechazar"}
+													</Button>
+												</>
+											) : null}
 											<Button
 												variant="destructive"
 												size="sm"

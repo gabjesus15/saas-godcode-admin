@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Pago no encontrado" }, { status: 404 });
   }
 
-  if (payment.status && !["pending_validation", "pending"].includes(payment.status)) {
+  if (payment.status && !["pending_validation", "pending", "rejected"].includes(payment.status)) {
     return NextResponse.json(
       { error: "Este pago no acepta carga de comprobante en su estado actual" },
       { status: 400 }

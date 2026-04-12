@@ -53,21 +53,35 @@ export async function GET() {
 			? (async () => {
 					const { data: payments } = await supabaseAdmin
 						.from("payments_history")
-						.select("company_id,status,amount_paid,payment_date")
+						.select("company_id,status,amount_paid,payment_date,payment_reference,reference_file_url")
 						.in("company_id", companyIds)
 						.order("payment_date", { ascending: false });
-					const byCompany = new Map<string, { status: string; amount_paid: number; payment_date: string }>();
+					const byCompany = new Map<string, {
+						status: string;
+						amount_paid: number;
+						payment_date: string;
+						payment_reference: string | null;
+						reference_file_url: string | null;
+					}>();
 					for (const p of payments ?? []) {
 						if (!p.company_id || byCompany.has(p.company_id)) continue;
 						byCompany.set(p.company_id, {
 							status: p.status ?? "pending",
 							amount_paid: p.amount_paid ?? 0,
 							payment_date: p.payment_date ?? "",
+							payment_reference: p.payment_reference ?? null,
+							reference_file_url: p.reference_file_url ?? null,
 						});
 					}
 					return byCompany;
 			  })()
-			: Promise.resolve(new Map<string, { status: string; amount_paid: number; payment_date: string }>()),
+			: Promise.resolve(new Map<string, {
+				status: string;
+				amount_paid: number;
+				payment_date: string;
+				payment_reference: string | null;
+				reference_file_url: string | null;
+			}>()),
 		]);
 
 		const plansMap = new Map((plansRes.data ?? []).map((p) => [p.id, p]));
@@ -84,6 +98,8 @@ export async function GET() {
 					? "paid"
 					: lastPayment.status === "pending_validation"
 						? "pending_validation"
+						: lastPayment.status === "rejected"
+							? "rejected"
 						: "pending"
 				: app.status === "payment_pending" && app.company_id
 					? "pending"

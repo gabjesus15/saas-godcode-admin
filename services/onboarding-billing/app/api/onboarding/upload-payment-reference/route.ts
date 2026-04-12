@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
 		if (fetchError || !payment) {
 			return NextResponse.json({ error: "Pago no encontrado" }, { status: 404 });
 		}
-		if (payment.status !== "pending_validation") {
+		if (!['pending_validation', 'rejected'].includes(payment.status)) {
 			return NextResponse.json(
 				{ error: "Este pago ya fue procesado o no admite referencia" },
 				{ status: 400 }

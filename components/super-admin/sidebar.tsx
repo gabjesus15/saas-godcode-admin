@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LogOut } from "lucide-react";
+import { Badge } from "../ui/badge";
 import { SaasLogo } from "./SaasLogo";
 
 import { SUPER_ADMIN_NAV } from "../../lib/super-admin-nav";
@@ -12,6 +13,7 @@ import { createSupabaseBrowserClient } from "../../utils/supabase/client";
 export function Sidebar() {
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
 
   const handleLogout = async () => {
     try {
@@ -25,6 +27,31 @@ export function Sidebar() {
     }
   };
 
+  useEffect(() => {
+	let cancelled = false;
+
+	const loadPendingCount = async () => {
+		try {
+			const res = await fetch("/api/super-admin/solicitudes/summary", { cache: "no-store" });
+			const json = await res.json().catch(() => ({}));
+			if (!res.ok || cancelled) return;
+			setPendingCount(Number(json?.pendingCount) || 0);
+		} catch {
+			if (!cancelled) setPendingCount(0);
+		}
+	};
+
+	void loadPendingCount();
+	const interval = window.setInterval(() => {
+		void loadPendingCount();
+	}, 60000);
+
+	return () => {
+		cancelled = true;
+		window.clearInterval(interval);
+	};
+  }, []);
+
   return (
     <div className="flex h-full flex-col gap-6 md:gap-10">
       <div className="mb-1 mt-1 md:mb-2 md:mt-2">
@@ -33,6 +60,7 @@ export function Sidebar() {
       <nav className="flex flex-col gap-1 sm:gap-2">
         {SUPER_ADMIN_NAV.map((item) => {
           const Icon = item.icon;
+          const isSolicitudes = item.href === "/onboarding/solicitudes";
           return (
             <Link
               key={item.href}
@@ -41,6 +69,11 @@ export function Sidebar() {
             >
               <Icon className="h-4 w-4 shrink-0" />
               <span className="truncate">{item.label}</span>
+              {isSolicitudes && pendingCount > 0 ? (
+                <Badge variant="destructive" className="ml-auto min-w-6 justify-center px-1.5 text-[11px] leading-none">
+                  {pendingCount > 99 ? "99+" : pendingCount}
+                </Badge>
+              ) : null}
             </Link>
           );
         })}
