@@ -67,8 +67,24 @@ type Overview = {
     inboxTotal: number;
     leadsByStatus: Record<string, number>;
     contactsByStatus: Record<string, number>;
+    landingViews30d?: number;
+    landingUniqueVisitors30d?: number;
+    tenantViews30d?: number;
+    tenantUniqueVisitors30d?: number;
+    tenantTop30d?: Array<{
+      companyId: string | null;
+      tenantSlug: string;
+      companyName: string;
+      views: number;
+      uniqueVisitors: number;
+    }>;
+    countryTop30d?: Array<{
+      countryCode: string;
+      views: number;
+      uniqueVisitors: number;
+    }>;
   };
-  series: { date: string; leads: number; contacts: number }[];
+  series: { date: string; leads: number; contacts: number; landingViews?: number; tenantViews?: number }[];
 };
 
 type TabKey = "overview" | "inbox" | "media" | "webhooks";
@@ -274,6 +290,20 @@ export function LandingAdminClient() {
           data: overview?.series.map((row) => row.contacts) ?? [],
           borderColor: "rgb(14, 116, 144)",
           backgroundColor: "rgba(14, 116, 144, 0.2)",
+          tension: 0.3,
+        },
+        {
+          label: "Visitas landing",
+          data: overview?.series.map((row) => row.landingViews ?? 0) ?? [],
+          borderColor: "rgb(16, 185, 129)",
+          backgroundColor: "rgba(16, 185, 129, 0.2)",
+          tension: 0.3,
+        },
+        {
+          label: "Visitas negocios",
+          data: overview?.series.map((row) => row.tenantViews ?? 0) ?? [],
+          borderColor: "rgb(234, 88, 12)",
+          backgroundColor: "rgba(234, 88, 12, 0.2)",
           tension: 0.3,
         },
       ],
@@ -542,6 +572,11 @@ export function LandingAdminClient() {
           <Card className="p-4"><p className="text-xs text-zinc-500">Contactos</p><p className="mt-1 text-2xl font-bold">{overview.metrics.contactsTotal}</p></Card>
           <Card className="p-4"><p className="text-xs text-zinc-500">Últimos 30 días</p><p className="mt-1 text-2xl font-bold">{overview.series.reduce((acc, d) => acc + d.leads + d.contacts, 0)}</p></Card>
 
+          <Card className="p-4"><p className="text-xs text-zinc-500">Visitas landing (30d)</p><p className="mt-1 text-2xl font-bold">{overview.metrics.landingViews30d ?? 0}</p></Card>
+          <Card className="p-4"><p className="text-xs text-zinc-500">Visitantes únicos landing (30d)</p><p className="mt-1 text-2xl font-bold">{overview.metrics.landingUniqueVisitors30d ?? 0}</p></Card>
+          <Card className="p-4"><p className="text-xs text-zinc-500">Visitas negocios (30d)</p><p className="mt-1 text-2xl font-bold">{overview.metrics.tenantViews30d ?? 0}</p></Card>
+          <Card className="p-4"><p className="text-xs text-zinc-500">Visitantes únicos negocios (30d)</p><p className="mt-1 text-2xl font-bold">{overview.metrics.tenantUniqueVisitors30d ?? 0}</p></Card>
+
           <Card className="p-4 sm:col-span-2">
             <p className="text-sm font-semibold">Estado de leads</p>
             <p className="mt-2 text-xs text-zinc-500">new: {overview.metrics.leadsByStatus.new ?? 0} · contacted: {overview.metrics.leadsByStatus.contacted ?? 0} · closed: {overview.metrics.leadsByStatus.closed ?? 0}</p>
@@ -552,9 +587,71 @@ export function LandingAdminClient() {
           </Card>
 
           <Card className="p-4 sm:col-span-2 lg:col-span-4">
-            <p className="text-sm font-semibold">Actividad diaria (30 días)</p>
+            <p className="text-sm font-semibold">Actividad diaria (30 días): inbox + tráfico</p>
             <div className="mt-3 h-[320px] rounded-xl border border-zinc-200 p-3 dark:border-zinc-700">
               <Line data={chartData} options={chartOptions} />
+            </div>
+          </Card>
+
+          <Card className="p-4 sm:col-span-2 lg:col-span-4">
+            <p className="text-sm font-semibold">Top negocios por visitas (30 días)</p>
+            <div className="mt-3 overflow-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-zinc-50 dark:bg-zinc-800/60">
+                    <th className="px-2 py-2 text-left">Negocio</th>
+                    <th className="px-2 py-2 text-left">Slug</th>
+                    <th className="px-2 py-2 text-left">Visitas</th>
+                    <th className="px-2 py-2 text-left">Visitantes únicos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(overview.metrics.tenantTop30d ?? []).length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-2 py-3 text-zinc-500">Aún sin datos de visitas por negocio.</td>
+                    </tr>
+                  ) : (
+                    (overview.metrics.tenantTop30d ?? []).map((row) => (
+                      <tr key={`${row.companyId ?? row.tenantSlug}`} className="border-t border-zinc-100 dark:border-zinc-800">
+                        <td className="px-2 py-2">{row.companyName}</td>
+                        <td className="px-2 py-2 text-zinc-500">{row.tenantSlug}</td>
+                        <td className="px-2 py-2 font-semibold">{row.views}</td>
+                        <td className="px-2 py-2">{row.uniqueVisitors}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          <Card className="p-4 sm:col-span-2 lg:col-span-4">
+            <p className="text-sm font-semibold">Top países por visitas (30 días)</p>
+            <div className="mt-3 overflow-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-zinc-50 dark:bg-zinc-800/60">
+                    <th className="px-2 py-2 text-left">País</th>
+                    <th className="px-2 py-2 text-left">Visitas</th>
+                    <th className="px-2 py-2 text-left">Visitantes únicos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(overview.metrics.countryTop30d ?? []).length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="px-2 py-3 text-zinc-500">Aún sin datos de país.</td>
+                    </tr>
+                  ) : (
+                    (overview.metrics.countryTop30d ?? []).map((row) => (
+                      <tr key={row.countryCode} className="border-t border-zinc-100 dark:border-zinc-800">
+                        <td className="px-2 py-2 font-semibold">{row.countryCode}</td>
+                        <td className="px-2 py-2">{row.views}</td>
+                        <td className="px-2 py-2">{row.uniqueVisitors}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </Card>
         </div>

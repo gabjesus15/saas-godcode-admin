@@ -5,6 +5,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
 	Activity,
+	BarChart3,
 	Building2,
 	ClipboardList,
 	CreditCard,
@@ -28,6 +29,7 @@ export const SUPER_ADMIN_NAV: SuperAdminNavItem[] = [
 	{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, keywords: "inicio resumen" },
 	{ href: "/dashboard/salud-pagos", label: "Salud de pagos", icon: ShieldAlert, keywords: "pagos cobros" },
 	{ href: "/dashboard/onboarding-embudo", label: "Embudo onboarding", icon: Activity, keywords: "funnel" },
+	{ href: "/dashboard/analytics-global", label: "Analytics global", icon: BarChart3, keywords: "visitas paises trafico" },
 	{ href: "/dashboard/auditoria", label: "Auditoría", icon: ScrollText, keywords: "logs mutaciones" },
 	{ href: "/companies", label: "Empresas", icon: Building2, keywords: "tenant negocios" },
 	{ href: "/onboarding/solicitudes", label: "Solicitudes", icon: ClipboardList, keywords: "onboarding" },

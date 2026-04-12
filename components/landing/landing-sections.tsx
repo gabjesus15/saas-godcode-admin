@@ -102,7 +102,7 @@ const LANDING_TX: Partial<Record<string, Record<Exclude<SupportedLocale, "es" | 
   "Si ya tienes tus productos y fotos, menos de 1 hora. El proceso de registro toma 5 minutos.": { pt: "Se voce ja tem produtos e fotos, menos de 1 hora. O cadastro leva 5 minutos.", fr: "Si vous avez deja vos produits et photos, moins d'une heure. L'inscription prend 5 minutes.", de: "Wenn du Produkte und Fotos hast, weniger als 1 Stunde. Die Registrierung dauert 5 Minuten.", it: "Se hai gia prodotti e foto, meno di 1 ora. La registrazione richiede 5 minuti." },
   "¿Puedo tener varias sucursales?": { pt: "Posso ter varias filiais?", fr: "Puis-je avoir plusieurs succursales ?", de: "Kann ich mehrere Filialen haben?", it: "Posso avere piu filiali?" },
   "Sí. Cada sucursal tiene su propio inventario, precios, zona de delivery y horarios.": { pt: "Sim. Cada filial tem seu proprio estoque, precos, area de delivery e horarios.", fr: "Oui. Chaque succursale a son inventaire, ses prix, sa zone de livraison et ses horaires.", de: "Ja. Jede Filiale hat eigenes Inventar, Preise, Liefergebiet und Offnungszeiten.", it: "Si. Ogni filiale ha inventario, prezzi, zona delivery e orari propri." },
-  "Crea tu cuenta con email. Sin tarjeta de crédito.": { pt: "Crie sua conta com email. Sem cartao de credito.", fr: "Creez votre compte avec email. Sans carte bancaire.", de: "Erstelle dein Konto per E-Mail. Keine Kreditkarte.", it: "Crea il tuo account con email. Senza carta di credito." },
+  "Crea tu cuenta con email. El primer mes es gratis.": { pt: "Crie sua conta com email. O primeiro mes e gratis.", fr: "Creez votre compte avec email. Le premier mois est gratuit.", de: "Erstelle dein Konto per E-Mail. Der erste Monat ist kostenlos.", it: "Crea il tuo account con email. Il primo mese e gratis." },
   "Arma tu tienda": { pt: "Monte sua loja", fr: "Creez votre boutique", de: "Baue deinen Shop", it: "Crea il tuo negozio" },
   "Sube productos, configura delivery y sucursales.": { pt: "Adicione produtos, configure delivery e filiais.", fr: "Ajoutez des produits, configurez la livraison et les succursales.", de: "Fuege Produkte hinzu und konfiguriere Lieferung und Filialen.", it: "Carica prodotti, configura delivery e filiali." },
   "Empieza a vender": { pt: "Comece a vender", fr: "Commencez a vendre", de: "Starte mit dem Verkauf", it: "Inizia a vendere" },
@@ -126,7 +126,7 @@ const LANDING_TX: Partial<Record<string, Record<Exclude<SupportedLocale, "es" | 
   "Crea tu tienda en minutos": { pt: "Crie sua loja em minutos", fr: "Creez votre boutique en quelques minutes", de: "Erstelle deinen Shop in Minuten", it: "Crea il tuo negozio in pochi minuti" },
   ", sin programar.": { pt: ", sem programar.", fr: ", sans coder.", de: ", ohne Programmierung.", it: ", senza programmare." },
   "Empezar gratis": { pt: "Comecar gratis", fr: "Commencer gratuitement", de: "Kostenlos starten", it: "Inizia gratis" },
-  "Sin tarjeta de crédito · Cancela cuando quieras": { pt: "Sem cartao de credito · Cancele quando quiser", fr: "Sans carte bancaire · Resiliez quand vous voulez", de: "Keine Kreditkarte · Jederzeit kuendbar", it: "Senza carta di credito · Annulla quando vuoi" },
+  "El primer mes es gratis · Cancela cuando quieras": { pt: "O primeiro mes e gratis · Cancele quando quiser", fr: "Le premier mois est gratuit · Resiliez quand vous voulez", de: "Der erste Monat ist kostenlos · Jederzeit kuendbar", it: "Il primo mese e gratis · Annulla quando vuoi" },
   "Descuento de lanzamiento sujeto a disponibilidad y validación de rubro.": { pt: "Desconto de lancamento sujeito a disponibilidade e validacao de segmento.", fr: "Remise de lancement soumise a disponibilite et validation du secteur.", de: "Launch-Rabatt je nach Verfugbarkeit und Branchenprufung.", it: "Sconto di lancio soggetto a disponibilita e validazione del settore." },
   "Datos protegidos": { pt: "Dados protegidos", fr: "Donnees protegees", de: "Geschutzte Daten", it: "Dati protetti" },
   "Pagos seguros": { pt: "Pagamentos seguros", fr: "Paiements securises", de: "Sichere Zahlungen", it: "Pagamenti sicuri" },
@@ -166,7 +166,7 @@ const LANDING_TX: Partial<Record<string, Record<Exclude<SupportedLocale, "es" | 
   "Cómo funciona": { pt: "Como funciona", fr: "Comment ca marche", de: "So funktioniert es", it: "Come funziona" },
   "Tu tienda lista en minutos": { pt: "Sua loja pronta em minutos", fr: "Votre boutique prete en quelques minutes", de: "Dein Shop in Minuten startklar", it: "Il tuo negozio pronto in pochi minuti" },
   "Un flujo corto y claro para pasar de idea a ventas sin fricción. Sin configuraciones pesadas, sin curva técnica y sin perder tiempo en pasos innecesarios.": { pt: "Um fluxo curto e claro para ir da ideia as vendas sem friccao.", fr: "Un parcours court et clair pour passer de l'idee aux ventes sans friction.", de: "Ein kurzer, klarer Ablauf von der Idee zu Verkaeufen ohne Reibung.", it: "Un flusso breve e chiaro per passare dall'idea alle vendite senza attriti." },
-  "Sin tarjeta de crédito": { pt: "Sem cartao de credito", fr: "Sans carte bancaire", de: "Keine Kreditkarte", it: "Senza carta di credito" },
+  "Primer mes gratis": { pt: "Primeiro mes gratis", fr: "Premier mois gratuit", de: "Erster Monat kostenlos", it: "Primo mese gratis" },
   "En menos de 5 minutos": { pt: "Em menos de 5 minutos", fr: "En moins de 5 minutes", de: "In weniger als 5 Minuten", it: "In meno di 5 minuti" },
   "Soporte incluido": { pt: "Suporte incluido", fr: "Support inclus", de: "Support inklusive", it: "Supporto incluso" },
   "Producto": { pt: "Produto", fr: "Produit", de: "Produkt", it: "Prodotto" },
@@ -200,7 +200,7 @@ const LANDING_TX: Partial<Record<string, Record<Exclude<SupportedLocale, "es" | 
   "Lo que dicen nuestros clientes": { pt: "O que dizem nossos clientes", fr: "Ce que disent nos clients", de: "Was unsere Kunden sagen", it: "Cosa dicono i nostri clienti" },
   "Precios": { pt: "Precos", fr: "Tarifs", de: "Preise", it: "Prezzi" },
   "Planes simples, sin sorpresas": { pt: "Planos simples, sem surpresas", fr: "Plans simples, sans surprises", de: "Einfache Plane, ohne Uberraschungen", it: "Piani semplici, senza sorprese" },
-  "Prueba gratis. Sin tarjeta. Cancela cuando quieras.": { pt: "Teste gratis. Sem cartao. Cancele quando quiser.", fr: "Essai gratuit. Sans carte. Resiliez quand vous voulez.", de: "Teste kostenlos. Keine Karte. Jederzeit kuendbar.", it: "Prova gratis. Senza carta. Annulla quando vuoi." },
+  "Prueba el primer mes gratis. Cancela cuando quieras.": { pt: "Teste o primeiro mes gratis. Cancele quando quiser.", fr: "Essayez le premier mois gratuit. Resiliez quand vous voulez.", de: "Teste den ersten Monat kostenlos. Jederzeit kuendbar.", it: "Prova il primo mese gratis. Annulla quando vuoi." },
   "Estamos preparando los planes": { pt: "Estamos preparando os planos", fr: "Nous preparons les plans", de: "Wir bereiten die Plane vor", it: "Stiamo preparando i piani" },
   "Mientras tanto, puedes crear tu cuenta y explorar la plataforma gratis.": { pt: "Enquanto isso, voce pode criar sua conta e explorar a plataforma gratis.", fr: "En attendant, vous pouvez creer votre compte et explorer la plateforme gratuitement.", de: "In der Zwischenzeit kannst du dein Konto erstellen und die Plattform kostenlos testen.", it: "Nel frattempo puoi creare il tuo account ed esplorare la piattaforma gratis." },
   "Popular": { pt: "Popular", fr: "Populaire", de: "Beliebt", it: "Popolare" },
@@ -213,7 +213,7 @@ const LANDING_TX: Partial<Record<string, Record<Exclude<SupportedLocale, "es" | 
   "Empieza hoy: tu primera tienda es": { pt: "Comece hoje: sua primeira loja e", fr: "Commencez aujourd'hui : votre premiere boutique est", de: "Starte heute: dein erster Shop ist", it: "Inizia oggi: il tuo primo negozio e" },
   "gratis": { pt: "gratis", fr: "gratuite", de: "kostenlos", it: "gratis" },
   "Menú digital, pedidos, caja e inventario en un solo lugar. Sin comisiones por venta ni letra chica.": { pt: "Menu digital, pedidos, caixa e inventario em um so lugar. Sem comissoes por venda.", fr: "Menu digital, commandes, caisse et inventaire en un seul endroit. Sans commission.", de: "Digitales Menu, Bestellungen, POS und Inventar an einem Ort. Keine Verkaufsprovision.", it: "Menu digitale, ordini, cassa e inventario in un unico posto. Nessuna commissione." },
-  "Sin tarjeta para comenzar": { pt: "Sem cartao para comecar", fr: "Sans carte pour commencer", de: "Keine Karte zum Start", it: "Senza carta per iniziare" },
+  "Empieza en minutos": { pt: "Comece em minutos", fr: "Commencez en quelques minutes", de: "Starte in wenigen Minuten", it: "Inizia in pochi minuti" },
   "Cancelas cuando quieras": { pt: "Cancele quando quiser", fr: "Resiliez quand vous voulez", de: "Jederzeit kuendbar", it: "Annulla quando vuoi" },
   "Soporte en menos de 24 h": { pt: "Suporte em menos de 24 h", fr: "Support en moins de 24 h", de: "Support in weniger als 24 h", it: "Supporto in meno di 24 h" },
   "Crear mi tienda gratis": { pt: "Criar minha loja gratis", fr: "Creer ma boutique gratuite", de: "Meinen kostenlosen Shop erstellen", it: "Crea il mio negozio gratis" },
@@ -225,7 +225,7 @@ const LANDING_TX: Partial<Record<string, Record<Exclude<SupportedLocale, "es" | 
   "¿Tienes dudas?": { pt: "Tem duvidas?", fr: "Vous avez des questions ?", de: "Hast du Fragen?", it: "Hai dubbi?" },
   "Cuéntanos tu rubro y qué necesitas. Respondemos por correo en menos de 24 horas.": { pt: "Conte seu segmento e o que precisa. Respondemos por email em menos de 24 horas.", fr: "Parlez-nous de votre secteur et de vos besoins. Reponse par email en moins de 24 h.", de: "Erzaehl uns deine Branche und was du brauchst. Antwort per E-Mail in weniger als 24 h.", it: "Raccontaci il tuo settore e cosa ti serve. Rispondiamo via email in meno di 24 ore." },
   "Crear mi tienda ya": { pt: "Criar minha loja agora", fr: "Creer ma boutique maintenant", de: "Meinen Shop jetzt erstellen", it: "Crea il mio negozio ora" },
-  "Registro en minutos, sin tarjeta.": { pt: "Cadastro em minutos, sem cartao.", fr: "Inscription en quelques minutes, sans carte.", de: "Registrierung in Minuten, ohne Karte.", it: "Registrazione in pochi minuti, senza carta." },
+  "Registro en minutos.": { pt: "Cadastro em minutos.", fr: "Inscription en quelques minutes.", de: "Registrierung in wenigen Minuten.", it: "Registrazione in pochi minuti." },
   "Soporte humano si te atoras.": { pt: "Suporte humano se voce travar.", fr: "Support humain si vous bloquez.", de: "Menschlicher Support, wenn du festhangst.", it: "Supporto umano se ti blocchi." },
 };
 
@@ -301,7 +301,7 @@ export function LandingSections({
   const continent = getContinentFromCountry(country);
   const currency = getCurrencyByContinent(continent);
   const steps = [
-    { n: "1", title: tx("Regístrate", "Sign up"), text: tx("Crea tu cuenta con email. Sin tarjeta de crédito.", "Create your account with email. No credit card.") },
+    { n: "1", title: tx("Regístrate", "Sign up"), text: tx("Crea tu cuenta con email. El primer mes es gratis.", "Create your account with email. The first month is free.") },
     { n: "2", title: tx("Arma tu tienda", "Build your store"), text: tx("Sube productos, configura delivery y sucursales.", "Upload products and configure delivery and branches.") },
     { n: "3", title: tx("Empieza a vender", "Start selling"), text: tx("Comparte tu link y recibe pedidos desde el día 1.", "Share your link and receive orders from day 1.") },
   ] as const;
@@ -377,7 +377,7 @@ export function LandingSections({
                 </Link>
               </div>
               <p className="mt-3 text-center text-xs text-slate-500 sm:text-sm lg:text-left dark:text-zinc-500">
-                {tx("Sin tarjeta de crédito · Cancela cuando quieras", "No credit card · Cancel anytime")}
+                {tx("El primer mes es gratis · Cancela cuando quieras", "First month free · Cancel anytime")}
               </p>
               <p className="mt-1 text-center text-[11px] text-slate-400 sm:text-xs lg:text-left dark:text-zinc-500">
                 {tx("Descuento de lanzamiento sujeto a disponibilidad y validación de rubro.", "Launch discount subject to availability and business validation.")}
@@ -557,7 +557,7 @@ export function LandingSections({
                 <div className="mt-6 flex flex-wrap gap-2">
                   <span className="inline-flex items-center gap-2 rounded-full border border-indigo-300/30 bg-indigo-500/15 px-3 py-1.5 text-xs font-medium text-indigo-100 shadow-sm backdrop-blur-sm">
                     <Check className="h-3.5 w-3.5 text-indigo-200" aria-hidden />
-                    {tx("Sin tarjeta de crédito", "No credit card")}
+                    {tx("Primer mes gratis", "First month free")}
                   </span>
                   <span className="inline-flex items-center gap-2 rounded-full border border-violet-300/30 bg-violet-500/15 px-3 py-1.5 text-xs font-medium text-indigo-100 shadow-sm backdrop-blur-sm">
                     <Clock className="h-3.5 w-3.5 text-violet-200" aria-hidden />
@@ -824,7 +824,7 @@ export function LandingSections({
               {tx("Planes simples, sin sorpresas", "Simple plans, no surprises")}
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-center text-sm text-slate-500 sm:text-base dark:text-zinc-400">
-              {tx("Prueba gratis. Sin tarjeta. Cancela cuando quieras.", "Try it free. No card. Cancel anytime.")}
+              {tx("Prueba el primer mes gratis. Cancela cuando quieras.", "Try the first month free. Cancel anytime.")}
             </p>
           </LandingReveal>
 
@@ -967,7 +967,7 @@ export function LandingSections({
               <ul className="mt-6 flex flex-col items-center gap-2 text-xs text-slate-400 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-6 sm:gap-y-2 sm:text-sm">
                 <li className="inline-flex items-center gap-2">
                   <Check className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden />
-                  {tx("Sin tarjeta para comenzar", "No card to start")}
+                  {tx("Empieza en minutos", "Start in minutes")}
                 </li>
                 <li className="inline-flex items-center gap-2">
                   <Check className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden />
@@ -1056,7 +1056,7 @@ export function LandingSections({
                     <ul className="mt-3 space-y-1.5 text-xs text-slate-500">
                       <li className="flex gap-2">
                         <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500/90" aria-hidden />
-                        {tx("Registro en minutos, sin tarjeta.", "Sign up in minutes, no card.")}
+                        {tx("Registro en minutos.", "Sign up in minutes.")}
                       </li>
                       <li className="flex gap-2">
                         <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500/90" aria-hidden />

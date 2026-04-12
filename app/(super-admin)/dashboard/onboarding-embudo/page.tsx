@@ -53,6 +53,7 @@ export default async function OnboardingEmbudoPage() {
 				{ORDER.map((key) => {
 					const count = funnel.counts[key] ?? 0;
 					const pct = Math.round((1000 * count) / total) / 10;
+					const progressValue = Math.max(0, Math.min(1000, Math.round((count / total) * 1000)));
 					return (
 						<div key={key}>
 							<div className="mb-1 flex justify-between text-sm">
@@ -61,12 +62,12 @@ export default async function OnboardingEmbudoPage() {
 									{count} ({pct}% del total)
 								</span>
 							</div>
-							<div className="h-2.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-								<div
-									className="h-full rounded-full bg-indigo-500 transition-all dark:bg-indigo-600"
-									style={{ width: `${Math.min(100, pct)}%` }}
-								/>
-							</div>
+							<progress
+								className="h-2.5 w-full overflow-hidden rounded-full [&::-webkit-progress-bar]:bg-zinc-100 [&::-webkit-progress-value]:bg-indigo-500 [&::-webkit-progress-value]:transition-all [&::-moz-progress-bar]:bg-indigo-500 dark:[&::-webkit-progress-bar]:bg-zinc-800 dark:[&::-webkit-progress-value]:bg-indigo-600 dark:[&::-moz-progress-bar]:bg-indigo-600"
+								max={1000}
+								value={progressValue}
+								aria-label={`${LABELS[key] ?? key}: ${pct}%`}
+							/>
 						</div>
 					);
 				})}

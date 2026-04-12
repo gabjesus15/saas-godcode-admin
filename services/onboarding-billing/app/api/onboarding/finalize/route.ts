@@ -11,6 +11,11 @@ import {
 	provisionOnboardingWelcome,
 	WelcomeProvisioningError,
 } from "../../../../lib/onboarding/welcome-provisioning";
+import {
+	getStripeCardFingerprintFromCheckoutSession,
+	hashCardFingerprint,
+	normalizeEmail,
+} from "../../../../lib/onboarding/trial-eligibility";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "";
 const RESEND_FROM = process.env.RESEND_FROM ?? "noreply@example.com";
@@ -66,6 +71,65 @@ export async function POST(req: NextRequest) {
 		);
 		if (status !== "paid" && status !== "approved") {
 			return NextResponse.json({ ok: true, message: "Pago aún no confirmado" });
+		}
+
+		const { data: appGuard } = await supabaseAdmin
+			.from("onboarding_applications")
+			.select("id,email")
+			.eq("company_id", payment.company_id)
+			.eq("status", "payment_pending")
+			.maybeSingle();
+
+		const payerEmail = normalizeEmail(appGuard?.email);
+		if (payerEmail) {
+			const { data: duplicateEmailCompany } = await supabaseAdmin
+				.from("companies")
+				.select("id")
+				.ilike("email", payerEmail)
+				.neq("id", payment.company_id)
+				.limit(1)
+				.maybeSingle();
+
+			if (duplicateEmailCompany?.id) {
+				return NextResponse.json(
+					{ error: "Este correo ya usó el primer mes gratis. Usa una cuenta existente o un plan de pago." },
+					{ status: 409 }
+				);
+			}
+		}
+
+		const stripeSecret = process.env.STRIPE_SECRET_KEY ?? "";
+		let cardFingerprintHash: string | null = null;
+		if (ref.startsWith("cs_") && stripeSecret) {
+			const fingerprint = await getStripeCardFingerprintFromCheckoutSession(ref, stripeSecret);
+			if (fingerprint) {
+				cardFingerprintHash = hashCardFingerprint(fingerprint);
+				const { data: duplicateCardPayment } = await supabaseAdmin
+					.from("payments_history")
+					.select("id,company_id")
+					.eq("card_fingerprint_hash", cardFingerprintHash)
+					.in("status", ["paid", "approved"])
+					.neq("id", payment.id)
+					.limit(1)
+					.maybeSingle();
+
+				if (duplicateCardPayment?.id && duplicateCardPayment.company_id !== payment.company_id) {
+					return NextResponse.json(
+						{ error: "Esta tarjeta ya fue usada para un primer mes gratis. Usa una cuenta existente o un plan de pago." },
+						{ status: 409 }
+					);
+				}
+			}
+		}
+
+		if (payerEmail || cardFingerprintHash) {
+			await supabaseAdmin
+				.from("payments_history")
+				.update({
+					payer_email_normalized: payerEmail || null,
+					card_fingerprint_hash: cardFingerprintHash,
+				})
+				.eq("id", payment.id);
 		}
 
 		const now = new Date();

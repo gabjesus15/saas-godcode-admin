@@ -15,6 +15,7 @@ import {
 	recordPayment,
 	getManualMethodConfig,
 } from "../../../../lib/onboarding/checkout-service";
+import { normalizeEmail } from "../../../../lib/onboarding/trial-eligibility";
 
 const STRIPE_SECRET = process.env.STRIPE_SECRET_KEY ?? "";
 const STRIPE_SUCCESS_URL =
@@ -49,6 +50,23 @@ export async function POST(req: NextRequest) {
 
 		if (appError || !app) {
 			return NextResponse.json({ error: "Solicitud no encontrada o incompleta" }, { status: 404 });
+		}
+
+		const normalizedEmail = normalizeEmail(app.email);
+		if (normalizedEmail) {
+			const companyQuery = supabaseAdmin
+				.from("companies")
+				.select("id")
+				.ilike("email", normalizedEmail)
+				.limit(1);
+			if (app.company_id) companyQuery.neq("id", app.company_id);
+			const { data: duplicateCompany } = await companyQuery.maybeSingle();
+			if (duplicateCompany?.id) {
+				return NextResponse.json(
+					{ error: "Este correo ya usó el primer mes gratis. Inicia sesión o elige un plan de pago." },
+					{ status: 409 }
+				);
+			}
 		}
 
 		const subscriptionMethod = (app.subscription_payment_method ?? "").trim().toLowerCase();
@@ -222,7 +240,14 @@ async function handleManualCheckout(params: {
 }
 
 async function handleStripeCheckout(params: {
-	app: { id: string; country?: string | null; payment_methods?: string[] | null; currency?: string | null; plan_id: string };
+	app: {
+		id: string;
+		email?: string | null;
+		country?: string | null;
+		payment_methods?: string[] | null;
+		currency?: string | null;
+		plan_id: string;
+	};
 	plan: { name: string; price: number };
 	company: { id: string };
 	amountUsd: number;
@@ -252,6 +277,10 @@ async function handleStripeCheckout(params: {
 	stripeParams.append("metadata[plan_id]", params.app.plan_id);
 	stripeParams.append("metadata[months]", params.months.toString());
 	stripeParams.append("metadata[onboarding_application_id]", params.app.id);
+	stripeParams.append("metadata[payer_email_normalized]", normalizeEmail(params.app.email));
+	if (params.app.email) {
+		stripeParams.append("customer_email", params.app.email);
+	}
 
 	const stripeRes = await fetch("https://api.stripe.com/v1/checkout/sessions", {
 		method: "POST",

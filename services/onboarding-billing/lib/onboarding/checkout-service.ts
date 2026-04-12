@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { slugify as slugifyBase } from "../../../../utils/slugify";
+import { slugify as slugifyBase } from "../../utils/slugify";
 
 function slugifyCompanyPublicSlug(value: string): string {
 	return slugifyBase(value, { maxLength: 80, emptyFallback: "negocio" });

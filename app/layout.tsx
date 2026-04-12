@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { DevServiceWorkerCleanup } from "../components/dev-sw-cleanup";
+import { PageAnalyticsTracker } from "../components/analytics/page-analytics-tracker";
 import { getMessagesForLocale } from "@/lib/i18n/messages";
 import { getCurrentLocale } from "@/lib/i18n/server";
 
@@ -57,6 +58,7 @@ export default async function RootLayout({
         <NextIntlClientProvider locale={locale} messages={messages}>
           {/* Logo y slogan eliminados del layout global por petición del usuario */}
           {process.env.NODE_ENV !== "production" ? <DevServiceWorkerCleanup /> : null}
+          {process.env.NODE_ENV === "production" ? <PageAnalyticsTracker /> : null}
           {children}
           {process.env.NODE_ENV === "production" ? (
             <>

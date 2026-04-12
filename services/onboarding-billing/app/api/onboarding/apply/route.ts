@@ -5,6 +5,7 @@ import { supabaseAdmin } from "../../../../lib/supabase-admin";
 import { getAppUrl } from "../../../../lib/app-url";
 import { sendOnboardingEmail } from "../../../../lib/onboarding/emails";
 import { verifyRecaptcha } from "../../../../lib/onboarding/recaptcha";
+import { normalizeEmail } from "../../../../lib/onboarding/trial-eligibility";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "";
 const RESEND_FROM = process.env.RESEND_FROM ?? "noreply@example.com";
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
 
 		const businessName = sanitize(body.business_name, 200);
 		const responsibleName = sanitize(body.responsible_name, 200);
-		const emailRaw = sanitize(body.email, 255).toLowerCase();
+		const emailRaw = normalizeEmail(sanitize(body.email, 255));
 		const phone = sanitize(body.phone, 50);
 		const sector = sanitize(body.sector, 100);
 		const message = sanitize(body.message, 2000);
@@ -48,6 +49,20 @@ export async function POST(req: NextRequest) {
 		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 		if (!emailRaw || !emailRegex.test(emailRaw)) {
 			return NextResponse.json({ error: "Email inválido" }, { status: 400 });
+		}
+
+		const { data: existingCompany } = await supabaseAdmin
+			.from("companies")
+			.select("id")
+			.ilike("email", emailRaw)
+			.limit(1)
+			.maybeSingle();
+
+		if (existingCompany?.id) {
+			return NextResponse.json(
+				{ error: "Este correo ya usó un período promocional. Inicia sesión o elige un plan de pago." },
+				{ status: 409 }
+			);
 		}
 		if (body.terms_accepted !== true || body.privacy_accepted !== true) {
 			return NextResponse.json({ error: "Debes aceptar los términos y la política de privacidad" }, { status: 400 });

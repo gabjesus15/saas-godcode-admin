@@ -4,6 +4,10 @@ import { EMAIL_RE, getClientIp, landingFormRateOk, normalizeText } from "../../.
 import { notifyLandingWebhooks } from "../../../../lib/landing-webhook";
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
 
+function sanitize(value: unknown, maxLen: number): string {
+  return String(value ?? "").trim().slice(0, maxLen);
+}
+
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
   if (!landingFormRateOk(`lead:${ip}`, 10)) {
@@ -63,6 +67,31 @@ export async function POST(req: NextRequest) {
     email: inserted?.email ?? email,
     source: inserted?.source ?? "landing_newsletter",
     createdAt: inserted?.created_at ?? nowIso,
+  });
+
+  const visitorId = sanitize((body as { visitorId?: string })?.visitorId, 120) || null;
+  const sessionId = sanitize((body as { sessionId?: string })?.sessionId, 120) || null;
+  const countryCode =
+    sanitize(
+      req.headers.get("x-vercel-ip-country") || req.headers.get("cf-ipcountry") || req.headers.get("x-country-code"),
+      8,
+    ).toUpperCase() || null;
+
+  await supabaseAdmin.from("analytics_events").insert({
+    event_name: "lead_submit",
+    page_type: "landing",
+    path: "/",
+    host: sanitize(req.headers.get("x-forwarded-host") || req.headers.get("host"), 255) || null,
+    referrer: sanitize(req.headers.get("referer"), 500) || null,
+    title: "landing_lead_submit",
+    visitor_id: visitorId,
+    session_id: sessionId,
+    tenant_slug: null,
+    company_id: null,
+    country_code: countryCode,
+    user_agent: ua || null,
+    ip_hash: null,
+    metadata: { source: "landing_newsletter", emailDomain: email.split("@")[1] ?? null },
   });
 
   return NextResponse.json({ success: true, duplicate: false });
