@@ -22,6 +22,8 @@ export type OnboardingEmailType =
 	| "team_notification"
 	| "application_confirmation"
 	| "payment_reminder"
+	| "payment_validated"
+	| "booking_reminder"
 	| "plan_expiring"
 	| "invoice"
 	| "site_ready"
@@ -72,6 +74,22 @@ interface PaymentReminderParams extends BaseEmailParams {
 	paymentUrl?: string;
 }
 
+interface PaymentValidatedParams extends BaseEmailParams {
+	type: "payment_validated";
+	responsibleName: string;
+	businessName: string;
+	contactDate: string;
+	panelUrl?: string;
+}
+
+interface BookingReminderParams extends BaseEmailParams {
+	type: "booking_reminder";
+	businessName: string;
+	responsibleName: string;
+	contactDate: string;
+	panelUrl?: string;
+}
+
 interface PlanExpiringParams extends BaseEmailParams {
 	type: "plan_expiring";
 	responsibleName: string;
@@ -117,6 +135,8 @@ type EmailParams =
 	| WelcomeEmailParams
 	| TeamNotificationParams
 	| PaymentReminderParams
+	| PaymentValidatedParams
+	| BookingReminderParams
 	| PlanExpiringParams
 	| InvoiceParams
 	| SiteReadyParams
@@ -274,6 +294,39 @@ function buildPaymentReminder(p: PaymentReminderParams): { subject: string; html
 	return { subject, html: wrapEmailLayout(content) };
 }
 
+function buildPaymentValidated(p: PaymentValidatedParams): { subject: string; html: string } {
+	const subject = `Pago validado - ${p.businessName}`;
+	const content = `
+	<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background: #eff6ff; border-radius: ${CARD_RADIUS}; border: 1px solid #93c5fd;">
+		<tr>
+			<td style="padding: 28px 24px;">
+				<p style="margin: 0 0 8px; font-size: 12px; font-weight: 600; color: #1d4ed8; text-transform: uppercase; letter-spacing: 0.5px;">Pago validado</p>
+				<h1 style="margin: 0 0 16px; font-size: 20px; font-weight: 600; color: ${TEXT_DARK};">Hola, ${p.responsibleName}</h1>
+				<p style="margin: 0 0 18px; font-size: 15px; line-height: 1.6; color: ${TEXT_MUTED};">Ya validamos el pago de <strong style="color: ${TEXT_DARK};">${p.businessName}</strong>. Te contactaremos el <strong style="color: ${TEXT_DARK};">${p.contactDate}</strong> para avisarte que tu pagina esta lista.</p>
+				${p.panelUrl ? `<table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td style="border-radius: 8px; background: ${BRAND_PRIMARY};"><a href="${p.panelUrl}" target="_blank" style="display: inline-block; padding: 14px 28px; font-size: 15px; font-weight: 600; color: #ffffff; text-decoration: none;">Ver estado</a></td></tr></table>` : ""}
+			</td>
+		</tr>
+	</table>`;
+	return { subject, html: wrapEmailLayout(content) };
+}
+
+function buildBookingReminder(p: BookingReminderParams): { subject: string; html: string } {
+	const subject = `Seguimiento programado - ${p.businessName}`;
+	const content = `
+	<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background: #fffbeb; border-radius: ${CARD_RADIUS}; border: 1px solid #fcd34d;">
+		<tr>
+			<td style="padding: 28px 24px;">
+				<p style="margin: 0 0 8px; font-size: 12px; font-weight: 600; color: #92400e; text-transform: uppercase; letter-spacing: 0.5px;">Booking de contacto</p>
+				<h1 style="margin: 0 0 16px; font-size: 20px; font-weight: 600; color: ${TEXT_DARK};">Hola, ${p.responsibleName}</h1>
+				<p style="margin: 0 0 18px; font-size: 15px; line-height: 1.6; color: ${TEXT_MUTED};">Tal como acordamos, hoy es el seguimiento de <strong style="color: ${TEXT_DARK};">${p.businessName}</strong>. Te contactaremos para confirmar el avance de tu pagina y la entrega final.</p>
+				<p style="margin: 0 0 24px; font-size: 15px; color: ${TEXT_DARK};"><strong>Fecha agendada:</strong> ${p.contactDate}</p>
+				${p.panelUrl ? `<table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td style="border-radius: 8px; background: ${BRAND_PRIMARY};"><a href="${p.panelUrl}" target="_blank" style="display: inline-block; padding: 14px 28px; font-size: 15px; font-weight: 600; color: #ffffff; text-decoration: none;">Abrir panel</a></td></tr></table>` : ""}
+			</td>
+		</tr>
+	</table>`;
+	return { subject, html: wrapEmailLayout(content) };
+}
+
 function buildPlanExpiring(p: PlanExpiringParams): { subject: string; html: string } {
 	const subject = `Tu plan vence pronto - ${p.businessName}`;
 	const content = `
@@ -383,6 +436,12 @@ export async function sendOnboardingEmail(params: EmailParams): Promise<{ ok: bo
 		case "payment_reminder":
 			({ subject, html } = buildPaymentReminder(params));
 			break;
+			case "payment_validated":
+				({ subject, html } = buildPaymentValidated(params));
+				break;
+			case "booking_reminder":
+				({ subject, html } = buildBookingReminder(params));
+				break;
 		case "plan_expiring":
 			({ subject, html } = buildPlanExpiring(params));
 			break;
