@@ -181,8 +181,6 @@ export async function provisionCompanyFromApplication(
 		plan_id: app.plan_id,
 		subscription_status: isManualPayment ? "payment_pending" : "trial",
 		custom_domain: app.custom_domain ?? null,
-		custom_plan_name: app.custom_plan_name ?? null,
-		custom_plan_price: app.custom_plan_price ?? null,
 		theme_config: {
 			displayName: app.business_name,
 			logoUrl: app.logo_url ?? null,
