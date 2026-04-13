@@ -35,6 +35,17 @@ type PayPalWindow = Window & {
 	};
 };
 
+function parseJsonObject(text: string): Record<string, unknown> {
+	if (!text) return {};
+	try {
+		const parsed = JSON.parse(text);
+		if (parsed && typeof parsed === "object") return parsed as Record<string, unknown>;
+	} catch {
+		// Ignore invalid JSON payloads.
+	}
+	return {};
+}
+
 const VISITOR_KEY = "gc_visitor_id";
 const SESSION_KEY = "gc_session_id";
 
@@ -209,7 +220,9 @@ function PagoContent() {
 				body: JSON.stringify({ token, months }),
 			});
 
-			const data = (await res.json().catch(() => ({}))) as {
+			const raw = await res.text();
+			const payload = parseJsonObject(raw);
+			const data = payload as {
 				error?: string;
 				sessionId?: string;
 				plan_name?: string;
@@ -218,7 +231,8 @@ function PagoContent() {
 			};
 
 			if (!res.ok) {
-				throw new Error(data.error ?? copy.errors.createSession);
+				const fallback = raw && raw.trim() ? raw.trim() : copy.errors.createSession;
+				throw new Error(data.error ?? fallback);
 			}
 
 			if (data.plan_name && typeof data.plan_price === "number") {
@@ -329,10 +343,14 @@ function PagoContent() {
 				body: JSON.stringify({ token, months }),
 			});
 
-			const data = await res.json().catch(() => ({}));
+			const raw = await res.text();
+			const data = parseJsonObject(raw);
 
 			if (!res.ok) {
-				throw new Error(data.error ?? copy.errors.createSession);
+				const message = typeof data?.error === "string" && data.error.trim()
+					? data.error
+					: (raw && raw.trim() ? raw.trim() : copy.errors.createSession);
+				throw new Error(message);
 			}
 
 			if (data.plan_name && data.plan_price) {

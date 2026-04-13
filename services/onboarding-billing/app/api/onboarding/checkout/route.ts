@@ -18,6 +18,8 @@ import {
 import { normalizeEmail } from "../../../../lib/onboarding/trial-eligibility";
 
 const STRIPE_SECRET = process.env.STRIPE_SECRET_KEY ?? "";
+const PAYPAL_CLIENT_ID = (process.env.PAYPAL_CLIENT_ID ?? "").trim();
+const PAYPAL_CLIENT_SECRET = (process.env.PAYPAL_CLIENT_SECRET ?? "").trim();
 const STRIPE_SUCCESS_URL =
 	process.env.STRIPE_SUCCESS_URL ??
 	(process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN
@@ -117,13 +119,11 @@ export async function POST(req: NextRequest) {
 
 		const isPayPal = subscriptionMethod === "paypal";
 		const isManualPayment = isManualMethod(subscriptionMethod);
-		const paypalClientId = process.env.PAYPAL_CLIENT_ID ?? "";
-		const paypalClientSecret = process.env.PAYPAL_CLIENT_SECRET ?? "";
 
 		if (!isManualPayment && !STRIPE_SECRET && !isPayPal) {
 			return NextResponse.json({ error: "Integración de pago no configurada" }, { status: 503 });
 		}
-		if (isPayPal && (!paypalClientId || !paypalClientSecret)) {
+		if (isPayPal && (!PAYPAL_CLIENT_ID || !PAYPAL_CLIENT_SECRET)) {
 			return NextResponse.json({ error: "PayPal no configurado (PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET)" }, { status: 503 });
 		}
 
@@ -142,7 +142,8 @@ export async function POST(req: NextRequest) {
 		if (isPayPal) {
 			return handlePayPalCheckout({
 				app, plan: chargedPlan, planPricing, amountUsd, months, token,
-				paypalClientId, paypalClientSecret,
+				paypalClientId: PAYPAL_CLIENT_ID,
+				paypalClientSecret: PAYPAL_CLIENT_SECRET,
 			});
 		}
 
@@ -192,23 +193,29 @@ async function handlePayPalCheckout(params: {
 	});
 	const ordersController = new OrdersController(paypalClient);
 
-	const createRes = await ordersController.createOrder({
-		body: {
-			intent: CheckoutPaymentIntent.Capture,
-			purchaseUnits: [
-				{
-					customId: `${params.app.id}|${params.months}`,
-					amount: { currencyCode: "USD", value: params.amountUsd.toFixed(2) },
-					description: params.plan.name ?? "Plan",
-				},
-			],
-			applicationContext: { returnUrl, cancelUrl },
-		},
-	});
+	let createRes: Awaited<ReturnType<OrdersController["createOrder"]>>;
+	try {
+		createRes = await ordersController.createOrder({
+			body: {
+				intent: CheckoutPaymentIntent.Capture,
+				purchaseUnits: [
+					{
+						customId: `${params.app.id}|${params.months}`,
+						amount: { currencyCode: "USD", value: params.amountUsd.toFixed(2) },
+						description: params.plan.name ?? "Plan",
+					},
+				],
+				applicationContext: { returnUrl, cancelUrl },
+			},
+		});
+	} catch (error) {
+		console.error("paypal create order exception:", error);
+		return NextResponse.json({ error: "Error al crear la orden de PayPal" }, { status: 502 });
+	}
 
 	const order = createRes.result;
 	const orderId = order?.id;
-	const approveLink = order?.links?.find((l) => l.rel === "approve")?.href;
+	const approveLink = order?.links?.find((l) => l.rel === "approve" || l.rel === "payer-action")?.href;
 
 	if (!orderId || !approveLink) {
 		console.error("paypal create order:", createRes);
