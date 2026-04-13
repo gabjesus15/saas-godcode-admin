@@ -12,9 +12,8 @@ import {
 	resolveCheckoutPlan,
 	resolveCheckoutPlanPrice,
 	calculateAddonsTotalUsd,
-	provisionCompanyFromApplication,
-	recordPayment,
 	getManualMethodConfig,
+	updateApplicationPaymentState,
 } from "../../../../lib/onboarding/checkout-service";
 import { normalizeEmail } from "../../../../lib/onboarding/trial-eligibility";
 
@@ -71,7 +70,7 @@ export async function POST(req: NextRequest) {
 		const { data: app, error: appError } = await supabaseAdmin
 			.from("onboarding_applications")
 			.select(
-				"id,business_name,responsible_name,email,legal_name,logo_url,fiscal_address,billing_address,billing_rut,social_instagram,social_facebook,social_twitter,description,plan_id,country,payment_methods,currency,custom_plan_name,custom_plan_price,custom_domain,company_id,subscription_payment_method"
+				"id,business_name,responsible_name,email,legal_name,logo_url,fiscal_address,billing_address,billing_rut,social_instagram,social_facebook,social_twitter,description,plan_id,country,payment_methods,currency,custom_plan_name,custom_plan_price,custom_domain,company_id,subscription_payment_method,payment_reference,payment_status,payment_reference_url"
 			)
 			.eq("verification_token", token)
 			.in("status", ["form_completed", "payment_pending"])
@@ -147,20 +146,14 @@ export async function POST(req: NextRequest) {
 			});
 		}
 
-		const companyResult = await provisionCompanyFromApplication(supabaseAdmin, app, isManualPayment);
-		if (!companyResult.ok) {
-			return NextResponse.json({ error: companyResult.error }, { status: companyResult.status });
-		}
-		const company = companyResult.company;
-
 		if (isManualPayment) {
 			return handleManualCheckout({
-				app, company, amountUsd, months, subscriptionMethod, plan: chargedPlan, planPricing,
+				app, amountUsd, months, subscriptionMethod, plan: chargedPlan, planPricing,
 			});
 		}
 
 		return handleStripeCheckout({
-			app, plan: chargedPlan, planPricing, company, amountUsd, addonsTotalUsd, months, token,
+			app, plan: chargedPlan, planPricing, amountUsd, addonsTotalUsd, months, token,
 		});
 	} catch (err) {
 		console.error("onboarding checkout error:", err);
@@ -222,6 +215,15 @@ async function handlePayPalCheckout(params: {
 		return NextResponse.json({ error: "Error al crear la orden de PayPal" }, { status: 502 });
 	}
 
+	await updateApplicationPaymentState(supabaseAdmin, params.app.id, {
+		applicationStatus: "payment_pending",
+		paymentReference: orderId,
+		paymentStatus: "pending",
+		paymentMonths: params.months,
+		paymentAmount: params.amountUsd,
+		updatedAt: new Date().toISOString(),
+	});
+
 	return NextResponse.json({
 		ok: true,
 		url: approveLink,
@@ -243,35 +245,26 @@ async function handleManualCheckout(params: {
 	app: { id: string; country?: string | null; currency?: string | null; plan_id: string; subscription_payment_method?: string | null };
 	plan: { name: string; price: number };
 	planPricing: { continent: string; price: number; currency: string };
-	company: { id: string };
 	amountUsd: number;
 	months: number;
 	subscriptionMethod: string;
 }) {
 	const paymentRef = `manual-${params.app.id}-${Date.now()}`;
 
-	const payResult = await recordPayment(supabaseAdmin, {
-		companyId: params.company.id,
-		planId: params.app.plan_id,
-		amountPaid: params.amountUsd,
-		paymentMethod: params.subscriptionMethod,
-		paymentMethodSlug: params.subscriptionMethod,
+	await updateApplicationPaymentState(supabaseAdmin, params.app.id, {
+		applicationStatus: "payment_pending",
 		paymentReference: paymentRef,
-		status: "pending_validation",
-		monthsPaid: params.months,
+		paymentStatus: "pending_validation",
+		paymentMonths: params.months,
+		paymentAmount: params.amountUsd,
+		updatedAt: new Date().toISOString(),
 	});
-
-	if (payResult.error) {
-		return NextResponse.json({ error: "Error al registrar el pago" }, { status: 500 });
-	}
 
 	const methodConfig = await getManualMethodConfig(supabaseAdmin, params.subscriptionMethod);
 
 	return NextResponse.json({
 		ok: true,
 		manual: true,
-		company_id: params.company.id,
-		payment_id: payResult.id,
 		payment_reference: paymentRef,
 		amount_usd: params.amountUsd,
 		months: params.months,
@@ -297,7 +290,6 @@ async function handleStripeCheckout(params: {
 	};
 	plan: { name: string; price: number };
 	planPricing: { continent: string; price: number; currency: string };
-	company: { id: string };
 	amountUsd: number;
 	addonsTotalUsd: number;
 	months: number;
@@ -324,7 +316,6 @@ async function handleStripeCheckout(params: {
 		stripeParams.append("line_items[1][price_data][unit_amount]", Math.round(params.addonsTotalUsd * 100).toString());
 		stripeParams.append("line_items[1][quantity]", "1");
 	}
-	stripeParams.append("metadata[company_id]", params.company.id);
 	stripeParams.append("metadata[plan_id]", params.app.plan_id);
 	stripeParams.append("metadata[months]", params.months.toString());
 	stripeParams.append("metadata[onboarding_application_id]", params.app.id);
@@ -350,16 +341,16 @@ async function handleStripeCheckout(params: {
 
 	const session = (await stripeRes.json()) as { id?: string; url?: string };
 
-	await recordPayment(supabaseAdmin, {
-		companyId: params.company.id,
-		planId: params.app.plan_id,
-		amountPaid: params.amountUsd,
-		paymentMethod: "stripe",
-		paymentMethodSlug: "stripe",
-		paymentReference: session.id ?? "stripe-session",
-		status: "pending",
-		monthsPaid: params.months,
-	});
+	if (session.id) {
+		await updateApplicationPaymentState(supabaseAdmin, params.app.id, {
+			applicationStatus: "payment_pending",
+			paymentReference: session.id,
+			paymentStatus: "pending",
+			paymentMonths: params.months,
+			paymentAmount: params.amountUsd,
+			updatedAt: new Date().toISOString(),
+		});
+	}
 
 	return NextResponse.json({
 		ok: true,

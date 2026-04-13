@@ -33,7 +33,35 @@ async function getPayment(ref?: string) {
     .maybeSingle();
 
   if (error || !data) {
-    return null;
+    const { data: app } = await supabase
+      .from("onboarding_applications")
+      .select("business_name,plan_id,company_id,subscription_payment_method,payment_status,payment_reference,payment_amount,payment_months,verification_token")
+      .eq("payment_reference", ref)
+      .maybeSingle();
+
+    if (!app) {
+      return null;
+    }
+
+    const [{ data: company }, { data: plan }] = await Promise.all([
+      app.company_id
+        ? supabase.from("companies").select("name").eq("id", app.company_id).maybeSingle()
+        : Promise.resolve({ data: null as { name?: string | null } | null }),
+      supabase.from("plans").select("name").eq("id", app.plan_id).maybeSingle(),
+    ]);
+
+    return {
+      id: app.payment_reference ?? ref ?? "",
+      company_id: app.company_id,
+      plan_id: app.plan_id,
+      amount_paid: Number(app.payment_amount ?? 0) || 0,
+      months_paid: app.payment_months ?? 1,
+      status: app.payment_status ?? "pending",
+      payment_method: app.subscription_payment_method ?? null,
+      companyName: company?.name ?? app.business_name ?? "--",
+      planName: plan?.name ?? "--",
+      onboardingToken: app.verification_token ?? null,
+    };
   }
 
   const [{ data: company }, { data: plan }] = await Promise.all([

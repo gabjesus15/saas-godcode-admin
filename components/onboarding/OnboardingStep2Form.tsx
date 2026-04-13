@@ -310,6 +310,18 @@ export function OnboardingStep2Form({
     return () => { cancelled = true; };
   }, [country]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash !== "#payment-method") return;
+
+    const section = document.getElementById("payment-method");
+    if (!section) return;
+
+    section.scrollIntoView({ behavior: "smooth", block: "start" });
+    const firstInput = section.querySelector<HTMLInputElement>('input[name="sub_method"]');
+    firstInput?.focus();
+  }, []);
+
   // Reset manual method if not available
   useEffect(() => {
     if (planMethodsLoadState !== "ready") return;
@@ -567,7 +579,7 @@ export function OnboardingStep2Form({
       )}
 
       {/* Payment method */}
-      <div>
+      <div id="payment-method" className="scroll-mt-24" tabIndex={-1}>
         <h3 className="mb-3 text-sm font-semibold text-slate-900">{copy.paymentMethodLabel}</h3>
         <div className="space-y-2">
           {paymentMethodOptions.map((method) => (

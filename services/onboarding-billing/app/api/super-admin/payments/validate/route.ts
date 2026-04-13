@@ -5,8 +5,14 @@ import { logger, createRequestContext } from "../../../../../lib/logger";
 import { validateApiKey } from "../../../../../lib/api-key-auth";
 import {
 	activateCompanyAddonsFromApplication,
+	activateCompanySubscription,
 	getMonthsPaidFromPayment,
 } from "../../../../../lib/onboarding/billing-activation";
+import {
+	provisionCompanyFromApplication,
+	recordPayment,
+	type OnboardingApplication,
+} from "../../../../../lib/onboarding/checkout-service";
 import {
 	getBookingContactDate,
 	queueBookingReminder,
@@ -42,7 +48,112 @@ export async function POST(req: NextRequest) {
 		const { data: payment, error: payError } = await query.maybeSingle();
 
 		if (payError || !payment) {
-			return NextResponse.json({ error: "Pago no encontrado" }, { status: 404 });
+			const { data: appPending } = await supabaseAdmin
+				.from("onboarding_applications")
+				.select("id,business_name,responsible_name,email,plan_id,company_id,subscription_payment_method,payment_reference,payment_status,payment_months,payment_amount")
+				.eq("payment_reference", paymentRef)
+				.maybeSingle();
+
+			if (!appPending) {
+				return NextResponse.json({ error: "Pago no encontrado" }, { status: 404 });
+			}
+
+			const pendingStatus = String(appPending.payment_status ?? "").toLowerCase();
+			if (!appPending.payment_reference || !["pending_validation", "rejected", "pending"].includes(pendingStatus)) {
+				return NextResponse.json(
+					{ error: "Este pago ya fue procesado o no está pendiente de validación" },
+					{ status: 400 }
+				);
+			}
+
+			const app = appPending as OnboardingApplication;
+			const monthsPaid = getMonthsPaidFromPayment({ months_paid: app.payment_months }, 1);
+			const amountPaid = Number(app.payment_amount ?? 0) || 0;
+			const now = new Date();
+
+			const companyResult = await provisionCompanyFromApplication(supabaseAdmin, app, true);
+			if (!companyResult.ok) {
+				return NextResponse.json({ error: companyResult.error }, { status: companyResult.status });
+			}
+
+			const paymentInsert = await recordPayment(supabaseAdmin, {
+				companyId: companyResult.company.id,
+				planId: app.plan_id,
+				amountPaid,
+				paymentMethod: app.subscription_payment_method ?? "manual",
+				paymentMethodSlug: app.subscription_payment_method ?? "manual",
+				paymentReference: app.payment_reference ?? paymentRef,
+				status: "paid",
+				monthsPaid,
+			});
+
+			if (paymentInsert.error) {
+				return NextResponse.json({ error: paymentInsert.error }, { status: 500 });
+			}
+
+			await activateCompanySubscription({
+				supabaseAdmin,
+				companyId: companyResult.company.id,
+				monthsPaid,
+				now,
+			});
+
+			await supabaseAdmin
+				.from("onboarding_applications")
+				.update({
+					company_id: companyResult.company.id,
+					status: "active",
+					payment_status: "paid",
+					updated_at: now.toISOString(),
+				})
+				.eq("id", app.id);
+
+			if (app) {
+				try {
+					const preferredContactDate = getBookingContactDate(now);
+					const booking = await queueBookingReminder({
+						supabaseAdmin,
+						companyId: companyResult.company.id,
+						businessName: app.business_name,
+						requesterEmail: app.email,
+						scheduledFor: preferredContactDate,
+					});
+					await sendPaymentValidatedNotice({
+						supabaseAdmin,
+						companyId: companyResult.company.id,
+						businessName: app.business_name,
+						responsibleName: app.responsible_name ?? "",
+						recipientEmail: app.email,
+						contactDate: booking.scheduledFor,
+					});
+				} catch (error) {
+					logger.warn("payment_validated_email_failed", ctx, {
+						companyId: companyResult.company.id,
+						error: String(error),
+					});
+				}
+			}
+
+			await activateCompanyAddonsFromApplication({
+				supabaseAdmin,
+				applicationId: app.id,
+				companyId: companyResult.company.id,
+				monthsPaid,
+				now,
+			});
+
+			logger.info("Pago validado", ctx, {
+				companyId: companyResult.company.id,
+				welcomeSent: true,
+				customerAccountExpansion: false,
+				customerPlanChange: false,
+				customerAddonPurchase: false,
+			});
+			return NextResponse.json({
+				ok: true,
+				message: "Pago validado. La empresa se creo y quedo activa correctamente.",
+				welcome_email_sent: true,
+			});
 		}
 		if (payment.status !== "pending_validation") {
 			return NextResponse.json(

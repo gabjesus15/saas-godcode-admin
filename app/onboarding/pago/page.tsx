@@ -114,6 +114,9 @@ function PagoContent() {
 	const changeMethodLabel = getChangeMethodLabel(locale);
 	const searchParams = useSearchParams();
 	const token = searchParams ? searchParams.get("token") : null;
+	const changeMethodHref = token
+		? `/onboarding/complete?token=${encodeURIComponent(token)}#payment-method`
+		: "/onboarding/complete";
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [months, setMonths] = useState(1);
@@ -416,7 +419,7 @@ function PagoContent() {
 				<OnboardingStepBar current={3} />
 				<div className="mb-5 text-center">
 					<Link
-						href={`/onboarding/complete?token=${encodeURIComponent(token)}`}
+						href={changeMethodHref}
 						className="inline-block rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
 					>
 						{changeMethodLabel}
@@ -504,13 +507,13 @@ function PagoContent() {
 				</p>
 				<div className="mt-4 flex flex-wrap items-center justify-center gap-3">
 					<Link
-						href={`/onboarding/complete?token=${encodeURIComponent(token)}`}
+						href={changeMethodHref}
 						className="text-sm font-medium text-indigo-600 hover:underline"
 					>
 						{copy.backToStep2}
 					</Link>
 					<Link
-						href={`/onboarding/complete?token=${encodeURIComponent(token)}`}
+						href={changeMethodHref}
 						className="inline-block rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
 					>
 						{changeMethodLabel}

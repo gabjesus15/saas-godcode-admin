@@ -30,7 +30,7 @@ export default async function OnboardingLayout({
             href="/"
             className="shrink-0 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
           >
-            <LandingLogo />
+            <LandingLogo forceLightText />
           </Link>
           <div className="flex items-center gap-2">
             <LanguageSwitcher />

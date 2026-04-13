@@ -8,6 +8,11 @@ import {
 	getMonthsPaidFromPayment,
 } from "../../../../lib/onboarding/billing-activation";
 import {
+	provisionCompanyFromApplication,
+	recordPayment,
+	type OnboardingApplication,
+} from "../../../../lib/onboarding/checkout-service";
+import {
 	provisionOnboardingWelcome,
 	WelcomeProvisioningError,
 } from "../../../../lib/onboarding/welcome-provisioning";
@@ -33,6 +38,87 @@ export async function POST(req: NextRequest) {
 			.select("id,company_id,plan_id,status,payment_method_slug,payer_email_normalized,paypal_payer_id_hash")
 			.eq("payment_reference", ref)
 			.maybeSingle();
+
+		if (!payment) {
+			const { data: app } = await supabaseAdmin
+				.from("onboarding_applications")
+				.select("id,business_name,responsible_name,email,plan_id,company_id,billing_rut,fiscal_address,logo_url,social_instagram,custom_domain,custom_plan_name,custom_plan_price,subscription_payment_method,payment_reference,payment_status,payment_months,payment_amount")
+				.eq("payment_reference", ref)
+				.maybeSingle();
+
+			if (!app) {
+				return NextResponse.json({ error: "Pago no encontrado" }, { status: 404 });
+			}
+
+			const stripeSecret = process.env.STRIPE_SECRET_KEY;
+			if (!stripeSecret) {
+				return NextResponse.json({ error: "Pago no encontrado" }, { status: 404 });
+			}
+
+			try {
+				const stripeRes = await fetch(`https://api.stripe.com/v1/checkout/sessions/${ref}`, {
+					headers: { Authorization: `Bearer ${stripeSecret}` },
+				});
+				if (!stripeRes.ok) {
+					return NextResponse.json({ ok: true, message: "Pago aún no confirmado" });
+				}
+
+				const session = (await stripeRes.json()) as { payment_status?: string; amount_total?: number };
+				if (session.payment_status !== "paid") {
+					return NextResponse.json({ ok: true, message: "Pago aún no confirmado" });
+				}
+
+				const appRecord = app as OnboardingApplication;
+				const monthsPaid = getMonthsPaidFromPayment({ months_paid: app.payment_months }, 1);
+				const amountPaid = Number(session.amount_total ?? app.payment_amount ?? 0) / 100;
+				const companyResult = await provisionCompanyFromApplication(supabaseAdmin, appRecord, false);
+				if (!companyResult.ok) {
+					return NextResponse.json({ error: companyResult.error }, { status: companyResult.status });
+				}
+
+				const paymentInsert = await recordPayment(supabaseAdmin, {
+					companyId: companyResult.company.id,
+					planId: appRecord.plan_id,
+					amountPaid,
+					paymentMethod: String(appRecord.subscription_payment_method ?? "stripe"),
+					paymentMethodSlug: "stripe",
+					paymentReference: ref,
+					status: "paid",
+					monthsPaid,
+				});
+
+				if (paymentInsert.error) {
+					return NextResponse.json({ error: paymentInsert.error }, { status: 500 });
+				}
+
+				const now = new Date();
+				await supabaseAdmin
+					.from("onboarding_applications")
+					.update({ company_id: companyResult.company.id, status: "active", payment_status: "paid", updated_at: now.toISOString() })
+					.eq("id", appRecord.id);
+
+				await activateCompanySubscription({
+					supabaseAdmin,
+					companyId: companyResult.company.id,
+					monthsPaid,
+					now,
+				});
+
+				await activateCompanyAddonsFromApplication({
+					supabaseAdmin,
+					applicationId: appRecord.id,
+					companyId: companyResult.company.id,
+					monthsPaid,
+					now,
+				});
+
+				logger.info("Finalize completado", ctx, { companyId: companyResult.company.id });
+				return NextResponse.json({ ok: true, message: "Usuario creado y email de bienvenida enviado" });
+			} catch (stripeError) {
+				logger.error("stripe finalize fallback error", ctx, { error: String(stripeError) });
+				return NextResponse.json({ error: "Error interno" }, { status: 500 });
+			}
+		}
 
 		if (payError || !payment) {
 			return NextResponse.json({ error: "Pago no encontrado" }, { status: 404 });
@@ -230,6 +316,11 @@ export async function POST(req: NextRequest) {
 			monthsPaid,
 			now,
 		});
+
+		await supabaseAdmin
+			.from("onboarding_applications")
+			.update({ status: "active", payment_status: "paid", updated_at: now.toISOString() })
+			.eq("id", app.id);
 
 		logger.info("Finalize completado", ctx, { companyId: payment.company_id });
 		return NextResponse.json({

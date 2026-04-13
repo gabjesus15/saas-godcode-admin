@@ -91,7 +91,7 @@ export function LandingNav() {
           : "border-b border-transparent bg-transparent"
       }`}
     >
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-16 max-w-7xl items-center px-5 sm:px-6 lg:px-8">
         <a
           href="#inicio"
           className="shrink-0 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
@@ -101,7 +101,7 @@ export function LandingNav() {
         </a>
 
         {/* Desktop nav */}
-        <nav className="hidden items-center gap-0.5 lg:flex" aria-label={t("main")}>
+        <nav className="hidden min-w-0 flex-1 items-center justify-center gap-0.5 px-4 xl:flex" aria-label={t("main")}>
           {navLinks.map(({ href, key }) => {
             const isActive = active === href.slice(1);
             return (
@@ -123,28 +123,28 @@ export function LandingNav() {
           })}
         </nav>
 
-        <div className="hidden items-center gap-2.5 lg:flex">
-          <LanguageSwitcher />
+        <div className="hidden shrink-0 items-center gap-2.5 xl:flex">
+          <LanguageSwitcher className="flex items-center" selectClassName="h-9" />
           <Link
             href="/login"
-            className="rounded-lg px-4 py-2 text-[13px] font-medium text-slate-600 transition-colors hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+            className="inline-flex h-9 min-w-[88px] items-center justify-center rounded-lg px-4 text-[13px] font-medium leading-none text-slate-600 transition-colors hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-100"
           >
             {t("login")}
           </Link>
           <Link
             href="/onboarding"
-            className="inline-flex h-9 items-center justify-center rounded-lg bg-indigo-600 px-4 text-[13px] font-medium text-white shadow-sm shadow-indigo-500/20 transition-colors hover:bg-indigo-700"
+            className="inline-flex h-9 min-w-[124px] items-center justify-center whitespace-nowrap rounded-lg bg-indigo-600 px-4 text-[13px] font-medium leading-none text-white shadow-sm shadow-indigo-500/20 transition-colors hover:bg-indigo-700"
           >
             {t("createAccount")}
           </Link>
         </div>
 
         {/* Mobile controls */}
-        <div className="flex items-center gap-2 lg:hidden">
-          <LanguageSwitcher />
+        <div className="ml-auto flex items-center gap-2 xl:hidden">
+          <LanguageSwitcher className="flex items-center" selectClassName="h-9 px-2" />
           <Link
             href="/onboarding"
-            className="inline-flex h-8 items-center justify-center rounded-lg bg-indigo-600 px-3.5 text-xs font-medium text-white shadow-sm shadow-indigo-500/20"
+            className="inline-flex h-9 min-w-[108px] items-center justify-center whitespace-nowrap rounded-lg bg-indigo-600 px-3.5 text-xs font-medium leading-none text-white shadow-sm shadow-indigo-500/20"
           >
             {t("createAccount")}
           </Link>

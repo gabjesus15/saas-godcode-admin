@@ -1164,6 +1164,11 @@ export type Database = {
           logo_url: string | null
           message: string | null
           notes: string | null
+          payment_reference: string | null
+          payment_reference_url: string | null
+          payment_months: number | null
+          payment_amount: number | null
+          payment_status: string | null
           payment_methods: string[] | null
           phone: string | null
           plan_id: string | null
@@ -1205,6 +1210,11 @@ export type Database = {
           logo_url?: string | null
           message?: string | null
           notes?: string | null
+          payment_reference?: string | null
+          payment_reference_url?: string | null
+          payment_months?: number | null
+          payment_amount?: number | null
+          payment_status?: string | null
           payment_methods?: string[] | null
           phone?: string | null
           plan_id?: string | null
@@ -1246,6 +1256,11 @@ export type Database = {
           logo_url?: string | null
           message?: string | null
           notes?: string | null
+          payment_reference?: string | null
+          payment_reference_url?: string | null
+          payment_months?: number | null
+          payment_amount?: number | null
+          payment_status?: string | null
           payment_methods?: string[] | null
           phone?: string | null
           plan_id?: string | null

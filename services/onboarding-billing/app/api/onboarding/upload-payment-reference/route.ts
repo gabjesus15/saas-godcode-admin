@@ -22,25 +22,20 @@ export async function POST(req: NextRequest) {
 
 		const { data: app } = await supabaseAdmin
 			.from("onboarding_applications")
-			.select("id,company_id")
+			.select("id,payment_reference,payment_status")
 			.eq("verification_token", token)
 			.maybeSingle();
 
-		if (!app?.company_id) {
+		if (!app) {
 			return NextResponse.json({ error: "Solicitud no encontrada" }, { status: 404 });
 		}
 
-		const { data: payment, error: fetchError } = await supabaseAdmin
-			.from("payments_history")
-			.select("id,company_id,status")
-			.eq("payment_reference", paymentReference)
-			.eq("company_id", app.company_id)
-			.maybeSingle();
-
-		if (fetchError || !payment) {
-			return NextResponse.json({ error: "Pago no encontrado" }, { status: 404 });
+		const currentReference = String(app.payment_reference ?? "").trim();
+		const currentStatus = String(app.payment_status ?? "").trim().toLowerCase();
+		if (currentReference && currentReference !== paymentReference) {
+			return NextResponse.json({ error: "La referencia no coincide con la solicitud" }, { status: 409 });
 		}
-		if (!['pending_validation', 'rejected'].includes(payment.status)) {
+		if (currentStatus && !["pending_validation", "rejected", "pending"].includes(currentStatus)) {
 			return NextResponse.json(
 				{ error: "Este pago ya fue procesado o no admite referencia" },
 				{ status: 400 }
@@ -48,9 +43,15 @@ export async function POST(req: NextRequest) {
 		}
 
 		const { error: updateError } = await supabaseAdmin
-			.from("payments_history")
-			.update({ reference_file_url: referenceFileUrl })
-			.eq("id", payment.id);
+			.from("onboarding_applications")
+			.update({
+				status: "payment_pending",
+				payment_reference: paymentReference,
+				payment_status: "pending_validation",
+				payment_reference_url: referenceFileUrl,
+				updated_at: new Date().toISOString(),
+			})
+			.eq("id", app.id);
 
 		if (updateError) {
 			return NextResponse.json({ error: "Error al guardar la referencia" }, { status: 500 });

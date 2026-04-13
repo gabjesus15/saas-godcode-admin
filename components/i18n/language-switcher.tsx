@@ -17,9 +17,10 @@ const LOCALE_AUTONYMS: Record<AppLocale, string> = {
 
 type LanguageSwitcherProps = {
   className?: string;
+  selectClassName?: string;
 };
 
-export function LanguageSwitcher({ className }: LanguageSwitcherProps) {
+export function LanguageSwitcher({ className, selectClassName }: LanguageSwitcherProps) {
   const t = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
@@ -45,7 +46,7 @@ export function LanguageSwitcher({ className }: LanguageSwitcherProps) {
         value={locale}
         disabled={isPending}
         onChange={(event) => handleChange(event.target.value)}
-        className="h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 outline-none transition focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+        className={`h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 outline-none transition focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 ${selectClassName ?? ""}`}
       >
         {SUPPORTED_LOCALES.map((item) => (
           <option key={item} value={item}>

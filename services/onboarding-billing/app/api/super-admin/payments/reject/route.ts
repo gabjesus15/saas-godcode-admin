@@ -30,7 +30,36 @@ export async function POST(req: NextRequest) {
 		const { data: payment, error: payError } = await query.maybeSingle();
 
 		if (payError || !payment) {
-			return NextResponse.json({ error: "Pago no encontrado" }, { status: 404 });
+			const { data: app } = await supabaseAdmin
+				.from("onboarding_applications")
+				.select("id,payment_reference,payment_status")
+				.eq("payment_reference", paymentRef)
+				.maybeSingle();
+
+			if (!app || String(app.payment_status ?? "").toLowerCase() === "rejected") {
+				return NextResponse.json({ error: "Pago no encontrado" }, { status: 404 });
+			}
+
+			if (!["pending_validation", "pending"].includes(String(app.payment_status ?? "").toLowerCase())) {
+				return NextResponse.json(
+					{ error: "Este pago ya fue procesado o no está pendiente de validación" },
+					{ status: 400 }
+				);
+			}
+
+			const nowIso = new Date().toISOString();
+			await supabaseAdmin
+				.from("onboarding_applications")
+				.update({ payment_status: "rejected", updated_at: nowIso })
+				.eq("id", app.id);
+
+			logger.info("Pago rechazado", ctx, {
+				companyId: null,
+				paymentId: null,
+				reason: reason || null,
+			});
+
+			return NextResponse.json({ ok: true, message: "Pago rechazado correctamente" });
 		}
 		if (payment.status !== "pending_validation") {
 			return NextResponse.json(

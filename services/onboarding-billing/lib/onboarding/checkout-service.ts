@@ -10,6 +10,7 @@ function slugifyCompanyPublicSlug(value: string): string {
 export type OnboardingApplication = {
 	id: string;
 	business_name: string;
+	responsible_name?: string | null;
 	email: string;
 	country?: string | null;
 	billing_rut?: string | null;
@@ -22,6 +23,11 @@ export type OnboardingApplication = {
 	plan_id: string;
 	company_id?: string | null;
 	subscription_payment_method?: string | null;
+	payment_reference?: string | null;
+	payment_status?: string | null;
+	payment_reference_url?: string | null;
+	payment_months?: number | null;
+	payment_amount?: number | null;
 };
 
 export type CheckoutPlan = {
@@ -327,6 +333,41 @@ export async function recordPayment(
 	}
 
 	return { id: data?.id };
+}
+
+export async function updateApplicationPaymentState(
+	supabaseAdmin: SupabaseClient,
+	applicationId: string,
+	params: {
+		applicationStatus?: string | null;
+		paymentReference?: string | null;
+		paymentStatus?: string | null;
+		paymentReferenceUrl?: string | null;
+		paymentMonths?: number | null;
+		paymentAmount?: number | null;
+		updatedAt?: string;
+	}
+): Promise<void> {
+	const payload: {
+		status?: string | null;
+		payment_reference?: string | null;
+		payment_status?: string | null;
+		payment_reference_url?: string | null;
+		payment_months?: number | null;
+		payment_amount?: number | null;
+		updated_at: string;
+	} = {
+		updated_at: params.updatedAt ?? new Date().toISOString(),
+	};
+
+	if (params.applicationStatus !== undefined) payload.status = params.applicationStatus;
+	if (params.paymentReference !== undefined) payload.payment_reference = params.paymentReference;
+	if (params.paymentStatus !== undefined) payload.payment_status = params.paymentStatus;
+	if (params.paymentReferenceUrl !== undefined) payload.payment_reference_url = params.paymentReferenceUrl;
+	if (params.paymentMonths !== undefined) payload.payment_months = params.paymentMonths;
+	if (params.paymentAmount !== undefined) payload.payment_amount = params.paymentAmount;
+
+	await supabaseAdmin.from("onboarding_applications").update(payload).eq("id", applicationId);
 }
 
 export async function getManualMethodConfig(

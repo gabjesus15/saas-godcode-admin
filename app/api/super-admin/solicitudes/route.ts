@@ -28,7 +28,7 @@ export async function GET() {
 			.from("onboarding_applications")
 			.select(
 				"id,business_name,responsible_name,email,status,created_at,updated_at,company_id,country,currency," +
-					"plan_id,custom_plan_name,custom_plan_price,custom_domain,legal_name,fiscal_address,subscription_payment_method"
+					"plan_id,custom_plan_name,custom_plan_price,custom_domain,legal_name,fiscal_address,subscription_payment_method,payment_reference,payment_status,payment_reference_url,payment_months,payment_amount"
 			)
 			.order("created_at", { ascending: false })
 			.limit(200);
@@ -129,6 +129,15 @@ export async function GET() {
 					? `Custom: ${app.custom_plan_name ?? "—"} – ${app.custom_plan_price ?? "—"}`
 					: plan?.name ?? (app.plan_id ? `Plan ${app.plan_id}` : "—");
 			const lastPayment = app.company_id ? lastPaymentsRes.get(app.company_id) : null;
+			const applicationPayment = app.payment_reference
+				? {
+					status: app.payment_status ?? "pending",
+					amount_paid: Number(app.payment_amount ?? 0) || 0,
+					payment_date: app.updated_at ?? app.created_at ?? "",
+					payment_reference: app.payment_reference,
+					reference_file_url: app.payment_reference_url ?? null,
+				}
+				: null;
 			const deliveryBooking = app.company_id ? deliveryBookingsRes.get(app.company_id) : null;
 			const paymentStatus = lastPayment
 				? lastPayment.status === "paid" || lastPayment.status === "approved"
@@ -138,6 +147,14 @@ export async function GET() {
 						: lastPayment.status === "rejected"
 							? "rejected"
 						: "pending"
+				: applicationPayment
+					? applicationPayment.status === "paid"
+						? "paid"
+						: applicationPayment.status === "pending_validation"
+							? "pending_validation"
+							: applicationPayment.status === "rejected"
+								? "rejected"
+								: "pending"
 				: app.status === "payment_pending" && app.company_id
 					? "pending"
 					: null;
@@ -157,7 +174,7 @@ export async function GET() {
 						status: deliveryBooking.status,
 					}
 					: null,
-				last_payment: lastPayment ?? null,
+				last_payment: lastPayment ?? applicationPayment ?? null,
 			};
 		});
 
