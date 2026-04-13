@@ -7,7 +7,7 @@ import {
   Globe,
   Headphones,
   Mail,
-  MessageSquare,
+  MessageCircle,
   Minus,
   Plus,
   Shield,
@@ -116,6 +116,8 @@ const LANDING_TX: Partial<Record<string, Record<Exclude<SupportedLocale, "es" | 
   "vender online": { pt: "vender online", fr: "vendre en ligne", de: "online zu verkaufen", it: "vendere online" },
   "Menú digital, carrito, delivery, caja, comandas e inventario.": { pt: "Menu digital, carrinho, delivery, caixa, comandas e inventario.", fr: "Menu digital, panier, livraison, caisse, bons cuisine et inventaire.", de: "Digitales Menu, Warenkorb, Lieferung, POS, Kuchenbons und Inventar.", it: "Menu digitale, carrello, delivery, cassa, comande e inventario." },
   "Crea tu tienda en minutos": { pt: "Crie sua loja em minutos", fr: "Creez votre boutique en quelques minutes", de: "Erstelle deinen Shop in Minuten", it: "Crea il tuo negozio in pochi minuti" },
+  "Hecho para restaurantes, delivery y negocios con sucursales": { pt: "Feito para restaurantes, delivery e negocios com filiais", fr: "Concu pour les restaurants, la livraison et les commerces avec succursales", de: "Gemacht fur Restaurants, Delivery und Unternehmen mit Filialen", it: "Fatto per ristoranti, delivery e attivita con filiali" },
+  "No dependas de marketplaces ni pierdas pedidos por WhatsApp": { pt: "Nao dependa de marketplaces nem perca pedidos no WhatsApp", fr: "Ne dependez pas des marketplaces et ne perdez plus de commandes sur WhatsApp", de: "Hang nicht von Marktplatzern ab und verliere keine Bestellungen uber WhatsApp", it: "Non dipendere dai marketplace e non perdere ordini su WhatsApp" },
   ", sin programar.": { pt: ", sem programar.", fr: ", sans coder.", de: ", ohne Programmierung.", it: ", senza programmare." },
   "Empezar gratis": { pt: "Comecar gratis", fr: "Commencer gratuitement", de: "Kostenlos starten", it: "Inizia gratis" },
   "El primer mes es gratis · Cancela cuando quieras": { pt: "O primeiro mes e gratis · Cancele quando quiser", fr: "Le premier mois est gratuit · Resiliez quand vous voulez", de: "Der erste Monat ist kostenlos · Jederzeit kuendbar", it: "Il primo mese e gratis · Annulla quando vuoi" },
@@ -349,10 +351,17 @@ export function LandingSections({
               </h1>
             </LandingReveal>
 
+            <LandingReveal delay={0.11}>
+              <p className="mt-4 max-w-xl text-balance text-sm font-medium leading-relaxed text-slate-700 sm:text-base lg:mt-5 dark:text-zinc-300">
+                {tx("Hecho para restaurantes, delivery y negocios con sucursales", "Built for restaurants, delivery and multi-branch businesses")}
+                <span className="text-slate-500 dark:text-zinc-500"> · </span>
+                {tx("No dependas de marketplaces ni pierdas pedidos por WhatsApp", "Do not depend on marketplaces or lose orders on WhatsApp")}
+              </p>
+            </LandingReveal>
+
             <LandingReveal delay={0.14}>
               <p className="mt-4 text-base leading-relaxed text-slate-600 sm:mt-5 sm:text-lg dark:text-zinc-400">
-                {tx("Menú digital, carrito, delivery, caja, comandas e inventario.", "Digital menu, cart, delivery, POS, kitchen orders and inventory.")}
-                <strong className="font-semibold text-slate-800 dark:text-zinc-200"> {tx("Crea tu tienda en minutos", "Build your store in minutes")}</strong>{tx(", sin programar.", ", no coding required.")}
+                {tx("Menú digital, carrito, delivery, caja e inventario.", "Digital menu, cart, delivery, POS and inventory.")}
               </p>
             </LandingReveal>
 
@@ -365,6 +374,24 @@ export function LandingSections({
                   {tx("Empezar gratis", "Start for free")}
                   <ArrowRight className="h-4 w-4" aria-hidden />
                 </Link>
+                <a
+                  href="#demo"
+                  className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-7 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 sm:h-[3.25rem] sm:w-auto sm:px-8 sm:text-base dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-zinc-600 dark:hover:bg-zinc-800"
+                >
+                  {tx("Ver demo", "View demo")}
+                </a>
+                <a
+                  href="https://wa.me/56943848080?text=Hola%2C%20quiero%20conocer%20Godcode%20SaaS"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 hover:text-emerald-800 sm:h-[3.25rem] sm:w-[3.25rem] dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:border-emerald-400/30 dark:hover:bg-emerald-500/15 dark:hover:text-emerald-200"
+                  aria-label={tx("Hablar por WhatsApp", "Talk on WhatsApp")}
+                  title={tx("Hablar por WhatsApp", "Talk on WhatsApp")}
+                >
+                  <svg viewBox="0 0 32 32" aria-hidden className="h-5 w-5 fill-current">
+                    <path d="M16 3C8.82 3 3 8.64 3 15.58c0 2.79.93 5.37 2.53 7.47L4 29l6.19-1.45c1.97 1.04 4.23 1.63 6.65 1.63 7.18 0 13-5.64 13-12.6C29.84 8.64 24.02 3 16 3Zm0 23.08c-2.2 0-4.31-.58-6.12-1.67l-.44-.26-3.67.86.93-3.55-.29-.46a10.87 10.87 0 0 1-1.75-5.92C4.66 9.55 9.72 4.85 16 4.85c6.28 0 11.34 4.7 11.34 10.23 0 5.55-5.06 10.3-11.34 10.3Zm6.44-7.43c-.34-.17-2.02-.99-2.33-1.1-.31-.1-.53-.17-.75.17-.22.33-.86 1.1-1.05 1.32-.2.23-.39.25-.73.08-.34-.17-1.43-.52-2.72-1.66-1.01-.89-1.69-1.99-1.89-2.33-.2-.33-.02-.52.15-.69.15-.15.34-.39.51-.59.17-.2.23-.34.34-.56.11-.23.06-.43-.03-.6-.09-.17-.75-1.83-1.03-2.51-.27-.65-.55-.56-.75-.57h-.64c-.23 0-.6.09-.91.43-.31.34-1.2 1.17-1.2 2.85 0 1.68 1.23 3.3 1.4 3.53.17.23 2.42 3.73 5.86 5.08 3.44 1.35 3.44.9 4.06.84.62-.06 2.02-.82 2.31-1.61.28-.78.28-1.45.2-1.6-.08-.15-.31-.23-.65-.4Z" />
+                  </svg>
+                </a>
               </div>
               <p className="mt-3 text-center text-xs text-slate-500 sm:text-sm lg:text-left dark:text-zinc-500">
                 {tx("El primer mes es gratis · Cancela cuando quieras", "First month free · Cancel anytime")}
@@ -1017,7 +1044,7 @@ export function LandingSections({
                 />
                 <div className="flex flex-col p-5 sm:p-6">
                   <div className="flex items-center gap-2 text-violet-400">
-                    <MessageSquare className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
+                    <MessageCircle className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
                     <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">{tx("Escríbenos", "Contact us")}</span>
                   </div>
                   <h3 className="mt-2 text-lg font-bold tracking-tight text-white sm:text-xl">{tx("¿Tienes dudas?", "Have questions?")}</h3>

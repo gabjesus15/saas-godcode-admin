@@ -11,6 +11,47 @@ import { getLandingMediaBundle } from "../lib/landing-media";
 import { getPublicPlansForLanding } from "../lib/public-plans";
 import { getSubdomainFromHost, isMainDomain } from "../lib/main-domain-host";
 import { getCountryFromHeaders } from "../lib/landing-geo-plans";
+import { SUPPORTED_LOCALES } from "../lib/i18n/config";
+
+function getLanguageAlternates(base: string): Record<string, string> {
+  return Object.fromEntries(SUPPORTED_LOCALES.map((locale) => [locale, `${base}/?hl=${locale}`]));
+}
+
+function getLandingFaq(locale: string) {
+  const isSpanish = locale.toLowerCase().startsWith("es");
+  return [
+    {
+      question: isSpanish ? "¿No sé nada de tecnología, puedo usarlo?" : "I am not technical, can I use it?",
+      answer: isSpanish
+        ? "Sí. No necesitas programar ni saber de servidores. Te registras, subes tus productos y tu tienda está lista. Si tienes dudas, nuestro soporte te guía."
+        : "Yes. You do not need coding or server knowledge. Sign up, upload your products and your store is ready.",
+    },
+    {
+      question: isSpanish ? "¿Cuánto cuesta realmente?" : "How much does it really cost?",
+      answer: isSpanish
+        ? "Los precios están en la sección de planes arriba. No hay costos ocultos, comisiones por venta ni cargos sorpresa."
+        : "Prices are in the plans section above. No hidden costs, sales commissions or surprise fees.",
+    },
+    {
+      question: isSpanish ? "¿Puedo cancelar cuando quiera?" : "Can I cancel anytime?",
+      answer: isSpanish
+        ? "Sí. Sin penalidad, sin permanencia mínima. Si no te sirve, cancelas y listo."
+        : "Yes. No penalty and no minimum commitment.",
+    },
+    {
+      question: isSpanish ? "¿Mis datos están seguros?" : "Is my data secure?",
+      answer: isSpanish
+        ? "Usamos encriptación SSL, servidores protegidos y cada negocio tiene sus datos completamente aislados. Nadie más puede ver tu información."
+        : "We use SSL encryption and protected servers, and each business has fully isolated data.",
+    },
+    {
+      question: isSpanish ? "¿Cuánto tardo en tener mi tienda lista?" : "How long until my store is ready?",
+      answer: isSpanish
+        ? "Si ya tienes tus productos y fotos, menos de 1 hora. El proceso de registro toma 5 minutos."
+        : "If you already have products and photos, under one hour. Sign-up takes five minutes.",
+    },
+  ];
+}
 
 export async function generateMetadata(): Promise<Metadata> {
   const hdrs = await headers();
@@ -25,21 +66,33 @@ export async function generateMetadata(): Promise<Metadata> {
   const description = messages.landing.meta.description;
 
   return {
-    title: { absolute: "GodCode" },
-    description,
+    metadataBase: new URL(base),
+    applicationName: "GodCode",
+    title: {
+      absolute: "GodCode | Menú digital, pedidos online y delivery para restaurantes",
+    },
+    description:
+      "GodCode ayuda a restaurantes y negocios con sucursales a vender online con menú digital, pedidos por WhatsApp, delivery, caja e inventario. Sin comisiones por venta y listo en minutos.",
     keywords: [
-      "tienda online",
+      "menú digital para restaurantes",
+      "pedidos online para restaurantes",
+      "delivery para restaurantes",
       "menú digital",
+      "pedidos online",
       "sistema de pedidos",
       "delivery",
       "punto de venta",
       "inventario",
-      "facturación",
-      "SaaS restaurantes",
+      "caja",
+      "sucursales",
+      "SaaS para restaurantes",
       "plataforma ecommerce",
       "GodCode",
     ],
-    alternates: { canonical: `${base}/` },
+    alternates: {
+      canonical: `${base}/`,
+      languages: getLanguageAlternates(base),
+    },
     openGraph: {
       title: shareTitle,
       description,
@@ -73,8 +126,10 @@ export async function generateMetadata(): Promise<Metadata> {
 
 function JsonLd({
   plans,
+  locale,
 }: {
   plans: { pricesByContinent?: Record<string, { price: number; currency: string }> }[];
+  locale: string;
 }) {
   const base = getAppUrl();
   const prices = plans
@@ -114,6 +169,48 @@ function JsonLd({
     },
     {
       "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: "GodCode",
+      url: base,
+      description: "GodCode - Crea tu tienda online en minutos",
+      potentialAction: {
+        "@type": "SearchAction",
+        target: `${base}/?q={search_term_string}`,
+        "query-input": "required name=search_term_string",
+      },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "SiteNavigationElement",
+      name: "Funciones del menú digital",
+      url: `${base}/#funciones`,
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "SiteNavigationElement",
+      name: "Cómo funciona",
+      url: `${base}/#como-funciona`,
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "SiteNavigationElement",
+      name: "Demo del producto",
+      url: `${base}/#demo`,
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "SiteNavigationElement",
+      name: "Planes y precios",
+      url: `${base}/#precios`,
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "SiteNavigationElement",
+      name: "Preguntas frecuentes",
+      url: `${base}/#faq`,
+    },
+    {
+      "@context": "https://schema.org",
       "@type": "Organization",
       name: "GodCode",
       url: base,
@@ -123,6 +220,18 @@ function JsonLd({
         contactType: "customer support",
         availableLanguage: ["es", "en", "pt", "fr", "de", "it"],
       },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: getLandingFaq(locale).map((item) => ({
+        "@type": "Question",
+        name: item.question,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: item.answer,
+        },
+      })),
     },
   ];
   return (
@@ -147,7 +256,7 @@ export default async function Home() {
     ]);
     return (
       <>
-        <JsonLd plans={plans} />
+        <JsonLd plans={plans} locale={locale} />
         <GodcodeLanding plans={plans} media={media} country={country} />
       </>
     );

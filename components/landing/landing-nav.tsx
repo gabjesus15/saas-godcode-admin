@@ -91,24 +91,24 @@ export function LandingNav() {
           : "border-b border-transparent bg-transparent"
       }`}
     >
-      <div className="mx-auto flex h-16 max-w-7xl items-center px-5 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-16 max-w-7xl items-center px-5 sm:px-6 lg:px-8 xl:grid xl:grid-cols-[auto_minmax(0,1fr)_auto] xl:gap-4">
         <a
           href="#inicio"
-          className="shrink-0 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+          className="shrink-0 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 xl:justify-self-start"
         >
           <span className="sr-only">{t("goHome")}</span>
-          <LandingLogo />
+          <LandingLogo className="gap-1" />
         </a>
 
         {/* Desktop nav */}
-        <nav className="hidden min-w-0 flex-1 items-center justify-center gap-0.5 px-4 xl:flex" aria-label={t("main")}>
+        <nav className="hidden min-w-0 items-center justify-center gap-0.5 px-0 xl:flex xl:justify-self-center xl:pl-4" aria-label={t("main")}>
           {navLinks.map(({ href, key }) => {
             const isActive = active === href.slice(1);
             return (
               <a
                 key={href}
                 href={href}
-                className={`relative rounded-lg px-3.5 py-2 text-[13px] font-medium transition-colors ${
+                className={`relative whitespace-nowrap rounded-lg px-2.5 py-2 text-[12px] font-medium transition-colors ${
                   isActive
                     ? "text-indigo-600 dark:text-indigo-400"
                     : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100"
@@ -123,7 +123,7 @@ export function LandingNav() {
           })}
         </nav>
 
-        <div className="hidden shrink-0 items-center gap-2.5 xl:flex">
+        <div className="hidden shrink-0 items-center gap-2 2xl:flex xl:justify-self-end">
           <LanguageSwitcher className="flex items-center" selectClassName="h-9" />
           <Link
             href="/login"
@@ -165,7 +165,7 @@ export function LandingNav() {
         {open && (
           <>
             <motion.div
-              className="fixed inset-0 top-16 z-40 bg-slate-950/30 backdrop-blur-[2px] lg:hidden"
+              className="fixed inset-0 top-16 z-40 bg-slate-950/30 backdrop-blur-[2px] xl:hidden"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -176,7 +176,7 @@ export function LandingNav() {
 
             <motion.nav
               ref={panelRef}
-              className="fixed right-0 top-16 z-50 flex h-[calc(100dvh-4rem)] w-full max-w-xs flex-col overflow-y-auto border-l border-slate-200/60 bg-white p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-xl lg:hidden dark:border-zinc-800 dark:bg-zinc-950"
+              className="fixed right-0 top-16 z-50 flex h-[calc(100dvh-4rem)] w-full max-w-xs flex-col overflow-y-auto border-l border-slate-200/60 bg-white p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-xl xl:hidden dark:border-zinc-800 dark:bg-zinc-950"
               aria-label={t("mobile")}
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
