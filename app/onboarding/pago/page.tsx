@@ -344,7 +344,21 @@ function PagoContent() {
 			});
 
 			const raw = await res.text();
-			const data = parseJsonObject(raw);
+			const data = parseJsonObject(raw) as {
+				error?: string;
+				url?: string;
+				manual?: boolean;
+				payment_reference?: string;
+				amount_usd?: number;
+				months?: number;
+				currency?: string;
+				country?: string | null;
+				method_slug?: string;
+				method_config?: Record<string, string>;
+				plan_name?: string;
+				plan_price?: number;
+				addons?: Array<{ name: string; price: number }>;
+			};
 
 			if (!res.ok) {
 				const message = typeof data?.error === "string" && data.error.trim()

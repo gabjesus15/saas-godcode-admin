@@ -76,6 +76,8 @@ interface SolicitudRow {
 		assigned_admin_id: string | null;
 		status: string;
 	} | null;
+	can_delete?: boolean;
+	delete_block_reason?: string | null;
 }
 
 export default function OnboardingSolicitudesPage() {
@@ -217,6 +219,41 @@ export default function OnboardingSolicitudesPage() {
 		if (!filteredApps.length) return null;
 		return filteredApps.find((row) => row.id === selectedId) ?? filteredApps[0] ?? null;
 	}, [filteredApps, selectedId]);
+
+	const canDeleteSelected = Boolean(selectedApp?.can_delete);
+
+	const handleDeleteSelected = useCallback(async () => {
+		if (!selectedApp) return;
+		if (!selectedApp.can_delete) {
+			setError(selectedApp.delete_block_reason ?? "Esta solicitud no puede eliminarse en su estado actual");
+			return;
+		}
+
+		if (!confirm("¿Eliminar esta solicitud? Esta acción no se puede deshacer.")) return;
+
+		const currentId = selectedApp.id;
+		setActionKey(`delete:${currentId}`);
+		setError(null);
+		try {
+			const res = await fetch("/api/super-admin/solicitudes/delete", {
+				method: "DELETE",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ id: currentId }),
+			});
+			const json = await res.json().catch(() => ({}));
+			if (!res.ok) {
+				throw new Error(json?.error ?? "No se pudo eliminar la solicitud");
+			}
+
+			setApps((prev) => prev.filter((row) => row.id !== currentId));
+			setSelectedId((prev) => (prev === currentId ? null : prev));
+			await loadRequests({ silent: true });
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "No se pudo eliminar la solicitud");
+		} finally {
+			setActionKey(null);
+		}
+	}, [loadRequests, selectedApp]);
 
 	const canReviewSelectedPayment =
 		selectedApp?.payment_status === "pending_validation" &&
@@ -541,18 +578,21 @@ export default function OnboardingSolicitudesPage() {
 									type="button"
 									variant="ghost"
 									size="sm"
-									onClick={async () => {
-										if (!confirm("¿Eliminar esta solicitud?")) return;
-										await fetch("/api/onboarding/delete", {
-											method: "DELETE",
-											headers: { "Content-Type": "application/json" },
-											body: JSON.stringify({ id: selectedApp.id }),
-										});
-										window.location.reload();
-									}}
+									disabled={!canDeleteSelected || actionKey === `delete:${selectedApp.id}`}
+									title={
+										!canDeleteSelected
+											? selectedApp.delete_block_reason ?? "Esta solicitud no se puede eliminar"
+											: undefined
+									}
+									onClick={() => void handleDeleteSelected()}
 								>
-									Eliminar solicitud
+									{actionKey === `delete:${selectedApp.id}` ? "Eliminando..." : "Eliminar solicitud"}
 								</Button>
+								{!canDeleteSelected ? (
+									<p className="text-xs text-zinc-500 dark:text-zinc-400">
+										{selectedApp.delete_block_reason ?? "Esta solicitud no se puede eliminar"}
+									</p>
+								) : null}
 							</div>
 						</div>
 					) : (

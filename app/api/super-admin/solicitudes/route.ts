@@ -3,6 +3,40 @@ import { SAAS_READ_ROLES, validateAdminRolesOnServer } from "../../../../utils/a
 
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
 
+function getDeletePolicy(input: {
+	status: string | null;
+	companyId: string | null;
+	paymentStatus: string | null;
+	referenceFileUrl: string | null;
+}): { canDelete: boolean; reason: string | null } {
+	if (input.companyId) {
+		return { canDelete: false, reason: "La solicitud ya fue convertida en empresa" };
+	}
+
+	const status = String(input.status ?? "").trim().toLowerCase();
+	const paymentStatus = String(input.paymentStatus ?? "").trim().toLowerCase();
+	const hasProof = Boolean((input.referenceFileUrl ?? "").trim());
+
+	if (status === "active" || status === "payment_validated") {
+		return { canDelete: false, reason: "La solicitud ya está activada" };
+	}
+
+	if (paymentStatus === "paid") {
+		return { canDelete: false, reason: "La solicitud tiene un pago aprobado" };
+	}
+
+	if (paymentStatus === "pending_validation" || hasProof) {
+		return { canDelete: false, reason: "La solicitud tiene un pago en revisión" };
+	}
+
+	const allowedStatuses = new Set(["pending_verification", "email_verified", "form_completed", "rejected", "payment_pending"]);
+	if (!allowedStatuses.has(status)) {
+		return { canDelete: false, reason: "Estado no elegible para eliminación" };
+	}
+
+	return { canDelete: true, reason: null };
+}
+
 export async function GET() {
 	const permission = await validateAdminRolesOnServer([...SAAS_READ_ROLES]);
 	if (!permission.ok) {
@@ -14,12 +48,20 @@ export async function GET() {
 
 	type AppRow = {
 		id: string;
+		status: string | null;
+		created_at: string | null;
+		updated_at: string | null;
 		plan_id: string | null;
 		company_id: string | null;
 		custom_plan_name: string | null;
 		custom_plan_price: string | null;
 		custom_domain: string | null;
 		subscription_payment_method: string | null;
+		payment_reference: string | null;
+		payment_status: string | null;
+		payment_reference_url: string | null;
+		payment_months: number | null;
+		payment_amount: number | null;
 		[key: string]: unknown;
 	};
 
@@ -158,6 +200,13 @@ export async function GET() {
 				: app.status === "payment_pending" && app.company_id
 					? "pending"
 					: null;
+			const referenceFileUrl = lastPayment?.reference_file_url ?? applicationPayment?.reference_file_url ?? null;
+			const deletePolicy = getDeletePolicy({
+				status: String(app.status ?? "") || null,
+				companyId: app.company_id,
+				paymentStatus: paymentStatus,
+				referenceFileUrl,
+			});
 
 			return {
 				...app,
@@ -174,6 +223,8 @@ export async function GET() {
 						status: deliveryBooking.status,
 					}
 					: null,
+				can_delete: deletePolicy.canDelete,
+				delete_block_reason: deletePolicy.reason,
 				last_payment: lastPayment ?? applicationPayment ?? null,
 			};
 		});
