@@ -24,6 +24,7 @@ interface CompanyGlobalTabProps {
       backgroundColor?: string;
       backgroundImageUrl?: string;
       displayName?: string;
+      panelAccess?: string[];
       roleNavPermissions?: Record<string, string[]>;
     } | null;
   };
@@ -45,6 +46,7 @@ interface CompanyGlobalTabProps {
     name: string | null;
     price: number | null;
     max_branches: number | null;
+    features?: unknown;
   }>;
   payments: Array<{
     id: string;

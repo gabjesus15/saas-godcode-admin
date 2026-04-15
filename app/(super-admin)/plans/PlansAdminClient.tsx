@@ -17,6 +17,14 @@ import {
 	resolvePlanMarketingLines,
 } from "../../../lib/plan-i18n";
 import { normalizeMarketingLines } from "../../../lib/plan-marketing-lines";
+import {
+	DEFAULT_ROLE_NAV_PERMISSIONS,
+	TENANT_ADMIN_TAB_OPTIONS,
+} from "../../../lib/tenant-admin-tabs";
+import {
+	extractCeoTabsFromPlanFeatures,
+	upsertPlanFeaturesCeoTabs,
+} from "../../../lib/tenant-plan-features";
 
 function newDescriptionLineId(): string {
 	if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -124,6 +132,7 @@ type PlanFormState = {
 	max_users: string | number;
 	is_public: boolean;
 	is_active: boolean;
+	ceoTabs: string[];
 	baseFeatures: Record<string, unknown>;
 	includedAddonTokens: string[];
 	blockedAddonTokens: string[];
@@ -227,6 +236,7 @@ const emptyForm = (): PlanFormState => ({
 	max_users: "",
 	is_public: true,
 	is_active: true,
+	ceoTabs: [...DEFAULT_ROLE_NAV_PERMISSIONS.ceo],
 	baseFeatures: {},
 	includedAddonTokens: [],
 	blockedAddonTokens: [],
@@ -272,6 +282,8 @@ export function PlansAdminClient({
 	const startEdit = (p: Plan) => {
 		const baseName = (p.name ?? "").trim();
 		const baseLines = normalizeMarketingLines(p.marketing_lines);
+		const ceoTabsByPlan =
+			extractCeoTabsFromPlanFeatures(p.features) ?? [...DEFAULT_ROLE_NAV_PERMISSIONS.ceo];
 		const baseDescriptionLines = toDescriptionLines(baseLines);
 		const localizedLines = localeLinesFromUnknown(baseLines, p.marketing_lines_i18n);
 		localizedLines[DEFAULT_LOCALE] = baseDescriptionLines.map((line) => ({ ...line }));
@@ -303,6 +315,7 @@ export function PlansAdminClient({
 			max_users: p.max_users ?? "",
 			is_public: p.is_public !== false,
 			is_active: p.is_active !== false,
+			ceoTabs: ceoTabsByPlan,
 			baseFeatures,
 			includedAddonTokens,
 			blockedAddonTokens,
@@ -358,7 +371,7 @@ export function PlansAdminClient({
 			max_users: maxUsersNum,
 			is_public: form.is_public,
 			is_active: form.is_active,
-			features: buildFeaturesPayload(form),
+			features: upsertPlanFeaturesCeoTabs(buildFeaturesPayload(form), form.ceoTabs),
 			marketing_lines: normalizeMarketingLines(form.descriptionLines.map((l) => l.text)),
 			name_i18n: buildPlanNameI18nPayload(form.nameByLocale, nameTrimmed),
 			marketing_lines_i18n: buildPlanMarketingLinesI18nPayload(
@@ -829,9 +842,40 @@ export function PlansAdminClient({
 									</div>
 								</div>
 							</div>
-						</div>
-					</div>
 
+							<div className="mt-4 rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900/70">
+								<p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+									Accesos del panel de la empresa por membresía
+								</p>
+								<p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+									Selecciona las pestañas que tendrá activa la empresa cuando use este plan.
+								</p>
+								<div className="mt-3 grid gap-2 sm:grid-cols-2">
+									{TENANT_ADMIN_TAB_OPTIONS.map((tab) => {
+										const checked = form.ceoTabs.includes(tab.id);
+										return (
+											<label key={tab.id} className="flex items-center gap-2 text-sm">
+												<input
+													type="checkbox"
+													checked={checked}
+													onChange={(e) =>
+														setForm((prev) => ({
+															...prev,
+															ceoTabs: e.target.checked
+																? [...prev.ceoTabs, tab.id]
+																: prev.ceoTabs.filter((id) => id !== tab.id),
+														}))
+													}
+													className="h-4 w-4 rounded border-zinc-300"
+												/>
+												<span className="text-zinc-700 dark:text-zinc-300">{tab.label}</span>
+											</label>
+										);
+									})}
+								</div>
+							</div>
+						</div>
+						</div>
 					{/* Precios por región */}
 					<div className="mt-6 border-t border-zinc-200 pt-4 dark:border-zinc-800">
 						<p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Precios por región</p>

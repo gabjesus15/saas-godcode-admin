@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { buildCompanyPanelAccessFromPlanFeatures } from "../../../../lib/company-panel-access";
 import { slugify as slugifyBase } from "../../utils/slugify";
 import { resolveRegionalPlanPrice } from "../plan-regional-pricing";
 
@@ -35,6 +36,7 @@ export type CheckoutPlan = {
 	name: string;
 	price: number;
 	prices_by_continent?: Record<string, { price: number; currency: string }> | null;
+	features?: unknown;
 };
 
 const MANUAL_METHOD_SLUGS = new Set(["pago_movil", "zelle", "transferencia"]);
@@ -63,7 +65,7 @@ export async function resolveCheckoutPlan(
 
 	const { data: planData, error: planError } = await supabaseAdmin
 		.from("plans")
-		.select("id,name,price,prices_by_continent")
+		.select("id,name,price,prices_by_continent,features")
 		.eq("id", app.plan_id)
 		.maybeSingle();
 
@@ -210,6 +212,18 @@ export async function provisionCompanyFromApplication(
 		return { ok: false, error: "No hay usuario activo para crear la empresa", status: 503 };
 	}
 
+	let planFeatures: unknown = null;
+	if (app.plan_id && app.plan_id !== "custom") {
+		const { data: planRow } = await supabaseAdmin
+			.from("plans")
+			.select("features")
+			.eq("id", app.plan_id)
+			.maybeSingle();
+		planFeatures = planRow?.features ?? null;
+	}
+
+	const panelAccess = buildCompanyPanelAccessFromPlanFeatures(planFeatures);
+
 	const companyPayload = {
 		name: app.business_name,
 		created_by: createdBy,
@@ -226,34 +240,7 @@ export async function provisionCompanyFromApplication(
 			logoUrl: app.logo_url ?? null,
 			primaryColor: "#111827",
 			secondaryColor: "#111827",
-			roleNavPermissions: {
-				owner: [
-					"orders",
-					"caja",
-					"analytics",
-					"categories",
-					"products",
-					"inventory",
-					"clients",
-					"settings",
-					"company",
-					"admin_menu_options",
-				],
-				admin: [
-					"orders",
-					"caja",
-					"analytics",
-					"categories",
-					"products",
-					"inventory",
-					"clients",
-					"settings",
-					"company",
-					"admin_menu_options",
-				],
-				ceo: ["orders", "caja", "analytics", "categories", "products", "inventory", "clients", "settings"],
-				cashier: ["orders", "caja"],
-			},
+			panelAccess,
 		},
 	};
 

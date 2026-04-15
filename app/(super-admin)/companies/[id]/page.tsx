@@ -67,7 +67,7 @@ export default async function CompanyDetailPage({
         .order("created_at", { ascending: false }),
       supabase
         .from("plans")
-        .select("id,name,price,max_branches")
+        .select("id,name,price,max_branches,features")
         .order("price", { ascending: true }),
       supabase
         .from("payments_history")

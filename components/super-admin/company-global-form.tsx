@@ -16,11 +16,11 @@ import { getTenantBaseDomainStatic, normalizeBaseDomain } from "../../utils/tena
 import { slugify } from "../../utils/slugify";
 import { uploadImage } from "../tenant/utils/cloudinary";
 import { useAdminRole } from "./admin-role-context";
+import { TENANT_ADMIN_TAB_OPTIONS } from "../../lib/tenant-admin-tabs";
 import {
-  TENANT_ADMIN_TAB_OPTIONS,
-  TENANT_ADMIN_TAB_IDS,
-  DEFAULT_ROLE_NAV_PERMISSIONS as SHARED_DEFAULT_ROLE_NAV_PERMISSIONS,
-} from "../../lib/tenant-admin-tabs";
+  buildCompanyPanelAccessFromPlanFeatures,
+  normalizeCompanyPanelAccess,
+} from "../../lib/company-panel-access";
 
 const BrandingPreview = dynamic(
   () => import("./branding-preview").then((mod) => mod.BrandingPreview),
@@ -36,6 +36,7 @@ interface PlanOption {
   name: string | null;
   price: number | null;
   max_branches: number | null;
+  features?: unknown;
 }
 
 interface CompanyData {
@@ -66,45 +67,7 @@ interface CompanyData {
   } | null;
 }
 
-type RoleNavPermissions = Record<string, string[]>;
-
 const ADMIN_TAB_OPTIONS = TENANT_ADMIN_TAB_OPTIONS;
-
-const ROLE_LABELS: Record<string, string> = {
-  admin: "Admin",
-  ceo: "CEO",
-  cashier: "Cashier",
-  staff: "Cashier",
-};
-
-const ROLES_EDITABLE_IN_SUPER_ADMIN = ["admin", "ceo", "cashier"] as const;
-
-const DEFAULT_ROLE_NAV_PERMISSIONS: RoleNavPermissions = {
-  ...SHARED_DEFAULT_ROLE_NAV_PERMISSIONS,
-};
-
-function normalizeRoleNavPermissions(raw: unknown): RoleNavPermissions {
-  const allowedTabIds = new Set<string>(TENANT_ADMIN_TAB_IDS);
-  const normalized: RoleNavPermissions = { ...DEFAULT_ROLE_NAV_PERMISSIONS };
-
-  if (!raw || typeof raw !== "object") {
-    return normalized;
-  }
-
-  for (const [rawRole, tabs] of Object.entries(raw as Record<string, unknown>)) {
-    if (!Array.isArray(tabs)) continue;
-    const role = rawRole.toLowerCase() === "staff" ? "cashier" : rawRole.toLowerCase();
-    const cleanTabs = tabs
-      .filter((value): value is string => typeof value === "string")
-      // Backward compatibility for old persisted id.
-      .map((value) => (value === "drinks" ? "beverages" : value))
-      .filter((value) => allowedTabIds.has(value));
-
-    normalized[role] = cleanTabs.length > 0 ? Array.from(new Set(cleanTabs)) : (DEFAULT_ROLE_NAV_PERMISSIONS[role as keyof RoleNavPermissions] ?? []);
-  }
-
-  return normalized;
-}
 
 const USER_ROLE_OPTIONS = [
   { value: "admin", label: "Admin" },
@@ -580,7 +543,7 @@ export function CompanyGlobalForm({
     backgroundColor: company.theme_config?.backgroundColor ?? "#0a0a0a",
     backgroundImageUrl: company.theme_config?.backgroundImageUrl ?? "",
     logoUrl: company.theme_config?.logoUrl ?? "",
-    roleNavPermissions: normalizeRoleNavPermissions(company.theme_config?.roleNavPermissions),
+    panelAccess: normalizeCompanyPanelAccess(company.theme_config?.panelAccess ?? company.theme_config?.roleNavPermissions),
   });
 
   const [businessForm] = useState({
@@ -664,22 +627,10 @@ export function CompanyGlobalForm({
     }
   };
 
-  const toggleRoleTabPermission = (role: string, tabId: string, checked: boolean) => {
-    setThemeForm((prev) => {
-      const currentTabs = prev.roleNavPermissions[role] ?? [];
-      const nextTabs = checked
-        ? Array.from(new Set([...currentTabs, tabId]))
-        : currentTabs.filter((tab) => tab !== tabId);
-
-      return {
-        ...prev,
-        roleNavPermissions: {
-          ...prev.roleNavPermissions,
-          [role]: nextTabs,
-        },
-      };
-    });
-  };
+  const panelAccessByPlan = useMemo(
+    () => buildCompanyPanelAccessFromPlanFeatures(selectedPlan?.features),
+    [selectedPlan?.features]
+  );
 
   // Manejador de Cobros (Stripe / MP)
   const handleCheckout = async (provider: "stripe" | "mp") => {
@@ -785,7 +736,7 @@ export function CompanyGlobalForm({
             logoUrl: themeForm.logoUrl,
             backgroundColor: themeForm.backgroundColor,
             backgroundImageUrl: themeForm.backgroundImageUrl.trim() || null,
-            roleNavPermissions: themeForm.roleNavPermissions,
+            panelAccess: panelAccessByPlan,
           },
         })
         .eq("id", company.id);
@@ -1200,52 +1151,34 @@ export function CompanyGlobalForm({
 
         <Card className="flex flex-col gap-6">
           <div>
-            <h3 className="text-lg font-semibold text-zinc-900">Permisos de panel por rol</h3>
+            <h3 className="text-lg font-semibold text-zinc-900">Accesos del panel de la empresa</h3>
             <p className="text-sm text-zinc-500">
-              Define qué secciones del navbar puede ver cada rol en el panel admin del negocio.
+              Define qué secciones puede ver la empresa completa según su plan/membresía.
             </p>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-zinc-200">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="bg-zinc-50 border-b border-zinc-200">
-                  <th className="px-4 py-3 text-left font-semibold text-zinc-700">Sección</th>
-                  {ROLES_EDITABLE_IN_SUPER_ADMIN.map((role) => (
-                    <th key={role} className="px-4 py-3 text-center font-semibold text-zinc-700">
-                      {ROLE_LABELS[role] ?? role}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-200">
-                {ADMIN_TAB_OPTIONS.map((tab) => (
-                  <tr key={tab.id} className="hover:bg-zinc-50 transition-colors">
-                    <td className="px-4 py-3 text-zinc-700">{tab.label}</td>
-                    {ROLES_EDITABLE_IN_SUPER_ADMIN.map((role) => {
-                      const checked = (themeForm.roleNavPermissions[role] ?? []).includes(tab.id);
-                      return (
-                        <td key={`${role}-${tab.id}`} className="px-4 py-3 text-center">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={(e) =>
-                              toggleRoleTabPermission(role, tab.id, e.target.checked)
-                            }
-                            aria-label={`Permitir ${tab.label} para ${ROLE_LABELS[role] ?? role}`}
-                            className="h-4 w-4 accent-zinc-900"
-                          />
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+            <div className="grid gap-2 sm:grid-cols-2">
+              {ADMIN_TAB_OPTIONS.map((tab) => {
+                const checked = panelAccessByPlan.includes(tab.id);
+                return (
+                  <label key={tab.id} className="flex items-center gap-2 text-sm text-zinc-700">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      readOnly
+                      disabled
+                      className="h-4 w-4 rounded border-zinc-300 accent-zinc-900"
+                    />
+                    <span>{tab.label}</span>
+                  </label>
+                );
+              })}
+            </div>
           </div>
 
           <p className="text-xs text-zinc-500">
-            Las opciones deshabilitadas se muestran en gris en el navbar y muestran mensaje de acceso restringido al hacer click.
+            Para cambiar estos accesos, edita las funciones del plan en la sección de Planes.
           </p>
         </Card>
 

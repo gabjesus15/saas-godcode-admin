@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { logAdminAudit } from "../../../../../lib/admin-audit";
+import { buildCompanyPanelAccessFromPlanFeatures } from "../../../../../lib/company-panel-access";
 import { normalizePlanFeaturesPayload } from "../../../../../lib/plan-features";
 import { buildPlanMarketingLinesI18nPayload, buildPlanNameI18nPayload } from "../../../../../lib/plan-i18n";
 import { normalizeMarketingLines } from "../../../../../lib/plan-marketing-lines";
@@ -21,6 +22,45 @@ type PatchBody = {
 	name_i18n?: unknown;
 	marketing_lines_i18n?: unknown;
 };
+
+function asThemeConfigObject(raw: unknown): Record<string, unknown> {
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+		return {};
+	}
+	return { ...(raw as Record<string, unknown>) };
+}
+
+async function syncPlanPanelAccessToCompanies(planId: string, planFeatures: unknown): Promise<{ synced: number }> {
+	const panelAccess = buildCompanyPanelAccessFromPlanFeatures(planFeatures);
+	const { data: companies, error: companiesError } = await supabaseAdmin
+		.from("companies")
+		.select("id,theme_config")
+		.eq("plan_id", planId);
+
+	if (companiesError) {
+		throw new Error(companiesError.message);
+	}
+
+	let synced = 0;
+	for (const company of companies ?? []) {
+		const nextThemeConfig = {
+			...asThemeConfigObject(company.theme_config),
+			panelAccess,
+		};
+
+		const { error: updateError } = await supabaseAdmin
+			.from("companies")
+			.update({ theme_config: nextThemeConfig })
+			.eq("id", company.id);
+
+		if (updateError) {
+			throw new Error(updateError.message);
+		}
+		synced += 1;
+	}
+
+	return { synced };
+}
 
 export async function PATCH(
 	req: NextRequest,
@@ -95,6 +135,22 @@ export async function PATCH(
 			return NextResponse.json({ error: "No se encontró el plan." }, { status: 404 });
 		}
 	}
+
+	let syncWarning: string | null = null;
+	if (updates.features !== undefined) {
+		try {
+			const { synced } = await syncPlanPanelAccessToCompanies(id, updates.features);
+			if (synced > 0) {
+				syncWarning = null;
+			}
+		} catch (syncError) {
+			const reason = syncError instanceof Error ? syncError.message : "Error desconocido";
+			console.error("[plans/update] panelAccess sync error:", reason);
+			syncWarning =
+				"El plan se guardó, pero no se pudo sincronizar panelAccess en todas las empresas de este plan. Reintenta o revisa logs.";
+		}
+	}
+
 	await logAdminAudit({
 		actorEmail: permission.email ?? "",
 		actorRole: permission.role,
@@ -104,12 +160,21 @@ export async function PATCH(
 		metadata: { fields: Object.keys(updates) },
 	});
 	revalidatePath("/");
+	const warningMessages: string[] = [];
+	if (optionalColumnsSkipped) {
+		warningMessages.push(
+			"Las traducciones no se guardaron: faltan columnas opcionales de i18n en la base de datos. Ejecuta las migraciones de planes.",
+		);
+	}
+	if (syncWarning) {
+		warningMessages.push(syncWarning);
+	}
+
 	return NextResponse.json({
 		ok: true,
-		...(optionalColumnsSkipped
+		...(warningMessages.length > 0
 			? {
-					warning:
-						"Las traducciones no se guardaron: faltan columnas opcionales de i18n en la base de datos. Ejecuta las migraciones de planes.",
+					warning: warningMessages.join(" "),
 				}
 			: {}),
 	});

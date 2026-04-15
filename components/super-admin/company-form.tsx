@@ -16,6 +16,7 @@ import { getTenantBaseDomainStatic } from "../../utils/tenant-url";
 import { slugify } from "../../utils/slugify";
 import { uploadImage } from "../tenant/utils/cloudinary";
 import { useAdminRole } from "./admin-role-context";
+import { buildCompanyPanelAccessFromPlanFeatures } from "../../lib/company-panel-access";
 
 const BrandingPreview = dynamic(
   () => import("./branding-preview").then((mod) => mod.BrandingPreview),
@@ -26,6 +27,7 @@ interface PlanOption {
   id: string;
   name: string | null;
   price: number | null;
+  features?: unknown;
 }
 
 interface CompanyFormProps {
@@ -91,6 +93,16 @@ export function CompanyForm({ plans }: CompanyFormProps) {
     []
   );
 
+  const selectedPlan = useMemo(
+    () => plans.find((plan) => plan.id === form.plan_id) ?? null,
+    [plans, form.plan_id]
+  );
+
+  const panelAccessByPlan = useMemo(
+    () => buildCompanyPanelAccessFromPlanFeatures(selectedPlan?.features),
+    [selectedPlan?.features]
+  );
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoading(true);
@@ -136,34 +148,7 @@ export function CompanyForm({ plans }: CompanyFormProps) {
           logoUrl: form.logo_url,
           backgroundColor: form.background_color,
           backgroundImageUrl: form.background_image_url.trim() || null,
-          roleNavPermissions: {
-            owner: [
-              "orders",
-              "caja",
-              "analytics",
-              "categories",
-              "products",
-              "inventory",
-              "clients",
-              "settings",
-              "company",
-              "admin_menu_options",
-            ],
-            admin: [
-              "orders",
-              "caja",
-              "analytics",
-              "categories",
-              "products",
-              "inventory",
-              "clients",
-              "settings",
-              "company",
-              "admin_menu_options",
-            ],
-            ceo: ["orders", "caja", "analytics", "categories", "products", "inventory", "clients", "settings"],
-            cashier: ["orders", "caja"],
-          },
+          panelAccess: panelAccessByPlan,
         },
       });
 

@@ -6,7 +6,7 @@ export default async function CompanyCreatePage() {
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase
       .from("plans")
-      .select("id,name,price")
+      .select("id,name,price,features")
       .eq("is_active", true)
       .order("price", { ascending: true });
 
