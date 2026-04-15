@@ -2,6 +2,7 @@ import { createSupabasePublicServerClient } from "../../utils/supabase/server";
 import { getCachedCompany } from "../../utils/tenant-cache";
 import { StoreUnavailable } from "../../components/tenant/store-unavailable";
 import { HomeClient } from "../../components/tenant/home-client";
+import { isTenantSubscriptionAccessible } from "../../lib/tenant-subscription";
 
 interface TenantPageProps {
   params: Promise<{ subdomain: string }>;
@@ -11,12 +12,7 @@ export default async function TenantPage({ params }: TenantPageProps) {
   const resolvedParams = await params;
   const company = await getCachedCompany(resolvedParams.subdomain);
 
-  if (!company) {
-    return <StoreUnavailable />;
-  }
-
-  const status = company.subscription_status?.toLowerCase();
-  if (status === "suspended" || status === "cancelled") {
+  if (!company || !isTenantSubscriptionAccessible(company)) {
     return <StoreUnavailable />;
   }
 

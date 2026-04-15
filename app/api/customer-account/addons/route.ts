@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 
 import { getCustomerAccountContext } from "../../../../lib/customer-account-context";
+import { resolveAddonOfferForPlan } from "../../../../lib/plan-offer-rules";
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
 
 type CompanyRow = {
@@ -21,6 +22,15 @@ type AddonRow = {
   price_one_time: number | null;
   price_monthly: number | null;
   is_active: boolean | null;
+};
+
+type PlanRow = {
+  id: string;
+  name: string;
+  max_branches: number | null;
+  max_users: number | null;
+  features: unknown;
+  marketing_lines: unknown;
 };
 
 type MethodSnapshot = {
@@ -118,11 +128,50 @@ async function buildAddonPreview(params: {
   if (!companyRow?.id) return { error: "Empresa no encontrada" as const };
   if (!addonRow?.id || addonRow.is_active === false) return { error: "Extra no disponible" as const };
 
+  const { data: currentPlan } = companyRow.plan_id
+    ? await supabaseAdmin
+        .from("plans")
+        .select("id,name,max_branches,max_users,features,marketing_lines")
+        .eq("id", companyRow.plan_id)
+        .maybeSingle()
+    : { data: null };
+
+  const currentPlanRow = (currentPlan as PlanRow | null) ?? null;
+
   const existingActive = ((existingAddonRows ?? []) as Array<{ id: string; status: string | null }>).some(
     (row) => String(row.status ?? "").toLowerCase() === "active"
   );
 
   const impacts: AddonImpact[] = [];
+  const planOffer = resolveAddonOfferForPlan(
+    currentPlanRow,
+    {
+      id: addonRow.id,
+      slug: addonRow.slug,
+      name: addonRow.name,
+      type: addonRow.type,
+      description: addonRow.description,
+    }
+  );
+
+  if (planOffer.status === "included") {
+    impacts.push({
+      id: "addon-included-in-plan",
+      level: "block",
+      title: "Este extra ya viene incluido en tu plan",
+      detail: `${planOffer.reason} No corresponde generar un cobro adicional.`,
+    });
+  }
+
+  if (planOffer.status === "blocked") {
+    impacts.push({
+      id: "addon-blocked-by-plan",
+      level: "block",
+      title: "Este extra no esta habilitado para tu plan",
+      detail: `${planOffer.reason} Si deseas contratarlo, primero debes cambiar de plan.`,
+    });
+  }
+
   const singleInstance = isSingleInstanceAddon(addonRow);
   const safeQuantity = singleInstance ? 1 : params.quantity;
   const safeMonths = Math.max(1, params.months);
@@ -173,6 +222,7 @@ async function buildAddonPreview(params: {
     company: companyRow,
     addon: addonRow,
     existingActive,
+    planOffer,
     singleInstance,
     pricing: {
       isMonthly,

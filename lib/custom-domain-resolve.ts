@@ -105,7 +105,7 @@ async function fetchSlugFromSupabaseRest(hostname: string): Promise<string | nul
 	}
 	const nowIso = new Date().toISOString();
 	const orParam = `(subscription_ends_at.is.null,subscription_ends_at.gt.${nowIso})`;
-	const url = `${supabaseUrl}/rest/v1/companies?select=public_slug&custom_domain=eq.${encodeURIComponent(hostname)}&or=${encodeURIComponent(orParam)}&subscription_status=not.in.%28suspended%2Ccancelled%29&limit=1`;
+	const url = `${supabaseUrl}/rest/v1/companies?select=public_slug&custom_domain=eq.${encodeURIComponent(hostname)}&or=${encodeURIComponent(orParam)}&subscription_status=not.in.%28suspended%29&limit=1`;
 	let res: Response;
 	try {
 		res = await fetch(url, {

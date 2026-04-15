@@ -3,6 +3,7 @@ import {
 	getMonthsPaidFromPayment,
 	getSubscriptionEndsAt,
 } from "../../lib/onboarding/billing-activation";
+import { isTenantSubscriptionAccessible } from "../../lib/tenant-subscription";
 
 describe("getMonthsPaidFromPayment", () => {
 	it("retorna months_paid cuando es valido", () => {
@@ -54,5 +55,45 @@ describe("getSubscriptionEndsAt", () => {
 	it("retorna ISO string valido", () => {
 		const result = getSubscriptionEndsAt(1, baseDate);
 		expect(result).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/);
+	});
+});
+
+describe("isTenantSubscriptionAccessible", () => {
+	const now = new Date("2025-01-01T00:00:00.000Z");
+
+	it("permite acceso cuando el plan esta activo y vigente", () => {
+		expect(
+			isTenantSubscriptionAccessible(
+				{ subscription_status: "active", subscription_ends_at: "2025-01-10T00:00:00.000Z" },
+				now
+			)
+		).toBe(true);
+	});
+
+	it("permite acceso cuando esta cancelado pero aun vigente", () => {
+		expect(
+			isTenantSubscriptionAccessible(
+				{ subscription_status: "cancelled", subscription_ends_at: "2025-01-10T00:00:00.000Z" },
+				now
+			)
+		).toBe(true);
+	});
+
+	it("bloquea acceso cuando esta suspendido", () => {
+		expect(
+			isTenantSubscriptionAccessible(
+				{ subscription_status: "suspended", subscription_ends_at: "2025-01-10T00:00:00.000Z" },
+				now
+			)
+		).toBe(false);
+	});
+
+	it("bloquea acceso cuando la suscripcion vencio", () => {
+		expect(
+			isTenantSubscriptionAccessible(
+				{ subscription_status: "cancelled", subscription_ends_at: "2024-12-31T23:59:59.000Z" },
+				now
+			)
+		).toBe(false);
 	});
 });

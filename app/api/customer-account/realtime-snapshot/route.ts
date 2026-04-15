@@ -9,7 +9,12 @@ export async function GET() {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
-  const [paymentsRes, ticketsRes, entitlementsRes, addonsRes] = await Promise.all([
+  const [companyRes, paymentsRes, ticketsRes, entitlementsRes, addonsRes] = await Promise.all([
+    supabaseAdmin
+      .from("companies")
+      .select("id,subscription_status,subscription_ends_at")
+      .eq("id", ctx.companyId)
+      .maybeSingle(),
     supabaseAdmin
       .from("payments_history")
       .select("id,amount_paid,status,payment_date,payment_method,months_paid,payment_reference,reference_file_url")
@@ -38,6 +43,9 @@ export async function GET() {
 
   if (paymentsRes.error) {
     return NextResponse.json({ error: paymentsRes.error.message }, { status: 500 });
+  }
+  if (companyRes.error) {
+    return NextResponse.json({ error: companyRes.error.message }, { status: 500 });
   }
   if (ticketsRes.error) {
     return NextResponse.json({ error: ticketsRes.error.message }, { status: 500 });
@@ -117,6 +125,13 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     serverNow: new Date().toISOString(),
+    company: companyRes.data
+      ? {
+          id: String(companyRes.data.id),
+          subscription_status: companyRes.data.subscription_status,
+          subscription_ends_at: companyRes.data.subscription_ends_at,
+        }
+      : null,
     payments,
     tickets,
     branchEntitlements,

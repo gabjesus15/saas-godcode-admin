@@ -39,7 +39,9 @@ export type OnboardingEmailType =
   | "invoice"
   | "site_ready"
   | "status_suspended"
-  | "status_reactivated";
+  | "status_reactivated"
+  | "status_cancelled_scheduled"
+  | "plan_downgrade_scheduled";
 
 interface BaseEmailParams {
   to: string;
@@ -140,6 +142,24 @@ interface StatusReactivatedParams extends BaseEmailParams {
   panelUrl?: string;
 }
 
+interface StatusCancelledScheduledParams extends BaseEmailParams {
+  type: "status_cancelled_scheduled";
+  responsibleName: string;
+  businessName: string;
+  endsAt: string;
+  panelUrl?: string;
+}
+
+interface PlanDowngradeScheduledParams extends BaseEmailParams {
+  type: "plan_downgrade_scheduled";
+  responsibleName: string;
+  businessName: string;
+  currentPlanName: string;
+  targetPlanName: string;
+  effectiveAt: string;
+  panelUrl?: string;
+}
+
 type EmailParams =
   | VerificationEmailParams
   | ConfirmationEmailParams
@@ -152,7 +172,9 @@ type EmailParams =
   | InvoiceParams
   | SiteReadyParams
   | StatusSuspendedParams
-  | StatusReactivatedParams;
+  | StatusReactivatedParams
+  | StatusCancelledScheduledParams
+  | PlanDowngradeScheduledParams;
 
 function wrapEmailLayout(contentHtml: string): string {
   const logoBlock = EMAIL_LOGO_URL
@@ -455,6 +477,56 @@ function buildStatusReactivated(p: StatusReactivatedParams): { subject: string; 
   return { subject, html: wrapEmailLayout(content) };
 }
 
+function buildStatusCancelledScheduled(p: StatusCancelledScheduledParams): { subject: string; html: string } {
+  const subject = `Cancelacion programada - ${p.businessName}`;
+  const content = `
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background: #fff7ed; border-radius: ${CARD_RADIUS}; border: 1px solid #fdba74;">
+    <tr>
+      <td style="padding: 28px 24px;">
+        <p style="margin: 0 0 8px; font-size: 12px; font-weight: 600; color: #9a3412; text-transform: uppercase; letter-spacing: 0.5px;">Cancelacion programada</p>
+        <h1 style="margin: 0 0 16px; font-size: 20px; font-weight: 600; color: ${TEXT_DARK};">Hola, ${p.responsibleName}</h1>
+        <p style="margin: 0 0 16px; font-size: 15px; line-height: 1.6; color: ${TEXT_MUTED};">Recibimos tu solicitud para cancelar la suscripcion de <strong style="color: ${TEXT_DARK};">${p.businessName}</strong>.</p>
+        <p style="margin: 0 0 24px; font-size: 15px; line-height: 1.6; color: ${TEXT_DARK};"><strong>Tu servicio seguira activo hasta:</strong> ${p.endsAt}</p>
+        ${p.panelUrl ? `
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+          <tr>
+            <td style="border-radius: 8px; background: #c2410c;">
+              <a href="${p.panelUrl}" target="_blank" style="display: inline-block; padding: 14px 28px; font-size: 15px; font-weight: 600; color: #ffffff; text-decoration: none;">Revisar mi cuenta</a>
+            </td>
+          </tr>
+        </table>` : ""}
+      </td>
+    </tr>
+  </table>`;
+  return { subject, html: wrapEmailLayout(content) };
+}
+
+function buildPlanDowngradeScheduled(p: PlanDowngradeScheduledParams): { subject: string; html: string } {
+  const subject = `Cambio de plan programado - ${p.businessName}`;
+  const content = `
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background: #eff6ff; border-radius: ${CARD_RADIUS}; border: 1px solid #93c5fd;">
+    <tr>
+      <td style="padding: 28px 24px;">
+        <p style="margin: 0 0 8px; font-size: 12px; font-weight: 600; color: #1d4ed8; text-transform: uppercase; letter-spacing: 0.5px;">Cambio programado</p>
+        <h1 style="margin: 0 0 16px; font-size: 20px; font-weight: 600; color: ${TEXT_DARK};">Hola, ${p.responsibleName}</h1>
+        <p style="margin: 0 0 14px; font-size: 15px; line-height: 1.6; color: ${TEXT_MUTED};">Programamos tu cambio de plan para el cierre del ciclo actual de <strong style="color: ${TEXT_DARK};">${p.businessName}</strong>.</p>
+        <p style="margin: 0 0 4px; font-size: 15px; color: ${TEXT_DARK};"><strong>Plan actual:</strong> ${p.currentPlanName}</p>
+        <p style="margin: 0 0 4px; font-size: 15px; color: ${TEXT_DARK};"><strong>Nuevo plan:</strong> ${p.targetPlanName}</p>
+        <p style="margin: 0 0 24px; font-size: 15px; color: ${TEXT_DARK};"><strong>Fecha efectiva:</strong> ${p.effectiveAt}</p>
+        ${p.panelUrl ? `
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+          <tr>
+            <td style="border-radius: 8px; background: ${BRAND_PRIMARY};">
+              <a href="${p.panelUrl}" target="_blank" style="display: inline-block; padding: 14px 28px; font-size: 15px; font-weight: 600; color: #ffffff; text-decoration: none;">Ver detalle en cuenta</a>
+            </td>
+          </tr>
+        </table>` : ""}
+      </td>
+    </tr>
+  </table>`;
+  return { subject, html: wrapEmailLayout(content) };
+}
+
 export async function sendOnboardingEmail(params: EmailParams): Promise<{ ok: boolean; error?: string }> {
   const apiKey = params.apiKey;
   const from = params.from;
@@ -502,6 +574,12 @@ export async function sendOnboardingEmail(params: EmailParams): Promise<{ ok: bo
       break;
     case "status_reactivated":
       ({ subject, html } = buildStatusReactivated(params));
+      break;
+    case "status_cancelled_scheduled":
+      ({ subject, html } = buildStatusCancelledScheduled(params));
+      break;
+    case "plan_downgrade_scheduled":
+      ({ subject, html } = buildPlanDowngradeScheduled(params));
       break;
     default:
       return { ok: false, error: "Unknown email type" };

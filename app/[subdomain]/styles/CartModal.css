@@ -131,7 +131,6 @@
     z-index: 0;
     scroll-padding-bottom: 24px;
     overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
     touch-action: pan-y;
 }
 
@@ -300,7 +299,6 @@
     padding: 12px;
     overflow-x: hidden;
     overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     border-radius: 18px;
     /* Tarjeta flotante sobre el listado del carrito */
@@ -336,7 +334,6 @@
     max-height: min(92vh, 900px);
     overflow-y: auto;
     overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     z-index: 2;
 }
@@ -553,9 +550,9 @@
 
 /* Select (zona de entrega, etc.): quita estilo nativo; colores desde variables del tenant */
 .cart-panel select.form-input {
-    appearance: none;
-    -webkit-appearance: none;
     -moz-appearance: none;
+    -webkit-appearance: none;
+    appearance: none;
     cursor: pointer;
     padding: 14px 44px 14px 14px;
     min-height: 48px;

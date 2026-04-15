@@ -2,6 +2,8 @@ import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 
 import { getCustomerAccountContext } from "../../../../lib/customer-account-context";
+import { sendOnboardingEmail } from "../../../../lib/onboarding/emails";
+import { resolveAddonOfferForPlan } from "../../../../lib/plan-offer-rules";
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
 
 type PlanRow = {
@@ -11,6 +13,28 @@ type PlanRow = {
   max_branches: number | null;
   max_users: number | null;
   is_active: boolean | null;
+  features: unknown;
+  marketing_lines: unknown;
+};
+
+type ActiveAddonSnapshot = {
+  status: string | null;
+  addon:
+    | {
+        id: string;
+        slug: string | null;
+        name: string | null;
+        type: string | null;
+        description: string | null;
+      }
+    | Array<{
+        id: string;
+        slug: string | null;
+        name: string | null;
+        type: string | null;
+        description: string | null;
+      }>
+    | null;
 };
 
 type CompanyRow = {
@@ -35,6 +59,13 @@ type PlanImpact = {
   level: "warn" | "block";
   title: string;
   detail: string;
+};
+
+type ScheduledPlanChangeRow = {
+  id: string;
+  target_plan_id: string;
+  effective_at: string;
+  status: string;
 };
 
 const COUNTRY_NORMALIZE: Record<string, string> = {
@@ -91,7 +122,7 @@ async function buildPlanChangePreview(params: {
   targetPlanId: string;
   months: number;
 }) {
-  const [{ data: company }, { data: plans }, { count: activeBranches }, { count: activeUsers }, { data: entitlements }] = await Promise.all([
+  const [{ data: company }, { data: plans }, { count: activeBranches }, { count: activeUsers }, { data: entitlements }, { data: scheduledChange }, { data: activeCompanyAddons }] = await Promise.all([
     supabaseAdmin
       .from("companies")
       .select("id,name,country,plan_id,subscription_status,subscription_ends_at")
@@ -99,7 +130,7 @@ async function buildPlanChangePreview(params: {
       .maybeSingle(),
     supabaseAdmin
       .from("plans")
-      .select("id,name,price,max_branches,max_users,is_active")
+      .select("id,name,price,max_branches,max_users,is_active,features,marketing_lines")
       .eq("is_active", true),
     supabaseAdmin
       .from("branches")
@@ -114,6 +145,16 @@ async function buildPlanChangePreview(params: {
     supabaseAdmin
       .from("company_branch_extra_entitlements")
       .select("quantity,status,expires_at")
+      .eq("company_id", params.companyId),
+    supabaseAdmin
+      .from("company_plan_change_schedules")
+      .select("id,target_plan_id,effective_at,status")
+      .eq("company_id", params.companyId)
+      .eq("status", "scheduled")
+      .maybeSingle(),
+    supabaseAdmin
+      .from("company_addons")
+      .select("status,addon:addons(id,slug,name,type,description)")
       .eq("company_id", params.companyId),
   ]);
 
@@ -173,6 +214,15 @@ async function buildPlanChangePreview(params: {
       title: "Cambio a plan menor",
       detail: "El cambio se aplica sin reembolso del periodo ya pagado. Se reflejara en tu siguiente ciclo.",
     });
+
+    if (!companyRow.subscription_ends_at) {
+      impacts.push({
+        id: "downgrade-no-cycle-end",
+        level: "block",
+        title: "No hay vencimiento configurado",
+        detail: "No encontramos fecha de vencimiento para programar el downgrade. Contacta a soporte para regularizar el ciclo.",
+      });
+    }
   }
 
   if (monthlyDiff > 0) {
@@ -190,6 +240,47 @@ async function buildPlanChangePreview(params: {
     title: "Revisa funciones incluidas",
     detail: "Al cambiar de plan, algunas capacidades pueden variar segun los limites del nuevo plan.",
   });
+
+  const activeAddonRows = ((activeCompanyAddons ?? []) as ActiveAddonSnapshot[]).filter(
+    (row) => String(row.status ?? "").toLowerCase() === "active"
+  );
+  for (const row of activeAddonRows) {
+    const addonRaw = Array.isArray(row.addon) ? row.addon[0] : row.addon;
+    if (!addonRaw?.id || !addonRaw.name) continue;
+
+    const currentOffer = resolveAddonOfferForPlan(currentPlan, {
+      id: addonRaw.id,
+      slug: addonRaw.slug,
+      name: addonRaw.name,
+      type: addonRaw.type,
+      description: addonRaw.description,
+    });
+    const targetOffer = resolveAddonOfferForPlan(targetPlan, {
+      id: addonRaw.id,
+      slug: addonRaw.slug,
+      name: addonRaw.name,
+      type: addonRaw.type,
+      description: addonRaw.description,
+    });
+
+    if (targetOffer.status === "included" && currentOffer.status !== "included") {
+      impacts.push({
+        id: `addon-included-after-change-${addonRaw.id}`,
+        level: "warn",
+        title: `${addonRaw.name} quedara incluido en el plan objetivo`,
+        detail: `Actualmente lo tienes como extra activo. ${targetOffer.reason} Revisa con soporte si deseas ajustar el cobro de este extra.`,
+      });
+    }
+
+    if (targetOffer.status === "blocked") {
+      impacts.push({
+        id: `addon-policy-change-${addonRaw.id}`,
+        level: "warn",
+        title: `${addonRaw.name} cambia de politica en el plan objetivo`,
+        detail: `${targetOffer.reason} Tu extra activo no se elimina automaticamente, pero puede requerir regularizacion operativa.`,
+      });
+    }
+  }
 
   const paymentMethods = await resolvePaymentMethodsForCountry(companyRow.country);
 
@@ -211,8 +302,43 @@ async function buildPlanChangePreview(params: {
       amountDue,
       requiresPayment: amountDue > 0,
     },
+    execution: {
+      mode: monthlyDiff < 0 ? "scheduled_cycle_end" : "immediate",
+      effectiveAt: monthlyDiff < 0 ? (companyRow.subscription_ends_at ?? null) : new Date().toISOString(),
+      existingSchedule:
+        (scheduledChange as ScheduledPlanChangeRow | null)?.status === "scheduled"
+          ? {
+              id: (scheduledChange as ScheduledPlanChangeRow).id,
+              targetPlanId: (scheduledChange as ScheduledPlanChangeRow).target_plan_id,
+              effectiveAt: (scheduledChange as ScheduledPlanChangeRow).effective_at,
+            }
+          : null,
+    },
     impacts,
     paymentMethods,
+  };
+}
+
+async function resolveCompanyPrimaryContact(companyId: string) {
+  const [{ data: app }, { data: company }] = await Promise.all([
+    supabaseAdmin
+      .from("onboarding_applications")
+      .select("email,responsible_name,business_name")
+      .eq("company_id", companyId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("companies")
+      .select("name,email")
+      .eq("id", companyId)
+      .maybeSingle(),
+  ]);
+
+  return {
+    email: String(app?.email ?? company?.email ?? "").trim(),
+    responsibleName: String(app?.responsible_name ?? "Cliente"),
+    businessName: String(app?.business_name ?? company?.name ?? "Tu negocio"),
   };
 }
 
@@ -290,6 +416,96 @@ export async function POST(req: NextRequest) {
       },
       { status: 400 }
     );
+  }
+
+  if (preview.pricing.monthlyDiff < 0) {
+    const effectiveAt = preview.execution?.effectiveAt;
+    if (!effectiveAt) {
+      return NextResponse.json({ error: "No se pudo programar el downgrade por falta de vencimiento." }, { status: 400 });
+    }
+
+    const { data: existing } = await supabaseAdmin
+      .from("company_plan_change_schedules")
+      .select("id")
+      .eq("company_id", ctx.companyId)
+      .eq("status", "scheduled")
+      .maybeSingle();
+
+    const nowIso = new Date().toISOString();
+    if (existing?.id) {
+      await supabaseAdmin
+        .from("company_plan_change_schedules")
+        .update({
+          target_plan_id: preview.targetPlan.id,
+          current_plan_id: preview.currentPlan?.id ?? null,
+          requested_by_email: ctx.email,
+          effective_at: effectiveAt,
+          reason: "Downgrade programado desde portal del cliente",
+          metadata: {
+            monthlyDiff: preview.pricing.monthlyDiff,
+            amountDue: preview.pricing.amountDue,
+          },
+          updated_at: nowIso,
+        })
+        .eq("id", existing.id);
+    } else {
+      await supabaseAdmin.from("company_plan_change_schedules").insert({
+        company_id: ctx.companyId,
+        current_plan_id: preview.currentPlan?.id ?? null,
+        target_plan_id: preview.targetPlan.id,
+        requested_by_email: ctx.email,
+        status: "scheduled",
+        effective_at: effectiveAt,
+        reason: "Downgrade programado desde portal del cliente",
+        metadata: {
+          monthlyDiff: preview.pricing.monthlyDiff,
+          amountDue: preview.pricing.amountDue,
+        },
+        updated_at: nowIso,
+      });
+    }
+
+    await supabaseAdmin.from("saas_tickets").insert({
+      company_id: ctx.companyId,
+      created_by_email: ctx.email,
+      source: "tenant",
+      subject: `Downgrade programado · ${preview.currentPlan?.name ?? "Plan actual"} -> ${preview.targetPlan.name}`,
+      description: [
+        `Plan actual: ${preview.currentPlan?.name ?? "Sin plan"}`,
+        `Nuevo plan: ${preview.targetPlan.name}`,
+        `Aplicacion programada para: ${effectiveAt}`,
+        "No se aplica de inmediato; se ejecuta al cierre del ciclo vigente.",
+      ].join("\n"),
+      category: "billing",
+      priority: "medium",
+      status: "resolved",
+      last_message_at: nowIso,
+      resolved_at: nowIso,
+    });
+
+    const contact = await resolveCompanyPrimaryContact(ctx.companyId);
+    if (contact.email) {
+      await sendOnboardingEmail({
+        type: "plan_downgrade_scheduled",
+        to: contact.email,
+        from: process.env.RESEND_FROM ?? "noreply@example.com",
+        apiKey: process.env.RESEND_API_KEY ?? "",
+        responsibleName: contact.responsibleName,
+        businessName: contact.businessName,
+        currentPlanName: preview.currentPlan?.name ?? "Plan actual",
+        targetPlanName: preview.targetPlan.name,
+        effectiveAt,
+        panelUrl: process.env.NEXT_PUBLIC_APP_URL ?? undefined,
+      });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      appliedNow: false,
+      scheduled: true,
+      preview,
+      message: "Downgrade programado. Se aplicara automaticamente al cierre de tu ciclo actual.",
+    });
   }
 
   if (!preview.pricing.requiresPayment) {

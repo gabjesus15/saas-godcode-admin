@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { SAAS_MUTATE_ROLES, SAAS_READ_ROLES, validateAdminRolesOnServer } from "../../../../utils/admin/server-auth";
 
 import { logAdminAudit } from "../../../../lib/admin-audit";
+import { normalizePlanFeaturesPayload } from "../../../../lib/plan-features";
 import { buildPlanMarketingLinesI18nPayload, buildPlanNameI18nPayload } from "../../../../lib/plan-i18n";
 import { normalizeMarketingLines } from "../../../../lib/plan-marketing-lines";
 import { adminInsertPlan, queryAdminPlansList } from "../../../../lib/plans-db-query";
@@ -30,7 +31,7 @@ type CreateBody = {
 	max_users?: number;
 	is_public?: boolean;
 	is_active?: boolean;
-	features?: Record<string, boolean>;
+	features?: Record<string, unknown>;
 	marketing_lines?: unknown;
 	name_i18n?: unknown;
 	marketing_lines_i18n?: unknown;
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
 		max_users: Math.max(0, Math.min(999999, Number(body.max_users) ?? 0)),
 		is_public: body.is_public !== false,
 		is_active: body.is_active !== false,
-		features: body.features && typeof body.features === "object" ? body.features : {},
+		features: normalizePlanFeaturesPayload(body.features),
 		marketing_lines: normalizeMarketingLines(body.marketing_lines),
 		name_i18n: buildPlanNameI18nPayload(body.name_i18n, name),
 		marketing_lines_i18n: buildPlanMarketingLinesI18nPayload(body.marketing_lines_i18n, body.marketing_lines),

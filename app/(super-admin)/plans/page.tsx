@@ -1,4 +1,5 @@
 import { queryAdminPlansList } from "../../../lib/plans-db-query";
+import { supabaseAdmin } from "../../../lib/supabase-admin";
 import { PlansAdminClient } from "./PlansAdminClient";
 
 const getUsdToClp = async () => {
@@ -17,15 +18,28 @@ const getUsdToClp = async () => {
 
 export default async function PlansPage() {
 	try {
-		const [rate, plansResult] = await Promise.all([getUsdToClp(), queryAdminPlansList()]);
+		const [rate, plansResult, addonsResult] = await Promise.all([
+			getUsdToClp(),
+			queryAdminPlansList(),
+			supabaseAdmin
+				.from("addons")
+				.select("id,slug,name")
+				.eq("is_active", true)
+				.order("sort_order", { ascending: true }),
+		]);
 		const { data, error } = plansResult;
+		const { data: addons, error: addonsError } = addonsResult;
 
 		if (error) {
 			console.error("[plans/page] DB:", error.message);
 			throw error;
 		}
+		if (addonsError) {
+			console.error("[plans/page] addons DB:", addonsError.message);
+			throw addonsError;
+		}
 
-		return <PlansAdminClient plans={data ?? []} rate={rate} />;
+		return <PlansAdminClient plans={data ?? []} rate={rate} addons={(addons ?? []) as Array<{ id: string; slug: string | null; name: string }>} />;
 	} catch (err) {
 		console.error("[plans/page]", err);
 		return (

@@ -1,8 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import {
+  Palette,
   CreditCard,
+  AlertTriangle,
   FileText,
   LayoutDashboard,
   LifeBuoy,
@@ -12,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { SaasLogo } from "../../../components/super-admin/SaasLogo";
+import { resolveAddonOfferForPlan } from "../../../lib/plan-offer-rules";
 import { uploadImage } from "../../../components/tenant/utils/cloudinary";
 
 type PlanOption = {
@@ -20,11 +24,15 @@ type PlanOption = {
   price: number | null;
   max_branches: number | null;
   max_users: number | null;
+  features?: unknown;
+  marketing_lines?: unknown;
 };
 
 type AddonOption = {
   id: string;
+  slug?: string | null;
   name: string;
+  description?: string | null;
   type: string | null;
   price_monthly: number | null;
   price_one_time: number | null;
@@ -107,6 +115,7 @@ type CompanySnapshot = {
   id: string;
   name: string;
   publicSlug: string | null;
+  planId: string | null;
   subscriptionStatus: string | null;
   subscriptionEndsAt: string | null;
   planName: string | null;
@@ -216,6 +225,15 @@ type PlanChangePreview = {
     amountDue: number;
     requiresPayment: boolean;
   };
+  execution?: {
+    mode: "immediate" | "scheduled_cycle_end";
+    effectiveAt: string | null;
+    existingSchedule?: {
+      id: string;
+      targetPlanId: string;
+      effectiveAt: string;
+    } | null;
+  };
   impacts: Array<{
     id: string;
     level: "warn" | "block";
@@ -249,6 +267,11 @@ type AddonPurchasePreview = {
     price_monthly: number | null;
   };
   existingActive: boolean;
+  planOffer?: {
+    status: "available" | "included" | "blocked";
+    reason: string;
+    matchedBy: "feature_policy" | "heuristic" | "default";
+  };
   singleInstance: boolean;
   pricing: {
     isMonthly: boolean;
@@ -274,6 +297,11 @@ type AddonPurchasePreview = {
 };
 
 type RealtimeSnapshotResponse = {
+  company: {
+    id: string;
+    subscription_status: string | null;
+    subscription_ends_at: string | null;
+  } | null;
   payments: PaymentSummary[];
   tickets: TicketSummary[];
   branchEntitlements: BranchEntitlementSummary[];
@@ -288,10 +316,136 @@ type RealtimeSnapshotResponse = {
   }>;
 };
 
-type PortalTab = "resumen" | "plan" | "sucursales" | "facturacion" | "soporte";
+type StoreThemeConfig = {
+  displayName: string;
+  primaryColor: string;
+  secondaryColor: string;
+  priceColor: string;
+  discountColor: string;
+  hoverColor: string;
+  backgroundColor: string;
+  backgroundImageUrl: string;
+  logoUrl: string;
+};
+
+type StoreThemeResponse = {
+  company: {
+    id: string;
+    name: string;
+  };
+  published: StoreThemeConfig;
+  draft: {
+    theme: StoreThemeConfig;
+    updatedAt: string | null;
+    updatedByEmail: string | null;
+    hasUnpublishedChanges: boolean;
+  };
+  versions: Array<{
+    id: string;
+    theme: StoreThemeConfig;
+    createdAt: string;
+    createdByEmail: string | null;
+  }>;
+};
+
+const STORE_THEME_COLOR_FIELDS = [
+  ["primaryColor", "Color primario"],
+  ["secondaryColor", "Color secundario"],
+  ["priceColor", "Color precio"],
+  ["discountColor", "Color descuento"],
+  ["hoverColor", "Color hover"],
+  ["backgroundColor", "Color fondo"],
+] as const;
+
+const STORE_THEME_FIELD_LABELS: Record<keyof StoreThemeConfig, string> = {
+  displayName: "Nombre visible",
+  primaryColor: "Color primario",
+  secondaryColor: "Color secundario",
+  priceColor: "Color precio",
+  discountColor: "Color descuento",
+  hoverColor: "Color hover",
+  backgroundColor: "Color fondo",
+  backgroundImageUrl: "URL de fondo",
+  logoUrl: "URL de logo",
+};
+
+type StoreThemeAutosaveStatus = "idle" | "pending" | "saving" | "saved" | "error";
+
+type StoreThemeAssetField = "logoUrl" | "backgroundImageUrl";
+
+const DEFAULT_STORE_THEME: StoreThemeConfig = {
+  displayName: "",
+  primaryColor: "#111827",
+  secondaryColor: "#111827",
+  priceColor: "#ff4757",
+  discountColor: "#25d366",
+  hoverColor: "#ff2e40",
+  backgroundColor: "#0a0a0a",
+  backgroundImageUrl: "",
+  logoUrl: "",
+};
+
+const STORE_THEME_COLOR_HELPERS: Record<keyof Pick<StoreThemeConfig, "primaryColor" | "secondaryColor" | "priceColor" | "discountColor" | "hoverColor" | "backgroundColor">, string> = {
+  primaryColor: "Se usa en CTA principal y tabs activos.",
+  secondaryColor: "Refuerza acentos secundarios y etiquetas.",
+  priceColor: "Color del precio destacado en cards de producto.",
+  discountColor: "Color de badges de descuento y ahorro.",
+  hoverColor: "Color al pasar mouse sobre CTA y acciones.",
+  backgroundColor: "Fondo base del menu cuando no hay imagen.",
+};
+
+const STORE_THEME_TEMPLATES: Array<{
+  id: string;
+  name: string;
+  description: string;
+  colors: Pick<StoreThemeConfig, "primaryColor" | "secondaryColor" | "priceColor" | "discountColor" | "hoverColor" | "backgroundColor">;
+}> = [
+  {
+    id: "sushi-night",
+    name: "Sushi Night",
+    description: "Tonos intensos para gastronomia nocturna y alto contraste.",
+    colors: {
+      primaryColor: "#eb3b00",
+      secondaryColor: "#ff4f00",
+      priceColor: "#ffffff",
+      discountColor: "#25d366",
+      hoverColor: "#ff6a2a",
+      backgroundColor: "#111111",
+    },
+  },
+  {
+    id: "coffee-warm",
+    name: "Coffee Warm",
+    description: "Paleta calida para cafeterias y pasteleria.",
+    colors: {
+      primaryColor: "#7c3f1d",
+      secondaryColor: "#b1622c",
+      priceColor: "#ffe8c2",
+      discountColor: "#8ee381",
+      hoverColor: "#9b5229",
+      backgroundColor: "#2a1a12",
+    },
+  },
+  {
+    id: "fresh-market",
+    name: "Fresh Market",
+    description: "Estilo claro y fresco para retail alimentario.",
+    colors: {
+      primaryColor: "#0f766e",
+      secondaryColor: "#14b8a6",
+      priceColor: "#f8fafc",
+      discountColor: "#84cc16",
+      hoverColor: "#0d9488",
+      backgroundColor: "#134e4a",
+    },
+  },
+];
+
+type PortalTab = "resumen" | "tienda" | "plan" | "sucursales" | "facturacion" | "soporte";
 
 const TAB_LABELS: Record<PortalTab, string> = {
   resumen: "Resumen",
+  tienda: "Tienda",
   plan: "Plan y extras",
   sucursales: "Sucursales",
   facturacion: "Facturacion",
@@ -300,6 +454,7 @@ const TAB_LABELS: Record<PortalTab, string> = {
 
 const TAB_ICONS: Record<PortalTab, React.ComponentType<{ className?: string }>> = {
   resumen: LayoutDashboard,
+  tienda: Palette,
   plan: CreditCard,
   sucursales: Store,
   facturacion: FileText,
@@ -372,6 +527,12 @@ function isSingleInstanceAddon(input: { name?: string | null; slug?: string | nu
   return haystack.includes("dominio") || haystack.includes("domain") || haystack.includes("custom_domain") || haystack.includes("custom-domain");
 }
 
+function formatPaymentConfigKey(key: string): string {
+  const normalized = String(key ?? "").trim().replace(/[_-]+/g, " ");
+  if (!normalized) return "Dato";
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
 function fmtDate(iso: string | null | undefined): string {
   if (!iso) return "-";
   const date = new Date(iso);
@@ -394,6 +555,385 @@ function fmtMoney(value: number | null | undefined): string {
     currency: "USD",
     maximumFractionDigits: 0,
   }).format(Number(value));
+}
+
+function getStoreThemeSignature(theme: StoreThemeConfig | null): string {
+  if (!theme) return "";
+  return JSON.stringify(theme);
+}
+
+function hexToRgb(hex: string): [number, number, number] | null {
+  const normalized = String(hex ?? "").trim();
+  const shortMatch = /^#([a-fA-F0-9]{3})$/.exec(normalized);
+  const longMatch = /^#([a-fA-F0-9]{6})$/.exec(normalized);
+  const expanded = shortMatch
+    ? shortMatch[1].split("").map((ch) => ch + ch).join("")
+    : longMatch
+      ? longMatch[1]
+      : null;
+  if (!expanded) return null;
+  return [
+    Number.parseInt(expanded.slice(0, 2), 16),
+    Number.parseInt(expanded.slice(2, 4), 16),
+    Number.parseInt(expanded.slice(4, 6), 16),
+  ];
+}
+
+function relativeLuminance(hex: string): number | null {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return null;
+  const channel = (value: number) => {
+    const normalized = value / 255;
+    return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+  };
+  const [r, g, b] = rgb;
+  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+}
+
+function contrastRatio(hexA: string, hexB: string): number | null {
+  const l1 = relativeLuminance(hexA);
+  const l2 = relativeLuminance(hexB);
+  if (l1 == null || l2 == null) return null;
+  const maxL = Math.max(l1, l2);
+  const minL = Math.min(l1, l2);
+  return (maxL + 0.05) / (minL + 0.05);
+}
+
+async function getImageFileDimensions(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const probe = new globalThis.Image();
+    probe.onload = () => {
+      const width = probe.naturalWidth;
+      const height = probe.naturalHeight;
+      URL.revokeObjectURL(objectUrl);
+      resolve({ width, height });
+    };
+    probe.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("No se pudo leer la imagen."));
+    };
+    probe.src = objectUrl;
+  });
+}
+
+async function validateStoreThemeAssetFile(field: StoreThemeAssetField, file: File): Promise<{ ok: boolean; error?: string; hint?: string }> {
+  const maxMb = field === "logoUrl" ? 3 : 7;
+  const maxBytes = maxMb * 1024 * 1024;
+  if (!file.type.startsWith("image/")) {
+    return { ok: false, error: "El archivo debe ser una imagen valida." };
+  }
+  if (file.size > maxBytes) {
+    return { ok: false, error: `El archivo excede ${maxMb} MB. Comprime la imagen e intenta nuevamente.` };
+  }
+
+  try {
+    const { width, height } = await getImageFileDimensions(file);
+    if (field === "logoUrl") {
+      if (width < 256 || height < 256) {
+        return { ok: false, error: "El logo debe tener al menos 256x256 px para verse nitido." };
+      }
+      const ratio = width / height;
+      if (ratio < 0.7 || ratio > 1.4) {
+        return { ok: true, hint: "Recomendacion: usa un logo casi cuadrado para mejor encuadre en navbar." };
+      }
+    } else {
+      if (width < 1200 || height < 675) {
+        return { ok: false, error: "El fondo debe tener al menos 1200x675 px para evitar pixelado." };
+      }
+      const ratio = width / height;
+      if (ratio < 1.5) {
+        return { ok: true, hint: "Recomendacion: usa imagen panoramica (16:9 aprox) para mejor resultado." };
+      }
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "No se pudo validar dimensiones de la imagen." };
+  }
+}
+
+function normalizeStoreThemeInput(input: unknown, fallbackName: string): StoreThemeConfig {
+  const value = (input ?? {}) as Record<string, unknown>;
+  const defaults = {
+    ...DEFAULT_STORE_THEME,
+    displayName: fallbackName,
+  };
+  return {
+    displayName: String(value.displayName ?? defaults.displayName),
+    primaryColor: String(value.primaryColor ?? defaults.primaryColor),
+    secondaryColor: String(value.secondaryColor ?? defaults.secondaryColor),
+    priceColor: String(value.priceColor ?? defaults.priceColor),
+    discountColor: String(value.discountColor ?? defaults.discountColor),
+    hoverColor: String(value.hoverColor ?? defaults.hoverColor),
+    backgroundColor: String(value.backgroundColor ?? defaults.backgroundColor),
+    backgroundImageUrl: String(value.backgroundImageUrl ?? defaults.backgroundImageUrl),
+    logoUrl: String(value.logoUrl ?? defaults.logoUrl),
+  };
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  const toPart = (value: number) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0");
+  return `#${toPart(r)}${toPart(g)}${toPart(b)}`;
+}
+
+function blendRgb(
+  from: [number, number, number],
+  to: [number, number, number],
+  ratio: number
+): [number, number, number] {
+  return [
+    from[0] + (to[0] - from[0]) * ratio,
+    from[1] + (to[1] - from[1]) * ratio,
+    from[2] + (to[2] - from[2]) * ratio,
+  ];
+}
+
+function colorDistance(a: [number, number, number], b: [number, number, number]): number {
+  const dr = a[0] - b[0];
+  const dg = a[1] - b[1];
+  const db = a[2] - b[2];
+  return Math.sqrt(dr * dr + dg * dg + db * db);
+}
+
+function suggestAccessibleColorNearTarget(
+  targetHex: string,
+  againstHex: string,
+  minRatio: number,
+  primaryHex: string
+): string {
+  const targetRgb = hexToRgb(targetHex);
+  const primaryRgb = hexToRgb(primaryHex);
+  const againstRgb = hexToRgb(againstHex);
+  if (!targetRgb || !againstRgb) return targetHex;
+
+  const basePrimary = primaryRgb ?? targetRgb;
+  const bases: Array<[number, number, number]> = [
+    targetRgb,
+    blendRgb(targetRgb, basePrimary, 0.25),
+    blendRgb(targetRgb, basePrimary, 0.5),
+  ];
+
+  const white: [number, number, number] = [255, 255, 255];
+  const black: [number, number, number] = [0, 0, 0];
+  let bestHex = targetHex;
+  let bestScore = Number.POSITIVE_INFINITY;
+
+  const evaluate = (candidateRgb: [number, number, number], basePenalty: number) => {
+    const hex = rgbToHex(candidateRgb[0], candidateRgb[1], candidateRgb[2]);
+    const ratio = contrastRatio(hex, againstHex) ?? 0;
+    if (ratio < minRatio) return;
+    const score = colorDistance(candidateRgb, targetRgb) + basePenalty;
+    if (score < bestScore) {
+      bestScore = score;
+      bestHex = hex;
+    }
+  };
+
+  evaluate(targetRgb, 0);
+  for (let i = 0; i < bases.length; i += 1) {
+    const base = bases[i];
+    const basePenalty = i * 6;
+    for (let step = 0; step <= 1; step += 0.04) {
+      evaluate(blendRgb(base, white, step), basePenalty);
+      evaluate(blendRgb(base, black, step), basePenalty);
+    }
+  }
+
+  return bestHex;
+}
+
+function encodePreviewThemeParam(theme: StoreThemeConfig): string {
+  try {
+    return globalThis.btoa(JSON.stringify(theme));
+  } catch {
+    return "";
+  }
+}
+
+function StoreThemePreviewPanel({
+  theme,
+  companyName,
+  previewUrl,
+  hasUnpublishedChanges,
+}: {
+  theme: StoreThemeConfig;
+  companyName: string;
+  previewUrl: string | null;
+  hasUnpublishedChanges: boolean;
+}) {
+  const displayName = theme.displayName.trim() || companyName;
+  const tokenRows = [
+    ["Primario", theme.primaryColor],
+    ["Secundario", theme.secondaryColor],
+    ["Precio", theme.priceColor],
+    ["Descuento", theme.discountColor],
+    ["Hover", theme.hoverColor],
+    ["Fondo", theme.backgroundColor],
+  ] as const;
+  const [previewDevice, setPreviewDevice] = useState<"mobile" | "tablet" | "desktop">("mobile");
+  const [compareMode, setCompareMode] = useState(false);
+  const [showTokens, setShowTokens] = useState(false);
+  const statusTone = hasUnpublishedChanges
+    ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300"
+    : "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300";
+  const statusLabel = hasUnpublishedChanges ? "Borrador con cambios" : "Publicado al dia";
+  const encodedDraftTheme = encodePreviewThemeParam(theme);
+  const buildPreviewUrl = useCallback((withDraftTheme: boolean) => {
+    if (!previewUrl) return null;
+    const params = new URLSearchParams();
+    params.set("embedded_preview", "1");
+    params.set("preview_device", previewDevice);
+    if (withDraftTheme && encodedDraftTheme) {
+      params.set("preview_theme", encodedDraftTheme);
+    }
+    return `${previewUrl}?${params.toString()}`;
+  }, [encodedDraftTheme, previewDevice, previewUrl]);
+  const productionMenuUrl = buildPreviewUrl(false);
+  const draftMenuUrl = buildPreviewUrl(true);
+  const frameWidthClass =
+    previewDevice === "mobile"
+      ? "max-w-[430px]"
+      : previewDevice === "tablet"
+        ? "max-w-[860px]"
+        : "max-w-none";
+  const frameHeightClass =
+    previewDevice === "mobile"
+      ? "h-[760px]"
+      : previewDevice === "tablet"
+        ? "h-[860px]"
+        : "h-[720px]";
+    const shouldSplitFrames = compareMode && previewDevice !== "mobile";
+
+  return (
+    <div className="mt-3 space-y-3">
+      <div className="rounded-2xl border border-zinc-200 bg-zinc-50/80 p-4 dark:border-zinc-700 dark:bg-zinc-800/40">
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">Vista 1 a 1 del menu</p>
+              <h4 className="mt-1 text-lg font-semibold text-zinc-900 dark:text-zinc-100">{displayName}</h4>
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Este bloque renderiza el menu real del tenant tal como lo ve el cliente final.</p>
+            </div>
+            <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] ${statusTone}`}>
+              {statusLabel}
+            </span>
+          </div>
+
+          {productionMenuUrl && draftMenuUrl ? (
+            <div className="mt-4 space-y-3">
+              <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">Menu real embebido. Puedes comparar Produccion vs Borrador y cambiar dispositivo.</p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <div className="inline-flex rounded-lg border border-zinc-300 p-1 dark:border-zinc-700">
+                    {([
+                      ["mobile", "Movil"],
+                      ["tablet", "Tablet"],
+                      ["desktop", "Desktop"],
+                    ] as const).map(([id, label]) => (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => setPreviewDevice(id)}
+                        className={`rounded-md px-2.5 py-1 text-xs font-semibold transition ${previewDevice === id ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900" : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"}`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setCompareMode((prev) => !prev)}
+                    className="rounded-lg border border-zinc-300 px-2.5 py-1 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  >
+                    {compareMode ? "Ver solo borrador" : "Comparar con produccion"}
+                  </button>
+
+                  <a
+                    href={draftMenuUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-lg border border-zinc-300 px-2.5 py-1 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  >
+                    Abrir borrador
+                  </a>
+                </div>
+              </div>
+
+              <div className={`grid gap-4 ${shouldSplitFrames ? "xl:grid-cols-2" : "grid-cols-1"}`}>
+                {compareMode ? (
+                  <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/50">
+                    <p className="px-1 pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">Produccion</p>
+                    <div className={`mx-auto overflow-hidden rounded-2xl border border-zinc-300 bg-zinc-900 shadow-inner dark:border-zinc-700 ${frameWidthClass}`}>
+                      <iframe
+                        title="Vista produccion"
+                        src={productionMenuUrl}
+                        className={`${frameHeightClass} w-full bg-white`}
+                        loading="lazy"
+                      />
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/50">
+                  <p className="px-1 pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">Borrador</p>
+                  <div className={`mx-auto overflow-hidden rounded-2xl border border-zinc-300 bg-zinc-900 shadow-inner dark:border-zinc-700 ${frameWidthClass}`}>
+                    <iframe
+                      title="Vista borrador"
+                      src={draftMenuUrl}
+                      className={`${frameHeightClass} w-full bg-white`}
+                      loading="lazy"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {hasUnpublishedChanges ? (
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  Hay cambios sin publicar: revisa el comparador antes de publicar.
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
+              No se pudo construir la URL del menu para esta empresa.
+            </div>
+          )}
+
+          <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">Tokens del tema</p>
+              <button
+                type="button"
+                onClick={() => setShowTokens((prev) => !prev)}
+                className="rounded-lg border border-zinc-300 px-2.5 py-1 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {showTokens ? "Ocultar" : "Mostrar"}
+              </button>
+            </div>
+
+            {showTokens ? (
+              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {tokenRows.map(([label, value]) => (
+                  <div key={label} className="rounded-lg border border-zinc-200 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900/70">
+                    <div className="flex items-center gap-2">
+                      <svg width="28" height="28" viewBox="0 0 28 28" className="shrink-0 rounded-md border border-zinc-300 dark:border-zinc-700" role="img" aria-label={`${label} ${value}`}>
+                        <rect x="0" y="0" width="28" height="28" rx="6" fill={value} />
+                      </svg>
+                      <div className="min-w-0">
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-zinc-500">{label}</p>
+                        <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{value}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function daysUntil(iso: string | null | undefined): number | null {
@@ -480,6 +1020,47 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState<string | null>(null);
   const [billingOk, setBillingOk] = useState<string | null>(null);
+  const [subscriptionCancelReason, setSubscriptionCancelReason] = useState("");
+  const [subscriptionCancelBusy, setSubscriptionCancelBusy] = useState(false);
+  const [subscriptionCancelError, setSubscriptionCancelError] = useState<string | null>(null);
+  const [subscriptionCancelOk, setSubscriptionCancelOk] = useState<string | null>(null);
+  const [subscriptionCancelModalOpen, setSubscriptionCancelModalOpen] = useState(false);
+  const [subscriptionCancelAcknowledge, setSubscriptionCancelAcknowledge] = useState(false);
+  const [subscriptionCancelFinalConfirm, setSubscriptionCancelFinalConfirm] = useState(false);
+  const [subscriptionReactivateBusy, setSubscriptionReactivateBusy] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState(company.subscriptionStatus);
+  const [subscriptionEndsAt, setSubscriptionEndsAt] = useState(company.subscriptionEndsAt);
+  const [storeThemeLoading, setStoreThemeLoading] = useState(false);
+  const [storeThemeSaving, setStoreThemeSaving] = useState(false);
+  const [storeThemePublishing, setStoreThemePublishing] = useState(false);
+  const [storeThemeRestoring, setStoreThemeRestoring] = useState<string | null>(null);
+  const [storeThemeError, setStoreThemeError] = useState<string | null>(null);
+  const [storeThemeOk, setStoreThemeOk] = useState<string | null>(null);
+  const [storeThemePublished, setStoreThemePublished] = useState<StoreThemeConfig | null>(null);
+  const [storeThemeDraft, setStoreThemeDraft] = useState<StoreThemeConfig | null>(null);
+  const [storeThemeVersions, setStoreThemeVersions] = useState<StoreThemeResponse["versions"]>([]);
+  const [storeThemeUpdatedAt, setStoreThemeUpdatedAt] = useState<string | null>(null);
+  const [storeThemeUpdatedBy, setStoreThemeUpdatedBy] = useState<string | null>(null);
+  const [storeThemeHasUnpublished, setStoreThemeHasUnpublished] = useState(false);
+  const [storeThemeAssetUploading, setStoreThemeAssetUploading] = useState<StoreThemeAssetField | null>(null);
+  const [storeThemeAssetDragOver, setStoreThemeAssetDragOver] = useState<StoreThemeAssetField | null>(null);
+  const [storeThemeAssetHint, setStoreThemeAssetHint] = useState<Record<StoreThemeAssetField, string | null>>({
+    logoUrl: null,
+    backgroundImageUrl: null,
+  });
+  const [storeThemeAssetLocalPreview, setStoreThemeAssetLocalPreview] = useState<{
+    logoUrl: string | null;
+    backgroundImageUrl: string | null;
+  }>({
+    logoUrl: null,
+    backgroundImageUrl: null,
+  });
+  const [storeThemeSelectedTemplate, setStoreThemeSelectedTemplate] = useState(STORE_THEME_TEMPLATES[0]?.id ?? "");
+  const [storeThemePublishComment, setStoreThemePublishComment] = useState("");
+  const [storeThemeAutosaveStatus, setStoreThemeAutosaveStatus] = useState<StoreThemeAutosaveStatus>("idle");
+  const [storeThemeAutosaveError, setStoreThemeAutosaveError] = useState<string | null>(null);
+  const [storeThemeLastSavedSignature, setStoreThemeLastSavedSignature] = useState("");
+  const storeThemeAutosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [expansionQty, setExpansionQty] = useState("1");
   const [expansionMonths, setExpansionMonths] = useState("1");
@@ -514,7 +1095,123 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
     [tickets, selectedTicketId]
   );
 
-  const expiryDays = daysUntil(company.subscriptionEndsAt);
+  const storePreviewTheme = storeThemeDraft ?? storeThemePublished;
+  const storeThemeDraftSignature = useMemo(() => getStoreThemeSignature(storeThemeDraft), [storeThemeDraft]);
+  const storeThemeHasLocalUnsavedChanges = useMemo(
+    () => Boolean(storeThemeDraft) && storeThemeDraftSignature !== storeThemeLastSavedSignature,
+    [storeThemeDraft, storeThemeDraftSignature, storeThemeLastSavedSignature]
+  );
+  const storeThemeDiffRows = useMemo(() => {
+    if (!storeThemeDraft || !storeThemePublished) return [];
+    return (Object.keys(STORE_THEME_FIELD_LABELS) as Array<keyof StoreThemeConfig>)
+      .filter((key) => storeThemeDraft[key] !== storeThemePublished[key])
+      .map((key) => ({
+        key,
+        label: STORE_THEME_FIELD_LABELS[key],
+        draftValue: storeThemeDraft[key],
+        publishedValue: storeThemePublished[key],
+      }));
+  }, [storeThemeDraft, storeThemePublished]);
+  const storeThemeChecklist = useMemo(() => {
+    if (!storeThemeDraft) return [] as Array<{ id: string; title: string; ok: boolean; detail: string }>;
+    const ctaContrast = contrastRatio(storeThemeDraft.primaryColor, "#ffffff");
+    const priceContrast = contrastRatio(storeThemeDraft.priceColor, storeThemeDraft.backgroundColor);
+    const discountContrast = contrastRatio(storeThemeDraft.discountColor, storeThemeDraft.backgroundColor);
+    return [
+      {
+        id: "cta-contrast",
+        title: "Contraste CTA principal",
+        ok: (ctaContrast ?? 0) >= 4.5,
+        detail: ctaContrast == null ? "No se pudo calcular" : `Ratio ${ctaContrast.toFixed(2)} (objetivo >= 4.5)`,
+      },
+      {
+        id: "price-contrast",
+        title: "Contraste color de precio",
+        ok: (priceContrast ?? 0) >= 3,
+        detail: priceContrast == null ? "No se pudo calcular" : `Ratio ${priceContrast.toFixed(2)} (objetivo >= 3.0)`,
+      },
+      {
+        id: "discount-contrast",
+        title: "Contraste color de descuento",
+        ok: (discountContrast ?? 0) >= 3,
+        detail: discountContrast == null ? "No se pudo calcular" : `Ratio ${discountContrast.toFixed(2)} (objetivo >= 3.0)`,
+      },
+      {
+        id: "display-name",
+        title: "Nombre visible definido",
+        ok: storeThemeDraft.displayName.trim().length > 1,
+        detail: storeThemeDraft.displayName.trim().length > 1 ? "Nombre correcto" : "Define un nombre visible",
+      },
+      {
+        id: "logo",
+        title: "Logo configurado",
+        ok: storeThemeDraft.logoUrl.trim().length > 0,
+        detail: storeThemeDraft.logoUrl.trim().length > 0 ? "Logo listo" : "Recomendado para una marca consistente",
+      },
+    ];
+  }, [storeThemeDraft]);
+  const storeThemeChecklistBlockingIssues = useMemo(
+    () => storeThemeChecklist.filter((item) => !item.ok && ["cta-contrast", "price-contrast", "discount-contrast"].includes(item.id)),
+    [storeThemeChecklist]
+  );
+  const latestPublishedVersion = storeThemeVersions[0] ?? null;
+  const publicationStateLabel = !storeThemeHasUnpublished
+    ? "Produccion al dia"
+    : storeThemeHasLocalUnsavedChanges
+      ? "Borrador local sin guardar"
+      : "Borrador guardado pendiente";
+  const storeThemeContrastSuggestions = useMemo(() => {
+    if (!storeThemeDraft) {
+      return {
+        changes: [] as Array<{ key: keyof StoreThemeConfig; label: string; from: string; to: string; ratio: number | null; min: number }>,
+        nextTheme: null as StoreThemeConfig | null,
+      };
+    }
+
+    const rules: Array<{ key: keyof StoreThemeConfig; against: string; minRatio: number }> = [
+      { key: "primaryColor", against: "#ffffff", minRatio: 4.5 },
+      { key: "priceColor", against: storeThemeDraft.backgroundColor, minRatio: 3 },
+      { key: "discountColor", against: storeThemeDraft.backgroundColor, minRatio: 3 },
+    ];
+
+    const nextTheme: StoreThemeConfig = { ...storeThemeDraft };
+    const changes: Array<{ key: keyof StoreThemeConfig; label: string; from: string; to: string; ratio: number | null; min: number }> = [];
+
+    rules.forEach((rule) => {
+      const currentColor = storeThemeDraft[rule.key];
+      const currentRatio = contrastRatio(currentColor, rule.against);
+      if ((currentRatio ?? 0) >= rule.minRatio) return;
+
+      const suggested = suggestAccessibleColorNearTarget(
+        currentColor,
+        rule.against,
+        rule.minRatio,
+        storeThemeDraft.primaryColor
+      );
+
+      if (suggested.toLowerCase() === currentColor.toLowerCase()) return;
+
+      nextTheme[rule.key] = suggested;
+      changes.push({
+        key: rule.key,
+        label: STORE_THEME_FIELD_LABELS[rule.key],
+        from: currentColor,
+        to: suggested,
+        ratio: contrastRatio(suggested, rule.against),
+        min: rule.minRatio,
+      });
+    });
+
+    return {
+      changes,
+      nextTheme: changes.length > 0 ? nextTheme : null,
+    };
+  }, [storeThemeDraft]);
+
+  const expiryDays = daysUntil(subscriptionEndsAt);
+  const normalizedSubscriptionStatus = String(subscriptionStatus ?? "").trim().toLowerCase();
+  const cancellationScheduled = normalizedSubscriptionStatus === "cancelled" && expiryDays != null && expiryDays > 0;
+  const canReactivateCancellation = cancellationScheduled;
   const activeBranchesCount = billingOptions?.activeBranchCount ?? branches.filter((branch) => branch.is_active !== false).length;
   const openTicketsCount = tickets.filter((ticket) => ["open", "in_progress", "waiting_customer"].includes(ticket.status)).length;
   const latestPayment = paymentRows[0] ?? null;
@@ -537,6 +1234,16 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
     () => availablePlans.find((plan) => plan.id === targetPlanId) ?? null,
     [availablePlans, targetPlanId]
   );
+  const recommendedPlanOption = useMemo(() => {
+    if (!availablePlans.length) return null;
+    const eligible = availablePlans.filter((plan) => plan.max_branches == null || plan.max_branches >= activeBranchesCount);
+    const pool = eligible.length > 0 ? eligible : availablePlans;
+    return [...pool].sort((a, b) => {
+      const pa = Number(a.price ?? Number.POSITIVE_INFINITY);
+      const pb = Number(b.price ?? Number.POSITIVE_INFINITY);
+      return pa - pb;
+    })[0] ?? null;
+  }, [availablePlans, activeBranchesCount]);
   const planMonthsNumber = Math.max(1, Math.min(24, Number.parseInt(planMonths, 10) || 1));
   const selectedAddonOption = useMemo(
     () => availableAddons.find((addon) => addon.id === targetAddonId) ?? null,
@@ -576,6 +1283,44 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
   const addonEstimatedTotal = addonEstimatedUnit != null
     ? addonEstimatedUnit * selectedAddonEffectiveQty * (selectedAddonOption?.price_monthly ? addonMonthsNumber : 1)
     : null;
+  const planMonthlyDelta = planPreview?.pricing.monthlyDiff ??
+    (selectedPlanOption?.price != null && company.planPrice != null
+      ? Number(selectedPlanOption.price) - Number(company.planPrice)
+      : null);
+  const planAnnualDelta = planMonthlyDelta != null ? Number((planMonthlyDelta * 12).toFixed(2)) : null;
+  const selectedPlanMethodOption =
+    planPreview?.paymentMethods.find((method) => method.slug === planMethodSlug) ??
+    planPreview?.paymentMethods[0] ??
+    null;
+  const selectedAddonMethodOption =
+    addonPreview?.paymentMethods.find((method) => method.slug === addonMethodSlug) ??
+    addonPreview?.paymentMethods[0] ??
+    null;
+  const addonOfferMatrix = useMemo(() => {
+    return availableAddons.map((addon) => {
+      const cells = availablePlans.map((plan) => {
+        const decision = resolveAddonOfferForPlan(
+          {
+            id: plan.id,
+            name: plan.name,
+            max_branches: plan.max_branches,
+            max_users: plan.max_users,
+            features: plan.features,
+            marketing_lines: plan.marketing_lines,
+          },
+          {
+            id: addon.id,
+            slug: addon.slug ?? null,
+            name: addon.name,
+            type: addon.type,
+            description: addon.description,
+          }
+        );
+        return { planId: plan.id, decision };
+      });
+      return { addon, cells };
+    });
+  }, [availableAddons, availablePlans]);
 
   useEffect(() => {
     if (selectedAddonSingleInstance && addonQty !== "1") {
@@ -860,6 +1605,10 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
       if (Array.isArray(data.branchEntitlements)) {
         setBranchEntitlements(data.branchEntitlements);
       }
+      if (data.company) {
+        setSubscriptionStatus(data.company.subscription_status ?? null);
+        setSubscriptionEndsAt(data.company.subscription_ends_at ?? null);
+      }
       if (Array.isArray(data.activeAddons)) {
         setActiveAddonRows(
           data.activeAddons.map((row) => ({
@@ -879,6 +1628,342 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
     }
   }, []);
 
+  const handleCancelSubscription = async () => {
+    setSubscriptionCancelError(null);
+    setSubscriptionCancelOk(null);
+    setTicketError(null);
+    setTicketOk(null);
+
+    if (!subscriptionEndsAt) {
+      setSubscriptionCancelError("No pudimos determinar la fecha de vencimiento de tu plan.");
+      return;
+    }
+
+    setSubscriptionCancelBusy(true);
+    try {
+      const res = await fetch("/api/customer-account/cancel-subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: subscriptionCancelReason }),
+      });
+
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        message?: string;
+        subscriptionStatus?: string;
+        subscriptionEndsAt?: string | null;
+      };
+
+      if (!res.ok) {
+        setSubscriptionCancelError(data.error || "No se pudo programar la cancelacion.");
+        return;
+      }
+
+      setSubscriptionStatus(data.subscriptionStatus ?? "cancelled");
+      setSubscriptionEndsAt(data.subscriptionEndsAt ?? subscriptionEndsAt);
+      setSubscriptionCancelOk(data.message || "Tu suscripcion quedo cancelada.");
+      setSubscriptionCancelReason("");
+      setSubscriptionCancelModalOpen(false);
+      setSubscriptionCancelAcknowledge(false);
+      setSubscriptionCancelFinalConfirm(false);
+      await loadRealtimeSnapshot();
+    } finally {
+      setSubscriptionCancelBusy(false);
+    }
+  };
+
+  const handleReactivateSubscription = async () => {
+    setSubscriptionCancelError(null);
+    setSubscriptionCancelOk(null);
+    setTicketError(null);
+    setTicketOk(null);
+    setSubscriptionReactivateBusy(true);
+    try {
+      const res = await fetch("/api/customer-account/reactivate-subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        message?: string;
+        subscriptionStatus?: string;
+        subscriptionEndsAt?: string | null;
+      };
+
+      if (!res.ok) {
+        setSubscriptionCancelError(data.error || "No se pudo reactivar la suscripcion.");
+        return;
+      }
+
+      setSubscriptionStatus(data.subscriptionStatus ?? "active");
+      setSubscriptionEndsAt(data.subscriptionEndsAt ?? subscriptionEndsAt);
+      setSubscriptionCancelOk(data.message || "Suscripcion reactivada correctamente.");
+      await loadRealtimeSnapshot();
+    } finally {
+      setSubscriptionReactivateBusy(false);
+    }
+  };
+
+  const loadStoreTheme = useCallback(async () => {
+    setStoreThemeLoading(true);
+    setStoreThemeError(null);
+    try {
+      const res = await fetch("/api/customer-account/store-theme", { cache: "no-store" });
+      const data = (await res.json().catch(() => ({}))) as Partial<StoreThemeResponse> & { error?: string };
+      if (!res.ok || !data.published || !data.draft || !Array.isArray(data.versions)) {
+        setStoreThemeError(data.error || "No se pudo cargar la configuracion de tienda.");
+        return;
+      }
+
+      setStoreThemePublished(data.published);
+      setStoreThemeDraft(data.draft.theme);
+      setStoreThemeVersions(data.versions);
+      setStoreThemeUpdatedAt(data.draft.updatedAt ?? null);
+      setStoreThemeUpdatedBy(data.draft.updatedByEmail ?? null);
+      setStoreThemeHasUnpublished(Boolean(data.draft.hasUnpublishedChanges));
+      setStoreThemeLastSavedSignature(getStoreThemeSignature(data.draft.theme));
+      setStoreThemeAutosaveStatus("idle");
+      setStoreThemeAutosaveError(null);
+    } finally {
+      setStoreThemeLoading(false);
+    }
+  }, []);
+
+  const persistStoreDraft = useCallback(async (mode: "manual" | "autosave") => {
+    if (!storeThemeDraft) return;
+    if (mode === "manual") {
+      setStoreThemeSaving(true);
+      setStoreThemeError(null);
+      setStoreThemeOk(null);
+      setStoreThemeAutosaveError(null);
+    } else {
+      setStoreThemeAutosaveStatus("saving");
+      setStoreThemeAutosaveError(null);
+    }
+
+    const themeToSave = storeThemeDraft;
+    setStoreThemeSaving(true);
+    try {
+      const res = await fetch("/api/customer-account/store-theme", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ theme: themeToSave }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        message?: string;
+        draft?: {
+          theme?: StoreThemeConfig;
+          updatedAt?: string | null;
+          updatedByEmail?: string | null;
+          hasUnpublishedChanges?: boolean;
+        };
+      };
+      if (!res.ok) {
+        const err = data.error || "No se pudo guardar el borrador.";
+        if (mode === "manual") {
+          setStoreThemeError(err);
+        } else {
+          setStoreThemeAutosaveStatus("error");
+          setStoreThemeAutosaveError(err);
+        }
+        return;
+      }
+      const savedTheme = data.draft?.theme ?? themeToSave;
+      setStoreThemeLastSavedSignature(getStoreThemeSignature(savedTheme));
+      setStoreThemeUpdatedAt(data.draft?.updatedAt ?? new Date().toISOString());
+      setStoreThemeUpdatedBy(data.draft?.updatedByEmail ?? storeThemeUpdatedBy);
+      setStoreThemeHasUnpublished(Boolean(data.draft?.hasUnpublishedChanges ?? true));
+
+      if (mode === "manual") {
+        setStoreThemeOk(data.message || "Borrador guardado.");
+        setStoreThemeAutosaveStatus("saved");
+      } else {
+        setStoreThemeAutosaveStatus("saved");
+      }
+    } finally {
+      setStoreThemeSaving(false);
+    }
+  }, [storeThemeDraft, storeThemeUpdatedBy]);
+
+  const saveStoreDraft = async () => {
+    await persistStoreDraft("manual");
+  };
+
+  const publishStoreTheme = async () => {
+    setStoreThemePublishing(true);
+    setStoreThemeError(null);
+    setStoreThemeOk(null);
+    try {
+      const res = await fetch("/api/customer-account/store-theme/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          comment: storeThemePublishComment,
+          changedFields: storeThemeDiffRows.map((row) => row.label),
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+      if (!res.ok) {
+        setStoreThemeError(data.error || "No se pudo publicar.");
+        return;
+      }
+      setStoreThemeOk(data.message || "Cambios publicados.");
+      setStoreThemePublishComment("");
+      await loadStoreTheme();
+    } finally {
+      setStoreThemePublishing(false);
+    }
+  };
+
+  const restoreStoreVersion = async (versionId: string) => {
+    if (!versionId) return;
+    setStoreThemeRestoring(versionId);
+    setStoreThemeError(null);
+    setStoreThemeOk(null);
+    try {
+      const res = await fetch("/api/customer-account/store-theme/restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ versionId }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+      if (!res.ok) {
+        setStoreThemeError(data.error || "No se pudo restaurar la version.");
+        return;
+      }
+      setStoreThemeOk(data.message || "Version cargada en borrador.");
+      await loadStoreTheme();
+    } finally {
+      setStoreThemeRestoring(null);
+    }
+  };
+
+  const setStoreThemeLocalPreview = useCallback((field: "logoUrl" | "backgroundImageUrl", nextUrl: string | null) => {
+    setStoreThemeAssetLocalPreview((prev) => {
+      const previousUrl = prev[field];
+      if (previousUrl && previousUrl.startsWith("blob:") && previousUrl !== nextUrl) {
+        URL.revokeObjectURL(previousUrl);
+      }
+      return { ...prev, [field]: nextUrl };
+    });
+  }, []);
+
+  const handleStoreThemeAssetUpload = async (field: StoreThemeAssetField, file: File | null) => {
+    if (!file || !storeThemeDraft) return;
+
+    const validation = await validateStoreThemeAssetFile(field, file);
+    if (!validation.ok) {
+      setStoreThemeError(validation.error || "No se pudo validar el archivo.");
+      return;
+    }
+    setStoreThemeAssetHint((prev) => ({ ...prev, [field]: validation.hint ?? null }));
+
+    const localPreview = URL.createObjectURL(file);
+    setStoreThemeLocalPreview(field, localPreview);
+    setStoreThemeAssetUploading(field);
+    setStoreThemeError(null);
+    setStoreThemeOk(null);
+
+    try {
+      const url = await uploadImage(file, "tenant");
+      setStoreThemeDraft((prev) => (prev ? { ...prev, [field]: url } : prev));
+      setStoreThemeHasUnpublished(true);
+      setStoreThemeOk("Imagen cargada en borrador. Se guardara automaticamente en breve.");
+      setStoreThemeLocalPreview(field, null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo subir el archivo.";
+      setStoreThemeError(message);
+    } finally {
+      setStoreThemeAssetUploading(null);
+      setStoreThemeAssetDragOver((prev) => (prev === field ? null : prev));
+    }
+  };
+
+  const restoreStoreThemeColorsFromProduction = () => {
+    if (!storeThemeDraft || !storeThemePublished) return;
+    setStoreThemeError(null);
+    setStoreThemeDraft((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        primaryColor: storeThemePublished.primaryColor,
+        secondaryColor: storeThemePublished.secondaryColor,
+        priceColor: storeThemePublished.priceColor,
+        discountColor: storeThemePublished.discountColor,
+        hoverColor: storeThemePublished.hoverColor,
+        backgroundColor: storeThemePublished.backgroundColor,
+      };
+    });
+    setStoreThemeHasUnpublished(true);
+    setStoreThemeOk("Colores restaurados desde producción. Guarda borrador para conservarlos.");
+  };
+
+  const discardStoreThemeChanges = () => {
+    if (!storeThemePublished) return;
+    const shouldDiscard = window.confirm("Se descartaran tus cambios y el borrador volvera al estado actual de produccion. Deseas continuar?");
+    if (!shouldDiscard) return;
+    setStoreThemeError(null);
+    setStoreThemeDraft(storeThemePublished);
+    setStoreThemeOk("Borrador restaurado a produccion.");
+    setStoreThemeHasUnpublished(false);
+  };
+
+  const applyStoreThemeTemplate = () => {
+    if (!storeThemeDraft || !storeThemeSelectedTemplate) return;
+    const template = STORE_THEME_TEMPLATES.find((item) => item.id === storeThemeSelectedTemplate);
+    if (!template) return;
+    setStoreThemeError(null);
+    setStoreThemeDraft((prev) => (prev ? { ...prev, ...template.colors } : prev));
+    setStoreThemeHasUnpublished(true);
+    setStoreThemeOk(`Plantilla aplicada: ${template.name}.`);
+  };
+
+  const exportStoreThemeJson = () => {
+    if (!storeThemeDraft) return;
+    const json = JSON.stringify(storeThemeDraft, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = `store-theme-${(company.publicSlug || company.id).toLowerCase()}.json`;
+    link.click();
+    URL.revokeObjectURL(objectUrl);
+    setStoreThemeOk("Tema exportado en JSON.");
+  };
+
+  const importStoreThemeJson = async (file: File | null) => {
+    if (!file || !storeThemeDraft) return;
+    setStoreThemeError(null);
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as unknown;
+      const normalized = normalizeStoreThemeInput(parsed, storeThemeDraft.displayName || company.name);
+      setStoreThemeDraft(normalized);
+      setStoreThemeHasUnpublished(true);
+      setStoreThemeOk("Tema importado. Revisa la vista previa y guarda/publica cuando quieras.");
+    } catch {
+      setStoreThemeError("No se pudo importar el archivo JSON. Verifica el formato.");
+    }
+  };
+
+  const handleTabChange = (nextTab: PortalTab) => {
+    if (tab === "tienda" && nextTab !== "tienda" && storeThemeHasLocalUnsavedChanges) {
+      const shouldLeave = window.confirm("Tienes cambios sin guardar en el editor de tienda. Deseas salir de todos modos?");
+      if (!shouldLeave) return;
+    }
+    setTab(nextTab);
+  };
+
+  const applyStoreThemeContrastSuggestions = () => {
+    if (!storeThemeContrastSuggestions.nextTheme) return;
+    setStoreThemeError(null);
+    setStoreThemeDraft(storeThemeContrastSuggestions.nextTheme);
+    setStoreThemeHasUnpublished(true);
+    setStoreThemeOk("Aplicamos sugerencias de contraste manteniendo tonos cercanos a tu elección.");
+  };
+
   useEffect(() => {
     void loadRealtimeSnapshot();
     const id = window.setInterval(() => {
@@ -886,6 +1971,69 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
     }, 15000);
     return () => window.clearInterval(id);
   }, [loadRealtimeSnapshot]);
+
+  useEffect(() => {
+    void loadStoreTheme();
+  }, [loadStoreTheme]);
+
+  useEffect(() => {
+    return () => {
+      [storeThemeAssetLocalPreview.logoUrl, storeThemeAssetLocalPreview.backgroundImageUrl].forEach((url) => {
+        if (url && url.startsWith("blob:")) {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
+  }, [storeThemeAssetLocalPreview.backgroundImageUrl, storeThemeAssetLocalPreview.logoUrl]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (tab !== "tienda" || !storeThemeHasLocalUnsavedChanges) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [storeThemeHasLocalUnsavedChanges, tab]);
+
+  useEffect(() => {
+    if (storeThemeAutosaveTimerRef.current) {
+      clearTimeout(storeThemeAutosaveTimerRef.current);
+      storeThemeAutosaveTimerRef.current = null;
+    }
+
+    if (!storeThemeDraft || storeThemeLoading || storeThemePublishing || storeThemeRestoring != null) {
+      return;
+    }
+
+    if (storeThemeDraftSignature === storeThemeLastSavedSignature) {
+      setStoreThemeAutosaveStatus("idle");
+      return;
+    }
+
+    setStoreThemeAutosaveStatus("pending");
+    storeThemeAutosaveTimerRef.current = setTimeout(() => {
+      void persistStoreDraft("autosave");
+    }, 2200);
+
+    return () => {
+      if (storeThemeAutosaveTimerRef.current) {
+        clearTimeout(storeThemeAutosaveTimerRef.current);
+        storeThemeAutosaveTimerRef.current = null;
+      }
+    };
+  }, [
+    persistStoreDraft,
+    storeThemeDraft,
+    storeThemeDraftSignature,
+    storeThemeLastSavedSignature,
+    storeThemeLoading,
+    storeThemePublishing,
+    storeThemeRestoring,
+  ]);
 
   const handlePlanRequest = async () => {
     if (!planPreview?.targetPlan?.id) {
@@ -1126,7 +2274,7 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
           unitPrice: data.instructions.summary.unitPrice,
           status: data.instructions.summary.requiresManualProof ? "pending" : "active",
           startsAt: new Date().toISOString(),
-          expiresAt: company.subscriptionEndsAt,
+          expiresAt: subscriptionEndsAt,
           createdAt: new Date().toISOString(),
           paymentReference: data.payment.payment_reference,
         },
@@ -1365,7 +2513,7 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
                 <button
                   key={key}
                   type="button"
-                  onClick={() => setTab(key)}
+                  onClick={() => handleTabChange(key)}
                   className={`flex min-w-0 items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm font-medium transition md:gap-3 md:rounded-xl md:px-3 ${
                     tab === key
                       ? "bg-indigo-600 text-white"
@@ -1405,7 +2553,7 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
               </div>
 
               <div className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-                {toDisplayLabel(company.subscriptionStatus, SUBSCRIPTION_STATUS_LABELS)}
+                {toDisplayLabel(subscriptionStatus, SUBSCRIPTION_STATUS_LABELS)}
               </div>
             </div>
 
@@ -1420,7 +2568,7 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
                   <button
                     key={key}
                     type="button"
-                    onClick={() => setTab(key)}
+                    onClick={() => handleTabChange(key)}
                     className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                       tab === key
                         ? "border-indigo-500 bg-indigo-600 text-white"
@@ -1454,8 +2602,8 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
 
                 <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-right dark:border-zinc-700 dark:bg-zinc-800/60">
                   <p className="text-[11px] uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Estado actual</p>
-                  <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{toDisplayLabel(company.subscriptionStatus, SUBSCRIPTION_STATUS_LABELS)}</p>
-                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Vence: {fmtDate(company.subscriptionEndsAt)}</p>
+                  <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{toDisplayLabel(subscriptionStatus, SUBSCRIPTION_STATUS_LABELS)}</p>
+                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Vence: {fmtDate(subscriptionEndsAt)}</p>
                 </div>
               </div>
 
@@ -1521,12 +2669,17 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
 
             <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/70 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-800/50">
               <p className="text-xs uppercase tracking-[0.14em] text-zinc-500">Vencimiento</p>
-              <p className="mt-1 font-semibold text-zinc-900 dark:text-zinc-100">{fmtDate(company.subscriptionEndsAt)}</p>
+              <p className="mt-1 font-semibold text-zinc-900 dark:text-zinc-100">{fmtDate(subscriptionEndsAt)}</p>
               {expiryDays != null ? (
                 <p className={`text-sm ${expiryDays <= 7 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
                   {expiryDays >= 0
                     ? `Quedan ${expiryDays} dia${expiryDays === 1 ? "" : "s"}`
                     : `Vencido hace ${Math.abs(expiryDays)} dia${Math.abs(expiryDays) === 1 ? "" : "s"}`}
+                </p>
+              ) : null}
+              {cancellationScheduled ? (
+                <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">
+                  Cancelacion programada: tu servicio seguira activo hasta el vencimiento.
                 </p>
               ) : null}
             </div>
@@ -1536,28 +2689,28 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 <button
                   type="button"
-                  onClick={() => setTab("plan")}
+                  onClick={() => handleTabChange("plan")}
                   className="rounded-lg border border-zinc-300 px-3 py-2 text-left text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
                 >
                   Revisar plan y extras
                 </button>
                 <button
                   type="button"
-                  onClick={() => setTab("facturacion")}
+                  onClick={() => handleTabChange("facturacion")}
                   className="rounded-lg border border-zinc-300 px-3 py-2 text-left text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
                 >
                   Ver pagos y comprobantes
                 </button>
                 <button
                   type="button"
-                  onClick={() => setTab("sucursales")}
+                  onClick={() => handleTabChange("sucursales")}
                   className="rounded-lg border border-zinc-300 px-3 py-2 text-left text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
                 >
                   Solicitar nueva sucursal
                 </button>
                 <button
                   type="button"
-                  onClick={() => setTab("soporte")}
+                  onClick={() => handleTabChange("soporte")}
                   className="rounded-lg border border-zinc-300 px-3 py-2 text-left text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
                 >
                   Abrir o responder ticket
@@ -1609,10 +2762,515 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
         </section>
       ) : null}
 
+      {tab === "tienda" ? (
+        <section className="space-y-4">
+            <div className="rounded-2xl border border-zinc-200 bg-white/80 p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/80">
+              <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Editor de tienda</h2>
+              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Trabaja con borradores y publica cuando estés listo.</p>
+
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/60">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-zinc-500">Estado editorial</p>
+                  <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{publicationStateLabel}</p>
+                </div>
+                <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/60">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-zinc-500">Ultima edicion</p>
+                  <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{storeThemeUpdatedAt ? fmtDate(storeThemeUpdatedAt) : "-"}</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">{storeThemeUpdatedBy ?? "sin autor"}</p>
+                </div>
+                <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/60">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-zinc-500">Ultima publicacion</p>
+                  <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{latestPublishedVersion ? fmtDate(latestPublishedVersion.createdAt) : "-"}</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">{latestPublishedVersion?.createdByEmail ?? "sin registro"}</p>
+                </div>
+              </div>
+
+              <div className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50/80 px-3 py-2 text-xs dark:border-zinc-700 dark:bg-zinc-800/50">
+                <p className="font-semibold text-zinc-700 dark:text-zinc-200">Estado de guardado automático</p>
+                <p className="mt-1 text-zinc-600 dark:text-zinc-300">
+                  {storeThemeAutosaveStatus === "saving"
+                    ? "Guardando cambios..."
+                    : storeThemeAutosaveStatus === "pending"
+                      ? "Cambios detectados. Se guardarán automáticamente en unos segundos."
+                      : storeThemeAutosaveStatus === "saved"
+                        ? "Borrador guardado automáticamente."
+                        : storeThemeAutosaveStatus === "error"
+                          ? "Error en guardado automático. Puedes guardar manualmente."
+                          : "Sin cambios pendientes."}
+                </p>
+                {storeThemeHasLocalUnsavedChanges ? (
+                  <p className="mt-1 text-amber-700 dark:text-amber-300">Hay cambios locales sin guardar aun.</p>
+                ) : null}
+                {storeThemeAutosaveError ? <p className="mt-1 text-red-600 dark:text-red-300">{storeThemeAutosaveError}</p> : null}
+              </div>
+
+              {storeThemeError ? (
+                <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+                  {storeThemeError}
+                </div>
+              ) : null}
+
+              {storeThemeOk ? (
+                <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300">
+                  {storeThemeOk}
+                </div>
+              ) : null}
+
+              {storeThemeLoading || !storeThemeDraft ? (
+                <p className="mt-3 text-sm text-zinc-500">Cargando configuración...</p>
+              ) : (
+                <div className="mt-4 space-y-4">
+                  <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">1. Identidad visual</p>
+                    <label className="mt-2 block text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                      Nombre visible
+                      <input
+                        value={storeThemeDraft.displayName}
+                        onChange={(event) => setStoreThemeDraft((prev) => (prev ? { ...prev, displayName: event.target.value } : prev))}
+                        className="mt-1 h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                        placeholder={company.name}
+                      />
+                      <p className="mt-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">Se muestra en el header del menu y en la portada de la tienda.</p>
+                    </label>
+                  </div>
+
+                  <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">2. Paleta de colores</p>
+                      <button
+                        type="button"
+                        onClick={restoreStoreThemeColorsFromProduction}
+                        disabled={storeThemeLoading || storeThemeSaving || storeThemePublishing || !storeThemePublished}
+                        className="rounded-lg border border-zinc-300 px-2.5 py-1 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                      >
+                        Restaurar colores de producción
+                      </button>
+                    </div>
+                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                      {STORE_THEME_COLOR_FIELDS.map(([key, label]) => (
+                        <label key={key} className="block text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                          {label}
+                          <div className="mt-1 flex items-center gap-2 rounded-xl border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
+                            <input
+                              type="color"
+                              value={storeThemeDraft[key]}
+                              onChange={(event) => setStoreThemeDraft((prev) => (prev ? { ...prev, [key]: event.target.value } : prev))}
+                              className="h-8 w-10 rounded-md border border-zinc-300"
+                            />
+                            <span className="text-xs text-zinc-500">{storeThemeDraft[key]}</span>
+                          </div>
+                          <p className="mt-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">{STORE_THEME_COLOR_HELPERS[key]}</p>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">3. Assets</p>
+                    <div className="mt-2 space-y-3">
+                      <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                        URL logo
+                        <input
+                          value={storeThemeDraft.logoUrl}
+                          onChange={(event) => setStoreThemeDraft((prev) => (prev ? { ...prev, logoUrl: event.target.value } : prev))}
+                          className="mt-1 h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                          placeholder="https://..."
+                        />
+                        <p className="mt-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">Aparece en la barra superior del menu y refuerza identidad de marca.</p>
+                      </label>
+
+                      <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                        URL fondo
+                        <input
+                          value={storeThemeDraft.backgroundImageUrl}
+                          onChange={(event) => setStoreThemeDraft((prev) => (prev ? { ...prev, backgroundImageUrl: event.target.value } : prev))}
+                          className="mt-1 h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                          placeholder="https://..."
+                        />
+                        <p className="mt-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">Se ve en la atmosfera general del menu y se combina con el color de fondo.</p>
+                      </label>
+
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {([
+                          ["logoUrl", "Logo", "Ideal para cuadrado (min 512x512)."],
+                          ["backgroundImageUrl", "Fondo", "Ideal panoramica horizontal (min 1600x900)."],
+                        ] as const).map(([field, title, hint]) => {
+                          const previewUrl = storeThemeAssetLocalPreview[field] || storeThemeDraft[field] || "";
+                          const isUploading = storeThemeAssetUploading === field;
+                          const isDragOver = storeThemeAssetDragOver === field;
+                          return (
+                            <div
+                              key={field}
+                              className={`rounded-xl border bg-white p-3 transition dark:bg-zinc-900 ${isDragOver ? "border-indigo-400 ring-2 ring-indigo-200 dark:border-indigo-500 dark:ring-indigo-900/50" : "border-zinc-300 dark:border-zinc-700"}`}
+                              onDragOver={(event) => {
+                                event.preventDefault();
+                                setStoreThemeAssetDragOver(field);
+                              }}
+                              onDragLeave={(event) => {
+                                event.preventDefault();
+                                setStoreThemeAssetDragOver((prev) => (prev === field ? null : prev));
+                              }}
+                              onDrop={(event) => {
+                                event.preventDefault();
+                                setStoreThemeAssetDragOver(null);
+                                const dropped = event.dataTransfer.files?.[0] ?? null;
+                                void handleStoreThemeAssetUpload(field, dropped);
+                              }}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{title}</p>
+                                {isUploading ? <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-300">Subiendo...</span> : null}
+                              </div>
+                              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Arrastra imagen aqui o selecciona archivo. {hint}</p>
+
+                              <div className="mt-2 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800/70">
+                                {previewUrl ? (
+                                  <div className="relative h-32 w-full">
+                                    <Image
+                                      src={previewUrl}
+                                      alt={`Preview ${title}`}
+                                      fill
+                                      sizes="(max-width: 640px) 100vw, 50vw"
+                                      className="object-cover"
+                                      unoptimized
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="grid h-32 place-items-center text-xs text-zinc-500 dark:text-zinc-400">Sin imagen cargada</div>
+                                )}
+                              </div>
+
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                <label className="inline-flex cursor-pointer items-center rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">
+                                  Seleccionar archivo
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(event) => {
+                                      void handleStoreThemeAssetUpload(field, event.target.files?.[0] ?? null);
+                                      event.currentTarget.value = "";
+                                    }}
+                                  />
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setStoreThemeDraft((prev) => (prev ? { ...prev, [field]: "" } : prev));
+                                    setStoreThemeHasUnpublished(true);
+                                    setStoreThemeLocalPreview(field, null);
+                                  }}
+                                  className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                                >
+                                  Limpiar
+                                </button>
+                              </div>
+
+                              {storeThemeAssetHint[field] ? (
+                                <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">{storeThemeAssetHint[field]}</p>
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">4. Publicacion</p>
+
+                    <div className="mt-3 rounded-lg border border-zinc-200 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900/70">
+                      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">Checklist de calidad visual</p>
+                      <div className="mt-2 space-y-1.5">
+                        {storeThemeChecklist.map((item) => (
+                          <div
+                            key={item.id}
+                            className={`rounded-md border px-2.5 py-1.5 text-xs ${item.ok ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300" : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300"}`}
+                          >
+                            <p className="font-semibold">{item.ok ? "OK" : "Revisar"}: {item.title}</p>
+                            <p className="mt-0.5 opacity-90">{item.detail}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {storeThemeContrastSuggestions.changes.length > 0 ? (
+                      <div className="mt-3 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 dark:border-indigo-900/40 dark:bg-indigo-950/20">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-indigo-700 dark:text-indigo-300">Sugerencias automáticas de contraste</p>
+                          <button
+                            type="button"
+                            onClick={applyStoreThemeContrastSuggestions}
+                            className="rounded-lg border border-indigo-300 px-2.5 py-1 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-900/40"
+                          >
+                            Aplicar sugerencias
+                          </button>
+                        </div>
+                        <div className="mt-2 space-y-1.5">
+                          {storeThemeContrastSuggestions.changes.map((change) => (
+                            <div key={change.key} className="rounded-md border border-indigo-200 bg-white px-2.5 py-1.5 text-xs text-indigo-900 dark:border-indigo-800 dark:bg-zinc-900/70 dark:text-indigo-100">
+                              <p className="font-semibold">{change.label}: {change.from} a {change.to}</p>
+                              <p className="mt-0.5 opacity-90">Contraste estimado: {change.ratio ? change.ratio.toFixed(2) : "-"} (objetivo minimo {change.min.toFixed(1)})</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="mt-3 rounded-lg border border-zinc-200 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900/70">
+                      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">Diferencias vs producción</p>
+                      {storeThemeDiffRows.length === 0 ? (
+                        <p className="mt-2 text-xs text-zinc-500">No hay diferencias entre borrador y producción.</p>
+                      ) : (
+                        <div className="mt-2 space-y-2">
+                          {storeThemeDiffRows.map((row) => (
+                            <div key={row.key} className="rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-xs dark:border-zinc-700 dark:bg-zinc-800/60">
+                              <p className="font-semibold text-zinc-700 dark:text-zinc-200">{row.label}</p>
+                              <p className="mt-0.5 text-zinc-500 dark:text-zinc-400">Producción: {row.publishedValue || "-"}</p>
+                              <p className="text-zinc-700 dark:text-zinc-200">Borrador: {row.draftValue || "-"}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <label className="mt-3 block text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                      Comentario de publicación
+                      <textarea
+                        value={storeThemePublishComment}
+                        onChange={(event) => setStoreThemePublishComment(event.target.value)}
+                        placeholder="Ej: Ajuste de paleta para campaña de invierno"
+                        className="mt-1 min-h-20 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                        maxLength={300}
+                      />
+                    </label>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={saveStoreDraft}
+                      disabled={storeThemeSaving || storeThemePublishing || storeThemeLoading}
+                      className="h-11 rounded-xl border border-zinc-300 px-4 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                    >
+                      {storeThemeSaving ? "Guardando..." : "Guardar borrador"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={publishStoreTheme}
+                      disabled={
+                        storeThemePublishing ||
+                        storeThemeLoading ||
+                        !storeThemeHasUnpublished ||
+                        storeThemeDiffRows.length === 0
+                      }
+                      className="h-11 rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
+                    >
+                      {storeThemePublishing ? "Publicando..." : "Publicar cambios"}
+                    </button>
+                    </div>
+
+                    {storeThemeChecklistBlockingIssues.length > 0 ? (
+                      <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+                        Recomendacion: mejora los contrastes marcados para una mejor legibilidad antes de publicar.
+                      </p>
+                    ) : null}
+
+                    <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                      Guardar borrador conserva el trabajo sin impactar clientes. Publicar aplica cambios en produccion.
+                    </p>
+
+                    <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
+                      {storeThemeHasUnpublished ? "Hay cambios sin publicar." : "El borrador coincide con producción."}
+                      {storeThemeUpdatedAt ? ` Ultima edicion: ${fmtDate(storeThemeUpdatedAt)}.` : ""}
+                      {storeThemeUpdatedBy ? ` Por: ${storeThemeUpdatedBy}.` : ""}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+          <div className="rounded-2xl border border-zinc-200 bg-white/80 p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/80">
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Vista previa</h3>
+            {storePreviewTheme ? (
+              <StoreThemePreviewPanel
+                theme={storePreviewTheme}
+                companyName={company.name}
+                previewUrl={company.publicSlug ? `/${company.publicSlug}/menu` : null}
+                hasUnpublishedChanges={storeThemeHasUnpublished}
+              />
+            ) : (
+              <p className="mt-3 text-sm text-zinc-500">Cargando preview...</p>
+            )}
+          </div>
+
+            <div className="rounded-2xl border border-zinc-200 bg-white/80 p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/80">
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Versiones publicadas</h3>
+              <div className="mt-3 space-y-2">
+                {storeThemeVersions.length === 0 ? (
+                  <p className="text-sm text-zinc-500">Aun no hay versiones publicadas.</p>
+                ) : (
+                  storeThemeVersions.map((version) => (
+                    <div key={version.id} className="rounded-xl border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-medium text-zinc-900 dark:text-zinc-100">{version.theme.displayName || company.name}</p>
+                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{fmtDate(version.createdAt)}</span>
+                      </div>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">Publicado por: {version.createdByEmail ?? "sistema"}</p>
+                      <button
+                        type="button"
+                        onClick={() => void restoreStoreVersion(version.id)}
+                        disabled={storeThemeRestoring === version.id || storeThemeLoading}
+                        className="mt-2 rounded-lg border border-zinc-300 px-2.5 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                      >
+                        {storeThemeRestoring === version.id ? "Restaurando..." : "Usar como borrador"}
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-zinc-200 bg-white/80 p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/80">
+              <details className="group" open={false}>
+                <summary className="cursor-pointer list-none text-sm font-semibold text-zinc-900 outline-none dark:text-zinc-100">
+                  Opciones avanzadas
+                </summary>
+                <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Acciones extra para acelerar trabajo entre marcas o recuperar estado.</p>
+
+                <div className="mt-3 space-y-3">
+                  <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">Plantillas</p>
+                    <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
+                      <select
+                        value={storeThemeSelectedTemplate}
+                        onChange={(event) => setStoreThemeSelectedTemplate(event.target.value)}
+                        aria-label="Seleccionar plantilla de tema"
+                        className="h-11 rounded-xl border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                      >
+                        {STORE_THEME_TEMPLATES.map((template) => (
+                          <option key={template.id} value={template.id}>{template.name} - {template.description}</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={applyStoreThemeTemplate}
+                        className="h-11 rounded-xl border border-zinc-300 px-4 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                      >
+                        Aplicar plantilla
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">Importar y exportar</p>
+                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                      <label className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800/60">
+                        Importar tema JSON
+                        <input
+                          type="file"
+                          accept="application/json,.json"
+                          className="mt-2 block w-full text-xs"
+                          onChange={(event) => {
+                            void importStoreThemeJson(event.target.files?.[0] ?? null);
+                            event.currentTarget.value = "";
+                          }}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={exportStoreThemeJson}
+                        disabled={!storeThemeDraft}
+                        className="h-11 self-end rounded-xl border border-zinc-300 px-4 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                      >
+                        Exportar tema JSON
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">Recuperacion</p>
+                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Vuelve al estado de produccion si quieres descartar el borrador actual.</p>
+                    <button
+                      type="button"
+                      onClick={discardStoreThemeChanges}
+                      disabled={storeThemeLoading || storeThemeSaving || storeThemePublishing || !storeThemePublished}
+                      className="mt-2 h-11 rounded-xl border border-zinc-300 px-4 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                    >
+                      Descartar cambios
+                    </button>
+                  </div>
+                </div>
+              </details>
+            </div>
+        </section>
+      ) : null}
+
       {tab === "plan" ? (
         <section className="space-y-4">
           <div className="rounded-2xl border border-zinc-200 bg-white/80 p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/80">
-            <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Tu plan actual</h2>
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">Resumen ejecutivo</p>
+            <h2 className="mt-1 text-base font-semibold text-zinc-900 dark:text-zinc-100">Plan y extras con enfoque de decision</h2>
+            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Todo lo importante para decidir: recomendacion, impacto economico y acciones frecuentes.</p>
+
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/50">
+                <p className="text-xs text-zinc-500">Plan actual</p>
+                <p className="font-semibold text-zinc-900 dark:text-zinc-100">{company.planName ?? "Sin plan"}</p>
+                <p className="text-xs text-zinc-500">{fmtMoney(company.planPrice)} mensual</p>
+              </div>
+              <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/50">
+                <p className="text-xs text-zinc-500">Recomendado</p>
+                <p className="font-semibold text-zinc-900 dark:text-zinc-100">{recommendedPlanOption?.name ?? "-"}</p>
+                <p className="text-xs text-zinc-500">{fmtMoney(recommendedPlanOption?.price ?? null)} mensual</p>
+              </div>
+              <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/50">
+                <p className="text-xs text-zinc-500">Impacto mensual</p>
+                <p className={`font-semibold ${planMonthlyDelta != null && planMonthlyDelta > 0 ? "text-amber-700 dark:text-amber-300" : planMonthlyDelta != null && planMonthlyDelta < 0 ? "text-emerald-700 dark:text-emerald-300" : "text-zinc-900 dark:text-zinc-100"}`}>
+                  {planMonthlyDelta != null ? fmtMoney(planMonthlyDelta) : "-"}
+                </p>
+                <p className="text-xs text-zinc-500">vs plan actual</p>
+              </div>
+              <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/50">
+                <p className="text-xs text-zinc-500">Proyeccion anual</p>
+                <p className={`font-semibold ${planAnnualDelta != null && planAnnualDelta > 0 ? "text-amber-700 dark:text-amber-300" : planAnnualDelta != null && planAnnualDelta < 0 ? "text-emerald-700 dark:text-emerald-300" : "text-zinc-900 dark:text-zinc-100"}`}>
+                  {planAnnualDelta != null ? fmtMoney(planAnnualDelta) : "-"}
+                </p>
+                <p className="text-xs text-zinc-500">estimado a 12 meses</p>
+              </div>
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (recommendedPlanOption?.id) {
+                    setTargetPlanId(recommendedPlanOption.id);
+                  }
+                }}
+                disabled={!recommendedPlanOption?.id || recommendedPlanOption.id === targetPlanId}
+                className="h-10 rounded-xl border border-zinc-300 px-3 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
+              >
+                Usar plan recomendado
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (recommendedPlanOption?.id) {
+                    setTargetPlanId(recommendedPlanOption.id);
+                    setPlanMonths("12");
+                  }
+                }}
+                disabled={!recommendedPlanOption?.id}
+                className="h-10 rounded-xl border border-zinc-300 px-3 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
+              >
+                Simular 12 meses
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-zinc-200 bg-white/80 p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">1. Estado del plan</p>
+            <h2 className="mt-1 text-base font-semibold text-zinc-900 dark:text-zinc-100">Tu plan actual</h2>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
               <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/50">
                 <p className="text-xs text-zinc-500">Plan</p>
@@ -1627,10 +3285,129 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
                 <p className="font-semibold text-zinc-900 dark:text-zinc-100">{activeAddonRows.length}</p>
               </div>
             </div>
+
+            <details className="mt-4 rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-4 dark:border-amber-900/50 dark:bg-amber-950/20">
+              <summary className="cursor-pointer list-none text-sm font-semibold text-zinc-900 dark:text-zinc-100">Gestion de cancelacion y reactivacion</summary>
+              <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">Solo abre esta seccion cuando quieras gestionar cancelacion al fin de ciclo.</p>
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 grid h-9 w-9 place-items-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                  <AlertTriangle className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Cancelar plan</h3>
+                  <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                    Si cancelas ahora, el acceso seguirá funcionando hasta la fecha de vencimiento actual. Después de esa fecha, el tenant quedará suspendido.
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    Fecha de vencimiento actual: <span className="font-medium text-zinc-700 dark:text-zinc-200">{fmtDate(subscriptionEndsAt)}</span>
+                  </p>
+
+                  <textarea
+                    value={subscriptionCancelReason}
+                    onChange={(event) => setSubscriptionCancelReason(event.target.value)}
+                    placeholder="Motivo opcional de cancelacion"
+                    className="mt-3 min-h-20 w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-amber-400 dark:border-amber-900/60 dark:bg-zinc-900 dark:text-zinc-100"
+                    disabled={subscriptionCancelBusy || cancellationScheduled || subscriptionReactivateBusy}
+                  />
+
+                  {subscriptionCancelError ? (
+                    <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+                      {subscriptionCancelError}
+                    </div>
+                  ) : null}
+
+                  {subscriptionCancelOk ? (
+                    <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300">
+                      {subscriptionCancelOk}
+                    </div>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSubscriptionCancelAcknowledge(false);
+                      setSubscriptionCancelFinalConfirm(false);
+                      setSubscriptionCancelModalOpen(true);
+                    }}
+                    disabled={subscriptionCancelBusy || cancellationScheduled || subscriptionReactivateBusy}
+                    className="mt-3 inline-flex h-11 items-center justify-center rounded-xl border border-amber-300 bg-amber-600 px-4 text-sm font-semibold text-white transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-800 dark:bg-amber-700 dark:hover:bg-amber-600"
+                  >
+                    {subscriptionCancelBusy
+                      ? "Programando cancelacion..."
+                      : cancellationScheduled
+                      ? "Cancelacion ya programada"
+                      : "Cancelar al final del ciclo"}
+                  </button>
+
+                  {canReactivateCancellation ? (
+                    <button
+                      type="button"
+                      onClick={handleReactivateSubscription}
+                      disabled={subscriptionReactivateBusy || subscriptionCancelBusy}
+                      className="mt-2 inline-flex h-11 items-center justify-center rounded-xl border border-emerald-300 bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-emerald-800 dark:bg-emerald-700 dark:hover:bg-emerald-600"
+                    >
+                      {subscriptionReactivateBusy ? "Reactivando..." : "Reactivar suscripcion"}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </details>
           </div>
 
           <div className="rounded-2xl border border-zinc-200 bg-white/80 p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/80">
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Comparador de cambio</h3>
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">1B. Matriz de oferta</p>
+            <h3 className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">Que extras ofrece cada plan</h3>
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+              Verde: incluido. Rojo: bloqueado. Gris: disponible para contratar. Esta matriz usa la misma logica de politicas del backend.
+            </p>
+
+            <div className="mt-3 overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+              <table className="min-w-[760px] w-full border-collapse text-xs">
+                <thead className="bg-zinc-50 dark:bg-zinc-800/60">
+                  <tr>
+                    <th className="sticky left-0 z-10 border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-left font-semibold text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-200">Extra</th>
+                    {availablePlans.map((plan) => (
+                      <th key={`m-head-${plan.id}`} className={`border-b border-zinc-200 px-3 py-2 text-left font-semibold dark:border-zinc-700 ${company.planId === plan.id ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300" : "text-zinc-700 dark:text-zinc-200"}`}>
+                        {plan.name}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {addonOfferMatrix.map((row) => (
+                    <tr key={`m-row-${row.addon.id}`} className="odd:bg-white even:bg-zinc-50/40 dark:odd:bg-zinc-900/60 dark:even:bg-zinc-800/30">
+                      <td className="sticky left-0 z-10 border-b border-zinc-200 bg-inherit px-3 py-2 align-top dark:border-zinc-700">
+                        <p className="font-medium text-zinc-900 dark:text-zinc-100">{row.addon.name}</p>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{row.addon.slug || row.addon.type || "extra"}</p>
+                      </td>
+                      {row.cells.map((cell) => (
+                        <td key={`m-cell-${row.addon.id}-${cell.planId}`} className="border-b border-zinc-200 px-3 py-2 align-top dark:border-zinc-700">
+                          <span className={`inline-flex rounded-full border px-2 py-0.5 font-semibold ${
+                            cell.decision.status === "included"
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300"
+                              : cell.decision.status === "blocked"
+                                ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
+                                : "border-zinc-300 bg-zinc-100 text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                          }`}>
+                            {cell.decision.status === "included"
+                              ? "Incluido"
+                              : cell.decision.status === "blocked"
+                                ? "Bloqueado"
+                                : "Disponible"}
+                          </span>
+                          <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">{cell.decision.reason}</p>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-zinc-200 bg-white/80 p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">2. Simulador de cambio de plan</p>
+            <h3 className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">Comparador de cambio</h3>
             <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Compara tu plan actual con el plan objetivo antes de confirmar.</p>
             <div className="mt-3 grid gap-3 md:grid-cols-3">
               <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
@@ -1651,11 +3428,16 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
                 <p className="text-zinc-600 dark:text-zinc-400">Pago inmediato: {planPreview ? fmtMoney(planPreview.pricing.amountDue) : "-"}</p>
               </div>
             </div>
+            {planPreview?.execution?.mode === "scheduled_cycle_end" ? (
+              <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-2 text-sm text-sky-900 dark:border-sky-900/50 dark:bg-sky-950/20 dark:text-sky-200">
+                El downgrade se programara para el cierre del ciclo actual. Fecha efectiva: {fmtDate(planPreview.execution.effectiveAt)}.
+              </div>
+            ) : null}
           </div>
 
           <div className="grid items-stretch gap-4 xl:grid-cols-2">
             <div className="flex h-full flex-col rounded-2xl border border-zinc-200 bg-white/80 p-5 dark:border-zinc-700 dark:bg-zinc-900/80">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">Paso 1</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">3A. Accion principal</p>
               <h3 className="mt-1 text-base font-semibold text-zinc-900 dark:text-zinc-100">Quiero cambiar mi plan</h3>
               <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Puedes cambiarlo directamente. Antes de confirmar, revisa impactos y avisos.</p>
 
@@ -1685,18 +3467,39 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
                     aria-label="Meses a pagar"
                   />
                   {planPreview?.pricing.requiresPayment ? (
-                    <select
-                      value={planMethodSlug}
-                      onChange={(event) => setPlanMethodSlug(event.target.value)}
-                      aria-label="Metodo de pago para cambio de plan"
-                      className="h-11 rounded-xl border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                    >
-                      {planPreview.paymentMethods.map((method) => (
-                        <option key={method.id} value={method.slug}>
-                          {method.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="space-y-2">
+                      <select
+                        value={planMethodSlug}
+                        onChange={(event) => setPlanMethodSlug(event.target.value)}
+                        aria-label="Metodo de pago para cambio de plan"
+                        className="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                      >
+                        {planPreview.paymentMethods.map((method) => (
+                          <option key={method.id} value={method.slug}>
+                            {method.name}
+                          </option>
+                        ))}
+                      </select>
+                      {selectedPlanMethodOption ? (
+                        <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-700 dark:bg-zinc-800/50">
+                          <p className="font-semibold text-zinc-900 dark:text-zinc-100">{selectedPlanMethodOption.name}</p>
+                          <p className="text-zinc-600 dark:text-zinc-400">
+                            {selectedPlanMethodOption.auto_verify
+                              ? "Validacion automatica. El cambio se aplica al confirmar el pago."
+                              : "Validacion manual. Debes cargar comprobante y esperar confirmacion."}
+                          </p>
+                          {Object.entries(selectedPlanMethodOption.config).length > 0 ? (
+                            <div className="mt-2 space-y-1">
+                              {Object.entries(selectedPlanMethodOption.config).map(([key, value]) => (
+                                <p key={key} className="text-zinc-700 dark:text-zinc-300">
+                                  <span className="font-medium">{formatPaymentConfigKey(key)}:</span> {value}
+                                </p>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
                   ) : (
                     <div className="grid h-11 place-items-center rounded-xl border border-zinc-200 bg-zinc-50 text-xs text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-400">
                       No requiere pago adicional
@@ -1766,6 +3569,8 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
                 >
                   {planChangeBusy
                     ? "Procesando..."
+                    : (planPreview?.pricing.monthlyDiff ?? 0) < 0
+                    ? "Programar downgrade al cierre"
                     : planPreview?.pricing.requiresPayment
                     ? "Pagar y cambiar plan"
                     : "Cambiar plan ahora"}
@@ -1774,7 +3579,7 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
             </div>
 
             <div className="flex h-full flex-col rounded-2xl border border-zinc-200 bg-white/80 p-5 dark:border-zinc-700 dark:bg-zinc-900/80">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">Paso 2</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">3B. Accion complementaria</p>
               <h3 className="mt-1 text-base font-semibold text-zinc-900 dark:text-zinc-100">Quiero agregar un extra</h3>
               <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Selecciona el servicio, revisa el impacto y compra desde aqui.</p>
 
@@ -1812,6 +3617,18 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
                     {selectedAddonSingleInstance
                       ? " No se puede comprar nuevamente."
                       : " Si necesitas otra configuracion, escríbenos en notas."}
+                  </div>
+                ) : null}
+
+                {addonPreview?.planOffer?.status === "included" ? (
+                  <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800 dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-200">
+                    {addonPreview.planOffer.reason}
+                  </div>
+                ) : null}
+
+                {addonPreview?.planOffer?.status === "blocked" ? (
+                  <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+                    {addonPreview.planOffer.reason}
                   </div>
                 ) : null}
 
@@ -1868,18 +3685,39 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
                 </p>
 
                 {addonPreview?.pricing.requiresPayment ? (
-                  <select
-                    value={addonMethodSlug}
-                    onChange={(event) => setAddonMethodSlug(event.target.value)}
-                    aria-label="Metodo de pago para extra"
-                    className="h-11 rounded-xl border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                  >
-                    {addonPreview.paymentMethods.map((method) => (
-                      <option key={method.id} value={method.slug}>
-                        {method.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="space-y-2">
+                    <select
+                      value={addonMethodSlug}
+                      onChange={(event) => setAddonMethodSlug(event.target.value)}
+                      aria-label="Metodo de pago para extra"
+                      className="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                    >
+                      {addonPreview.paymentMethods.map((method) => (
+                        <option key={method.id} value={method.slug}>
+                          {method.name}
+                        </option>
+                      ))}
+                    </select>
+                    {selectedAddonMethodOption ? (
+                      <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-700 dark:bg-zinc-800/50">
+                        <p className="font-semibold text-zinc-900 dark:text-zinc-100">{selectedAddonMethodOption.name}</p>
+                        <p className="text-zinc-600 dark:text-zinc-400">
+                          {selectedAddonMethodOption.auto_verify
+                            ? "Validacion automatica. Se activa al confirmar el pago."
+                            : "Validacion manual. Se activara al validar el comprobante."}
+                        </p>
+                        {Object.entries(selectedAddonMethodOption.config).length > 0 ? (
+                          <div className="mt-2 space-y-1">
+                            {Object.entries(selectedAddonMethodOption.config).map(([key, value]) => (
+                              <p key={key} className="text-zinc-700 dark:text-zinc-300">
+                                <span className="font-medium">{formatPaymentConfigKey(key)}:</span> {value}
+                              </p>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
                 ) : (
                   <div className="grid h-11 place-items-center rounded-xl border border-zinc-200 bg-zinc-50 text-xs text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-400">
                     No requiere pago adicional
@@ -1954,6 +3792,7 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
 
           <div className="grid items-stretch gap-4 xl:grid-cols-2">
             <div className="flex h-full flex-col rounded-2xl border border-zinc-200 bg-white/80 p-5 dark:border-zinc-700 dark:bg-zinc-900/80">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">4. Servicios activos</p>
               <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Tus extras activos</h3>
               <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Servicios que ya tienes habilitados en tu cuenta.</p>
               <div className="mt-3 flex min-h-[16rem] flex-1 flex-col gap-2">
@@ -1975,6 +3814,7 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
             </div>
 
             <div className="flex h-full flex-col rounded-2xl border border-zinc-200 bg-white/80 p-5 dark:border-zinc-700 dark:bg-zinc-900/80">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">5. Historial operativo</p>
               <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Compras de sucursales extra</h3>
               <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Historial resumido para seguimiento rápido.</p>
               <div className="mt-3 flex min-h-[16rem] flex-1 flex-col space-y-2 overflow-y-auto pr-1">
@@ -2627,6 +4467,61 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
             )}
           </div>
         </section>
+      ) : null}
+
+      {subscriptionCancelModalOpen ? (
+        <div className="fixed inset-0 z-[70] grid place-items-center bg-zinc-950/55 px-4 py-6 backdrop-blur-[1px]">
+          <div className="w-full max-w-2xl rounded-3xl border border-zinc-200 bg-white p-5 shadow-2xl dark:border-zinc-700 dark:bg-zinc-900 sm:p-6">
+            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Confirmar cancelacion al cierre del ciclo</h3>
+            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+              Tu tienda y panel seguiran operativos hasta la fecha de vencimiento actual. Al llegar esa fecha, el acceso se suspende.
+            </p>
+            <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-300">
+              <p><strong>Fecha de vencimiento:</strong> {fmtDate(subscriptionEndsAt)}</p>
+              <p className="mt-1"><strong>Estado actual:</strong> {toDisplayLabel(subscriptionStatus, SUBSCRIPTION_STATUS_LABELS)}</p>
+            </div>
+
+            <div className="mt-4 space-y-2">
+              <label className="flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={subscriptionCancelAcknowledge}
+                  onChange={(event) => setSubscriptionCancelAcknowledge(event.target.checked)}
+                  className="mt-1"
+                />
+                Entiendo que no hay reembolso automático del periodo ya pagado.
+              </label>
+              <label className="flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={subscriptionCancelFinalConfirm}
+                  onChange={(event) => setSubscriptionCancelFinalConfirm(event.target.checked)}
+                  className="mt-1"
+                />
+                Confirmo que quiero programar la cancelacion al cierre del ciclo.
+              </label>
+            </div>
+
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setSubscriptionCancelModalOpen(false)}
+                className="h-11 rounded-xl border border-zinc-300 px-4 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                disabled={subscriptionCancelBusy}
+              >
+                Volver
+              </button>
+              <button
+                type="button"
+                onClick={handleCancelSubscription}
+                disabled={subscriptionCancelBusy || !subscriptionCancelAcknowledge || !subscriptionCancelFinalConfirm}
+                className="h-11 rounded-xl border border-amber-300 bg-amber-600 px-4 text-sm font-semibold text-white transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-800 dark:bg-amber-700 dark:hover:bg-amber-600"
+              >
+                {subscriptionCancelBusy ? "Programando..." : "Confirmar cancelacion"}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
             <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-300">

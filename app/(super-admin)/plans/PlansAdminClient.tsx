@@ -49,8 +49,15 @@ type Plan = {
 	max_users: number | null;
 	is_public: boolean | null;
 	is_active: boolean | null;
+	features?: unknown;
 	marketing_lines?: unknown;
 	marketing_lines_i18n?: unknown;
+};
+
+type AddonCatalogItem = {
+	id: string;
+	slug: string | null;
+	name: string;
 };
 
 function planCardLines(plan: Plan): string[] {
@@ -117,10 +124,97 @@ type PlanFormState = {
 	max_users: string | number;
 	is_public: boolean;
 	is_active: boolean;
+	baseFeatures: Record<string, unknown>;
+	includedAddonTokens: string[];
+	blockedAddonTokens: string[];
+	allowedAddonTokens: string[];
 	descriptionLines: DescriptionLine[];
 	nameByLocale: LocalizedNames;
 	descriptionLinesByLocale: LocalizedDescriptionLines;
 };
+
+const POLICY_INCLUDED_KEYS = ["included_addons", "addons_included", "includes_addons", "plan_addons_included"];
+const POLICY_BLOCKED_KEYS = ["blocked_addons", "addons_blocked", "excluded_addons", "plan_addons_blocked"];
+const POLICY_ALLOWED_KEYS = ["allowed_addons", "addons_allowed", "plan_addons_allowed"];
+
+function normalizePolicyToken(input: string): string {
+	return String(input ?? "")
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "_")
+		.replace(/^_+|_+$/g, "");
+}
+
+function toPolicyTokens(raw: unknown): string[] {
+	if (Array.isArray(raw)) {
+		const set = new Set<string>();
+		for (const item of raw) {
+			const token = normalizePolicyToken(typeof item === "string" ? item : String(item ?? ""));
+			if (token) set.add(token);
+		}
+		return [...set];
+	}
+	if (typeof raw === "string") {
+		const tokens = raw
+			.split(/[\n,;|]/g)
+			.map((part) => normalizePolicyToken(part))
+			.filter(Boolean);
+		return [...new Set(tokens)];
+	}
+	return [];
+}
+
+function extractPolicyTokens(features: Record<string, unknown>, keys: string[]): string[] {
+	for (const key of keys) {
+		if (Object.prototype.hasOwnProperty.call(features, key)) {
+			return toPolicyTokens(features[key]);
+		}
+	}
+	return [];
+}
+
+function splitBaseAndPolicyFeatures(raw: unknown): {
+	baseFeatures: Record<string, unknown>;
+	includedAddonTokens: string[];
+	blockedAddonTokens: string[];
+	allowedAddonTokens: string[];
+} {
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+		return {
+			baseFeatures: {},
+			includedAddonTokens: [],
+			blockedAddonTokens: [],
+			allowedAddonTokens: [],
+		};
+	}
+
+	const source = JSON.parse(JSON.stringify(raw)) as Record<string, unknown>;
+	const includedAddonTokens = extractPolicyTokens(source, POLICY_INCLUDED_KEYS);
+	const blockedAddonTokens = extractPolicyTokens(source, POLICY_BLOCKED_KEYS);
+	const allowedAddonTokens = extractPolicyTokens(source, POLICY_ALLOWED_KEYS);
+
+	for (const key of [...POLICY_INCLUDED_KEYS, ...POLICY_BLOCKED_KEYS, ...POLICY_ALLOWED_KEYS]) {
+		delete source[key];
+	}
+
+	return {
+		baseFeatures: source,
+		includedAddonTokens,
+		blockedAddonTokens,
+		allowedAddonTokens,
+	};
+}
+
+function buildFeaturesPayload(form: PlanFormState): Record<string, unknown> {
+	const payload: Record<string, unknown> = {
+		...form.baseFeatures,
+	};
+	if (form.includedAddonTokens.length > 0) payload.included_addons = [...new Set(form.includedAddonTokens)];
+	if (form.blockedAddonTokens.length > 0) payload.blocked_addons = [...new Set(form.blockedAddonTokens)];
+	if (form.allowedAddonTokens.length > 0) payload.allowed_addons = [...new Set(form.allowedAddonTokens)];
+	return payload;
+}
 
 const emptyForm = (): PlanFormState => ({
 	name: "",
@@ -133,6 +227,10 @@ const emptyForm = (): PlanFormState => ({
 	max_users: "",
 	is_public: true,
 	is_active: true,
+	baseFeatures: {},
+	includedAddonTokens: [],
+	blockedAddonTokens: [],
+	allowedAddonTokens: [],
 	descriptionLines: [],
 	nameByLocale: localeNamesFromUnknown("", {}),
 	descriptionLinesByLocale: localeLinesFromUnknown([], {}),
@@ -141,9 +239,11 @@ const emptyForm = (): PlanFormState => ({
 export function PlansAdminClient({
 	plans,
 	rate,
+	addons,
 }: {
 	plans: Plan[];
 	rate: number | null;
+	addons: AddonCatalogItem[];
 }) {
 	const router = useRouter();
 	const [showNew, setShowNew] = useState(false);
@@ -191,6 +291,7 @@ export function PlansAdminClient({
 				];
 			}
 		);
+		const { baseFeatures, includedAddonTokens, blockedAddonTokens, allowedAddonTokens } = splitBaseAndPolicyFeatures(p.features);
 		setForm({
 			name: baseName,
 			price: p.price ?? "",
@@ -202,6 +303,10 @@ export function PlansAdminClient({
 			max_users: p.max_users ?? "",
 			is_public: p.is_public !== false,
 			is_active: p.is_active !== false,
+			baseFeatures,
+			includedAddonTokens,
+			blockedAddonTokens,
+			allowedAddonTokens,
 			descriptionLines: baseDescriptionLines,
 			nameByLocale: localeNamesFromUnknown(baseName, p.name_i18n),
 			descriptionLinesByLocale: localizedLines,
@@ -253,6 +358,7 @@ export function PlansAdminClient({
 			max_users: maxUsersNum,
 			is_public: form.is_public,
 			is_active: form.is_active,
+			features: buildFeaturesPayload(form),
 			marketing_lines: normalizeMarketingLines(form.descriptionLines.map((l) => l.text)),
 			name_i18n: buildPlanNameI18nPayload(form.nameByLocale, nameTrimmed),
 			marketing_lines_i18n: buildPlanMarketingLinesI18nPayload(
@@ -628,6 +734,102 @@ export function PlansAdminClient({
 							/>
 							<span className="font-medium text-zinc-700 dark:text-zinc-300">Plan activo</span>
 						</label>
+
+						<div className="sm:col-span-2 rounded-xl border border-zinc-200 bg-zinc-50/60 p-3 dark:border-zinc-700 dark:bg-zinc-900/40">
+							<p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Politica de extras del plan</p>
+							<p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+								Configura que extras aparecen como incluidos, bloqueados o permitidos para este plan.
+							</p>
+
+							<div className="mt-3 grid gap-3 lg:grid-cols-3">
+								<div className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900/70">
+									<p className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Incluidos</p>
+									<div className="mt-2 space-y-2">
+										{addons.map((addon) => {
+											const token = normalizePolicyToken(addon.slug || addon.name);
+											const checked = form.includedAddonTokens.includes(token);
+											return (
+												<label key={`inc-${addon.id}`} className="flex items-center gap-2 text-sm">
+													<input
+														type="checkbox"
+														checked={checked}
+														onChange={(e) => {
+															setForm((prev) => ({
+																...prev,
+																includedAddonTokens: e.target.checked
+																	? [...new Set([...prev.includedAddonTokens, token])]
+																	: prev.includedAddonTokens.filter((t) => t !== token),
+															}));
+														}}
+														className="h-4 w-4 rounded border-zinc-300"
+													/>
+													<span className="text-zinc-700 dark:text-zinc-300">{addon.name}</span>
+												</label>
+											);
+										})}
+									</div>
+								</div>
+
+								<div className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900/70">
+									<p className="text-xs font-semibold uppercase tracking-wide text-red-700 dark:text-red-300">Bloqueados</p>
+									<div className="mt-2 space-y-2">
+										{addons.map((addon) => {
+											const token = normalizePolicyToken(addon.slug || addon.name);
+											const checked = form.blockedAddonTokens.includes(token);
+											return (
+												<label key={`blk-${addon.id}`} className="flex items-center gap-2 text-sm">
+													<input
+														type="checkbox"
+														checked={checked}
+														onChange={(e) => {
+															setForm((prev) => ({
+																...prev,
+																blockedAddonTokens: e.target.checked
+																	? [...new Set([...prev.blockedAddonTokens, token])]
+																	: prev.blockedAddonTokens.filter((t) => t !== token),
+															}));
+														}}
+														className="h-4 w-4 rounded border-zinc-300"
+													/>
+													<span className="text-zinc-700 dark:text-zinc-300">{addon.name}</span>
+												</label>
+											);
+										})}
+									</div>
+								</div>
+
+								<div className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900/70">
+									<p className="text-xs font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300">Permitidos</p>
+									<p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+										Si dejas esta lista vacia, el plan permite todos excepto los bloqueados.
+									</p>
+									<div className="mt-2 space-y-2">
+										{addons.map((addon) => {
+											const token = normalizePolicyToken(addon.slug || addon.name);
+											const checked = form.allowedAddonTokens.includes(token);
+											return (
+												<label key={`allow-${addon.id}`} className="flex items-center gap-2 text-sm">
+													<input
+														type="checkbox"
+														checked={checked}
+														onChange={(e) => {
+															setForm((prev) => ({
+																...prev,
+																allowedAddonTokens: e.target.checked
+																	? [...new Set([...prev.allowedAddonTokens, token])]
+																	: prev.allowedAddonTokens.filter((t) => t !== token),
+															}));
+														}}
+														className="h-4 w-4 rounded border-zinc-300"
+													/>
+													<span className="text-zinc-700 dark:text-zinc-300">{addon.name}</span>
+												</label>
+											);
+										})}
+									</div>
+								</div>
+							</div>
+						</div>
 					</div>
 
 					{/* Precios por región */}

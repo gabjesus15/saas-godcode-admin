@@ -71,7 +71,7 @@ export default async function CustomerAccountPage() {
   const [{ data: company }, { data: branches }, { data: payments }, { data: companyAddons }, { data: plans }, { data: addons }, { data: tickets }, { data: branchEntitlements }] = await Promise.all([
     supabaseAdmin
       .from("companies")
-      .select("id,name,public_slug,subscription_status,subscription_ends_at,plan:plans(name,name_i18n,price,max_branches,max_users)")
+      .select("id,name,public_slug,subscription_status,subscription_ends_at,plan_id,plan:plans(name,name_i18n,price,max_branches,max_users)")
       .eq("id", companyId)
       .maybeSingle(),
     supabaseAdmin
@@ -92,12 +92,12 @@ export default async function CustomerAccountPage() {
       .order("created_at", { ascending: false }),
     supabaseAdmin
       .from("plans")
-      .select("id,name,name_i18n,price,max_branches,max_users")
+      .select("id,name,name_i18n,price,max_branches,max_users,features,marketing_lines")
       .eq("is_active", true)
       .order("price", { ascending: true }),
     supabaseAdmin
       .from("addons")
-      .select("id,name,type,price_monthly,price_one_time")
+      .select("id,slug,name,description,type,price_monthly,price_one_time")
       .eq("is_active", true)
       .order("sort_order", { ascending: true }),
     supabaseAdmin
@@ -120,6 +120,7 @@ export default async function CustomerAccountPage() {
     id: String(company?.id ?? companyId),
     name: String(company?.name ?? "Mi cuenta"),
     publicSlug: (company?.public_slug as string | null) ?? null,
+    planId: ((company as { plan_id?: string | null } | null)?.plan_id ?? null) as string | null,
     subscriptionStatus: (company?.subscription_status as string | null) ?? null,
     subscriptionEndsAt: (company?.subscription_ends_at as string | null) ?? null,
     planName: resolvePlanName({
@@ -203,16 +204,18 @@ export default async function CustomerAccountPage() {
         }
         activeAddons={activeAddons}
         availablePlans={
-          ((plans ?? []) as Array<{ id: string; name: string; name_i18n?: unknown; price: number | null; max_branches: number | null; max_users: number | null }>).map((plan) => ({
+          ((plans ?? []) as Array<{ id: string; name: string; name_i18n?: unknown; price: number | null; max_branches: number | null; max_users: number | null; features?: unknown; marketing_lines?: unknown }>).map((plan) => ({
             id: plan.id,
             name: resolvePlanName({ locale, name: plan.name, nameI18n: plan.name_i18n }),
             price: plan.price,
             max_branches: plan.max_branches,
             max_users: plan.max_users,
+            features: plan.features,
+            marketing_lines: plan.marketing_lines,
           }))
         }
         availableAddons={
-          ((addons ?? []) as Array<{ id: string; name: string; type: string | null; price_monthly: number | null; price_one_time: number | null }>)
+          ((addons ?? []) as Array<{ id: string; slug: string | null; name: string; description: string | null; type: string | null; price_monthly: number | null; price_one_time: number | null }>)
         }
         initialTickets={initialTickets}
         initialBranchEntitlements={initialBranchEntitlements}

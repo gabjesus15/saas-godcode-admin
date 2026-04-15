@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
-import { suspendExpiredSubscriptions } from "../../../../lib/onboarding/billing-activation";
+import { applyScheduledPlanChangesDue, suspendExpiredSubscriptions } from "../../../../lib/onboarding/billing-activation";
 import { processDueBookingReminders } from "../../../../lib/onboarding/booking-notifications";
 import { proxyToOnboardingBilling } from "../../../../lib/service-proxy";
 
@@ -24,9 +24,14 @@ export async function GET(req: NextRequest) {
 	}
 
 	const result = await suspendExpiredSubscriptions({ supabaseAdmin });
+	const scheduledChanges = await applyScheduledPlanChangesDue({ supabaseAdmin });
 
 	if (result.error) {
 		return NextResponse.json({ error: result.error }, { status: 500 });
+	}
+
+	if (scheduledChanges.error) {
+		return NextResponse.json({ error: scheduledChanges.error }, { status: 500 });
 	}
 
 	const reminderResult = await processDueBookingReminders({ supabaseAdmin });
@@ -41,12 +46,20 @@ export async function GET(req: NextRequest) {
 		return NextResponse.json({
 			ok: true,
 			suspended: 0,
+			applied_plan_changes: scheduledChanges.applied,
+			failed_plan_changes: scheduledChanges.failed,
 			processed_bookings: reminderResult.processed,
 			message: reminderResult.processed > 0 ? "Recordatorios programados enviados" : "Nada que actualizar",
 		});
 	}
 
-	return NextResponse.json({ ok: true, suspended: result.suspended, processed_bookings: reminderResult.processed });
+	return NextResponse.json({
+		ok: true,
+		suspended: result.suspended,
+		applied_plan_changes: scheduledChanges.applied,
+		failed_plan_changes: scheduledChanges.failed,
+		processed_bookings: reminderResult.processed,
+	});
 }
 
 export async function POST(req: NextRequest) {

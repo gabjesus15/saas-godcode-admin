@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { logAdminAudit } from "../../../../../lib/admin-audit";
+import { normalizePlanFeaturesPayload } from "../../../../../lib/plan-features";
 import { buildPlanMarketingLinesI18nPayload, buildPlanNameI18nPayload } from "../../../../../lib/plan-i18n";
 import { normalizeMarketingLines } from "../../../../../lib/plan-marketing-lines";
 import { adminUpdatePlanById } from "../../../../../lib/plans-db-query";
@@ -15,7 +16,7 @@ type PatchBody = {
 	max_users?: number;
 	is_public?: boolean;
 	is_active?: boolean;
-	features?: Record<string, boolean>;
+	features?: Record<string, unknown>;
 	marketing_lines?: unknown;
 	name_i18n?: unknown;
 	marketing_lines_i18n?: unknown;
@@ -53,7 +54,7 @@ export async function PATCH(
 	if (body.max_users !== undefined) updates.max_users = Math.max(0, Math.min(999999, Number(body.max_users)));
 	if (body.is_public !== undefined) updates.is_public = Boolean(body.is_public);
 	if (body.is_active !== undefined) updates.is_active = Boolean(body.is_active);
-	if (body.features !== undefined) updates.features = typeof body.features === "object" ? body.features : {};
+	if (body.features !== undefined) updates.features = normalizePlanFeaturesPayload(body.features);
 	if (body.marketing_lines !== undefined) {
 		updates.marketing_lines = normalizeMarketingLines(body.marketing_lines);
 	}

@@ -67,6 +67,12 @@ export type SuspendExpiredResult = {
 	error?: string;
 };
 
+export type ApplyScheduledPlanChangesResult = {
+	applied: number;
+	failed: number;
+	error?: string;
+};
+
 export async function suspendExpiredSubscriptions(params: {
 	supabaseAdmin: SupabaseClient;
 	now?: Date;
@@ -98,6 +104,90 @@ export async function suspendExpiredSubscriptions(params: {
 	}
 
 	return { suspended: companies.length };
+}
+
+export async function applyScheduledPlanChangesDue(params: {
+	supabaseAdmin: SupabaseClient;
+	now?: Date;
+}): Promise<ApplyScheduledPlanChangesResult> {
+	const nowIso = (params.now ?? new Date()).toISOString();
+
+	const { data: schedules, error } = await params.supabaseAdmin
+		.from("company_plan_change_schedules")
+		.select("id,company_id,current_plan_id,target_plan_id,effective_at")
+		.eq("status", "scheduled")
+		.lte("effective_at", nowIso)
+		.order("effective_at", { ascending: true })
+		.limit(200);
+
+	if (error) {
+		return { applied: 0, failed: 0, error: error.message };
+	}
+
+	if (!schedules?.length) {
+		return { applied: 0, failed: 0 };
+	}
+
+	let applied = 0;
+	let failed = 0;
+
+	for (const schedule of schedules) {
+		const scheduleId = String((schedule as { id?: string | null }).id ?? "");
+		const companyId = String((schedule as { company_id?: string | null }).company_id ?? "");
+		const targetPlanId = String((schedule as { target_plan_id?: string | null }).target_plan_id ?? "");
+
+		if (!scheduleId || !companyId || !targetPlanId) {
+			failed += 1;
+			continue;
+		}
+
+		try {
+			const { error: companyError } = await params.supabaseAdmin
+				.from("companies")
+				.update({ plan_id: targetPlanId, updated_at: nowIso })
+				.eq("id", companyId);
+
+			if (companyError) throw new Error(companyError.message);
+
+			await params.supabaseAdmin
+				.from("company_plan_change_schedules")
+				.update({
+					status: "applied",
+					applied_at: nowIso,
+					updated_at: nowIso,
+					apply_error: null,
+				})
+				.eq("id", scheduleId);
+
+			await params.supabaseAdmin.from("saas_tickets").insert({
+				company_id: companyId,
+				source: "system",
+				created_by_email: "system@internal",
+				subject: "Downgrade aplicado automaticamente",
+				description: [`Schedule: ${scheduleId}`, `Aplicado en: ${nowIso}`].join("\n"),
+				category: "billing",
+				priority: "medium",
+				status: "resolved",
+				last_message_at: nowIso,
+				resolved_at: nowIso,
+			});
+
+			applied += 1;
+		} catch (e) {
+			failed += 1;
+			const message = e instanceof Error ? e.message : "unknown error";
+			await params.supabaseAdmin
+				.from("company_plan_change_schedules")
+				.update({
+					status: "failed",
+					apply_error: message,
+					updated_at: nowIso,
+				})
+				.eq("id", scheduleId);
+		}
+	}
+
+	return { applied, failed };
 }
 
 export async function activateCompanyAddonsFromApplication(params: {

@@ -3,7 +3,7 @@
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronLeft, MapPin, Search, X } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 
 import { BranchSelectorModal } from "./branch-selector-modal";
@@ -124,6 +124,45 @@ function isPromocionesCategoryName(name: string | null | undefined) {
   return String(name || "").trim().toLowerCase() === "promociones";
 }
 
+type PreviewThemePayload = {
+  primaryColor?: string;
+  secondaryColor?: string;
+  priceColor?: string;
+  discountColor?: string;
+  hoverColor?: string;
+  backgroundColor?: string;
+  backgroundImageUrl?: string;
+};
+
+function decodePreviewThemeParam(encodedValue: string | null): PreviewThemePayload | null {
+  if (!encodedValue) return null;
+  try {
+    const decoded = globalThis.atob(encodedValue);
+    const parsed = JSON.parse(decoded) as PreviewThemePayload;
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function sanitizeHexColor(value: string | undefined, fallback: string) {
+  const normalized = String(value ?? "").trim();
+  if (/^#([a-fA-F0-9]{3}|[a-fA-F0-9]{6})$/.test(normalized)) {
+    return normalized;
+  }
+  return fallback;
+}
+
+function sanitizeImageUrl(value: string | undefined) {
+  const normalized = String(value ?? "").trim();
+  if (!normalized) return "";
+  if (normalized.startsWith("http://") || normalized.startsWith("https://") || normalized.startsWith("/")) {
+    return normalized;
+  }
+  return "";
+}
+
 export function MenuClient({
   name,
   logoUrl,
@@ -137,11 +176,14 @@ export function MenuClient({
   country = "CL",
   currency = "CLP",
 }: MenuClientProps) {
-  
+
   let priorityCounter = 0;
   const nextPriority = () => priorityCounter++ < 6;
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const isEmbeddedPreview = searchParams?.get("embedded_preview") === "1";
+  const previewThemeParam = searchParams?.get("preview_theme") ?? null;
   const supabase = useMemo(() => createSupabaseBrowserClient("tenant"), []);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -164,7 +206,7 @@ export function MenuClient({
   );
 
   useEffect(() => {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+    if (isEmbeddedPreview || typeof window === "undefined" || !("serviceWorker" in navigator)) {
       return;
     }
 
@@ -179,7 +221,46 @@ export function MenuClient({
     };
 
     registerServiceWorker();
-  }, [menuScopePath, menuServiceWorkerPath]);
+  }, [isEmbeddedPreview, menuScopePath, menuServiceWorkerPath]);
+
+  useEffect(() => {
+    const previewTheme = decodePreviewThemeParam(previewThemeParam);
+    if (!previewTheme) return;
+
+    const root = document.querySelector(".tenant-theme-vars") as HTMLElement | null;
+    if (!root) return;
+
+    const backgroundImageUrl = sanitizeImageUrl(previewTheme.backgroundImageUrl);
+    const backgroundImage = backgroundImageUrl
+      ? `url(${backgroundImageUrl}), url(/tenant/menu-pattern.webp)`
+      : "url(/tenant/menu-pattern.webp)";
+
+    const updates: Array<[string, string]> = [
+      ["--tenant-primary", sanitizeHexColor(previewTheme.primaryColor, "#111827")],
+      ["--accent-primary", sanitizeHexColor(previewTheme.primaryColor, "#111827")],
+      ["--accent-secondary", sanitizeHexColor(previewTheme.secondaryColor, "#111827")],
+      ["--price-color", sanitizeHexColor(previewTheme.priceColor, "#ff4757")],
+      ["--discount-color", sanitizeHexColor(previewTheme.discountColor, "#25d366")],
+      ["--accent-hover", sanitizeHexColor(previewTheme.hoverColor, "#ff2e40")],
+      ["--bg-primary", sanitizeHexColor(previewTheme.backgroundColor, "#0a0a0a")],
+      ["--tenant-bg-image", backgroundImage],
+    ];
+
+    const previousValues = updates.map(([name]) => [name, root.style.getPropertyValue(name)] as const);
+    updates.forEach(([name, value]) => {
+      root.style.setProperty(name, value);
+    });
+
+    return () => {
+      previousValues.forEach(([name, value]) => {
+        if (value) {
+          root.style.setProperty(name, value);
+        } else {
+          root.style.removeProperty(name);
+        }
+      });
+    };
+  }, [previewThemeParam]);
 
   // Mostrar todas las categorías de la empresa (misma lista en todas las sucursales).
   // Las secciones con 0 productos se muestran vacías o con mensaje.
@@ -195,10 +276,14 @@ export function MenuClient({
   
   // Modal should always open on entry so user explicitly selects a branch.
   const hasOpenBranches = (openBranchIds ?? []).length > 0;
-  const [isLocationModalOpen, setIsLocationModalOpen] = useState(true);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(!isEmbeddedPreview);
 
   // Disable scroll when modal is open
   useEffect(() => {
+    if (isEmbeddedPreview) {
+      document.body.style.overflow = "";
+      return;
+    }
     if (isLocationModalOpen) {
       document.body.style.overflow = "hidden";
     } else {
@@ -207,7 +292,7 @@ export function MenuClient({
     return () => {
       document.body.style.overflow = "";
     };
-  }, [isLocationModalOpen]);
+  }, [isEmbeddedPreview, isLocationModalOpen]);
 
   const selectedBranch = useMemo(
     () => branches.find((branch) => branch.id === selectedBranchId) ?? null,
@@ -378,10 +463,11 @@ export function MenuClient({
 
   // Keep modal open until there is an explicit selected branch.
   useEffect(() => {
+    if (isEmbeddedPreview) return;
     if (!selectedBranchId) {
       setIsLocationModalOpen(true);
     }
-  }, [selectedBranchId]);
+  }, [isEmbeddedPreview, selectedBranchId]);
 
   const FIRE_ICON =
     "https://fonts.gstatic.com/s/e/notoemoji/latest/1f525/512.gif";
@@ -488,7 +574,9 @@ export function MenuClient({
               {name}
             </h2>
             <button
-              onClick={() => setIsLocationModalOpen(true)}
+              onClick={() => {
+                if (!isEmbeddedPreview) setIsLocationModalOpen(true);
+              }}
               className="nav-location-button"
             >
               <MapPin size={12} color="var(--accent-primary)" className="nav-location-icon" />
@@ -680,20 +768,22 @@ export function MenuClient({
           ? createPortal(cartUi, document.getElementById("cart-portal-root") as Element)
           : cartUi}
 
-        <BranchSelectorModal
-          isOpen={isLocationModalOpen}
-          onClose={() => {
-            if (selectedBranchId) {
-              setIsLocationModalOpen(false);
-            }
-          }}
-          branches={modalBranches}
-          allBranches={branches}
-          isLoadingCaja={false}
-          onSelectBranch={handleBranchSelect}
-          allowClose={Boolean(selectedBranchId)}
-          schedule={businessInfo?.schedule ?? null}
-        />
+        {isEmbeddedPreview ? null : (
+          <BranchSelectorModal
+            isOpen={isLocationModalOpen}
+            onClose={() => {
+              if (selectedBranchId) {
+                setIsLocationModalOpen(false);
+              }
+            }}
+            branches={modalBranches}
+            allBranches={branches}
+            isLoadingCaja={false}
+            onSelectBranch={handleBranchSelect}
+            allowClose={Boolean(selectedBranchId)}
+            schedule={businessInfo?.schedule ?? null}
+          />
+        )}
       </div>
     </CartProvider>
   );
