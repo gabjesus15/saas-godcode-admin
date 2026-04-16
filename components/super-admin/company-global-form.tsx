@@ -63,6 +63,7 @@ interface CompanyData {
     backgroundColor?: string;
     backgroundImageUrl?: string;
     displayName?: string;
+    panelAccess?: string[];
     roleNavPermissions?: Record<string, string[]>;
   } | null;
 }
@@ -74,6 +75,12 @@ const USER_ROLE_OPTIONS = [
   { value: "ceo", label: "CEO" },
   { value: "cashier", label: "Cashier" },
 ];
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: "Admin",
+  ceo: "CEO",
+  cashier: "Cashier",
+};
 
 const RESERVED_NON_TENANT_ROLES = new Set(["super_admin", "owner"]);
 
