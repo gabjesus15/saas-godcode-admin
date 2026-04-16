@@ -94,10 +94,6 @@ export function LandingPhoneCarousel({ slides }: { slides: LandingSlide[] }) {
     requestTransition(activeRef.current + 1);
   }, [requestTransition]);
 
-  const prev = useCallback(() => {
-    requestTransition(activeRef.current - 1);
-  }, [requestTransition]);
-
   useEffect(() => {
     return () => {
       if (unlockTimerRef.current !== null) {
