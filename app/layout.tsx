@@ -7,6 +7,7 @@ import { DevServiceWorkerCleanup } from "../components/dev-sw-cleanup";
 import { PageAnalyticsTracker } from "../components/analytics/page-analytics-tracker";
 import { getMessagesForLocale } from "@/lib/i18n/messages";
 import { getCurrentLocale } from "@/lib/i18n/server";
+import { getAppUrl } from "@/lib/app-url";
 
 import "./globals.css";
 
@@ -23,12 +24,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(getAppUrl()),
   title: {
     default: "GodCode",
     template: "%s · GodCode",
   },
   description:
     "Panel de administración multi-tenant: empresas, planes, onboarding y soporte.",
+  verification: {
+    google:
+      process.env.GOOGLE_SITE_VERIFICATION?.trim() ||
+      process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim() ||
+      undefined,
+  },
 };
 
 export default async function RootLayout({

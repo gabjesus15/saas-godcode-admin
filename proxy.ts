@@ -44,6 +44,57 @@ const tenantBaseDomain = (process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN ?? "")
   .replace(/^https?:\/\//, "")
   .replace(/\/$/, "")
   .toLowerCase();
+const canonicalAppUrl = getAppUrl();
+const canonicalAppHost = (() => {
+  try {
+    return new URL(canonicalAppUrl).host.toLowerCase();
+  } catch {
+    return "";
+  }
+})();
+const canonicalAppProtocol = (() => {
+  try {
+    return new URL(canonicalAppUrl).protocol;
+  } catch {
+    return "https:";
+  }
+})();
+
+function maybeRedirectToCanonicalHost(req: NextRequest): NextResponse | null {
+  if (!canonicalAppHost) return null;
+
+  const hostHeader = req.headers.get("host");
+  if (!hostHeader) return null;
+
+  const currentHost = hostHeader.split(":")[0].toLowerCase();
+  if (
+    currentHost === "localhost" ||
+    currentHost === "127.0.0.1" ||
+    currentHost.endsWith(".localhost") ||
+    currentHost.endsWith(".vercel.app")
+  ) {
+    return null;
+  }
+
+  const tenantBaseNoWww = tenantBaseDomain.replace(/^www\./, "");
+  const currentNoWww = currentHost.replace(/^www\./, "");
+  const canonicalNoWww = canonicalAppHost.replace(/^www\./, "");
+
+  const isMainDomainVariant =
+    (tenantBaseNoWww && currentNoWww === tenantBaseNoWww) ||
+    (canonicalNoWww && currentNoWww === canonicalNoWww);
+
+  // Never normalize tenant/custom domains here; only apex/www variants of the main site.
+  if (!isMainDomainVariant || currentHost === canonicalAppHost) {
+    return null;
+  }
+
+  const target = req.nextUrl.clone();
+  target.host = canonicalAppHost;
+  target.protocol = canonicalAppProtocol;
+
+  return NextResponse.redirect(target, 308);
+}
 
 const extractSubdomain = (hostHeader: string | null) => {
   if (!hostHeader) {
@@ -184,6 +235,11 @@ export async function proxy(req: NextRequest) {
 async function _proxy(req: NextRequest): Promise<NextResponse> {
 
   const { pathname } = req.nextUrl;
+
+  const canonicalRedirect = maybeRedirectToCanonicalHost(req);
+  if (canonicalRedirect) {
+    return canonicalRedirect;
+  }
 
   if (PUBLIC_DELIVERY_API_PATHS.has(pathname) && req.method === "OPTIONS") {
     const cors = publicApiCorsHeaders(req);
