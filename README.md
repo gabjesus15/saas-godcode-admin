@@ -35,6 +35,8 @@ Configurar en Project Settings â†’ Environment Variables:
 ### Recomendadas
 
 - `NEXT_PUBLIC_APP_URL` = URL canÃ³nica de la app (ej. `https://www.godcode.me`). Usada en correos de onboarding y redirecciones; debe ser el dominio principal (sin subdominio de tenant). Si no se define, se usa `VERCEL_URL` o `NEXT_PUBLIC_TENANT_BASE_DOMAIN`.
+
+   En producciÃ³n, evita depender de `VERCEL_URL` para SEO: debe quedar fijada una URL pÃºblica real.
 - `NEXT_PUBLIC_TENANT_PROTOCOL` = `https`
 - `GOOGLE_SITE_VERIFICATION` = token de Search Console para exponer `<meta name="google-site-verification" ...>` desde `app/layout.tsx`.
 - `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`
