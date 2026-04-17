@@ -399,6 +399,14 @@ export function LandingSections({
               <p className="mt-1 text-center text-[11px] text-slate-400 sm:text-xs lg:text-left dark:text-zinc-500">
                 {tx("Descuento de lanzamiento sujeto a disponibilidad y validación de rubro.", "Launch discount subject to availability and business validation.")}
               </p>
+              <div className="mt-3 text-center lg:text-left">
+                <Link
+                  href="/sobre-godcode"
+                  className="text-sm font-semibold text-indigo-700 transition-colors hover:text-indigo-800 hover:underline dark:text-indigo-300 dark:hover:text-indigo-200"
+                >
+                  Conoce más sobre GodCode
+                </Link>
+              </div>
             </LandingReveal>
 
             <LandingReveal delay={0.28}>

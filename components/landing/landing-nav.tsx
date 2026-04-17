@@ -205,6 +205,13 @@ export function LandingNav() {
 
               <div className="mt-auto flex flex-col gap-2 border-t border-slate-100 pt-3 dark:border-zinc-800">
                 <Link
+                  href="/sobre-godcode"
+                  className="rounded-lg px-3 py-2.5 text-center text-[14px] font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:text-zinc-200 dark:hover:bg-zinc-800/60"
+                  onClick={close}
+                >
+                  Sobre GodCode
+                </Link>
+                <Link
                   href="/login"
                   className="rounded-lg px-3 py-2.5 text-center text-[14px] font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:text-zinc-200 dark:hover:bg-zinc-800/60"
                   onClick={close}

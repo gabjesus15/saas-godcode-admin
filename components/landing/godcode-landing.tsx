@@ -60,6 +60,7 @@ export async function GodcodeLanding({ plans, media, country = "OTHER" }: Godcod
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{t.footer.sections.product}</p>
               <ul className="mt-4 space-y-2.5 text-sm">
                 <li><Link href="/onboarding" className="transition-colors hover:text-white">{t.footer.links.createStore}</Link></li>
+                <li><Link href="/sobre-godcode" className="transition-colors hover:text-white">Sobre GodCode</Link></li>
                 <li><a href="#funciones" className="transition-colors hover:text-white">{t.footer.links.features}</a></li>
                 <li><a href="#demo" className="transition-colors hover:text-white">{t.footer.links.demo}</a></li>
                 <li><a href="#precios" className="transition-colors hover:text-white">{t.footer.links.pricing}</a></li>
