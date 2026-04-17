@@ -50,7 +50,7 @@ export default async function TenantPage({ params }: TenantPageProps) {
     .eq("company_id", company.id)
     .maybeSingle();
 
-  const name = company.theme_config?.displayName ?? company.name ?? "GodCode";
+  const name = company.theme_config?.displayName || company.name || resolvedParams.subdomain || "GodCode";
   const logoUrl = company.theme_config?.logoUrl ?? null;
 
   return (
