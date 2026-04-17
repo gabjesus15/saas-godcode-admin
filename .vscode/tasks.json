@@ -1,0 +1,13 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Analyze Bundle Size",
+			"type": "shell",
+			"command": "npx next build && npx next analyze",
+			"args": [],
+			"isBackground": false,
+			"group": "build"
+		}
+	]
+}

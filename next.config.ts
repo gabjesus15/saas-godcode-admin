@@ -6,6 +6,11 @@ const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 const nextConfig: NextConfig = {
   turbopack: {},
   images: {
+    domains: [
+      "example.com",
+      "res.cloudinary.com",
+      "images.unsplash.com",
+    ],
     qualities: [75, 92, 95],
     remotePatterns: [
       { protocol: "https", hostname: "res.cloudinary.com", pathname: "/**" },
@@ -34,6 +39,19 @@ const nextConfig: NextConfig = {
     }
 
     return config;
+  },
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+    ];
   },
 };
 

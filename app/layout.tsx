@@ -8,6 +8,7 @@ import { PageAnalyticsTracker } from "../components/analytics/page-analytics-tra
 import { getMessagesForLocale } from "@/lib/i18n/messages";
 import { getCurrentLocale } from "@/lib/i18n/server";
 import { getAppUrl } from "@/lib/app-url";
+import Image from 'next/image';
 
 import "./globals.css";
 

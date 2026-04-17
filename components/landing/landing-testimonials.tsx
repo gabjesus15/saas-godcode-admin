@@ -1,5 +1,6 @@
 import { Star } from "lucide-react";
 import { useLocale } from "next-intl";
+import Image from "next/image";
 
 import { LandingReveal } from "./landing-reveal";
 
