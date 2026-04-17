@@ -113,6 +113,41 @@
   background: linear-gradient(110deg, rgba(255, 255, 255, 0) 30%, rgba(129, 140, 248, 0.12) 50%, rgba(255, 255, 255, 0) 70%);
 }
 
+@media (max-width: 768px) {
+  .landing-hero-aurora {
+    filter: blur(36px);
+    will-change: auto;
+  }
+
+  .landing-hero-aurora--one,
+  .landing-hero-aurora--two,
+  .landing-hero-aurora--three,
+  .landing-hero-sheen {
+    animation: none !important;
+  }
+
+  .landing-hero-aurora--one {
+    width: 20rem;
+    height: 20rem;
+    left: -4rem;
+    top: -5rem;
+  }
+
+  .landing-hero-aurora--two {
+    width: 18rem;
+    height: 18rem;
+    right: -4rem;
+    top: -6rem;
+  }
+
+  .landing-hero-aurora--three {
+    width: 16rem;
+    height: 16rem;
+    left: 42%;
+    bottom: -7rem;
+  }
+}
+
 /* ─── Radix Accordion / Collapsible animations ─── */
 
 @keyframes accordion-slide-down {

@@ -402,6 +402,7 @@ export function LandingSections({
               <div className="mt-3 text-center lg:text-left">
                 <Link
                   href="/sobre-godcode"
+                  prefetch={false}
                   className="text-sm font-semibold text-indigo-700 transition-colors hover:text-indigo-800 hover:underline dark:text-indigo-300 dark:hover:text-indigo-200"
                 >
                   Conoce más sobre GodCode

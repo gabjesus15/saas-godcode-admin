@@ -136,6 +136,7 @@ export function LandingVideoPlayer({
         className="relative z-10 h-full w-full object-cover"
         src={src}
         poster={poster}
+        preload="none"
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
         onLoadedMetadata={handleLoadedMetadata}
