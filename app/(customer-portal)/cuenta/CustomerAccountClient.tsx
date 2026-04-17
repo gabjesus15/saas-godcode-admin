@@ -1,561 +1,63 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
-import {
-  Palette,
-  CreditCard,
-  AlertTriangle,
-  FileText,
-  LayoutDashboard,
-  LifeBuoy,
-  LogOut,
-  Rocket,
-  Store,
-} from "lucide-react";
 
-import { SaasLogo } from "../../../components/super-admin/SaasLogo";
+import { CustomerAccountShell } from "@/components/customer-portal/CustomerAccountShell";
+import {
+  ADDON_STATUS_LABELS,
+  PAYMENT_STATUS_LABELS,
+  PORTAL_TAB_LABELS,
+  SUBSCRIPTION_STATUS_LABELS,
+  TICKET_CATEGORY_LABELS,
+  TICKET_STATUS_LABELS,
+} from "@/components/customer-portal/customer-account-constants";
+import { normalizeAddonIdentity, isSingleInstanceAddon } from "@/components/customer-portal/customer-account-addon-utils";
+import {
+  branchEntitlementStatusLabel,
+  displayStatus,
+  fmtDate,
+  fmtMoney,
+} from "@/components/customer-portal/customer-account-format";
+import {
+  DEFAULT_STORE_THEME,
+  STORE_THEME_FIELD_LABELS,
+  STORE_THEME_TEMPLATES,
+} from "@/components/customer-portal/customer-account-store-theme-constants";
+import type {
+  AccountActivityItem,
+  ActiveAddon,
+  AddonOption,
+  AddonPurchasePreview,
+  BillingMethodOption,
+  BillingOptionsResponse,
+  BillingPaymentResponse,
+  BranchEntitlementSummary,
+  BranchSummary,
+  CompanySnapshot,
+  CustomerAccountClientProps,
+  PaymentSummary,
+  PlanChangePreview,
+  PlanOption,
+  PortalTab,
+  RealtimeSnapshotResponse,
+  StoreThemeAssetField,
+  StoreThemeAutosaveStatus,
+  StoreThemeConfig,
+  StoreThemeResponse,
+  TicketMessage,
+  TicketSummary,
+} from "@/components/customer-portal/customer-account-types";
+import { AccountResumenTab } from "@/components/customer-portal/tabs/account-resumen-tab";
+import { AccountTiendaTab } from "@/components/customer-portal/tabs/account-tienda-tab";
+import { AccountPlanTab } from "@/components/customer-portal/tabs/account-plan-tab";
+import { AccountSucursalesTab } from "@/components/customer-portal/tabs/account-sucursales-tab";
+import { AccountFacturacionTab } from "@/components/customer-portal/tabs/account-facturacion-tab";
+import { AccountSoporteTab } from "@/components/customer-portal/tabs/account-soporte-tab";
+
 import { resolveAddonOfferForPlan } from "../../../lib/plan-offer-rules";
 import { uploadImage } from "../../../components/tenant/utils/cloudinary";
 
-type PlanOption = {
-  id: string;
-  name: string;
-  price: number | null;
-  max_branches: number | null;
-  max_users: number | null;
-  features?: unknown;
-  marketing_lines?: unknown;
-};
-
-type AddonOption = {
-  id: string;
-  slug?: string | null;
-  name: string;
-  description?: string | null;
-  type: string | null;
-  price_monthly: number | null;
-  price_one_time: number | null;
-};
-
-type BranchSummary = {
-  id: string;
-  name: string;
-  address: string | null;
-  is_active: boolean | null;
-};
-
-type PaymentSummary = {
-  id: string;
-  amount_paid: number | null;
-  status: string | null;
-  payment_date: string | null;
-  payment_method: string | null;
-  months_paid: number | null;
-  payment_reference: string | null;
-  reference_file_url: string | null;
-};
-
-type TicketSummary = {
-  id: string;
-  subject: string;
-  description: string;
-  category: "general" | "billing" | "technical" | "product" | "account";
-  priority: "low" | "medium" | "high" | "critical";
-  status: "open" | "in_progress" | "waiting_customer" | "resolved" | "closed";
-  createdAt: string;
-  updatedAt: string;
-  lastMessageAt: string;
-};
-
-type TicketMessage = {
-  id: string;
-  ticket_id: string;
-  author_type: "tenant" | "super_admin" | "system";
-  author_email: string | null;
-  is_internal: boolean;
-  message: string;
-  created_at: string;
-};
-
-type ActiveAddon = {
-  id: string;
-  addonId: string;
-  addonSlug: string;
-  addonType: string;
-  status: string;
-  expires_at: string | null;
-  addonName: string;
-};
-
-type BranchEntitlementSummary = {
-  id: string;
-  quantity: number;
-  monthsPurchased: number;
-  amountPaid: number;
-  unitPrice: number;
-  status: string;
-  startsAt: string | null;
-  expiresAt: string | null;
-  createdAt: string;
-  paymentReference: string | null;
-};
-
-type AccountActivityItem = {
-  id: string;
-  type: "pago" | "ticket" | "extra";
-  title: string;
-  detail: string;
-  status: string;
-  occurredAt: string;
-  amount?: number | null;
-};
-
-type CompanySnapshot = {
-  id: string;
-  name: string;
-  publicSlug: string | null;
-  planId: string | null;
-  subscriptionStatus: string | null;
-  subscriptionEndsAt: string | null;
-  planName: string | null;
-  planPrice: number | null;
-  planMaxBranches: number | null;
-  planMaxUsers: number | null;
-  supportEmail: string;
-  tenantAdminUrl: string | null;
-};
-
-type CustomerAccountClientProps = {
-  company: CompanySnapshot;
-  branches: BranchSummary[];
-  payments: PaymentSummary[];
-  activeAddons: ActiveAddon[];
-  availablePlans: PlanOption[];
-  availableAddons: AddonOption[];
-  initialTickets: TicketSummary[];
-  initialBranchEntitlements: BranchEntitlementSummary[];
-};
-
-type BillingMethodOption = {
-  id: string;
-  slug: string;
-  name: string;
-  auto_verify: boolean;
-  config: Record<string, string>;
-};
-
-type BillingOptionsResponse = {
-  companyId: string;
-  activeBranchCount: number;
-  maxBranches: number | null;
-  extraBranchEntitlements?: number;
-  effectiveMaxBranches?: number | null;
-  requiresPaymentForExpansion: boolean;
-  branchExpansionPriceMonthly: number;
-  coTermWithSubscription?: boolean;
-  daysUntilPlanEnd?: number | null;
-  paymentMethods: BillingMethodOption[];
-};
-
-type BillingPaymentResponse = {
-  ok: boolean;
-  payment: {
-    id: string;
-    amount_paid: number;
-    months_paid: number;
-    payment_reference: string;
-    status: string | null;
-    payment_method: string | null;
-    payment_method_slug: string | null;
-    payment_date: string | null;
-    reference_file_url: string | null;
-  };
-  instructions: {
-    method: {
-      slug: string;
-      name: string;
-      config: Record<string, string>;
-    };
-    summary: {
-      unitPrice: number;
-      quantity: number;
-      months: number;
-      firstCycleFactor?: number;
-      effectiveMonths?: number;
-      coTermWithSubscription?: boolean;
-      daysUntilPlanEnd?: number | null;
-      amount: number;
-      requiresManualProof: boolean;
-    };
-  };
-};
-
-type PlanChangePreview = {
-  company: {
-    id: string;
-    name: string;
-    plan_id: string | null;
-  };
-  currentPlan: {
-    id: string;
-    name: string;
-    price: number | null;
-    max_branches: number | null;
-    max_users: number | null;
-  } | null;
-  targetPlan: {
-    id: string;
-    name: string;
-    price: number | null;
-    max_branches: number | null;
-    max_users: number | null;
-  };
-  counts: {
-    activeBranches: number;
-    activeUsers: number;
-    activeExtraBranchEntitlements: number;
-    targetEffectiveBranches: number | null;
-  };
-  pricing: {
-    currentPrice: number;
-    targetPrice: number;
-    monthlyDiff: number;
-    months: number;
-    amountDue: number;
-    requiresPayment: boolean;
-  };
-  execution?: {
-    mode: "immediate" | "scheduled_cycle_end";
-    effectiveAt: string | null;
-    existingSchedule?: {
-      id: string;
-      targetPlanId: string;
-      effectiveAt: string;
-    } | null;
-  };
-  impacts: Array<{
-    id: string;
-    level: "warn" | "block";
-    title: string;
-    detail: string;
-  }>;
-  paymentMethods: Array<{
-    id: string;
-    slug: string;
-    name: string;
-    auto_verify: boolean;
-    config: Record<string, string>;
-  }>;
-};
-
-type AddonPurchasePreview = {
-  company: {
-    id: string;
-    name: string;
-    country: string | null;
-    plan_id: string | null;
-    subscription_ends_at: string | null;
-  };
-  addon: {
-    id: string;
-    slug: string;
-    name: string;
-    type: string | null;
-    description: string | null;
-    price_one_time: number | null;
-    price_monthly: number | null;
-  };
-  existingActive: boolean;
-  planOffer?: {
-    status: "available" | "included" | "blocked";
-    reason: string;
-    matchedBy: "feature_policy" | "heuristic" | "default";
-  };
-  singleInstance: boolean;
-  pricing: {
-    isMonthly: boolean;
-    unitPrice: number;
-    quantity: number;
-    months: number;
-    amountDue: number;
-    requiresPayment: boolean;
-  };
-  impacts: Array<{
-    id: string;
-    level: "warn" | "block";
-    title: string;
-    detail: string;
-  }>;
-  paymentMethods: Array<{
-    id: string;
-    slug: string;
-    name: string;
-    auto_verify: boolean;
-    config: Record<string, string>;
-  }>;
-};
-
-type RealtimeSnapshotResponse = {
-  company: {
-    id: string;
-    subscription_status: string | null;
-    subscription_ends_at: string | null;
-  } | null;
-  payments: PaymentSummary[];
-  tickets: TicketSummary[];
-  branchEntitlements: BranchEntitlementSummary[];
-  activeAddons: Array<{
-    id: string;
-    status: string;
-    expires_at: string | null;
-    addon_id: string | null;
-    slug: string | null;
-    name: string | null;
-    type: string | null;
-  }>;
-};
-
-type StoreThemeConfig = {
-  displayName: string;
-  primaryColor: string;
-  secondaryColor: string;
-  priceColor: string;
-  discountColor: string;
-  hoverColor: string;
-  backgroundColor: string;
-  backgroundImageUrl: string;
-  logoUrl: string;
-};
-
-type StoreThemeResponse = {
-  company: {
-    id: string;
-    name: string;
-  };
-  published: StoreThemeConfig;
-  draft: {
-    theme: StoreThemeConfig;
-    updatedAt: string | null;
-    updatedByEmail: string | null;
-    hasUnpublishedChanges: boolean;
-  };
-  versions: Array<{
-    id: string;
-    theme: StoreThemeConfig;
-    createdAt: string;
-    createdByEmail: string | null;
-  }>;
-};
-
-const STORE_THEME_COLOR_FIELDS = [
-  ["primaryColor", "Color primario"],
-  ["secondaryColor", "Color secundario"],
-  ["priceColor", "Color precio"],
-  ["discountColor", "Color descuento"],
-  ["hoverColor", "Color hover"],
-  ["backgroundColor", "Color fondo"],
-] as const;
-
-const STORE_THEME_FIELD_LABELS: Record<keyof StoreThemeConfig, string> = {
-  displayName: "Nombre visible",
-  primaryColor: "Color primario",
-  secondaryColor: "Color secundario",
-  priceColor: "Color precio",
-  discountColor: "Color descuento",
-  hoverColor: "Color hover",
-  backgroundColor: "Color fondo",
-  backgroundImageUrl: "URL de fondo",
-  logoUrl: "URL de logo",
-};
-
-type StoreThemeAutosaveStatus = "idle" | "pending" | "saving" | "saved" | "error";
-
-type StoreThemeAssetField = "logoUrl" | "backgroundImageUrl";
-
-const DEFAULT_STORE_THEME: StoreThemeConfig = {
-  displayName: "",
-  primaryColor: "#111827",
-  secondaryColor: "#111827",
-  priceColor: "#ff4757",
-  discountColor: "#25d366",
-  hoverColor: "#ff2e40",
-  backgroundColor: "#0a0a0a",
-  backgroundImageUrl: "",
-  logoUrl: "",
-};
-
-const STORE_THEME_COLOR_HELPERS: Record<keyof Pick<StoreThemeConfig, "primaryColor" | "secondaryColor" | "priceColor" | "discountColor" | "hoverColor" | "backgroundColor">, string> = {
-  primaryColor: "Se usa en CTA principal y tabs activos.",
-  secondaryColor: "Refuerza acentos secundarios y etiquetas.",
-  priceColor: "Color del precio destacado en cards de producto.",
-  discountColor: "Color de badges de descuento y ahorro.",
-  hoverColor: "Color al pasar mouse sobre CTA y acciones.",
-  backgroundColor: "Fondo base del menu cuando no hay imagen.",
-};
-
-const STORE_THEME_TEMPLATES: Array<{
-  id: string;
-  name: string;
-  description: string;
-  colors: Pick<StoreThemeConfig, "primaryColor" | "secondaryColor" | "priceColor" | "discountColor" | "hoverColor" | "backgroundColor">;
-}> = [
-  {
-    id: "sushi-night",
-    name: "Sushi Night",
-    description: "Tonos intensos para gastronomia nocturna y alto contraste.",
-    colors: {
-      primaryColor: "#eb3b00",
-      secondaryColor: "#ff4f00",
-      priceColor: "#ffffff",
-      discountColor: "#25d366",
-      hoverColor: "#ff6a2a",
-      backgroundColor: "#111111",
-    },
-  },
-  {
-    id: "coffee-warm",
-    name: "Coffee Warm",
-    description: "Paleta calida para cafeterias y pasteleria.",
-    colors: {
-      primaryColor: "#7c3f1d",
-      secondaryColor: "#b1622c",
-      priceColor: "#ffe8c2",
-      discountColor: "#8ee381",
-      hoverColor: "#9b5229",
-      backgroundColor: "#2a1a12",
-    },
-  },
-  {
-    id: "fresh-market",
-    name: "Fresh Market",
-    description: "Estilo claro y fresco para retail alimentario.",
-    colors: {
-      primaryColor: "#0f766e",
-      secondaryColor: "#14b8a6",
-      priceColor: "#f8fafc",
-      discountColor: "#84cc16",
-      hoverColor: "#0d9488",
-      backgroundColor: "#134e4a",
-    },
-  },
-];
-
-type PortalTab = "resumen" | "tienda" | "plan" | "sucursales" | "facturacion" | "soporte";
-
-const TAB_LABELS: Record<PortalTab, string> = {
-  resumen: "Resumen",
-  tienda: "Tienda",
-  plan: "Plan y extras",
-  sucursales: "Sucursales",
-  facturacion: "Facturacion",
-  soporte: "Soporte",
-};
-
-const TAB_ICONS: Record<PortalTab, React.ComponentType<{ className?: string }>> = {
-  resumen: LayoutDashboard,
-  tienda: Palette,
-  plan: CreditCard,
-  sucursales: Store,
-  facturacion: FileText,
-  soporte: LifeBuoy,
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  open: "Abierto",
-  in_progress: "En progreso",
-  waiting_customer: "Esperando cliente",
-  resolved: "Resuelto",
-  closed: "Cerrado",
-};
-
-const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
-  active: "Activa",
-  pending: "Pendiente",
-  trialing: "Prueba",
-  past_due: "Vencida",
-  cancelled: "Cancelada",
-  paused: "Pausada",
-  suspended: "Suspendida",
-};
-
-const ADDON_STATUS_LABELS: Record<string, string> = {
-  active: "Activo",
-  pending: "Pendiente",
-  inactive: "Inactivo",
-  expired: "Vencido",
-  cancelled: "Cancelado",
-};
-
-const PAYMENT_STATUS_LABELS: Record<string, string> = {
-  pending: "Pendiente",
-  pending_validation: "Pendiente de validacion",
-  paid: "Pagado",
-  failed: "Fallido",
-  cancelled: "Cancelado",
-  refunded: "Reembolsado",
-};
-
-const SUPPORT_CATEGORY_LABELS: Record<string, string> = {
-  general: "General",
-  billing: "Facturacion",
-  technical: "Tecnico",
-  product: "Producto",
-  account: "Cuenta",
-};
-
-const PRIORITY_LABELS: Record<string, string> = {
-  low: "Baja",
-  medium: "Media",
-  high: "Alta",
-  critical: "Critica",
-};
-
-function toDisplayLabel(value: string | null | undefined, labels: Record<string, string>): string {
-  const normalized = String(value ?? "").trim().toLowerCase();
-  if (!normalized) return "Sin estado";
-  return labels[normalized] ?? normalized.replace(/_/g, " ");
-}
-
-function normalizeAddonIdentity(input: { id?: string | null; name?: string | null; slug?: string | null; type?: string | null }): string {
-  return `${String(input.id ?? "").trim().toLowerCase()}|${String(input.slug ?? "").trim().toLowerCase()}|${String(input.type ?? "").trim().toLowerCase()}|${String(input.name ?? "").trim().toLowerCase()}`;
-}
-
-function isSingleInstanceAddon(input: { name?: string | null; slug?: string | null; type?: string | null }): boolean {
-  const haystack = `${String(input.name ?? "")} ${String(input.slug ?? "")} ${String(input.type ?? "")}`.toLowerCase();
-  if (!haystack) return false;
-  return haystack.includes("dominio") || haystack.includes("domain") || haystack.includes("custom_domain") || haystack.includes("custom-domain");
-}
-
-function formatPaymentConfigKey(key: string): string {
-  const normalized = String(key ?? "").trim().replace(/[_-]+/g, " ");
-  if (!normalized) return "Dato";
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
-}
-
-function fmtDate(iso: string | null | undefined): string {
-  if (!iso) return "-";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "-";
-
-  // Deterministic UTC formatting avoids server/client locale drift during hydration.
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const day = pad(date.getUTCDate());
-  const month = pad(date.getUTCMonth() + 1);
-  const year = date.getUTCFullYear();
-  const hours = pad(date.getUTCHours());
-  const minutes = pad(date.getUTCMinutes());
-  return `${day}-${month}-${year}, ${hours}:${minutes} UTC`;
-}
-
-function fmtMoney(value: number | null | undefined): string {
-  if (value == null || !Number.isFinite(Number(value))) return "-";
-  return new Intl.NumberFormat("es-CL", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(Number(value));
-}
+export type { CustomerAccountClientProps } from "@/components/customer-portal/customer-account-types";
 
 function getStoreThemeSignature(theme: StoreThemeConfig | null): string {
   if (!theme) return "";
@@ -742,219 +244,12 @@ function suggestAccessibleColorNearTarget(
   return bestHex;
 }
 
-function encodePreviewThemeParam(theme: StoreThemeConfig): string {
-  try {
-    return globalThis.btoa(JSON.stringify(theme));
-  } catch {
-    return "";
-  }
-}
-
-function StoreThemePreviewPanel({
-  theme,
-  companyName,
-  previewUrl,
-  hasUnpublishedChanges,
-}: {
-  theme: StoreThemeConfig;
-  companyName: string;
-  previewUrl: string | null;
-  hasUnpublishedChanges: boolean;
-}) {
-  const displayName = theme.displayName.trim() || companyName;
-  const tokenRows = [
-    ["Primario", theme.primaryColor],
-    ["Secundario", theme.secondaryColor],
-    ["Precio", theme.priceColor],
-    ["Descuento", theme.discountColor],
-    ["Hover", theme.hoverColor],
-    ["Fondo", theme.backgroundColor],
-  ] as const;
-  const [previewDevice, setPreviewDevice] = useState<"mobile" | "tablet" | "desktop">("mobile");
-  const [compareMode, setCompareMode] = useState(false);
-  const [showTokens, setShowTokens] = useState(false);
-  const statusTone = hasUnpublishedChanges
-    ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300"
-    : "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300";
-  const statusLabel = hasUnpublishedChanges ? "Borrador con cambios" : "Publicado al dia";
-  const encodedDraftTheme = encodePreviewThemeParam(theme);
-  const buildPreviewUrl = useCallback((withDraftTheme: boolean) => {
-    if (!previewUrl) return null;
-    const params = new URLSearchParams();
-    params.set("embedded_preview", "1");
-    params.set("preview_device", previewDevice);
-    if (withDraftTheme && encodedDraftTheme) {
-      params.set("preview_theme", encodedDraftTheme);
-    }
-    return `${previewUrl}?${params.toString()}`;
-  }, [encodedDraftTheme, previewDevice, previewUrl]);
-  const productionMenuUrl = buildPreviewUrl(false);
-  const draftMenuUrl = buildPreviewUrl(true);
-  const frameWidthClass =
-    previewDevice === "mobile"
-      ? "max-w-[430px]"
-      : previewDevice === "tablet"
-        ? "max-w-[860px]"
-        : "max-w-none";
-  const frameHeightClass =
-    previewDevice === "mobile"
-      ? "h-[760px]"
-      : previewDevice === "tablet"
-        ? "h-[860px]"
-        : "h-[720px]";
-    const shouldSplitFrames = compareMode && previewDevice !== "mobile";
-
-  return (
-    <div className="mt-3 space-y-3">
-      <div className="rounded-2xl border border-zinc-200 bg-zinc-50/80 p-4 dark:border-zinc-700 dark:bg-zinc-800/40">
-        <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-xs uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">Vista 1 a 1 del menu</p>
-              <h4 className="mt-1 text-lg font-semibold text-zinc-900 dark:text-zinc-100">{displayName}</h4>
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Este bloque renderiza el menu real del tenant tal como lo ve el cliente final.</p>
-            </div>
-            <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] ${statusTone}`}>
-              {statusLabel}
-            </span>
-          </div>
-
-          {productionMenuUrl && draftMenuUrl ? (
-            <div className="mt-4 space-y-3">
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">Menu real embebido. Puedes comparar Produccion vs Borrador y cambiar dispositivo.</p>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <div className="inline-flex rounded-lg border border-zinc-300 p-1 dark:border-zinc-700">
-                    {([
-                      ["mobile", "Movil"],
-                      ["tablet", "Tablet"],
-                      ["desktop", "Desktop"],
-                    ] as const).map(([id, label]) => (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => setPreviewDevice(id)}
-                        className={`rounded-md px-2.5 py-1 text-xs font-semibold transition ${previewDevice === id ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900" : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"}`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setCompareMode((prev) => !prev)}
-                    className="rounded-lg border border-zinc-300 px-2.5 py-1 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                  >
-                    {compareMode ? "Ver solo borrador" : "Comparar con produccion"}
-                  </button>
-
-                  <a
-                    href={draftMenuUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="rounded-lg border border-zinc-300 px-2.5 py-1 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                  >
-                    Abrir borrador
-                  </a>
-                </div>
-              </div>
-
-              <div className={`grid gap-4 ${shouldSplitFrames ? "xl:grid-cols-2" : "grid-cols-1"}`}>
-                {compareMode ? (
-                  <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/50">
-                    <p className="px-1 pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">Produccion</p>
-                    <div className={`mx-auto overflow-hidden rounded-2xl border border-zinc-300 bg-zinc-900 shadow-inner dark:border-zinc-700 ${frameWidthClass}`}>
-                      <iframe
-                        title="Vista produccion"
-                        src={productionMenuUrl}
-                        className={`${frameHeightClass} w-full bg-white`}
-                        loading="lazy"
-                      />
-                    </div>
-                  </div>
-                ) : null}
-
-                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/50">
-                  <p className="px-1 pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">Borrador</p>
-                  <div className={`mx-auto overflow-hidden rounded-2xl border border-zinc-300 bg-zinc-900 shadow-inner dark:border-zinc-700 ${frameWidthClass}`}>
-                    <iframe
-                      title="Vista borrador"
-                      src={draftMenuUrl}
-                      className={`${frameHeightClass} w-full bg-white`}
-                      loading="lazy"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {hasUnpublishedChanges ? (
-                <p className="text-xs text-amber-700 dark:text-amber-300">
-                  Hay cambios sin publicar: revisa el comparador antes de publicar.
-                </p>
-              ) : null}
-            </div>
-          ) : (
-            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
-              No se pudo construir la URL del menu para esta empresa.
-            </div>
-          )}
-
-          <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">Tokens del tema</p>
-              <button
-                type="button"
-                onClick={() => setShowTokens((prev) => !prev)}
-                className="rounded-lg border border-zinc-300 px-2.5 py-1 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-              >
-                {showTokens ? "Ocultar" : "Mostrar"}
-              </button>
-            </div>
-
-            {showTokens ? (
-              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {tokenRows.map(([label, value]) => (
-                  <div key={label} className="rounded-lg border border-zinc-200 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900/70">
-                    <div className="flex items-center gap-2">
-                      <svg width="28" height="28" viewBox="0 0 28 28" className="shrink-0 rounded-md border border-zinc-300 dark:border-zinc-700" role="img" aria-label={`${label} ${value}`}>
-                        <rect x="0" y="0" width="28" height="28" rx="6" fill={value} />
-                      </svg>
-                      <div className="min-w-0">
-                        <p className="text-[11px] uppercase tracking-[0.12em] text-zinc-500">{label}</p>
-                        <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{value}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function daysUntil(iso: string | null | undefined): number | null {
   if (!iso) return null;
   const end = new Date(iso).getTime();
   if (Number.isNaN(end)) return null;
   const diff = end - Date.now();
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
-}
-
-function getTicketSlaHours(priority: TicketSummary["priority"]): number {
-  if (priority === "critical") return 2;
-  if (priority === "high") return 6;
-  if (priority === "medium") return 12;
-  return 24;
-}
-
-function getTicketAgeHours(iso: string): number | null {
-  const ms = new Date(iso).getTime();
-  if (Number.isNaN(ms)) return null;
-  return Math.max(0, (Date.now() - ms) / (1000 * 60 * 60));
 }
 
 async function postTicket(payload: {
@@ -1156,7 +451,7 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
   );
   const latestPublishedVersion = storeThemeVersions[0] ?? null;
   const publicationStateLabel = !storeThemeHasUnpublished
-    ? "Produccion al dia"
+    ? "Producción al día"
     : storeThemeHasLocalUnsavedChanges
       ? "Borrador local sin guardar"
       : "Borrador guardado pendiente";
@@ -1278,7 +573,7 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
   const selectedAddonIsMonthly =
     addonPreview?.pricing.isMonthly ??
     (selectedAddonOption != null && Number(selectedAddonOption.price_monthly ?? 0) > 0);
-  const selectedAddonModeLabel = selectedAddonIsMonthly ? "Mensual co-terminado" : "Pago unico";
+  const selectedAddonModeLabel = selectedAddonIsMonthly ? "Mensual co-terminado" : "Pago único";
   const addonEstimatedUnit = selectedAddonOption?.price_monthly ?? selectedAddonOption?.price_one_time ?? null;
   const addonEstimatedTotal = addonEstimatedUnit != null
     ? addonEstimatedUnit * selectedAddonEffectiveQty * (selectedAddonOption?.price_monthly ? addonMonthsNumber : 1)
@@ -1393,7 +688,7 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
       id: `p-${payment.id}`,
       type: "pago",
       title: `Pago ${payment.payment_reference ?? "sin referencia"}`,
-      detail: `${fmtMoney(payment.amount_paid)} · ${toDisplayLabel(payment.status, PAYMENT_STATUS_LABELS)}`,
+      detail: `${fmtMoney(payment.amount_paid)} · ${displayStatus(payment.status, PAYMENT_STATUS_LABELS)}`,
       status: String(payment.status ?? ""),
       occurredAt: payment.payment_date ?? "",
       amount: payment.amount_paid,
@@ -1403,7 +698,7 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
       id: `t-${ticket.id}`,
       type: "ticket",
       title: ticket.subject,
-      detail: `${toDisplayLabel(ticket.status, STATUS_LABELS)} · ${SUPPORT_CATEGORY_LABELS[ticket.category] ?? ticket.category}`,
+      detail: `${displayStatus(ticket.status, TICKET_STATUS_LABELS)} · ${TICKET_CATEGORY_LABELS[ticket.category] ?? ticket.category}`,
       status: ticket.status,
       occurredAt: ticket.lastMessageAt || ticket.createdAt,
     }));
@@ -1412,7 +707,7 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
       id: `e-${entitlement.id}`,
       type: "extra",
       title: `Compra de ${entitlement.quantity} sucursal(es) extra`,
-      detail: `${fmtMoney(entitlement.amountPaid)} · ${toDisplayLabel(entitlement.status, ADDON_STATUS_LABELS)}`,
+      detail: `${fmtMoney(entitlement.amountPaid)} · ${branchEntitlementStatusLabel(entitlement.status)}`,
       status: entitlement.status,
       occurredAt: entitlement.createdAt,
       amount: entitlement.amountPaid,
@@ -2378,7 +1673,7 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
         "Hola, necesito ayuda con este cobro.",
         `Referencia: ${payment.payment_reference ?? "-"}`,
         `Monto: ${fmtMoney(payment.amount_paid)}`,
-        `Estado actual: ${toDisplayLabel(payment.status, PAYMENT_STATUS_LABELS)}`,
+        `Estado actual: ${displayStatus(payment.status, PAYMENT_STATUS_LABELS)}`,
         "Detalle adicional:",
       ].join("\n")
     );
@@ -2479,7 +1774,7 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
     const rows = filteredPayments.map((payment) => [
       payment.payment_date ?? "",
       String(payment.amount_paid ?? ""),
-      toDisplayLabel(payment.status, PAYMENT_STATUS_LABELS),
+      displayStatus(payment.status, PAYMENT_STATUS_LABELS),
       payment.payment_method ?? "",
       String(payment.months_paid ?? ""),
       payment.payment_reference ?? "",
@@ -2498,140 +1793,34 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#f8fafc_0%,_#ffffff_45%,_#eef2ff_100%)] dark:bg-[radial-gradient(circle_at_top,_#0f172a_0%,_#09090b_50%,_#111827_100%)]">
-      <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-4 px-3 py-4 sm:gap-6 sm:px-4 sm:py-6 md:flex-row lg:px-8">
-        <aside className="hidden w-64 shrink-0 self-start rounded-2xl border border-zinc-200 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/80 md:sticky md:top-6 md:block md:rounded-3xl md:p-6">
-          <div className="mb-6 mt-1">
-            <SaasLogo />
-            <p className="mt-2 text-xs uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">Portal cliente</p>
-          </div>
-
-          <nav className="flex flex-col gap-1 sm:gap-2">
-            {(Object.keys(TAB_LABELS) as PortalTab[]).map((key) => {
-              const Icon = TAB_ICONS[key];
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => handleTabChange(key)}
-                  className={`flex min-w-0 items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm font-medium transition md:gap-3 md:rounded-xl md:px-3 ${
-                    tab === key
-                      ? "bg-indigo-600 text-white"
-                      : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-                  }`}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  <span className="truncate">{TAB_LABELS[key]}</span>
-                </button>
-              );
-            })}
-          </nav>
-
-          <div className="mt-6 border-t border-zinc-200 pt-4 dark:border-zinc-700">
-            <form action="/api/auth/signout" method="post">
-              <button
-                type="submit"
-                className="flex w-full min-w-0 items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40 md:gap-3 md:rounded-xl md:px-3"
-              >
-                <LogOut className="h-4 w-4 shrink-0" />
-                <span className="truncate">Cerrar sesion</span>
-              </button>
-            </form>
-          </div>
-        </aside>
-
-        <div className="flex min-w-0 flex-1 flex-col gap-4 sm:gap-6">
-          <header className="rounded-2xl border border-zinc-200 bg-white/80 px-3 py-3 shadow-sm backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/80 sm:rounded-3xl sm:px-5 sm:py-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="min-w-0">
-                <h1 className="truncate text-base font-semibold text-zinc-900 dark:text-zinc-100 sm:text-lg">
-                  {company.name}
-                </h1>
-                <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
-                  {TAB_LABELS[tab]} · Gestion de suscripcion y soporte
-                </p>
-              </div>
-
-              <div className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-                {toDisplayLabel(subscriptionStatus, SUBSCRIPTION_STATUS_LABELS)}
-              </div>
-            </div>
-
-            <p className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
-              Actualizacion en tiempo real: {lastRealtimeSyncAt ? `ultimo sync ${fmtDate(lastRealtimeSyncAt)}` : "sincronizando..."}
-            </p>
-
-            <div className="mt-3 flex flex-wrap gap-2 md:hidden">
-              {(Object.keys(TAB_LABELS) as PortalTab[]).map((key) => {
-                const Icon = TAB_ICONS[key];
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => handleTabChange(key)}
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                      tab === key
-                        ? "border-indigo-500 bg-indigo-600 text-white"
-                        : "border-zinc-300 text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                    }`}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    {TAB_LABELS[key]}
-                  </button>
-                );
-              })}
-            </div>
-          </header>
-
-          <main className="min-w-0 flex-1 space-y-6 overflow-x-hidden">
-            {tab === "resumen" ? (
-            <section className="relative overflow-hidden rounded-3xl border border-zinc-200 bg-white/80 p-5 shadow-sm backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/80 sm:p-7">
-              <div className="relative z-10 flex flex-wrap items-start justify-between gap-4">
-                <div className="max-w-2xl">
-                  <p className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-indigo-700 dark:border-indigo-900/60 dark:bg-indigo-950/30 dark:text-indigo-300">
-                    <Rocket className="h-3.5 w-3.5" />
-                    Centro de control de cuenta
-                  </p>
-                  <h2 className="mt-3 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-2xl">
-                    Todo lo de tu suscripcion, en un solo panel
-                  </h2>
-                  <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-                    Administra plan, extras, sucursales, facturacion y soporte sin depender de correos dispersos.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-right dark:border-zinc-700 dark:bg-zinc-800/60">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Estado actual</p>
-                  <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{toDisplayLabel(subscriptionStatus, SUBSCRIPTION_STATUS_LABELS)}</p>
-                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Vence: {fmtDate(subscriptionEndsAt)}</p>
-                </div>
-              </div>
-
-              <div className="relative z-10 mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-800/60">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Plan</p>
-                  <p className="mt-1 truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{company.planName ?? "Sin plan"}</p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">{fmtMoney(company.planPrice)} mensual</p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Extras de sucursal activos: {activeEntitlementsCount}</p>
-                </div>
-                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-800/60">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Sucursales activas</p>
-                  <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{activeBranchesCount}</p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Total registradas: {branches.length}</p>
-                </div>
-                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-800/60">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Tickets abiertos</p>
-                  <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{openTicketsCount}</p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Total tickets: {tickets.length}</p>
-                </div>
-                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-800/60">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Ultimo pago</p>
-                  <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{latestPayment ? fmtMoney(latestPayment.amount_paid) : "-"}</p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">{latestPayment ? fmtDate(latestPayment.payment_date) : "Sin pagos"}</p>
-                </div>
-              </div>
-            </section>
-            ) : null}
+    <CustomerAccountShell
+      companyName={company.name}
+      activeTab={tab}
+      onTabChange={handleTabChange}
+      subscriptionStatusLabel={displayStatus(subscriptionStatus, SUBSCRIPTION_STATUS_LABELS)}
+      lastRealtimeSyncAt={lastRealtimeSyncAt}
+      formatSyncTime={fmtDate}
+    >
+      {tab === "resumen" ? (
+        <AccountResumenTab
+          company={company}
+          subscriptionStatus={subscriptionStatus}
+          subscriptionEndsAt={subscriptionEndsAt}
+          activeEntitlementsCount={activeEntitlementsCount}
+          activeBranchesCount={activeBranchesCount}
+          openTicketsCount={openTicketsCount}
+          branches={branches}
+          tickets={tickets}
+          latestPayment={latestPayment}
+          accountAlerts={accountAlerts}
+          expiryDays={expiryDays}
+          cancellationScheduled={cancellationScheduled}
+          filteredActivityTimeline={filteredActivityTimeline}
+          activityFilter={activityFilter}
+          setActivityFilter={setActivityFilter}
+          onNavigate={handleTabChange}
+        />
+      ) : null}
 
       {showTicketFeedback && ticketError ? (
         <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
@@ -2645,1828 +1834,219 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
         </div>
       ) : null}
 
-      {tab === "resumen" ? (
-        <section className="grid gap-4 xl:grid-cols-[1.05fr_1.95fr]">
-          <div className="rounded-2xl border border-zinc-200 bg-white/80 p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/80">
-            <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Alertas proactivas</h2>
-            <div className="mt-3 space-y-2">
-              {accountAlerts.map((alert) => (
-                <div
-                  key={alert.id}
-                  className={`rounded-xl border px-3 py-2 text-sm ${
-                    alert.tone === "warn"
-                      ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
-                      : alert.tone === "info"
-                      ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300"
-                      : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300"
-                  }`}
-                >
-                  <p className="font-medium">{alert.title}</p>
-                  <p className="mt-1 text-xs opacity-90">{alert.description}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/70 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-800/50">
-              <p className="text-xs uppercase tracking-[0.14em] text-zinc-500">Vencimiento</p>
-              <p className="mt-1 font-semibold text-zinc-900 dark:text-zinc-100">{fmtDate(subscriptionEndsAt)}</p>
-              {expiryDays != null ? (
-                <p className={`text-sm ${expiryDays <= 7 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-                  {expiryDays >= 0
-                    ? `Quedan ${expiryDays} dia${expiryDays === 1 ? "" : "s"}`
-                    : `Vencido hace ${Math.abs(expiryDays)} dia${Math.abs(expiryDays) === 1 ? "" : "s"}`}
-                </p>
-              ) : null}
-              {cancellationScheduled ? (
-                <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">
-                  Cancelacion programada: tu servicio seguira activo hasta el vencimiento.
-                </p>
-              ) : null}
-            </div>
-
-            <div className="mt-4 rounded-xl border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900/70">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">Proximas acciones</p>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => handleTabChange("plan")}
-                  className="rounded-lg border border-zinc-300 px-3 py-2 text-left text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                >
-                  Revisar plan y extras
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleTabChange("facturacion")}
-                  className="rounded-lg border border-zinc-300 px-3 py-2 text-left text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                >
-                  Ver pagos y comprobantes
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleTabChange("sucursales")}
-                  className="rounded-lg border border-zinc-300 px-3 py-2 text-left text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                >
-                  Solicitar nueva sucursal
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleTabChange("soporte")}
-                  className="rounded-lg border border-zinc-300 px-3 py-2 text-left text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                >
-                  Abrir o responder ticket
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-200 bg-white/80 p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/80">
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Timeline de actividad</h3>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Pagos, tickets y compras de extras en una sola vista.</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {([
-                ["all", "Todo"],
-                ["pago", "Pagos"],
-                ["ticket", "Tickets"],
-                ["extra", "Extras"],
-              ] as const).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setActivityFilter(value)}
-                  className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
-                    activityFilter === value
-                      ? "border-indigo-500 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300"
-                      : "border-zinc-300 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <div className="mt-3 max-h-[26rem] space-y-2 overflow-y-auto pr-1">
-              {filteredActivityTimeline.length === 0 ? (
-                <p className="text-sm text-zinc-500">Aun no hay actividad para mostrar.</p>
-              ) : (
-                filteredActivityTimeline.map((item) => (
-                  <div key={item.id} className="rounded-xl border border-zinc-200 bg-zinc-50/60 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/40">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="font-medium text-zinc-900 dark:text-zinc-100">{item.title}</p>
-                      <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{fmtDate(item.occurredAt)}</span>
-                    </div>
-                    <p className="mt-1 text-zinc-600 dark:text-zinc-400">{item.detail}</p>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </section>
-      ) : null}
-
       {tab === "tienda" ? (
-        <section className="space-y-4">
-            <div className="rounded-2xl border border-zinc-200 bg-white/80 p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/80">
-              <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Editor de tienda</h2>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Trabaja con borradores y publica cuando estés listo.</p>
-
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/60">
-                  <p className="text-[11px] uppercase tracking-[0.08em] text-zinc-500">Estado editorial</p>
-                  <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{publicationStateLabel}</p>
-                </div>
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/60">
-                  <p className="text-[11px] uppercase tracking-[0.08em] text-zinc-500">Ultima edicion</p>
-                  <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{storeThemeUpdatedAt ? fmtDate(storeThemeUpdatedAt) : "-"}</p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">{storeThemeUpdatedBy ?? "sin autor"}</p>
-                </div>
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/60">
-                  <p className="text-[11px] uppercase tracking-[0.08em] text-zinc-500">Ultima publicacion</p>
-                  <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{latestPublishedVersion ? fmtDate(latestPublishedVersion.createdAt) : "-"}</p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">{latestPublishedVersion?.createdByEmail ?? "sin registro"}</p>
-                </div>
-              </div>
-
-              <div className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50/80 px-3 py-2 text-xs dark:border-zinc-700 dark:bg-zinc-800/50">
-                <p className="font-semibold text-zinc-700 dark:text-zinc-200">Estado de guardado automático</p>
-                <p className="mt-1 text-zinc-600 dark:text-zinc-300">
-                  {storeThemeAutosaveStatus === "saving"
-                    ? "Guardando cambios..."
-                    : storeThemeAutosaveStatus === "pending"
-                      ? "Cambios detectados. Se guardarán automáticamente en unos segundos."
-                      : storeThemeAutosaveStatus === "saved"
-                        ? "Borrador guardado automáticamente."
-                        : storeThemeAutosaveStatus === "error"
-                          ? "Error en guardado automático. Puedes guardar manualmente."
-                          : "Sin cambios pendientes."}
-                </p>
-                {storeThemeHasLocalUnsavedChanges ? (
-                  <p className="mt-1 text-amber-700 dark:text-amber-300">Hay cambios locales sin guardar aun.</p>
-                ) : null}
-                {storeThemeAutosaveError ? <p className="mt-1 text-red-600 dark:text-red-300">{storeThemeAutosaveError}</p> : null}
-              </div>
-
-              {storeThemeError ? (
-                <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
-                  {storeThemeError}
-                </div>
-              ) : null}
-
-              {storeThemeOk ? (
-                <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300">
-                  {storeThemeOk}
-                </div>
-              ) : null}
-
-              {storeThemeLoading || !storeThemeDraft ? (
-                <p className="mt-3 text-sm text-zinc-500">Cargando configuración...</p>
-              ) : (
-                <div className="mt-4 space-y-4">
-                  <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
-                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">1. Identidad visual</p>
-                    <label className="mt-2 block text-sm font-medium text-zinc-700 dark:text-zinc-200">
-                      Nombre visible
-                      <input
-                        value={storeThemeDraft.displayName}
-                        onChange={(event) => setStoreThemeDraft((prev) => (prev ? { ...prev, displayName: event.target.value } : prev))}
-                        className="mt-1 h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                        placeholder={company.name}
-                      />
-                      <p className="mt-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">Se muestra en el header del menu y en la portada de la tienda.</p>
-                    </label>
-                  </div>
-
-                  <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">2. Paleta de colores</p>
-                      <button
-                        type="button"
-                        onClick={restoreStoreThemeColorsFromProduction}
-                        disabled={storeThemeLoading || storeThemeSaving || storeThemePublishing || !storeThemePublished}
-                        className="rounded-lg border border-zinc-300 px-2.5 py-1 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                      >
-                        Restaurar colores de producción
-                      </button>
-                    </div>
-                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                      {STORE_THEME_COLOR_FIELDS.map(([key, label]) => (
-                        <label key={key} className="block text-sm font-medium text-zinc-700 dark:text-zinc-200">
-                          {label}
-                          <div className="mt-1 flex items-center gap-2 rounded-xl border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
-                            <input
-                              type="color"
-                              value={storeThemeDraft[key]}
-                              onChange={(event) => setStoreThemeDraft((prev) => (prev ? { ...prev, [key]: event.target.value } : prev))}
-                              className="h-8 w-10 rounded-md border border-zinc-300"
-                            />
-                            <span className="text-xs text-zinc-500">{storeThemeDraft[key]}</span>
-                          </div>
-                          <p className="mt-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">{STORE_THEME_COLOR_HELPERS[key]}</p>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
-                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">3. Assets</p>
-                    <div className="mt-2 space-y-3">
-                      <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-200">
-                        URL logo
-                        <input
-                          value={storeThemeDraft.logoUrl}
-                          onChange={(event) => setStoreThemeDraft((prev) => (prev ? { ...prev, logoUrl: event.target.value } : prev))}
-                          className="mt-1 h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                          placeholder="https://..."
-                        />
-                        <p className="mt-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">Aparece en la barra superior del menu y refuerza identidad de marca.</p>
-                      </label>
-
-                      <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-200">
-                        URL fondo
-                        <input
-                          value={storeThemeDraft.backgroundImageUrl}
-                          onChange={(event) => setStoreThemeDraft((prev) => (prev ? { ...prev, backgroundImageUrl: event.target.value } : prev))}
-                          className="mt-1 h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                          placeholder="https://..."
-                        />
-                        <p className="mt-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">Se ve en la atmosfera general del menu y se combina con el color de fondo.</p>
-                      </label>
-
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        {([
-                          ["logoUrl", "Logo", "Ideal para cuadrado (min 512x512)."],
-                          ["backgroundImageUrl", "Fondo", "Ideal panoramica horizontal (min 1600x900)."],
-                        ] as const).map(([field, title, hint]) => {
-                          const previewUrl = storeThemeAssetLocalPreview[field] || storeThemeDraft[field] || "";
-                          const isUploading = storeThemeAssetUploading === field;
-                          const isDragOver = storeThemeAssetDragOver === field;
-                          return (
-                            <div
-                              key={field}
-                              className={`rounded-xl border bg-white p-3 transition dark:bg-zinc-900 ${isDragOver ? "border-indigo-400 ring-2 ring-indigo-200 dark:border-indigo-500 dark:ring-indigo-900/50" : "border-zinc-300 dark:border-zinc-700"}`}
-                              onDragOver={(event) => {
-                                event.preventDefault();
-                                setStoreThemeAssetDragOver(field);
-                              }}
-                              onDragLeave={(event) => {
-                                event.preventDefault();
-                                setStoreThemeAssetDragOver((prev) => (prev === field ? null : prev));
-                              }}
-                              onDrop={(event) => {
-                                event.preventDefault();
-                                setStoreThemeAssetDragOver(null);
-                                const dropped = event.dataTransfer.files?.[0] ?? null;
-                                void handleStoreThemeAssetUpload(field, dropped);
-                              }}
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{title}</p>
-                                {isUploading ? <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-300">Subiendo...</span> : null}
-                              </div>
-                              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Arrastra imagen aqui o selecciona archivo. {hint}</p>
-
-                              <div className="mt-2 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800/70">
-                                {previewUrl ? (
-                                  <div className="relative h-32 w-full">
-                                    <Image
-                                      src={previewUrl}
-                                      alt={`Preview ${title}`}
-                                      fill
-                                      sizes="(max-width: 640px) 100vw, 50vw"
-                                      className="object-cover"
-                                      unoptimized
-                                    />
-                                  </div>
-                                ) : (
-                                  <div className="grid h-32 place-items-center text-xs text-zinc-500 dark:text-zinc-400">Sin imagen cargada</div>
-                                )}
-                              </div>
-
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                <label className="inline-flex cursor-pointer items-center rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">
-                                  Seleccionar archivo
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={(event) => {
-                                      void handleStoreThemeAssetUpload(field, event.target.files?.[0] ?? null);
-                                      event.currentTarget.value = "";
-                                    }}
-                                  />
-                                </label>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setStoreThemeDraft((prev) => (prev ? { ...prev, [field]: "" } : prev));
-                                    setStoreThemeHasUnpublished(true);
-                                    setStoreThemeLocalPreview(field, null);
-                                  }}
-                                  className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                                >
-                                  Limpiar
-                                </button>
-                              </div>
-
-                              {storeThemeAssetHint[field] ? (
-                                <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">{storeThemeAssetHint[field]}</p>
-                              ) : null}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
-                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">4. Publicacion</p>
-
-                    <div className="mt-3 rounded-lg border border-zinc-200 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900/70">
-                      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">Checklist de calidad visual</p>
-                      <div className="mt-2 space-y-1.5">
-                        {storeThemeChecklist.map((item) => (
-                          <div
-                            key={item.id}
-                            className={`rounded-md border px-2.5 py-1.5 text-xs ${item.ok ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300" : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300"}`}
-                          >
-                            <p className="font-semibold">{item.ok ? "OK" : "Revisar"}: {item.title}</p>
-                            <p className="mt-0.5 opacity-90">{item.detail}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {storeThemeContrastSuggestions.changes.length > 0 ? (
-                      <div className="mt-3 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 dark:border-indigo-900/40 dark:bg-indigo-950/20">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-indigo-700 dark:text-indigo-300">Sugerencias automáticas de contraste</p>
-                          <button
-                            type="button"
-                            onClick={applyStoreThemeContrastSuggestions}
-                            className="rounded-lg border border-indigo-300 px-2.5 py-1 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-900/40"
-                          >
-                            Aplicar sugerencias
-                          </button>
-                        </div>
-                        <div className="mt-2 space-y-1.5">
-                          {storeThemeContrastSuggestions.changes.map((change) => (
-                            <div key={change.key} className="rounded-md border border-indigo-200 bg-white px-2.5 py-1.5 text-xs text-indigo-900 dark:border-indigo-800 dark:bg-zinc-900/70 dark:text-indigo-100">
-                              <p className="font-semibold">{change.label}: {change.from} a {change.to}</p>
-                              <p className="mt-0.5 opacity-90">Contraste estimado: {change.ratio ? change.ratio.toFixed(2) : "-"} (objetivo minimo {change.min.toFixed(1)})</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-
-                    <div className="mt-3 rounded-lg border border-zinc-200 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900/70">
-                      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">Diferencias vs producción</p>
-                      {storeThemeDiffRows.length === 0 ? (
-                        <p className="mt-2 text-xs text-zinc-500">No hay diferencias entre borrador y producción.</p>
-                      ) : (
-                        <div className="mt-2 space-y-2">
-                          {storeThemeDiffRows.map((row) => (
-                            <div key={row.key} className="rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-xs dark:border-zinc-700 dark:bg-zinc-800/60">
-                              <p className="font-semibold text-zinc-700 dark:text-zinc-200">{row.label}</p>
-                              <p className="mt-0.5 text-zinc-500 dark:text-zinc-400">Producción: {row.publishedValue || "-"}</p>
-                              <p className="text-zinc-700 dark:text-zinc-200">Borrador: {row.draftValue || "-"}</p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <label className="mt-3 block text-sm font-medium text-zinc-700 dark:text-zinc-200">
-                      Comentario de publicación
-                      <textarea
-                        value={storeThemePublishComment}
-                        onChange={(event) => setStoreThemePublishComment(event.target.value)}
-                        placeholder="Ej: Ajuste de paleta para campaña de invierno"
-                        className="mt-1 min-h-20 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                        maxLength={300}
-                      />
-                    </label>
-
-                    <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={saveStoreDraft}
-                      disabled={storeThemeSaving || storeThemePublishing || storeThemeLoading}
-                      className="h-11 rounded-xl border border-zinc-300 px-4 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
-                    >
-                      {storeThemeSaving ? "Guardando..." : "Guardar borrador"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={publishStoreTheme}
-                      disabled={
-                        storeThemePublishing ||
-                        storeThemeLoading ||
-                        !storeThemeHasUnpublished ||
-                        storeThemeDiffRows.length === 0
-                      }
-                      className="h-11 rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
-                    >
-                      {storeThemePublishing ? "Publicando..." : "Publicar cambios"}
-                    </button>
-                    </div>
-
-                    {storeThemeChecklistBlockingIssues.length > 0 ? (
-                      <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
-                        Recomendacion: mejora los contrastes marcados para una mejor legibilidad antes de publicar.
-                      </p>
-                    ) : null}
-
-                    <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-                      Guardar borrador conserva el trabajo sin impactar clientes. Publicar aplica cambios en produccion.
-                    </p>
-
-                    <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
-                      {storeThemeHasUnpublished ? "Hay cambios sin publicar." : "El borrador coincide con producción."}
-                      {storeThemeUpdatedAt ? ` Ultima edicion: ${fmtDate(storeThemeUpdatedAt)}.` : ""}
-                      {storeThemeUpdatedBy ? ` Por: ${storeThemeUpdatedBy}.` : ""}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-          <div className="rounded-2xl border border-zinc-200 bg-white/80 p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/80">
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Vista previa</h3>
-            {storePreviewTheme ? (
-              <StoreThemePreviewPanel
-                theme={storePreviewTheme}
-                companyName={company.name}
-                previewUrl={company.publicSlug ? `/${company.publicSlug}/menu` : null}
-                hasUnpublishedChanges={storeThemeHasUnpublished}
-              />
-            ) : (
-              <p className="mt-3 text-sm text-zinc-500">Cargando preview...</p>
-            )}
-          </div>
-
-            <div className="rounded-2xl border border-zinc-200 bg-white/80 p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/80">
-              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Versiones publicadas</h3>
-              <div className="mt-3 space-y-2">
-                {storeThemeVersions.length === 0 ? (
-                  <p className="text-sm text-zinc-500">Aun no hay versiones publicadas.</p>
-                ) : (
-                  storeThemeVersions.map((version) => (
-                    <div key={version.id} className="rounded-xl border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="font-medium text-zinc-900 dark:text-zinc-100">{version.theme.displayName || company.name}</p>
-                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{fmtDate(version.createdAt)}</span>
-                      </div>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">Publicado por: {version.createdByEmail ?? "sistema"}</p>
-                      <button
-                        type="button"
-                        onClick={() => void restoreStoreVersion(version.id)}
-                        disabled={storeThemeRestoring === version.id || storeThemeLoading}
-                        className="mt-2 rounded-lg border border-zinc-300 px-2.5 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                      >
-                        {storeThemeRestoring === version.id ? "Restaurando..." : "Usar como borrador"}
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-zinc-200 bg-white/80 p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/80">
-              <details className="group" open={false}>
-                <summary className="cursor-pointer list-none text-sm font-semibold text-zinc-900 outline-none dark:text-zinc-100">
-                  Opciones avanzadas
-                </summary>
-                <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Acciones extra para acelerar trabajo entre marcas o recuperar estado.</p>
-
-                <div className="mt-3 space-y-3">
-                  <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
-                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">Plantillas</p>
-                    <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
-                      <select
-                        value={storeThemeSelectedTemplate}
-                        onChange={(event) => setStoreThemeSelectedTemplate(event.target.value)}
-                        aria-label="Seleccionar plantilla de tema"
-                        className="h-11 rounded-xl border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                      >
-                        {STORE_THEME_TEMPLATES.map((template) => (
-                          <option key={template.id} value={template.id}>{template.name} - {template.description}</option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={applyStoreThemeTemplate}
-                        className="h-11 rounded-xl border border-zinc-300 px-4 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
-                      >
-                        Aplicar plantilla
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
-                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">Importar y exportar</p>
-                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                      <label className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800/60">
-                        Importar tema JSON
-                        <input
-                          type="file"
-                          accept="application/json,.json"
-                          className="mt-2 block w-full text-xs"
-                          onChange={(event) => {
-                            void importStoreThemeJson(event.target.files?.[0] ?? null);
-                            event.currentTarget.value = "";
-                          }}
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        onClick={exportStoreThemeJson}
-                        disabled={!storeThemeDraft}
-                        className="h-11 self-end rounded-xl border border-zinc-300 px-4 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
-                      >
-                        Exportar tema JSON
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
-                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">Recuperacion</p>
-                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Vuelve al estado de produccion si quieres descartar el borrador actual.</p>
-                    <button
-                      type="button"
-                      onClick={discardStoreThemeChanges}
-                      disabled={storeThemeLoading || storeThemeSaving || storeThemePublishing || !storeThemePublished}
-                      className="mt-2 h-11 rounded-xl border border-zinc-300 px-4 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
-                    >
-                      Descartar cambios
-                    </button>
-                  </div>
-                </div>
-              </details>
-            </div>
-        </section>
+        <AccountTiendaTab
+          company={company}
+          publicationStateLabel={publicationStateLabel}
+          storeThemeUpdatedAt={storeThemeUpdatedAt}
+          storeThemeUpdatedBy={storeThemeUpdatedBy}
+          latestPublishedVersion={latestPublishedVersion}
+          storeThemeAutosaveStatus={storeThemeAutosaveStatus}
+          storeThemeHasLocalUnsavedChanges={storeThemeHasLocalUnsavedChanges}
+          storeThemeAutosaveError={storeThemeAutosaveError}
+          storeThemeError={storeThemeError}
+          storeThemeOk={storeThemeOk}
+          storeThemeLoading={storeThemeLoading}
+          storeThemeDraft={storeThemeDraft}
+          setStoreThemeDraft={setStoreThemeDraft}
+          restoreStoreThemeColorsFromProduction={restoreStoreThemeColorsFromProduction}
+          storeThemeSaving={storeThemeSaving}
+          storeThemePublishing={storeThemePublishing}
+          storeThemePublished={storeThemePublished}
+          storeThemeAssetLocalPreview={storeThemeAssetLocalPreview}
+          storeThemeAssetUploading={storeThemeAssetUploading}
+          storeThemeAssetDragOver={storeThemeAssetDragOver}
+          setStoreThemeAssetDragOver={setStoreThemeAssetDragOver}
+          handleStoreThemeAssetUpload={handleStoreThemeAssetUpload}
+          storeThemeAssetHint={storeThemeAssetHint}
+          setStoreThemeHasUnpublished={setStoreThemeHasUnpublished}
+          setStoreThemeLocalPreview={setStoreThemeLocalPreview}
+          storeThemeChecklist={storeThemeChecklist}
+          storeThemeContrastSuggestions={storeThemeContrastSuggestions}
+          applyStoreThemeContrastSuggestions={applyStoreThemeContrastSuggestions}
+          storeThemeDiffRows={storeThemeDiffRows}
+          storeThemePublishComment={storeThemePublishComment}
+          setStoreThemePublishComment={setStoreThemePublishComment}
+          saveStoreDraft={saveStoreDraft}
+          publishStoreTheme={publishStoreTheme}
+          storeThemeHasUnpublished={storeThemeHasUnpublished}
+          storeThemeChecklistBlockingIssues={storeThemeChecklistBlockingIssues}
+          storePreviewTheme={storePreviewTheme}
+          storeThemeVersions={storeThemeVersions}
+          restoreStoreVersion={restoreStoreVersion}
+          storeThemeRestoring={storeThemeRestoring}
+          storeThemeSelectedTemplate={storeThemeSelectedTemplate}
+          setStoreThemeSelectedTemplate={setStoreThemeSelectedTemplate}
+          applyStoreThemeTemplate={applyStoreThemeTemplate}
+          importStoreThemeJson={importStoreThemeJson}
+          exportStoreThemeJson={exportStoreThemeJson}
+          discardStoreThemeChanges={discardStoreThemeChanges}
+        />
       ) : null}
 
       {tab === "plan" ? (
-        <section className="space-y-4">
-          <div className="rounded-2xl border border-zinc-200 bg-white/80 p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/80">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">Resumen ejecutivo</p>
-            <h2 className="mt-1 text-base font-semibold text-zinc-900 dark:text-zinc-100">Plan y extras con enfoque de decision</h2>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Todo lo importante para decidir: recomendacion, impacto economico y acciones frecuentes.</p>
-
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/50">
-                <p className="text-xs text-zinc-500">Plan actual</p>
-                <p className="font-semibold text-zinc-900 dark:text-zinc-100">{company.planName ?? "Sin plan"}</p>
-                <p className="text-xs text-zinc-500">{fmtMoney(company.planPrice)} mensual</p>
-              </div>
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/50">
-                <p className="text-xs text-zinc-500">Recomendado</p>
-                <p className="font-semibold text-zinc-900 dark:text-zinc-100">{recommendedPlanOption?.name ?? "-"}</p>
-                <p className="text-xs text-zinc-500">{fmtMoney(recommendedPlanOption?.price ?? null)} mensual</p>
-              </div>
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/50">
-                <p className="text-xs text-zinc-500">Impacto mensual</p>
-                <p className={`font-semibold ${planMonthlyDelta != null && planMonthlyDelta > 0 ? "text-amber-700 dark:text-amber-300" : planMonthlyDelta != null && planMonthlyDelta < 0 ? "text-emerald-700 dark:text-emerald-300" : "text-zinc-900 dark:text-zinc-100"}`}>
-                  {planMonthlyDelta != null ? fmtMoney(planMonthlyDelta) : "-"}
-                </p>
-                <p className="text-xs text-zinc-500">vs plan actual</p>
-              </div>
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/50">
-                <p className="text-xs text-zinc-500">Proyeccion anual</p>
-                <p className={`font-semibold ${planAnnualDelta != null && planAnnualDelta > 0 ? "text-amber-700 dark:text-amber-300" : planAnnualDelta != null && planAnnualDelta < 0 ? "text-emerald-700 dark:text-emerald-300" : "text-zinc-900 dark:text-zinc-100"}`}>
-                  {planAnnualDelta != null ? fmtMoney(planAnnualDelta) : "-"}
-                </p>
-                <p className="text-xs text-zinc-500">estimado a 12 meses</p>
-              </div>
-            </div>
-
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  if (recommendedPlanOption?.id) {
-                    setTargetPlanId(recommendedPlanOption.id);
-                  }
-                }}
-                disabled={!recommendedPlanOption?.id || recommendedPlanOption.id === targetPlanId}
-                className="h-10 rounded-xl border border-zinc-300 px-3 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
-              >
-                Usar plan recomendado
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (recommendedPlanOption?.id) {
-                    setTargetPlanId(recommendedPlanOption.id);
-                    setPlanMonths("12");
-                  }
-                }}
-                disabled={!recommendedPlanOption?.id}
-                className="h-10 rounded-xl border border-zinc-300 px-3 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
-              >
-                Simular 12 meses
-              </button>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-200 bg-white/80 p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/80">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">1. Estado del plan</p>
-            <h2 className="mt-1 text-base font-semibold text-zinc-900 dark:text-zinc-100">Tu plan actual</h2>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/50">
-                <p className="text-xs text-zinc-500">Plan</p>
-                <p className="font-semibold text-zinc-900 dark:text-zinc-100">{company.planName ?? "Sin plan"}</p>
-              </div>
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/50">
-                <p className="text-xs text-zinc-500">Precio mensual</p>
-                <p className="font-semibold text-zinc-900 dark:text-zinc-100">{fmtMoney(company.planPrice)}</p>
-              </div>
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/50">
-                <p className="text-xs text-zinc-500">Extras activos</p>
-                <p className="font-semibold text-zinc-900 dark:text-zinc-100">{activeAddonRows.length}</p>
-              </div>
-            </div>
-
-            <details className="mt-4 rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-4 dark:border-amber-900/50 dark:bg-amber-950/20">
-              <summary className="cursor-pointer list-none text-sm font-semibold text-zinc-900 dark:text-zinc-100">Gestion de cancelacion y reactivacion</summary>
-              <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">Solo abre esta seccion cuando quieras gestionar cancelacion al fin de ciclo.</p>
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5 grid h-9 w-9 place-items-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                  <AlertTriangle className="h-4 w-4" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Cancelar plan</h3>
-                  <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                    Si cancelas ahora, el acceso seguirá funcionando hasta la fecha de vencimiento actual. Después de esa fecha, el tenant quedará suspendido.
-                  </p>
-                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                    Fecha de vencimiento actual: <span className="font-medium text-zinc-700 dark:text-zinc-200">{fmtDate(subscriptionEndsAt)}</span>
-                  </p>
-
-                  <textarea
-                    value={subscriptionCancelReason}
-                    onChange={(event) => setSubscriptionCancelReason(event.target.value)}
-                    placeholder="Motivo opcional de cancelacion"
-                    className="mt-3 min-h-20 w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-amber-400 dark:border-amber-900/60 dark:bg-zinc-900 dark:text-zinc-100"
-                    disabled={subscriptionCancelBusy || cancellationScheduled || subscriptionReactivateBusy}
-                  />
-
-                  {subscriptionCancelError ? (
-                    <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
-                      {subscriptionCancelError}
-                    </div>
-                  ) : null}
-
-                  {subscriptionCancelOk ? (
-                    <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300">
-                      {subscriptionCancelOk}
-                    </div>
-                  ) : null}
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSubscriptionCancelAcknowledge(false);
-                      setSubscriptionCancelFinalConfirm(false);
-                      setSubscriptionCancelModalOpen(true);
-                    }}
-                    disabled={subscriptionCancelBusy || cancellationScheduled || subscriptionReactivateBusy}
-                    className="mt-3 inline-flex h-11 items-center justify-center rounded-xl border border-amber-300 bg-amber-600 px-4 text-sm font-semibold text-white transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-800 dark:bg-amber-700 dark:hover:bg-amber-600"
-                  >
-                    {subscriptionCancelBusy
-                      ? "Programando cancelacion..."
-                      : cancellationScheduled
-                      ? "Cancelacion ya programada"
-                      : "Cancelar al final del ciclo"}
-                  </button>
-
-                  {canReactivateCancellation ? (
-                    <button
-                      type="button"
-                      onClick={handleReactivateSubscription}
-                      disabled={subscriptionReactivateBusy || subscriptionCancelBusy}
-                      className="mt-2 inline-flex h-11 items-center justify-center rounded-xl border border-emerald-300 bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-emerald-800 dark:bg-emerald-700 dark:hover:bg-emerald-600"
-                    >
-                      {subscriptionReactivateBusy ? "Reactivando..." : "Reactivar suscripcion"}
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-            </details>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-200 bg-white/80 p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/80">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">1B. Matriz de oferta</p>
-            <h3 className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">Que extras ofrece cada plan</h3>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-              Verde: incluido. Rojo: bloqueado. Gris: disponible para contratar. Esta matriz usa la misma logica de politicas del backend.
-            </p>
-
-            <div className="mt-3 overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
-              <table className="min-w-[760px] w-full border-collapse text-xs">
-                <thead className="bg-zinc-50 dark:bg-zinc-800/60">
-                  <tr>
-                    <th className="sticky left-0 z-10 border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-left font-semibold text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-200">Extra</th>
-                    {availablePlans.map((plan) => (
-                      <th key={`m-head-${plan.id}`} className={`border-b border-zinc-200 px-3 py-2 text-left font-semibold dark:border-zinc-700 ${company.planId === plan.id ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300" : "text-zinc-700 dark:text-zinc-200"}`}>
-                        {plan.name}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {addonOfferMatrix.map((row) => (
-                    <tr key={`m-row-${row.addon.id}`} className="odd:bg-white even:bg-zinc-50/40 dark:odd:bg-zinc-900/60 dark:even:bg-zinc-800/30">
-                      <td className="sticky left-0 z-10 border-b border-zinc-200 bg-inherit px-3 py-2 align-top dark:border-zinc-700">
-                        <p className="font-medium text-zinc-900 dark:text-zinc-100">{row.addon.name}</p>
-                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{row.addon.slug || row.addon.type || "extra"}</p>
-                      </td>
-                      {row.cells.map((cell) => (
-                        <td key={`m-cell-${row.addon.id}-${cell.planId}`} className="border-b border-zinc-200 px-3 py-2 align-top dark:border-zinc-700">
-                          <span className={`inline-flex rounded-full border px-2 py-0.5 font-semibold ${
-                            cell.decision.status === "included"
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300"
-                              : cell.decision.status === "blocked"
-                                ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
-                                : "border-zinc-300 bg-zinc-100 text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-                          }`}>
-                            {cell.decision.status === "included"
-                              ? "Incluido"
-                              : cell.decision.status === "blocked"
-                                ? "Bloqueado"
-                                : "Disponible"}
-                          </span>
-                          <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">{cell.decision.reason}</p>
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-200 bg-white/80 p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/80">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">2. Simulador de cambio de plan</p>
-            <h3 className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">Comparador de cambio</h3>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Compara tu plan actual con el plan objetivo antes de confirmar.</p>
-            <div className="mt-3 grid gap-3 md:grid-cols-3">
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
-                <p className="text-xs text-zinc-500">Plan actual</p>
-                <p className="font-semibold text-zinc-900 dark:text-zinc-100">{planPreview?.currentPlan?.name ?? company.planName ?? "-"}</p>
-                <p className="text-zinc-600 dark:text-zinc-400">{fmtMoney(planPreview?.pricing.currentPrice ?? company.planPrice)}</p>
-              </div>
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
-                <p className="text-xs text-zinc-500">Plan objetivo</p>
-                <p className="font-semibold text-zinc-900 dark:text-zinc-100">{planPreview?.targetPlan?.name ?? selectedPlanOption?.name ?? "-"}</p>
-                <p className="text-zinc-600 dark:text-zinc-400">{fmtMoney(planPreview?.pricing.targetPrice ?? selectedPlanOption?.price ?? null)}</p>
-              </div>
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
-                <p className="text-xs text-zinc-500">Impacto mensual</p>
-                <p className={`font-semibold ${(planPreview?.pricing.monthlyDiff ?? 0) > 0 ? "text-amber-700 dark:text-amber-300" : (planPreview?.pricing.monthlyDiff ?? 0) < 0 ? "text-emerald-700 dark:text-emerald-300" : "text-zinc-900 dark:text-zinc-100"}`}>
-                  {planPreview ? fmtMoney(planPreview.pricing.monthlyDiff) : "-"}
-                </p>
-                <p className="text-zinc-600 dark:text-zinc-400">Pago inmediato: {planPreview ? fmtMoney(planPreview.pricing.amountDue) : "-"}</p>
-              </div>
-            </div>
-            {planPreview?.execution?.mode === "scheduled_cycle_end" ? (
-              <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-2 text-sm text-sky-900 dark:border-sky-900/50 dark:bg-sky-950/20 dark:text-sky-200">
-                El downgrade se programara para el cierre del ciclo actual. Fecha efectiva: {fmtDate(planPreview.execution.effectiveAt)}.
-              </div>
-            ) : null}
-          </div>
-
-          <div className="grid items-stretch gap-4 xl:grid-cols-2">
-            <div className="flex h-full flex-col rounded-2xl border border-zinc-200 bg-white/80 p-5 dark:border-zinc-700 dark:bg-zinc-900/80">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">3A. Accion principal</p>
-              <h3 className="mt-1 text-base font-semibold text-zinc-900 dark:text-zinc-100">Quiero cambiar mi plan</h3>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Puedes cambiarlo directamente. Antes de confirmar, revisa impactos y avisos.</p>
-
-              <div className="mt-3 flex flex-1 flex-col gap-3">
-                <select
-                  value={targetPlanId}
-                  onChange={(event) => setTargetPlanId(event.target.value)}
-                  aria-label="Seleccionar plan"
-                  className="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                >
-                  {availablePlans.map((plan) => (
-                    <option key={plan.id} value={plan.id}>
-                      {plan.name}
-                    </option>
-                  ))}
-                </select>
-
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <input
-                    type="number"
-                    min={1}
-                    max={24}
-                    value={planMonths}
-                    onChange={(event) => setPlanMonths(event.target.value)}
-                    className="h-11 rounded-xl border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                    placeholder="Meses"
-                    aria-label="Meses a pagar"
-                  />
-                  {planPreview?.pricing.requiresPayment ? (
-                    <div className="space-y-2">
-                      <select
-                        value={planMethodSlug}
-                        onChange={(event) => setPlanMethodSlug(event.target.value)}
-                        aria-label="Metodo de pago para cambio de plan"
-                        className="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                      >
-                        {planPreview.paymentMethods.map((method) => (
-                          <option key={method.id} value={method.slug}>
-                            {method.name}
-                          </option>
-                        ))}
-                      </select>
-                      {selectedPlanMethodOption ? (
-                        <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-700 dark:bg-zinc-800/50">
-                          <p className="font-semibold text-zinc-900 dark:text-zinc-100">{selectedPlanMethodOption.name}</p>
-                          <p className="text-zinc-600 dark:text-zinc-400">
-                            {selectedPlanMethodOption.auto_verify
-                              ? "Validacion automatica. El cambio se aplica al confirmar el pago."
-                              : "Validacion manual. Debes cargar comprobante y esperar confirmacion."}
-                          </p>
-                          {Object.entries(selectedPlanMethodOption.config).length > 0 ? (
-                            <div className="mt-2 space-y-1">
-                              {Object.entries(selectedPlanMethodOption.config).map(([key, value]) => (
-                                <p key={key} className="text-zinc-700 dark:text-zinc-300">
-                                  <span className="font-medium">{formatPaymentConfigKey(key)}:</span> {value}
-                                </p>
-                              ))}
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <div className="grid h-11 place-items-center rounded-xl border border-zinc-200 bg-zinc-50 text-xs text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-400">
-                      No requiere pago adicional
-                    </div>
-                  )}
-                </div>
-
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
-                  <p className="text-zinc-700 dark:text-zinc-300">Precio estimado: <span className="font-semibold">{fmtMoney(selectedPlanOption?.price ?? null)}</span></p>
-                  <p className="text-zinc-600 dark:text-zinc-400">Incluye hasta {selectedPlanOption?.max_branches ?? "-"} sucursales.</p>
-                  {planPreview ? (
-                    <p className="text-zinc-600 dark:text-zinc-400">
-                      Diferencia a pagar ahora: <span className="font-semibold">{fmtMoney(planPreview.pricing.amountDue)}</span>
-                    </p>
-                  ) : null}
-                </div>
-
-                <div className="space-y-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">Impacto del cambio</p>
-                  {planPreviewLoading ? (
-                    <p className="text-zinc-500 dark:text-zinc-400">Calculando impacto...</p>
-                  ) : !planPreview ? (
-                    <p className="text-zinc-500 dark:text-zinc-400">No se pudo calcular impacto para este plan.</p>
-                  ) : planPreview.impacts.length === 0 ? (
-                    <p className="text-zinc-500 dark:text-zinc-400">Sin impactos detectados.</p>
-                  ) : (
-                    planPreview.impacts.map((impact) => (
-                      <label key={impact.id} className={`block rounded-lg border px-2 py-2 ${impact.level === "block" ? "border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/30" : "border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/30"}`}>
-                        <div className="flex items-start gap-2">
-                          {impact.level === "warn" ? (
-                            <input
-                              type="checkbox"
-                              checked={acknowledgedImpactIds.includes(impact.id)}
-                              onChange={(event) => {
-                                setAcknowledgedImpactIds((prev) => {
-                                  if (event.target.checked) return [...new Set([...prev, impact.id])];
-                                  return prev.filter((id) => id !== impact.id);
-                                });
-                              }}
-                              className="mt-0.5"
-                            />
-                          ) : (
-                            <span className="mt-0.5 inline-block h-2 w-2 rounded-full bg-red-500" />
-                          )}
-                          <div>
-                            <p className="font-medium text-zinc-900 dark:text-zinc-100">{impact.title}</p>
-                            <p className="text-xs text-zinc-600 dark:text-zinc-400">{impact.detail}</p>
-                          </div>
-                        </div>
-                      </label>
-                    ))
-                  )}
-                </div>
-
-                <textarea
-                  value={planReason}
-                  onChange={(event) => setPlanReason(event.target.value)}
-                  placeholder="Opcional: cuéntanos qué necesitas mejorar"
-                  className="min-h-24 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                />
-
-                <button
-                  type="button"
-                  onClick={handlePlanRequest}
-                  disabled={planChangeBusy || planPreviewLoading || !planPreview}
-                  className="mt-auto h-11 w-full rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
-                >
-                  {planChangeBusy
-                    ? "Procesando..."
-                    : (planPreview?.pricing.monthlyDiff ?? 0) < 0
-                    ? "Programar downgrade al cierre"
-                    : planPreview?.pricing.requiresPayment
-                    ? "Pagar y cambiar plan"
-                    : "Cambiar plan ahora"}
-                </button>
-              </div>
-            </div>
-
-            <div className="flex h-full flex-col rounded-2xl border border-zinc-200 bg-white/80 p-5 dark:border-zinc-700 dark:bg-zinc-900/80">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">3B. Accion complementaria</p>
-              <h3 className="mt-1 text-base font-semibold text-zinc-900 dark:text-zinc-100">Quiero agregar un extra</h3>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Selecciona el servicio, revisa el impacto y compra desde aqui.</p>
-
-              <div className="mt-3 flex flex-1 flex-col gap-3">
-                <select
-                  value={targetAddonId}
-                  onChange={(event) => setTargetAddonId(event.target.value)}
-                  aria-label="Seleccionar extra"
-                  className="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                >
-                  {availableAddons.map((addon) => (
-                    <option key={addon.id} value={addon.id}>
-                      {addon.name}
-                      {ownedAddonKeys.has(normalizeAddonIdentity({ id: addon.id, name: addon.name, type: addon.type })) ? " (Ya activo)" : ""}
-                    </option>
-                  ))}
-                </select>
-
-                {selectedAddonOption ? (
-                  <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 font-medium text-indigo-700 dark:border-indigo-900/50 dark:bg-indigo-950/30 dark:text-indigo-300">
-                      {selectedAddonModeLabel}
-                    </span>
-                    {selectedAddonSingleInstance ? (
-                      <span className="rounded-full border border-zinc-300 bg-zinc-50 px-2.5 py-1 font-medium text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-300">
-                        Instancia unica
-                      </span>
-                    ) : null}
-                  </div>
-                ) : null}
-
-                {selectedAddonOwned ? (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
-                    Ya tienes este extra activo.
-                    {selectedAddonSingleInstance
-                      ? " No se puede comprar nuevamente."
-                      : " Si necesitas otra configuracion, escríbenos en notas."}
-                  </div>
-                ) : null}
-
-                {addonPreview?.planOffer?.status === "included" ? (
-                  <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800 dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-200">
-                    {addonPreview.planOffer.reason}
-                  </div>
-                ) : null}
-
-                {addonPreview?.planOffer?.status === "blocked" ? (
-                  <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
-                    {addonPreview.planOffer.reason}
-                  </div>
-                ) : null}
-
-                <div className="grid max-w-[220px] grid-cols-[44px_1fr_44px] items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setAddonQty(String(Math.max(1, selectedAddonEffectiveQty - 1)))}
-                    className="h-11 w-11 rounded-xl border border-zinc-300 text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                    aria-label="Disminuir cantidad"
-                    disabled={selectedAddonSingleInstance}
-                  >
-                    -
-                  </button>
-                  <input
-                    type="number"
-                    min={1}
-                    value={selectedAddonEffectiveQty}
-                    onChange={(event) => setAddonQty(event.target.value)}
-                    className="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-center text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                    placeholder="Cantidad"
-                    disabled={selectedAddonSingleInstance}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setAddonQty(String(selectedAddonEffectiveQty + 1))}
-                    className="h-11 w-11 rounded-xl border border-zinc-300 text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                    aria-label="Aumentar cantidad"
-                    disabled={selectedAddonSingleInstance}
-                  >
-                    +
-                  </button>
-                </div>
-
-                {selectedAddonSingleInstance ? (
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Este extra es de instancia unica. La cantidad siempre sera 1.</p>
-                ) : null}
-
-                <input
-                  type="number"
-                  min={1}
-                  max={24}
-                  value={selectedAddonIsMonthly ? addonMonthsNumber : 1}
-                  onChange={(event) => setAddonMonths(event.target.value)}
-                  className="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                  placeholder={selectedAddonIsMonthly ? "Meses" : "Meses (no aplica)"}
-                  aria-label="Meses para extra"
-                  disabled={!selectedAddonIsMonthly}
-                />
-
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  {selectedAddonIsMonthly
-                    ? "Este extra se cobra por mes y queda co-terminado con tu plan."
-                    : "Este extra se cobra una sola vez. El campo de meses no aplica."}
-                </p>
-
-                {addonPreview?.pricing.requiresPayment ? (
-                  <div className="space-y-2">
-                    <select
-                      value={addonMethodSlug}
-                      onChange={(event) => setAddonMethodSlug(event.target.value)}
-                      aria-label="Metodo de pago para extra"
-                      className="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                    >
-                      {addonPreview.paymentMethods.map((method) => (
-                        <option key={method.id} value={method.slug}>
-                          {method.name}
-                        </option>
-                      ))}
-                    </select>
-                    {selectedAddonMethodOption ? (
-                      <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-700 dark:bg-zinc-800/50">
-                        <p className="font-semibold text-zinc-900 dark:text-zinc-100">{selectedAddonMethodOption.name}</p>
-                        <p className="text-zinc-600 dark:text-zinc-400">
-                          {selectedAddonMethodOption.auto_verify
-                            ? "Validacion automatica. Se activa al confirmar el pago."
-                            : "Validacion manual. Se activara al validar el comprobante."}
-                        </p>
-                        {Object.entries(selectedAddonMethodOption.config).length > 0 ? (
-                          <div className="mt-2 space-y-1">
-                            {Object.entries(selectedAddonMethodOption.config).map(([key, value]) => (
-                              <p key={key} className="text-zinc-700 dark:text-zinc-300">
-                                <span className="font-medium">{formatPaymentConfigKey(key)}:</span> {value}
-                              </p>
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : (
-                  <div className="grid h-11 place-items-center rounded-xl border border-zinc-200 bg-zinc-50 text-xs text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-400">
-                    No requiere pago adicional
-                  </div>
-                )}
-
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
-                  <p className="text-zinc-700 dark:text-zinc-300">Precio unitario: <span className="font-semibold">{fmtMoney(addonPreview?.pricing.unitPrice ?? addonEstimatedUnit)}</span></p>
-                  <p className="text-zinc-700 dark:text-zinc-300">Total estimado: <span className="font-semibold">{fmtMoney(addonPreview?.pricing.amountDue ?? addonEstimatedTotal)}</span></p>
-                  <p className="text-zinc-600 dark:text-zinc-400">{selectedAddonIsMonthly ? "Cobro mensual co-terminado con tu plan." : "Cobro unico."}</p>
-                </div>
-
-                <div className="space-y-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">Impacto del extra</p>
-                  {addonPreviewLoading ? (
-                    <p className="text-zinc-500 dark:text-zinc-400">Calculando impacto...</p>
-                  ) : !addonPreview ? (
-                    <p className="text-zinc-500 dark:text-zinc-400">No se pudo calcular impacto para este extra.</p>
-                  ) : addonPreview.impacts.length === 0 ? (
-                    <p className="text-zinc-500 dark:text-zinc-400">Sin impactos detectados.</p>
-                  ) : (
-                    addonPreview.impacts.map((impact) => (
-                      <label key={impact.id} className={`block rounded-lg border px-2 py-2 ${impact.level === "block" ? "border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/30" : "border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/30"}`}>
-                        <div className="flex items-start gap-2">
-                          {impact.level === "warn" ? (
-                            <input
-                              type="checkbox"
-                              checked={acknowledgedAddonImpactIds.includes(impact.id)}
-                              onChange={(event) => {
-                                setAcknowledgedAddonImpactIds((prev) => {
-                                  if (event.target.checked) return [...new Set([...prev, impact.id])];
-                                  return prev.filter((id) => id !== impact.id);
-                                });
-                              }}
-                              className="mt-0.5"
-                            />
-                          ) : (
-                            <span className="mt-0.5 inline-block h-2 w-2 rounded-full bg-red-500" />
-                          )}
-                          <div>
-                            <p className="font-medium text-zinc-900 dark:text-zinc-100">{impact.title}</p>
-                            <p className="text-xs text-zinc-600 dark:text-zinc-400">{impact.detail}</p>
-                          </div>
-                        </div>
-                      </label>
-                    ))
-                  )}
-                </div>
-
-                <textarea
-                  value={addonNotes}
-                  onChange={(event) => setAddonNotes(event.target.value)}
-                  placeholder="Opcional: agrega contexto para soporte"
-                  className="min-h-24 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                />
-
-                <button
-                  type="button"
-                  onClick={handleAddonRequest}
-                  disabled={addonPurchaseBusy || addonPreviewLoading || !addonPreview || (selectedAddonSingleInstance && selectedAddonOwned)}
-                  className="mt-auto h-11 w-full rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
-                >
-                  {addonPurchaseBusy
-                    ? "Procesando..."
-                    : addonPreview?.pricing.requiresPayment
-                    ? "Pagar y activar extra"
-                    : "Activar extra ahora"}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid items-stretch gap-4 xl:grid-cols-2">
-            <div className="flex h-full flex-col rounded-2xl border border-zinc-200 bg-white/80 p-5 dark:border-zinc-700 dark:bg-zinc-900/80">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">4. Servicios activos</p>
-              <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Tus extras activos</h3>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Servicios que ya tienes habilitados en tu cuenta.</p>
-              <div className="mt-3 flex min-h-[16rem] flex-1 flex-col gap-2">
-                {activeAddonRows.length === 0 ? (
-                  <div className="grid h-full place-items-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50/50 px-4 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800/30 dark:text-zinc-400">
-                    Aun no tienes extras activos.
-                  </div>
-                ) : (
-                  activeAddonRows.map((addon) => (
-                    <div key={addon.id} className="rounded-xl border border-zinc-200 bg-zinc-50/60 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/40">
-                      <p className="font-medium text-zinc-900 dark:text-zinc-100">{addon.addonName}</p>
-                      <p className="text-zinc-600 dark:text-zinc-400">Estado: {toDisplayLabel(addon.status, ADDON_STATUS_LABELS)}</p>
-                      <p className="text-zinc-600 dark:text-zinc-400">Tipo: {addon.expires_at ? "Mensual co-terminado" : "Pago unico"}</p>
-                      <p className="text-zinc-600 dark:text-zinc-400">Vence: {fmtDate(addon.expires_at)}</p>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <div className="flex h-full flex-col rounded-2xl border border-zinc-200 bg-white/80 p-5 dark:border-zinc-700 dark:bg-zinc-900/80">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">5. Historial operativo</p>
-              <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Compras de sucursales extra</h3>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Historial resumido para seguimiento rápido.</p>
-              <div className="mt-3 flex min-h-[16rem] flex-1 flex-col space-y-2 overflow-y-auto pr-1">
-                {branchEntitlements.length === 0 ? (
-                  <div className="grid h-full place-items-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50/50 px-4 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800/30 dark:text-zinc-400">
-                    Todavia no hay compras registradas.
-                  </div>
-                ) : (
-                  branchEntitlements.map((entitlement) => (
-                    <div key={entitlement.id} className="rounded-xl border border-zinc-200 bg-zinc-50/60 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/40">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="font-medium text-zinc-900 dark:text-zinc-100">{entitlement.quantity} sucursal(es) · {fmtMoney(entitlement.amountPaid)}</p>
-                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{fmtDate(entitlement.createdAt)}</span>
-                      </div>
-                      <p className="mt-1 text-zinc-600 dark:text-zinc-400">Estado: {toDisplayLabel(entitlement.status, ADDON_STATUS_LABELS)}</p>
-                      <p className="text-zinc-600 dark:text-zinc-400">Referencia: {entitlement.paymentReference ?? "-"}</p>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
+        <AccountPlanTab
+          company={company}
+          recommendedPlanOption={recommendedPlanOption}
+          targetPlanId={targetPlanId}
+          setTargetPlanId={setTargetPlanId}
+          planMonthlyDelta={planMonthlyDelta}
+          planAnnualDelta={planAnnualDelta}
+          setPlanMonths={setPlanMonths}
+          activeAddonRows={activeAddonRows}
+          subscriptionEndsAt={subscriptionEndsAt}
+          subscriptionCancelReason={subscriptionCancelReason}
+          setSubscriptionCancelReason={setSubscriptionCancelReason}
+          subscriptionCancelError={subscriptionCancelError}
+          subscriptionCancelOk={subscriptionCancelOk}
+          subscriptionCancelBusy={subscriptionCancelBusy}
+          cancellationScheduled={cancellationScheduled}
+          subscriptionReactivateBusy={subscriptionReactivateBusy}
+          setSubscriptionCancelAcknowledge={setSubscriptionCancelAcknowledge}
+          setSubscriptionCancelFinalConfirm={setSubscriptionCancelFinalConfirm}
+          setSubscriptionCancelModalOpen={setSubscriptionCancelModalOpen}
+          canReactivateCancellation={canReactivateCancellation}
+          handleReactivateSubscription={handleReactivateSubscription}
+          addonOfferMatrix={addonOfferMatrix}
+          availablePlans={availablePlans}
+          planPreview={planPreview}
+          planPreviewLoading={planPreviewLoading}
+          selectedPlanOption={selectedPlanOption}
+          planMonths={planMonths}
+          planMethodSlug={planMethodSlug}
+          setPlanMethodSlug={setPlanMethodSlug}
+          selectedPlanMethodOption={selectedPlanMethodOption}
+          planReason={planReason}
+          setPlanReason={setPlanReason}
+          handlePlanRequest={handlePlanRequest}
+          planChangeBusy={planChangeBusy}
+          acknowledgedImpactIds={acknowledgedImpactIds}
+          setAcknowledgedImpactIds={setAcknowledgedImpactIds}
+          availableAddons={availableAddons}
+          targetAddonId={targetAddonId}
+          setTargetAddonId={setTargetAddonId}
+          ownedAddonKeys={ownedAddonKeys}
+          selectedAddonOption={selectedAddonOption}
+          selectedAddonModeLabel={selectedAddonModeLabel}
+          selectedAddonSingleInstance={selectedAddonSingleInstance}
+          selectedAddonOwned={selectedAddonOwned}
+          addonPreview={addonPreview}
+          addonPreviewLoading={addonPreviewLoading}
+          setAddonQty={setAddonQty}
+          selectedAddonEffectiveQty={selectedAddonEffectiveQty}
+          addonMonthsNumber={addonMonthsNumber}
+          addonMonths={addonMonths}
+          setAddonMonths={setAddonMonths}
+          selectedAddonIsMonthly={selectedAddonIsMonthly}
+          addonMethodSlug={addonMethodSlug}
+          setAddonMethodSlug={setAddonMethodSlug}
+          selectedAddonMethodOption={selectedAddonMethodOption}
+          addonEstimatedUnit={addonEstimatedUnit}
+          addonEstimatedTotal={addonEstimatedTotal}
+          addonNotes={addonNotes}
+          setAddonNotes={setAddonNotes}
+          handleAddonRequest={handleAddonRequest}
+          addonPurchaseBusy={addonPurchaseBusy}
+          acknowledgedAddonImpactIds={acknowledgedAddonImpactIds}
+          setAcknowledgedAddonImpactIds={setAcknowledgedAddonImpactIds}
+          branchEntitlements={branchEntitlements}
+        />
       ) : null}
 
       {tab === "sucursales" ? (
-        <section className="grid gap-4 xl:grid-cols-2">
-          <div className="rounded-2xl border border-zinc-200 bg-white/80 p-5 dark:border-zinc-700 dark:bg-zinc-900/80">
-            <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Sucursales actuales</h2>
-            <div className="mt-3 space-y-2">
-              {branches.length === 0 ? (
-                <p className="text-sm text-zinc-500">No tienes sucursales registradas.</p>
-              ) : (
-                branches.map((branch) => (
-                  <div key={branch.id} className="rounded-xl border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700">
-                    <p className="font-medium text-zinc-900 dark:text-zinc-100">{branch.name}</p>
-                    <p className="text-zinc-600 dark:text-zinc-400">{branch.address || "Sin direccion"}</p>
-                    <p className="text-zinc-600 dark:text-zinc-400">{branch.is_active ? "Activa" : "Inactiva"}</p>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-200 bg-white/80 p-5 dark:border-zinc-700 dark:bg-zinc-900/80">
-            <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Solicitar nueva sucursal</h2>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-              {billingLoading
-                ? "Cargando reglas de expansion..."
-                : canRequestBranchWithoutPayment
-                ? "Tu plan todavia tiene cupo. Enviaremos la solicitud para crear la sucursal."
-                : "Llegaste al limite de sucursales del plan. Debes generar pago de expansion para continuar."}
-            </p>
-
-            <div className="mt-3 flex flex-wrap gap-2">
-              {([
-                [1, "Datos"],
-                [2, "Impacto"],
-                [3, "Confirmacion"],
-              ] as const).map(([step, label]) => (
-                <button
-                  key={step}
-                  type="button"
-                  onClick={() => {
-                    if (step === 3 && isProjectedCapacityInvalid) {
-                      setBillingError("La proyeccion supera tu capacidad disponible. Ajusta la cantidad antes de continuar.");
-                      return;
-                    }
-                    setBranchFlowStep(step);
-                  }}
-                  className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
-                    branchFlowStep === step
-                      ? "border-indigo-500 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300"
-                      : "border-zinc-300 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                  }`}
-                >
-                  Paso {step}: {label}
-                </button>
-              ))}
-            </div>
-
-            {!billingLoading && !canRequestBranchWithoutPayment ? (
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                Precio base por sucursal extra: {fmtMoney(branchUnitPrice)} / mes. Si tu plan vence pronto,
-                el primer cobro se prorratea y el extra queda alineado al vencimiento del plan.
-              </p>
-            ) : null}
-
-            <div className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50/80 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
-              <p className="font-medium text-zinc-900 dark:text-zinc-100">Capacidad actual</p>
-              <p className="text-zinc-600 dark:text-zinc-400">
-                {activeBranchesCount} activas
-                {billingOptions?.maxBranches != null ? ` de ${billingOptions.maxBranches} incluidas` : " (plan sin limite)"}
-              </p>
-              {typeof billingOptions?.extraBranchEntitlements === "number" && billingOptions.extraBranchEntitlements > 0 ? (
-                <p className="text-zinc-600 dark:text-zinc-400">
-                  + {billingOptions.extraBranchEntitlements} extra(s) compradas · capacidad efectiva: {billingOptions.effectiveMaxBranches ?? "sin limite"}
-                </p>
-              ) : null}
-            </div>
-
-            {billingError ? (
-              <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
-                {billingError}
-              </div>
-            ) : null}
-
-            {billingOk ? (
-              <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300">
-                {billingOk}
-              </div>
-            ) : null}
-
-            <div className="mt-3 space-y-3">
-              {branchFlowStep === 1 ? (
-                <>
-                  <input
-                    value={canRequestBranchWithoutPayment ? branchRequestName : expansionBranchName}
-                    onChange={(event) =>
-                      canRequestBranchWithoutPayment
-                        ? setBranchRequestName(event.target.value)
-                        : setExpansionBranchName(event.target.value)
-                    }
-                    placeholder="Nombre de la sucursal"
-                    className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                  />
-                  <input
-                    value={canRequestBranchWithoutPayment ? branchRequestAddress : expansionBranchAddress}
-                    onChange={(event) =>
-                      canRequestBranchWithoutPayment
-                        ? setBranchRequestAddress(event.target.value)
-                        : setExpansionBranchAddress(event.target.value)
-                    }
-                    placeholder="Direccion estimada"
-                    className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                  />
-                </>
-              ) : null}
-
-              {branchFlowStep === 2 ? (
-                <>
-                  {!canRequestBranchWithoutPayment ? (
-                    <div className="grid gap-2 sm:grid-cols-3">
-                      <input
-                        type="number"
-                        min={1}
-                        value={expansionQty}
-                        onChange={(event) => setExpansionQty(event.target.value)}
-                        className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                        placeholder="Cantidad"
-                      />
-                      <input
-                        type="number"
-                        min={1}
-                        value={expansionMonths}
-                        onChange={(event) => setExpansionMonths(event.target.value)}
-                        className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                        placeholder="Meses"
-                      />
-                      <select
-                        value={expansionMethodSlug}
-                        onChange={(event) => setExpansionMethodSlug(event.target.value)}
-                        aria-label="Metodo de pago"
-                        className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                      >
-                        {billingOptions?.paymentMethods.map((method) => (
-                          <option key={method.id} value={method.slug}>
-                            {method.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ) : null}
-
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
-                      <p className="text-xs text-zinc-500">Capacidad actual</p>
-                      <p className="font-semibold text-zinc-900 dark:text-zinc-100">
-                        {activeBranchesCount} activas / {billingOptions?.effectiveMaxBranches ?? "sin limite"}
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
-                      <p className="text-xs text-zinc-500">Capacidad proyectada</p>
-                      <p className="font-semibold text-zinc-900 dark:text-zinc-100">
-                        {projectedActiveBranches} activas / {projectedEffectiveMaxBranches ?? "sin limite"}
-                      </p>
-                      <p className={`text-xs ${projectedRemainingBranches != null && projectedRemainingBranches < 0 ? "text-red-600 dark:text-red-400" : "text-zinc-500 dark:text-zinc-400"}`}>
-                        Cupo restante: {projectedRemainingBranches ?? "sin limite"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {isProjectedCapacityInvalid ? (
-                    <p className="text-xs text-red-600 dark:text-red-400">
-                      La proyeccion queda por debajo de 0 cupos. Incrementa la cantidad de expansion para continuar.
-                    </p>
-                  ) : null}
-
-                  {!canRequestBranchWithoutPayment ? (
-                    <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
-                      <p className="font-medium text-zinc-900 dark:text-zinc-100">Resumen de cobro proyectado</p>
-                      <p className="text-zinc-600 dark:text-zinc-400">
-                        {fmtMoney(branchUnitPrice)} x {expansionQtyNumber} x {expansionMonthsNumber} = {fmtMoney(expansionAmount)}
-                      </p>
-                      {typeof billingOptions?.daysUntilPlanEnd === "number" && billingOptions.daysUntilPlanEnd > 0 ? (
-                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                          Dias hasta vencimiento del plan: {billingOptions.daysUntilPlanEnd}. El total final puede prorratearse en el primer ciclo.
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </>
-              ) : null}
-
-              {branchFlowStep === 3 ? (
-                <>
-                  <textarea
-                    value={canRequestBranchWithoutPayment ? branchRequestNotes : expansionNotes}
-                    onChange={(event) =>
-                      canRequestBranchWithoutPayment
-                        ? setBranchRequestNotes(event.target.value)
-                        : setExpansionNotes(event.target.value)
-                    }
-                    placeholder="Notas para soporte/facturacion"
-                    className="min-h-24 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                  />
-
-                  {canRequestBranchWithoutPayment ? (
-                    <button
-                      type="button"
-                      onClick={handleBranchRequest}
-                      disabled={busy || billingLoading}
-                      className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
-                    >
-                      {busy ? "Enviando..." : "Enviar solicitud de sucursal"}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleCreateExpansionPayment}
-                      disabled={busy || billingLoading || !billingOptions?.paymentMethods.length}
-                      className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
-                    >
-                      {busy ? "Creando orden..." : "Generar orden de pago"}
-                    </button>
-                  )}
-
-                  {createdExpansionPayment ? (
-                    <div className="space-y-3 rounded-2xl border border-indigo-200 bg-indigo-50/60 p-3 dark:border-indigo-900/50 dark:bg-indigo-950/30">
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.14em] text-indigo-600 dark:text-indigo-300">Referencia</p>
-                        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                          {createdExpansionPayment.payment.payment_reference}
-                        </p>
-                        <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                          Estado: {toDisplayLabel(createdExpansionPayment.payment.status ?? "pending", PAYMENT_STATUS_LABELS)}
-                        </p>
-                        <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                          Total cobrado: {fmtMoney(createdExpansionPayment.instructions.summary.amount)}
-                        </p>
-                        {typeof createdExpansionPayment.instructions.summary.firstCycleFactor === "number" &&
-                        typeof createdExpansionPayment.instructions.summary.effectiveMonths === "number" ? (
-                          <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                            Prorrateo primer ciclo: {createdExpansionPayment.instructions.summary.firstCycleFactor.toFixed(3)} · meses efectivos: {createdExpansionPayment.instructions.summary.effectiveMonths.toFixed(3)}
-                          </p>
-                        ) : null}
-                      </div>
-
-                      <div className="rounded-xl border border-indigo-200 bg-white px-3 py-2 text-sm dark:border-indigo-900/50 dark:bg-zinc-900/70">
-                        <p className="font-medium text-zinc-900 dark:text-zinc-100">
-                          {createdExpansionPayment.instructions.method.name}
-                        </p>
-                        {Object.entries(createdExpansionPayment.instructions.method.config).length === 0 ? (
-                          <p className="text-zinc-600 dark:text-zinc-400">Sin instrucciones adicionales.</p>
-                        ) : (
-                          Object.entries(createdExpansionPayment.instructions.method.config).map(([key, value]) => (
-                            <p key={key} className="text-zinc-600 dark:text-zinc-400">
-                              <span className="font-medium text-zinc-800 dark:text-zinc-200">{key}:</span> {value}
-                            </p>
-                          ))
-                        )}
-                      </div>
-
-                      {createdExpansionPayment.instructions.summary.requiresManualProof ? (
-                        <div className="space-y-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900/70">
-                          <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Cargar comprobante</p>
-                          <input
-                            type="file"
-                            accept="image/*,application/pdf"
-                            aria-label="Cargar comprobante de pago"
-                            title="Cargar comprobante de pago"
-                            onChange={(event) => {
-                              const file = event.target.files?.[0];
-                              if (file) {
-                                void handleUploadPaymentProof(file);
-                              }
-                            }}
-                            className="block w-full text-xs text-zinc-600 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-600 file:px-3 file:py-2 file:font-semibold file:text-white hover:file:bg-indigo-500 dark:text-zinc-300"
-                          />
-                          {proofUploading ? <p className="text-xs text-zinc-500">Subiendo comprobante...</p> : null}
-                          {proofFileUrl ? (
-                            <a
-                              href={proofFileUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
-                            >
-                              Ver comprobante cargado
-                            </a>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </>
-              ) : null}
-
-              <div className="flex items-center justify-between gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-700">
-                <button
-                  type="button"
-                  onClick={handleBranchWizardBack}
-                  disabled={branchFlowStep === 1}
-                  className="rounded-xl border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                >
-                  Anterior
-                </button>
-                <button
-                  type="button"
-                  onClick={handleBranchWizardNext}
-                  disabled={branchFlowStep === 3 || (branchFlowStep === 2 && isProjectedCapacityInvalid)}
-                  className="rounded-xl border border-indigo-300 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50 dark:border-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-950/50"
-                >
-                  Continuar
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
+        <AccountSucursalesTab
+          branches={branches}
+          billingLoading={billingLoading}
+          canRequestBranchWithoutPayment={canRequestBranchWithoutPayment}
+          branchUnitPrice={branchUnitPrice}
+          branchFlowStep={branchFlowStep}
+          setBranchFlowStep={setBranchFlowStep}
+          isProjectedCapacityInvalid={isProjectedCapacityInvalid}
+          setBillingError={setBillingError}
+          billingOptions={billingOptions}
+          activeBranchesCount={activeBranchesCount}
+          billingError={billingError}
+          billingOk={billingOk}
+          branchRequestName={branchRequestName}
+          setBranchRequestName={setBranchRequestName}
+          expansionBranchName={expansionBranchName}
+          setExpansionBranchName={setExpansionBranchName}
+          branchRequestAddress={branchRequestAddress}
+          setBranchRequestAddress={setBranchRequestAddress}
+          expansionBranchAddress={expansionBranchAddress}
+          setExpansionBranchAddress={setExpansionBranchAddress}
+          expansionQty={expansionQty}
+          setExpansionQty={setExpansionQty}
+          expansionMonths={expansionMonths}
+          setExpansionMonths={setExpansionMonths}
+          expansionMethodSlug={expansionMethodSlug}
+          setExpansionMethodSlug={setExpansionMethodSlug}
+          projectedActiveBranches={projectedActiveBranches}
+          projectedEffectiveMaxBranches={projectedEffectiveMaxBranches}
+          projectedRemainingBranches={projectedRemainingBranches}
+          expansionQtyNumber={expansionQtyNumber}
+          expansionMonthsNumber={expansionMonthsNumber}
+          expansionAmount={expansionAmount}
+          branchRequestNotes={branchRequestNotes}
+          setBranchRequestNotes={setBranchRequestNotes}
+          expansionNotes={expansionNotes}
+          setExpansionNotes={setExpansionNotes}
+          busy={busy}
+          onBranchRequest={handleBranchRequest}
+          onCreateExpansionPayment={handleCreateExpansionPayment}
+          createdExpansionPayment={createdExpansionPayment}
+          proofUploading={proofUploading}
+          proofFileUrl={proofFileUrl}
+          onUploadPaymentProof={handleUploadPaymentProof}
+          onBranchWizardBack={handleBranchWizardBack}
+          onBranchWizardNext={handleBranchWizardNext}
+        />
       ) : null}
 
       {tab === "facturacion" ? (
-        <section className="rounded-2xl border border-zinc-200 bg-white/80 p-5 dark:border-zinc-700 dark:bg-zinc-900/80">
-          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Facturacion y cobros</h2>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            Revisa tus pagos, estado de cobro y comprobantes disponibles.
-          </p>
-
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
-              <p className="text-xs text-zinc-500">Total pagado</p>
-              <p className="font-semibold text-zinc-900 dark:text-zinc-100">{fmtMoney(billingPaidTotal)}</p>
-            </div>
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
-              <p className="text-xs text-zinc-500">Pendiente</p>
-              <p className="font-semibold text-amber-700 dark:text-amber-300">{fmtMoney(billingPendingTotal)}</p>
-            </div>
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
-              <p className="text-xs text-zinc-500">Pagos pendientes</p>
-              <p className="font-semibold text-zinc-900 dark:text-zinc-100">{pendingPaymentsCount}</p>
-            </div>
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
-              <p className="text-xs text-zinc-500">Ultimo pago aprobado</p>
-              <p className="font-semibold text-zinc-900 dark:text-zinc-100">{fmtDate(latestPaidPaymentDate)}</p>
-            </div>
-          </div>
-
-          <div className="mt-3 grid gap-2 sm:grid-cols-5">
-            <select
-              value={paymentStatusFilter}
-              onChange={(event) => setPaymentStatusFilter(event.target.value)}
-              aria-label="Filtrar por estado de pago"
-              className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-            >
-              <option value="all">Todos los estados</option>
-              <option value="pending">Pendiente</option>
-              <option value="pending_validation">Pendiente de validacion</option>
-              <option value="paid">Pagado</option>
-              <option value="failed">Fallido</option>
-              <option value="cancelled">Cancelado</option>
-            </select>
-            <input
-              type="text"
-              value={paymentReferenceQuery}
-              onChange={(event) => setPaymentReferenceQuery(event.target.value)}
-              placeholder="Buscar referencia"
-              aria-label="Buscar por referencia"
-              className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-            />
-            <input
-              type="date"
-              value={paymentDateFrom}
-              onChange={(event) => setPaymentDateFrom(event.target.value)}
-              aria-label="Fecha desde"
-              className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-            />
-            <input
-              type="date"
-              value={paymentDateTo}
-              onChange={(event) => setPaymentDateTo(event.target.value)}
-              aria-label="Fecha hasta"
-              className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-            />
-            <button
-              type="button"
-              onClick={handleExportPaymentsCsv}
-              className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
-            >
-              Exportar CSV
-            </button>
-          </div>
-
-          {createdExpansionPayment &&
-          ["pending", "pending_validation"].includes(createdExpansionPayment.payment.status ?? "") ? (
-            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
-              Hay una orden de expansion pendiente de validacion: {createdExpansionPayment.payment.payment_reference}. Puedes completar o verificar el comprobante desde la pestana de Sucursales.
-            </div>
-          ) : null}
-
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[760px] text-sm">
-              <thead>
-                <tr className="text-left text-zinc-500">
-                  <th className="px-2 py-2">Fecha</th>
-                  <th className="px-2 py-2">Monto</th>
-                  <th className="px-2 py-2">Estado</th>
-                  <th className="px-2 py-2">Metodo</th>
-                  <th className="px-2 py-2">Meses</th>
-                  <th className="px-2 py-2">Referencia</th>
-                  <th className="px-2 py-2">Comprobante</th>
-                  <th className="px-2 py-2">Accion</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPayments.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="px-2 py-3 text-zinc-500">
-                      No hay pagos para los filtros seleccionados.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredPayments.map((payment) => (
-                    <tr key={payment.id} className="border-t border-zinc-200 dark:border-zinc-700">
-                      <td className="px-2 py-2">{fmtDate(payment.payment_date)}</td>
-                      <td className="px-2 py-2">{fmtMoney(payment.amount_paid)}</td>
-                      <td className="px-2 py-2">{toDisplayLabel(payment.status, PAYMENT_STATUS_LABELS)}</td>
-                      <td className="px-2 py-2">{payment.payment_method ?? "-"}</td>
-                      <td className="px-2 py-2">{payment.months_paid ?? "-"}</td>
-                      <td className="px-2 py-2">{payment.payment_reference ?? "-"}</td>
-                      <td className="px-2 py-2">
-                        {payment.reference_file_url ? (
-                          <a
-                            href={payment.reference_file_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-indigo-600 hover:underline dark:text-indigo-400"
-                          >
-                            Ver archivo
-                          </a>
-                        ) : (
-                          "-"
-                        )}
-                      </td>
-                      <td className="px-2 py-2">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenBillingSupport(payment)}
-                          className="text-indigo-600 hover:underline dark:text-indigo-400"
-                        >
-                          Reportar
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-          <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-300">
-            Si necesitas factura o ajuste de cobro, usa la pestaña de Soporte y categoria Facturacion.
-          </div>
-        </section>
+        <AccountFacturacionTab
+          billingPaidTotal={billingPaidTotal}
+          billingPendingTotal={billingPendingTotal}
+          pendingPaymentsCount={pendingPaymentsCount}
+          latestPaidPaymentDate={latestPaidPaymentDate}
+          paymentStatusFilter={paymentStatusFilter}
+          setPaymentStatusFilter={setPaymentStatusFilter}
+          paymentReferenceQuery={paymentReferenceQuery}
+          setPaymentReferenceQuery={setPaymentReferenceQuery}
+          paymentDateFrom={paymentDateFrom}
+          setPaymentDateFrom={setPaymentDateFrom}
+          paymentDateTo={paymentDateTo}
+          setPaymentDateTo={setPaymentDateTo}
+          filteredPayments={filteredPayments}
+          createdExpansionPayment={createdExpansionPayment}
+          onExportPaymentsCsv={handleExportPaymentsCsv}
+          onOpenBillingSupport={handleOpenBillingSupport}
+        />
       ) : null}
 
       {tab === "soporte" ? (
-        <section className="grid gap-4 lg:grid-cols-[1.1fr_1.9fr]">
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-zinc-200 bg-white/80 p-5 dark:border-zinc-700 dark:bg-zinc-900/80">
-              <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Crear ticket</h2>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleApplySupportTemplate("facturacion")}
-                  className="rounded-full border border-zinc-300 px-3 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                >
-                  Plantilla facturacion
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleApplySupportTemplate("tecnico")}
-                  className="rounded-full border border-zinc-300 px-3 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                >
-                  Plantilla tecnica
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleApplySupportTemplate("sucursales")}
-                  className="rounded-full border border-zinc-300 px-3 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                >
-                  Plantilla sucursales
-                </button>
-              </div>
-              <div className="mt-3 space-y-2">
-                <input
-                  value={supportSubject}
-                  onChange={(event) => setSupportSubject(event.target.value)}
-                  placeholder="Asunto"
-                  className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  <select
-                    value={supportCategory}
-                    onChange={(event) => setSupportCategory(event.target.value as typeof supportCategory)}
-                    aria-label="Categoria del ticket"
-                    className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                  >
-                    <option value="general">{SUPPORT_CATEGORY_LABELS.general}</option>
-                    <option value="billing">{SUPPORT_CATEGORY_LABELS.billing}</option>
-                    <option value="technical">{SUPPORT_CATEGORY_LABELS.technical}</option>
-                    <option value="product">{SUPPORT_CATEGORY_LABELS.product}</option>
-                    <option value="account">{SUPPORT_CATEGORY_LABELS.account}</option>
-                  </select>
-                  <select
-                    value={supportPriority}
-                    onChange={(event) => setSupportPriority(event.target.value as typeof supportPriority)}
-                    aria-label="Prioridad del ticket"
-                    className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                  >
-                    <option value="low">{PRIORITY_LABELS.low}</option>
-                    <option value="medium">{PRIORITY_LABELS.medium}</option>
-                    <option value="high">{PRIORITY_LABELS.high}</option>
-                    <option value="critical">{PRIORITY_LABELS.critical}</option>
-                  </select>
-                </div>
-                <textarea
-                  value={supportDescription}
-                  onChange={(event) => setSupportDescription(event.target.value)}
-                  placeholder="Describe el problema o solicitud"
-                  className="min-h-28 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                />
-                <button
-                  type="button"
-                  onClick={handleSupportTicket}
-                  disabled={busy}
-                  className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
-                >
-                  {busy ? "Enviando..." : "Crear ticket"}
-                </button>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-zinc-200 bg-white/80 p-5 dark:border-zinc-700 dark:bg-zinc-900/80">
-              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Mis tickets</h3>
-              <div className="mt-3 space-y-2">
-                {tickets.length === 0 ? (
-                  <p className="text-sm text-zinc-500">No tienes tickets aun.</p>
-                ) : (
-                  tickets.map((ticket) => (
-                    <button
-                      key={ticket.id}
-                      type="button"
-                      onClick={() => handleSelectTicket(ticket.id)}
-                      className={`w-full rounded-xl border px-3 py-2 text-left text-sm transition ${
-                        selectedTicketId === ticket.id
-                          ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30"
-                          : "border-zinc-200 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800/60"
-                      }`}
-                    >
-                      <p className="font-medium text-zinc-900 dark:text-zinc-100">{ticket.subject}</p>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                        {STATUS_LABELS[ticket.status] ?? ticket.status} · {fmtDate(ticket.lastMessageAt)}
-                      </p>
-                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                        SLA objetivo: {getTicketSlaHours(ticket.priority)}h · Prioridad {PRIORITY_LABELS[ticket.priority] ?? ticket.priority}
-                      </p>
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-200 bg-white/80 p-5 dark:border-zinc-700 dark:bg-zinc-900/80">
-            <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Conversacion</h3>
-            {!selectedTicket ? (
-              <p className="mt-3 text-sm text-zinc-500">Selecciona un ticket para ver y responder mensajes.</p>
-            ) : (
-              <div className="mt-3 space-y-3">
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/60">
-                  <p className="font-medium text-zinc-900 dark:text-zinc-100">{selectedTicket.subject}</p>
-                  <p className="text-zinc-600 dark:text-zinc-400">{selectedTicket.description}</p>
-                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                    SLA objetivo: {getTicketSlaHours(selectedTicket.priority)}h · antiguedad aproximada: {(() => {
-                      const ageHours = getTicketAgeHours(selectedTicket.createdAt);
-                      if (ageHours == null) return "-";
-                      if (ageHours < 24) return `${Math.max(1, Math.floor(ageHours))}h`;
-                      return `${Math.floor(ageHours / 24)}d`;
-                    })()}
-                  </p>
-                </div>
-
-                <div className="max-h-80 space-y-2 overflow-y-auto rounded-xl border border-zinc-200 p-3 dark:border-zinc-700">
-                  {messageLoading ? (
-                    <p className="text-sm text-zinc-500">Cargando mensajes...</p>
-                  ) : messages.length === 0 ? (
-                    <p className="text-sm text-zinc-500">Sin mensajes adicionales.</p>
-                  ) : (
-                    messages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`rounded-xl px-3 py-2 text-sm ${
-                          message.author_type === "tenant"
-                            ? "ml-6 bg-indigo-50 text-zinc-800 dark:bg-indigo-950/30 dark:text-zinc-100"
-                            : "mr-6 bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100"
-                        }`}
-                      >
-                        <p>{message.message}</p>
-                        <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">{fmtDate(message.created_at)}</p>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <textarea
-                    value={messageDraft}
-                    onChange={(event) => setMessageDraft(event.target.value)}
-                    placeholder="Escribe una respuesta..."
-                    className="min-h-20 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleSendMessage}
-                    disabled={messageLoading || !messageDraft.trim()}
-                    className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
-                  >
-                    Enviar mensaje
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
+        <AccountSoporteTab
+          busy={busy}
+          supportSubject={supportSubject}
+          setSupportSubject={setSupportSubject}
+          supportCategory={supportCategory}
+          setSupportCategory={setSupportCategory}
+          supportPriority={supportPriority}
+          setSupportPriority={setSupportPriority}
+          supportDescription={supportDescription}
+          setSupportDescription={setSupportDescription}
+          onSupportTicket={handleSupportTicket}
+          onApplySupportTemplate={handleApplySupportTemplate}
+          tickets={tickets}
+          selectedTicketId={selectedTicketId}
+          onSelectTicket={handleSelectTicket}
+          selectedTicket={selectedTicket}
+          messageLoading={messageLoading}
+          messages={messages}
+          messageDraft={messageDraft}
+          setMessageDraft={setMessageDraft}
+          onSendMessage={handleSendMessage}
+        />
       ) : null}
 
       {subscriptionCancelModalOpen ? (
@@ -4478,7 +2058,7 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
             </p>
             <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-300">
               <p><strong>Fecha de vencimiento:</strong> {fmtDate(subscriptionEndsAt)}</p>
-              <p className="mt-1"><strong>Estado actual:</strong> {toDisplayLabel(subscriptionStatus, SUBSCRIPTION_STATUS_LABELS)}</p>
+              <p className="mt-1"><strong>Estado actual:</strong> {displayStatus(subscriptionStatus, SUBSCRIPTION_STATUS_LABELS)}</p>
             </div>
 
             <div className="mt-4 space-y-2">
@@ -4524,12 +2104,12 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
         </div>
       ) : null}
 
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-300">
-              Soporte directo: <a className="font-medium text-indigo-600 hover:underline dark:text-indigo-400" href={`mailto:${company.supportEmail}`}>{company.supportEmail}</a>
-            </div>
-          </main>
-        </div>
+      <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-300">
+        Soporte directo:{" "}
+        <a className="font-medium text-blue-700 hover:underline dark:text-blue-400" href={`mailto:${company.supportEmail}`}>
+          {company.supportEmail}
+        </a>
       </div>
-    </div>
+    </CustomerAccountShell>
   );
 }
