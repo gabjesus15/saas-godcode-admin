@@ -70,23 +70,21 @@ export async function GET() {
 
   let businessUrls: { loc: string; changefreq: string; priority: number }[] = [];
   if (companies) {
+    // Solo incluir subdominios bajo godcode.me
+    const mainDomain = base.replace(/^https?:\/\//, "");
     for (const c of companies) {
-      // Subdominio
       if (c.public_slug) {
-        businessUrls.push({
-          loc: `https://${escapeXml(c.public_slug)}.${base.replace(/^https?:\/\//, "")}/menu`,
-          changefreq: "weekly",
-          priority: 0.8,
-        });
+        // Solo incluir si termina en .godcode.me
+        const subdomainUrl = `${escapeXml(c.public_slug)}.${mainDomain}`;
+        if (subdomainUrl.endsWith(".godcode.me")) {
+          businessUrls.push({
+            loc: `https://${subdomainUrl}/menu`,
+            changefreq: "weekly",
+            priority: 0.8,
+          });
+        }
       }
-      // Dominio personalizado
-      if (c.custom_domain && c.subscription_status === "active") {
-        businessUrls.push({
-          loc: `https://${escapeXml(c.custom_domain)}/menu`,
-          changefreq: "weekly",
-          priority: 0.8,
-        });
-      }
+      // NO incluir dominios personalizados
     }
   }
 
