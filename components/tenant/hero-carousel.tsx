@@ -29,14 +29,19 @@ function HeroSlide({
 }) {
 	const rawUrl = banner.image_url?.trim() ?? "";
 	const isCloudinary = rawUrl.includes("res.cloudinary.com");
-	const imageUrl =
-		getCloudinaryOptimizedUrl(rawUrl, {
-			width: 1400,
-			height: 622,
-			crop: "fill",
-			gravity: "auto",
-			quality: "auto",
-		}) || FALLBACK_IMAGE;
+	const fallbackUrl = rawUrl || FALLBACK_IMAGE;
+
+	// Loader personalizado para aprovechar srcset (resoluciones dinámicas)
+	const cloudinaryLoader = ({ src, width }: { src: string; width: number }) => {
+		return (
+			getCloudinaryOptimizedUrl(src, {
+				width,
+				crop: "fill",
+				gravity: "auto",
+				quality: "auto",
+			}) || src
+		);
+	};
 
 	return (
 		<div
@@ -45,18 +50,19 @@ function HeroSlide({
 			<div className="hero-slide-media">
 				{isCloudinary ? (
 					<Image
-						src={imageUrl}
+						src={isCloudinary ? rawUrl : fallbackUrl}
 						alt="Promoción"
 						fill
 						sizes="100vw"
 						className="hero-slide-image"
 						priority={isFirst}
-						unoptimized
+						loader={isCloudinary ? cloudinaryLoader : undefined}
+						unoptimized={!isCloudinary}
 					/>
 				) : (
 					// eslint-disable-next-line @next/next/no-img-element -- rutas /public y dominios del tenant no están en images.remotePatterns
 					<img
-						src={imageUrl || FALLBACK_IMAGE}
+						src={fallbackUrl}
 						alt="Promoción"
 						className="hero-slide-image"
 						loading={isFirst ? "eager" : "lazy"}
@@ -94,7 +100,11 @@ export function HeroCarousel({ banners }: { banners: HeroBanner[] }) {
 
 	useEffect(() => {
 		if (!emblaApi) return;
-		const onSelect = () => setSelectedIndex(emblaApi.selectedScrollSnap());
+		const onSelect = () => {
+			requestAnimationFrame(() => {
+				setSelectedIndex(emblaApi.selectedScrollSnap());
+			});
+		};
 		emblaApi.on("select", onSelect);
 		onSelect();
 		return () => {

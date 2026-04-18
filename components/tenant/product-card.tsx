@@ -45,14 +45,13 @@ export const ProductCard = React.memo(function ProductCard({ product, priority =
   );
 
   const isLongDesc = (product.description || "").length > 60;
-  // Restaurar carga progresiva y rápida
-  const resolvedImageUrl = getCloudinaryOptimizedUrl(product.image_url ?? null, {
-    width: 600,
-    height: 450,
-    crop: "fill",
-    gravity: "auto",
-  });
-  const initialImageUrl = resolvedImageUrl || FALLBACK_IMAGE;
+  const isCloudinary = (product.image_url || "").includes("res.cloudinary.com");
+  const fallbackUrl = product.image_url || FALLBACK_IMAGE;
+
+  // Loader personalizado para que Next.js genere múltiples resoluciones (srcset) apuntando a Cloudinary
+  const cloudinaryLoader = ({ src, width }: { src: string; width: number }) => {
+    return getCloudinaryOptimizedUrl(src, { width, crop: "fill", gravity: "auto" }) || src;
+  };
 
   const closeDetails = useCallback(() => {
     if (!isExpanded || isClosing) return;
@@ -135,12 +134,13 @@ export const ProductCard = React.memo(function ProductCard({ product, priority =
       <div className={`product-image ${isBumping ? "bump-active" : ""}`}>
         {!imageLoaded ? <div className="skeleton-loader absolute inset-0" /> : null}
         <Image
-          src={initialImageUrl}
+          src={isCloudinary ? product.image_url! : fallbackUrl}
           alt={product.name ?? "Producto"}
           fill
           sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
           priority={priority}
-          unoptimized
+          loader={isCloudinary ? cloudinaryLoader : undefined}
+          unoptimized={!isCloudinary}
           onLoad={() => setImageLoaded(true)}
           className={!imageLoaded ? "opacity-0" : "opacity-100 transition-opacity duration-500"}
           onError={() => setImageLoaded(true)}
