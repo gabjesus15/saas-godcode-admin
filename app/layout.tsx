@@ -62,6 +62,7 @@ export default async function RootLayout({
         <link rel="stylesheet" href="/fonts/custom-fonts.css" />
       </head>
       <body
+        suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} bg-background text-foreground antialiased transition-colors duration-200`}
       >
         <NextIntlClientProvider locale={locale} messages={messages}>

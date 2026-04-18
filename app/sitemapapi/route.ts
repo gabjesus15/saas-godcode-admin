@@ -68,7 +68,7 @@ export async function GET() {
     .in("subscription_status", ["active", "trial"])
     .not("public_slug", "is", null);
 
-  let businessUrls: { loc: string; changefreq: string; priority: number }[] = [];
+  const businessUrls: { loc: string; changefreq: string; priority: number }[] = [];
   if (companies) {
     // Solo incluir subdominios bajo godcode.me
     const mainDomain = base.replace(/^https?:\/\//, "");

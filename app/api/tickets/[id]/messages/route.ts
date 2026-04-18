@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { supabaseAdmin } from "../../../../../lib/supabase-admin";
 import { SAAS_MUTATE_ROLES, SAAS_READ_ROLES, validateAdminRolesOnServer } from "../../../../../utils/admin/server-auth";
+import { sanitizeServerText } from "../../../../../lib/server-sanitize";
 
 type MessageRow = {
   id: string;
@@ -65,7 +66,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   if (!ticketId) return NextResponse.json({ error: "Falta id" }, { status: 400 });
 
   const body = await req.json();
-  const message = String(body.message ?? "").trim();
+  const message = sanitizeServerText(String(body.message ?? ""));
   const isInternal = Boolean(body.isInternal ?? false);
 
   if (!message) return NextResponse.json({ error: "El mensaje es obligatorio" }, { status: 400 });

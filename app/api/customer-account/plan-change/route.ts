@@ -5,6 +5,7 @@ import { getCustomerAccountContext } from "../../../../lib/customer-account-cont
 import { sendOnboardingEmail } from "../../../../lib/onboarding/emails";
 import { resolveAddonOfferForPlan } from "../../../../lib/plan-offer-rules";
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
+import { checkRateLimit } from "../../../../lib/rate-limiter";
 
 type PlanRow = {
   id: string;
@@ -346,6 +347,10 @@ export async function GET(req: NextRequest) {
   const ctx = await getCustomerAccountContext();
   if (!ctx) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
+  if (!checkRateLimit(`plan_change_get:${ctx.companyId}`, 30, 60000)) {
+    return NextResponse.json({ error: "Demasiadas peticiones" }, { status: 429 });
+  }
+
   const targetPlanId = String(req.nextUrl.searchParams.get("targetPlanId") ?? "").trim();
   const months = Math.max(1, Math.min(24, Number(req.nextUrl.searchParams.get("months") ?? 1) || 1));
   if (!targetPlanId) return NextResponse.json({ error: "Falta targetPlanId" }, { status: 400 });
@@ -366,6 +371,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const ctx = await getCustomerAccountContext();
   if (!ctx) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  if (!checkRateLimit(`plan_change_post:${ctx.companyId}`, 10, 60000)) {
+    return NextResponse.json({ error: "Demasiadas peticiones. Intenta en un minuto." }, { status: 429 });
+  }
 
   const body = (await req.json().catch(() => ({}))) as {
     targetPlanId?: string;

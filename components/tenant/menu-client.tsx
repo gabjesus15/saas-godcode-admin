@@ -9,8 +9,17 @@ import Image from "next/image";
 import { BranchSelectorModal } from "./branch-selector-modal";
 import { Navbar } from "./navbar";
 import { CartProvider } from "./cart-provider";
-import { CartFloat } from "./cart-float";
-import { CartModal } from "./cart-modal";
+import dynamic from "next/dynamic";
+
+const CartFloat = dynamic(
+  () => import("./cart-float").then((mod) => mod.CartFloat),
+  { ssr: false }
+);
+
+const CartModal = dynamic(
+  () => import("./cart-modal").then((mod) => mod.CartModal),
+  { ssr: false }
+);
 import { ProductCard } from "./product-card";
 import { HeroCarousel } from "./hero-carousel";
 import type { HeroBanner } from "./hero-carousel";
@@ -177,6 +186,11 @@ export function MenuClient({
   currency = "CLP",
 }: MenuClientProps) {
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   let priorityCounter = 0;
   const nextPriority = () => priorityCounter++ < 6;
   const router = useRouter();
@@ -276,7 +290,7 @@ export function MenuClient({
   
   // Modal should always open on entry so user explicitly selects a branch.
   const hasOpenBranches = (openBranchIds ?? []).length > 0;
-  const [isLocationModalOpen, setIsLocationModalOpen] = useState(!isEmbeddedPreview);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(!isEmbeddedPreview && !selectedBranchId);
 
   // Disable scroll when modal is open
   useEffect(() => {
@@ -662,10 +676,11 @@ export function MenuClient({
 
   const cartUi = selectedBranch ? (
     <>
-      <CartFloat />
+      <CartFloat currency={currency} />
       <CartModal
         businessInfo={{ name, ...(businessInfo ?? {}) }}
         selectedBranch={selectedBranch}
+        currency={currency}
       />
     </>
   ) : null;
@@ -686,7 +701,7 @@ export function MenuClient({
       }
     >
       <div className="page-wrapper">
-        {typeof document !== "undefined" && document.getElementById("navbar-portal-root")
+        {mounted && typeof document !== "undefined" && document.getElementById("navbar-portal-root")
           ? createPortal(navbar, document.getElementById("navbar-portal-root") as Element)
           : navbar}
 
@@ -764,9 +779,9 @@ export function MenuClient({
 
         </main>
 
-        {typeof document !== "undefined" && document.getElementById("cart-portal-root")
+        {mounted && typeof document !== "undefined" && document.getElementById("cart-portal-root")
           ? createPortal(cartUi, document.getElementById("cart-portal-root") as Element)
-          : cartUi}
+          : null}
 
         {isEmbeddedPreview ? null : (
           <BranchSelectorModal

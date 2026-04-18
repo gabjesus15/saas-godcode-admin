@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getCustomerAccountContext } from "../../../../lib/customer-account-context";
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
+import { checkRateLimit } from "../../../../lib/rate-limiter";
+import { normalizeCountryCode } from "../../../../lib/country-registry";
+import { resolveContinentFromCountryInput } from "../../../../lib/plan-regional-pricing";
+import { logger } from "../../../../lib/logger";
 
 type CompanySnapshot = {
   id: string;
@@ -41,29 +45,22 @@ type BranchEntitlementSnapshot = {
   expires_at: string | null;
 };
 
-const COUNTRY_NORMALIZE: Record<string, string> = {
-  Chile: "CL",
-  Venezuela: "VE",
-  CL: "CL",
-  VE: "VE",
-};
-
 const DEFAULT_BRANCH_EXPANSION_MONTHLY_USD = 20;
-
-function normalizeCountry(country: string | null | undefined): string | null {
-  if (!country) return null;
-  const c = country.trim();
-  return COUNTRY_NORMALIZE[c] ?? c;
-}
 
 function isBranchExpansionAddon(addon: AddonSnapshot): boolean {
   const haystack = `${addon.slug} ${addon.name} ${addon.type}`.toLowerCase();
   return haystack.includes("branch") || haystack.includes("sucursal");
 }
 
-function resolveBranchAddonPrice(addon: AddonSnapshot | null): number {
-  void addon;
-  return DEFAULT_BRANCH_EXPANSION_MONTHLY_USD;
+function resolveBranchAddonPrice(addon: AddonSnapshot | null, country: string | null | undefined): number {
+  if (addon?.price_monthly && addon.price_monthly > 0) {
+    return addon.price_monthly;
+  }
+  const continent = resolveContinentFromCountryInput(country);
+  if (continent === "USA/Canada" || continent === "Europe") {
+    return 30; // 30 USD for first-world
+  }
+  return DEFAULT_BRANCH_EXPANSION_MONTHLY_USD; // 20 USD for LATAM
 }
 
 function getDaysUntil(iso: string | null | undefined, now: Date): number | null {
@@ -101,7 +98,7 @@ async function getBillingContext(companyId: string) {
   const snapshot = company as CompanySnapshot | null;
   if (!snapshot?.id) return null;
 
-  const normalizedCountry = normalizeCountry(snapshot.country);
+  const normalizedCountry = normalizeCountryCode(snapshot.country);
   const methodsRows = ((methods ?? []) as MethodSnapshot[]).filter((method) => {
     if (!normalizedCountry) return true;
     if (!Array.isArray(method.countries) || method.countries.length === 0) return true;
@@ -125,7 +122,7 @@ async function getBillingContext(companyId: string) {
   );
 
   const branchAddon = ((addons ?? []) as AddonSnapshot[]).find(isBranchExpansionAddon) ?? null;
-  const branchPriceMonthly = resolveBranchAddonPrice(branchAddon);
+  const branchPriceMonthly = resolveBranchAddonPrice(branchAddon, snapshot.country);
   const maxBranches = snapshot.plan?.max_branches ?? null;
   const activeBranchCount = Number(branchCount ?? 0);
   const nowIso = new Date().toISOString();
@@ -188,6 +185,13 @@ export async function GET() {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
+  if (!checkRateLimit(`billing_get:${ctx.companyId}`, 30, 60000)) {
+    logger.warn("Rate limit hit in billing GET", { companyId: ctx.companyId });
+    return NextResponse.json({ error: "Demasiadas peticiones" }, { status: 429 });
+  }
+
+  logger.info("Fetching billing context", { companyId: ctx.companyId });
+
   const billingCtx = await getBillingContext(ctx.companyId);
   if (!billingCtx) {
     return NextResponse.json({ error: "No se pudo cargar el contexto de facturacion" }, { status: 404 });
@@ -222,6 +226,13 @@ export async function POST(req: NextRequest) {
   if (!ctx) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
+
+  if (!checkRateLimit(`billing_post:${ctx.companyId}`, 10, 60000)) {
+    logger.warn("Rate limit hit in billing POST", { companyId: ctx.companyId });
+    return NextResponse.json({ error: "Demasiadas peticiones. Intenta en un minuto." }, { status: 429 });
+  }
+
+  logger.info("Starting checkout process", { companyId: ctx.companyId });
 
   const payload = (await req.json().catch(() => ({}))) as {
     quantity?: number;

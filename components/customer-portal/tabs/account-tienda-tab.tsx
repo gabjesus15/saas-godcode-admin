@@ -151,14 +151,14 @@ export function AccountTiendaTab({
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/60">
             <p className="text-[11px] uppercase tracking-[0.08em] text-slate-500 dark:text-zinc-500">Última edición</p>
             <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              {storeThemeUpdatedAt ? fmtDate(storeThemeUpdatedAt) : "-"}
+              {storeThemeUpdatedAt ? fmtDate(storeThemeUpdatedAt, company.timezone) : "-"}
             </p>
             <p className="text-xs text-slate-600 dark:text-zinc-400">{storeThemeUpdatedBy ?? "sin autor"}</p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/60">
             <p className="text-[11px] uppercase tracking-[0.08em] text-slate-500 dark:text-zinc-500">Última publicación</p>
             <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              {latestPublishedVersion ? fmtDate(latestPublishedVersion.createdAt) : "-"}
+              {latestPublishedVersion ? fmtDate(latestPublishedVersion.createdAt, company.timezone) : "-"}
             </p>
             <p className="text-xs text-slate-600 dark:text-zinc-400">{latestPublishedVersion?.createdByEmail ?? "sin registro"}</p>
           </div>
@@ -505,7 +505,7 @@ export function AccountTiendaTab({
 
               <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
                 {storeThemeHasUnpublished ? "Hay cambios sin publicar." : "El borrador coincide con producción."}
-                {storeThemeUpdatedAt ? ` Última edición: ${fmtDate(storeThemeUpdatedAt)}.` : ""}
+                {storeThemeUpdatedAt ? ` Última edición: ${fmtDate(storeThemeUpdatedAt, company.timezone)}.` : ""}
                 {storeThemeUpdatedBy ? ` Por: ${storeThemeUpdatedBy}.` : ""}
               </p>
             </div>
@@ -624,7 +624,7 @@ export function AccountTiendaTab({
                     <div key={version.id} className="rounded-xl border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700">
                       <div className="flex items-center justify-between gap-2">
                         <p className="font-medium text-zinc-900 dark:text-zinc-100">{version.theme.displayName || company.name}</p>
-                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{fmtDate(version.createdAt)}</span>
+                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{fmtDate(version.createdAt, company.timezone)}</span>
                       </div>
                       <p className="text-xs text-zinc-500 dark:text-zinc-400">Publicado por: {version.createdByEmail ?? "sistema"}</p>
                       <button

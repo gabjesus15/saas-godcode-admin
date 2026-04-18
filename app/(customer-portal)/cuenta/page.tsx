@@ -6,6 +6,7 @@ import { getCurrentLocale } from "@/lib/i18n/server";
 import { resolvePlanName } from "../../../lib/plan-i18n";
 import { supabaseAdmin } from "../../../lib/supabase-admin";
 import { createSupabaseServerClient } from "../../../utils/supabase/server";
+import { getCountryConfig } from "../../../lib/country-registry";
 
 type TicketRow = {
   id: string;
@@ -71,7 +72,7 @@ export default async function CustomerAccountPage() {
   const [{ data: company }, { data: branches }, { data: payments }, { data: companyAddons }, { data: plans }, { data: addons }, { data: tickets }, { data: branchEntitlements }] = await Promise.all([
     supabaseAdmin
       .from("companies")
-      .select("id,name,public_slug,subscription_status,subscription_ends_at,plan_id,plan:plans(name,name_i18n,price,max_branches,max_users)")
+      .select("id,name,public_slug,country,subscription_status,subscription_ends_at,plan_id,plan:plans(name,name_i18n,price,max_branches,max_users)")
       .eq("id", companyId)
       .maybeSingle(),
     supabaseAdmin
@@ -115,6 +116,8 @@ export default async function CustomerAccountPage() {
   ]);
 
   const supportEmail = process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || "hola@godcode.me";
+  const rawCountry = (company as { country?: string | null } | null)?.country ?? null;
+  const countryConfig = getCountryConfig(rawCountry);
 
   const snapshot = {
     id: String(company?.id ?? companyId),
@@ -133,6 +136,10 @@ export default async function CustomerAccountPage() {
     planMaxUsers: ((company?.plan as { max_users?: number | null } | null)?.max_users ?? null) as number | null,
     supportEmail,
     tenantAdminUrl: resolveTenantAdminUrl((company?.public_slug as string | null) ?? null),
+    country: rawCountry,
+    currency: countryConfig?.currency ?? "USD",
+    locale: countryConfig?.locale ?? "es-CL",
+    timezone: countryConfig?.timezone ?? "America/Santiago",
   };
 
   const activeAddons = (companyAddons ?? []).map((row) => {

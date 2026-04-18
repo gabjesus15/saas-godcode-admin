@@ -1,54 +1,10 @@
-import type { Continent } from "./landing-geo-plans";
+import { Continent, getCountryConfig } from "./country-registry";
 
 type PlanPricingMap = Record<string, { price: number; currency: string }>;
 
-const COUNTRY_TO_CONTINENT: Record<string, Continent> = {
-  ve: "Latinoamérica",
-  venezuela: "Latinoamérica",
-  cl: "Latinoamérica",
-  chile: "Latinoamérica",
-  co: "Latinoamérica",
-  colombia: "Latinoamérica",
-  ar: "Latinoamérica",
-  argentina: "Latinoamérica",
-  mx: "Latinoamérica",
-  méxico: "Latinoamérica",
-  mexico: "Latinoamérica",
-  pe: "Latinoamérica",
-  perú: "Latinoamérica",
-  peru: "Latinoamérica",
-  ec: "Latinoamérica",
-  ecuador: "Latinoamérica",
-  us: "USA/Canada",
-  usa: "USA/Canada",
-  "u.s.a": "USA/Canada",
-  "united states": "USA/Canada",
-  estadosunidos: "USA/Canada",
-  estadosunidosdeamerica: "USA/Canada",
-  ca: "USA/Canada",
-  canada: "USA/Canada",
-  canadá: "USA/Canada",
-  es: "Europe",
-  españa: "Europe",
-  spain: "Europe",
-};
-
-function normalizeCountryToken(value: string | null | undefined): string {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9.\s]/g, "")
-    .replace(/\s+/g, " ")
-    .replace(/\s+/g, "")
-    .trim();
-}
-
 export function resolveContinentFromCountryInput(country: string | null | undefined): Continent {
-  const token = normalizeCountryToken(country);
-  if (!token) return "Latinoamérica";
-  return COUNTRY_TO_CONTINENT[token] ?? "Latinoamérica";
+  const config = getCountryConfig(country);
+  return config ? config.continent : "Latinoamérica";
 }
 
 export function resolveRegionalPlanPrice(plan: {

@@ -14,6 +14,7 @@ const SECURITY_HEADERS: [string, string][] = [
   ["Referrer-Policy", "strict-origin-when-cross-origin"],
   ["Permissions-Policy", "camera=(), microphone=(), geolocation=(self)"],
   ["X-DNS-Prefetch-Control", "on"],
+  ["Content-Security-Policy", "object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self';"],
 ];
 
 function applySecurityHeaders(res: NextResponse): NextResponse {
@@ -339,5 +340,7 @@ async function _proxy(req: NextRequest): Promise<NextResponse> {
 }
 
 export const config = {
-  matcher: "/:path*",
+  matcher: [
+    "/((?!api/|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };

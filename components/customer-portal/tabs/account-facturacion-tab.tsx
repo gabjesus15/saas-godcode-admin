@@ -1,11 +1,12 @@
 "use client";
 
-import type { BillingPaymentResponse, PaymentSummary } from "../customer-account-types";
+import type { BillingPaymentResponse, PaymentSummary, CompanySnapshot } from "../customer-account-types";
 import { displayStatus, fmtDate, fmtMoney } from "../customer-account-format";
 import { PAYMENT_STATUS_LABELS } from "../customer-account-constants";
 import { PortalPageHeader } from "../portal-page-header";
 
 export type AccountFacturacionTabProps = {
+  company: CompanySnapshot;
   billingPaidTotal: number | null;
   billingPendingTotal: number | null;
   pendingPaymentsCount: number;
@@ -25,6 +26,7 @@ export type AccountFacturacionTabProps = {
 };
 
 export function AccountFacturacionTab({
+  company,
   billingPaidTotal,
   billingPendingTotal,
   pendingPaymentsCount,
@@ -53,11 +55,11 @@ export function AccountFacturacionTab({
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
           <p className="text-xs text-zinc-500">Total pagado</p>
-          <p className="font-semibold text-zinc-900 dark:text-zinc-100">{fmtMoney(billingPaidTotal)}</p>
+          <p className="font-semibold text-zinc-900 dark:text-zinc-100">{fmtMoney(billingPaidTotal, company.currency, company.locale)}</p>
         </div>
         <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
           <p className="text-xs text-zinc-500">Pendiente</p>
-          <p className="font-semibold text-indigo-700 dark:text-indigo-300">{fmtMoney(billingPendingTotal)}</p>
+          <p className="font-semibold text-indigo-700 dark:text-indigo-300">{fmtMoney(billingPendingTotal, company.currency, company.locale)}</p>
         </div>
         <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
           <p className="text-xs text-zinc-500">Pagos pendientes</p>
@@ -65,7 +67,7 @@ export function AccountFacturacionTab({
         </div>
         <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
           <p className="text-xs text-zinc-500">Último pago aprobado</p>
-          <p className="font-semibold text-zinc-900 dark:text-zinc-100">{fmtDate(latestPaidPaymentDate)}</p>
+          <p className="font-semibold text-zinc-900 dark:text-zinc-100">{fmtDate(latestPaidPaymentDate, company.timezone)}</p>
         </div>
       </div>
 
@@ -155,8 +157,8 @@ export function AccountFacturacionTab({
             ) : (
               filteredPayments.map((payment) => (
                 <tr key={payment.id} className="border-t border-zinc-200 dark:border-zinc-700">
-                  <td className="px-2 py-2">{fmtDate(payment.payment_date)}</td>
-                  <td className="px-2 py-2">{fmtMoney(payment.amount_paid)}</td>
+                  <td className="px-2 py-2">{fmtDate(payment.payment_date, company.timezone)}</td>
+                  <td className="px-2 py-2">{fmtMoney(payment.amount_paid, company.currency, company.locale)}</td>
                   <td className="px-2 py-2">{displayStatus(payment.status, PAYMENT_STATUS_LABELS)}</td>
                   <td className="px-2 py-2">{payment.payment_method ?? "-"}</td>
                   <td className="px-2 py-2">{payment.months_paid ?? "-"}</td>

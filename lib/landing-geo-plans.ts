@@ -3,40 +3,24 @@
  * Vercel proporciona automáticamente x-vercel-ip-country en producción.
  */
 
-export type CountryCode = "CL" | "VE" | "US" | "MX" | "AR" | "CA" | "OTHER";
+import { Continent, getCountryConfig, normalizeCountryCode } from "./country-registry";
 
-export type Continent = "USA/Canada" | "Latinoamérica" | "Europe" | "Asia" | "Africa" | "Oceania";
+export type CountryCode = "CL" | "VE" | "US" | "MX" | "AR" | "CA" | "CO" | "PE" | "EC" | "ES" | "BR" | "OTHER";
+export type { Continent };
 
 export function getCountryFromHeaders(headers: Headers): CountryCode {
   const country = headers.get("x-vercel-ip-country")?.toUpperCase() || "OTHER";
-  
-  const mappedCountries: Record<string, CountryCode> = {
-    CL: "CL",
-    VE: "VE",
-    US: "US",
-    MX: "MX",
-    AR: "AR",
-    CA: "CA",
-  };
-
-  return (mappedCountries[country] as CountryCode) || "OTHER";
+  const normalized = normalizeCountryCode(country);
+  return (normalized as CountryCode) || "OTHER";
 }
 
 /**
  * Mapear país a región (continente)
  */
 export function getContinentFromCountry(country: CountryCode): Continent {
-  const continentMap: Record<CountryCode, Continent> = {
-    US: "USA/Canada",
-    CA: "USA/Canada",
-    CL: "Latinoamérica",
-    VE: "Latinoamérica",
-    MX: "Latinoamérica",
-    AR: "Latinoamérica",
-    OTHER: "Latinoamérica", // Default
-  };
-
-  return continentMap[country];
+  if (country === "OTHER") return "Latinoamérica";
+  const config = getCountryConfig(country);
+  return config ? config.continent : "Latinoamérica";
 }
 
 /**

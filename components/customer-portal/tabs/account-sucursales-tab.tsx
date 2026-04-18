@@ -1,11 +1,12 @@
 "use client";
 
-import type { BillingOptionsResponse, BillingPaymentResponse, BranchSummary } from "../customer-account-types";
+import type { BillingOptionsResponse, BillingPaymentResponse, BranchSummary, CompanySnapshot } from "../customer-account-types";
 import { displayStatus, fmtDate, fmtMoney } from "../customer-account-format";
 import { PAYMENT_STATUS_LABELS } from "../customer-account-constants";
 import { PortalPageHeader } from "../portal-page-header";
 
 export type AccountSucursalesTabProps = {
+  company: CompanySnapshot;
   branches: BranchSummary[];
   billingLoading: boolean;
   canRequestBranchWithoutPayment: boolean;
@@ -54,6 +55,7 @@ export type AccountSucursalesTabProps = {
 };
 
 export function AccountSucursalesTab({
+  company,
   branches,
   billingLoading,
   canRequestBranchWithoutPayment,
@@ -177,7 +179,7 @@ export function AccountSucursalesTab({
 
         {!billingLoading && !canRequestBranchWithoutPayment ? (
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            Precio base por sucursal extra: {fmtMoney(branchUnitPrice)} / mes. Si tu plan vence pronto, el primer cobro se
+            Precio base por sucursal extra: {fmtMoney(branchUnitPrice, company.currency, company.locale)} / mes. Si tu plan vence pronto, el primer cobro se
             prorratea y el extra queda alineado al vencimiento del plan.
           </p>
         ) : null}
@@ -299,7 +301,7 @@ export function AccountSucursalesTab({
                 <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
                   <p className="font-medium text-zinc-900 dark:text-zinc-100">Resumen de cobro proyectado</p>
                   <p className="text-zinc-600 dark:text-zinc-400">
-                    {fmtMoney(branchUnitPrice)} x {expansionQtyNumber} x {expansionMonthsNumber} = {fmtMoney(expansionAmount)}
+                    {fmtMoney(branchUnitPrice, company.currency, company.locale)} x {expansionQtyNumber} x {expansionMonthsNumber} = {fmtMoney(expansionAmount, company.currency, company.locale)}
                   </p>
                   {typeof billingOptions?.daysUntilPlanEnd === "number" && billingOptions.daysUntilPlanEnd > 0 ? (
                     <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
@@ -356,7 +358,7 @@ export function AccountSucursalesTab({
                       Estado: {displayStatus(createdExpansionPayment.payment.status ?? "pending", PAYMENT_STATUS_LABELS)}
                     </p>
                     <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                      Total cobrado: {fmtMoney(createdExpansionPayment.instructions.summary.amount)}
+                      Total cobrado: {fmtMoney(createdExpansionPayment.instructions.summary.amount, company.currency, company.locale)}
                     </p>
                     {typeof createdExpansionPayment.instructions.summary.firstCycleFactor === "number" &&
                     typeof createdExpansionPayment.instructions.summary.effectiveMonths === "number" ? (

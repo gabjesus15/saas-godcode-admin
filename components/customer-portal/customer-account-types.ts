@@ -106,6 +106,10 @@ export type CompanySnapshot = {
   planMaxUsers: number | null;
   supportEmail: string;
   tenantAdminUrl: string | null;
+  country: string | null;
+  currency: string;
+  locale: string;
+  timezone: string;
 };
 
 export type CustomerAccountClientProps = {

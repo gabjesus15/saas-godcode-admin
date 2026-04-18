@@ -1,4 +1,5 @@
 import Link from "next/link";
+import "./landing.css";
 import {
   ArrowRight,
   Check,
@@ -369,6 +370,7 @@ export function LandingSections({
               <div className="mt-7 flex flex-col items-center gap-3 sm:mt-8 sm:flex-row sm:justify-center lg:justify-start">
                 <Link
                   href="/onboarding"
+                  prefetch={false}
                   className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-7 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-700 sm:h-[3.25rem] sm:w-auto sm:px-8 sm:text-base"
                 >
                   {tx("Empezar gratis", "Start for free")}
@@ -680,6 +682,7 @@ export function LandingSections({
               <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
                 <Link
                   href="/onboarding"
+                  prefetch={false}
                   className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-8 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-700 sm:h-[3.25rem] sm:w-auto sm:text-base"
                 >
                   {tx("Empezar gratis", "Start for free")}

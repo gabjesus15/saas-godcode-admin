@@ -8,11 +8,27 @@ import {
   TICKET_STATUS_LABELS,
 } from "./customer-account-constants";
 
-/** Formato UTC determinista (evita diferencias servidor/cliente en hidratación). */
-export function fmtDate(iso: string | null | undefined): string {
+/** Formato de fecha con soporte opcional de zona horaria. */
+export function fmtDate(iso: string | null | undefined, timezone?: string | null): string {
   if (!iso) return "-";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "-";
+
+  if (timezone) {
+    try {
+      return new Intl.DateTimeFormat("es-CL", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: timezone,
+        hour12: false,
+      }).format(date);
+    } catch (e) {
+      // Fallback to UTC if timezone is invalid
+    }
+  }
 
   const pad = (n: number) => String(n).padStart(2, "0");
   const day = pad(date.getUTCDate());
@@ -29,12 +45,13 @@ export function formatPaymentConfigKey(key: string): string {
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
-export function fmtMoney(value: number | null | undefined): string {
+export function fmtMoney(value: number | null | undefined, currency = "USD", locale = "es-CL"): string {
   if (value == null || !Number.isFinite(Number(value))) return "-";
-  return new Intl.NumberFormat("es-CL", {
+  const noDecimals = ["CLP", "COP", "ARS", "PYG", "CLF"].includes(currency.toUpperCase());
+  return new Intl.NumberFormat(locale, {
     style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
+    currency: currency,
+    maximumFractionDigits: noDecimals ? 0 : 2,
   }).format(Number(value));
 }
 

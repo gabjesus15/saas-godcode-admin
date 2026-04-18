@@ -279,6 +279,11 @@ async function postTicket(payload: {
 export function CustomerAccountClient(props: CustomerAccountClientProps) {
   const { company, branches, payments, activeAddons, availablePlans, availableAddons, initialTickets, initialBranchEntitlements } = props;
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [tab, setTab] = useState<PortalTab>("resumen");
   const [tickets, setTickets] = useState<TicketSummary[]>(initialTickets);
   const [paymentRows, setPaymentRows] = useState<PaymentSummary[]>(payments);
@@ -688,7 +693,7 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
       id: `p-${payment.id}`,
       type: "pago",
       title: `Pago ${payment.payment_reference ?? "sin referencia"}`,
-      detail: `${fmtMoney(payment.amount_paid)} · ${displayStatus(payment.status, PAYMENT_STATUS_LABELS)}`,
+      detail: `${fmtMoney(payment.amount_paid, company.currency, company.locale)} · ${displayStatus(payment.status, PAYMENT_STATUS_LABELS)}`,
       status: String(payment.status ?? ""),
       occurredAt: payment.payment_date ?? "",
       amount: payment.amount_paid,
@@ -707,7 +712,7 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
       id: `e-${entitlement.id}`,
       type: "extra",
       title: `Compra de ${entitlement.quantity} sucursal(es) extra`,
-      detail: `${fmtMoney(entitlement.amountPaid)} · ${branchEntitlementStatusLabel(entitlement.status)}`,
+      detail: `${fmtMoney(entitlement.amountPaid, company.currency, company.locale)} · ${branchEntitlementStatusLabel(entitlement.status)}`,
       status: entitlement.status,
       occurredAt: entitlement.createdAt,
       amount: entitlement.amountPaid,
@@ -717,7 +722,7 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
       .filter((item) => item.occurredAt)
       .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())
       .slice(0, 20);
-  }, [paymentRows, tickets, branchEntitlements]);
+  }, [paymentRows, tickets, branchEntitlements, company]);
 
   const filteredActivityTimeline = useMemo(() => {
     if (activityFilter === "all") return activityTimeline;
@@ -1672,7 +1677,7 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
       [
         "Hola, necesito ayuda con este cobro.",
         `Referencia: ${payment.payment_reference ?? "-"}`,
-        `Monto: ${fmtMoney(payment.amount_paid)}`,
+        `Monto: ${fmtMoney(payment.amount_paid, company.currency, company.locale)}`,
         `Estado actual: ${displayStatus(payment.status, PAYMENT_STATUS_LABELS)}`,
         "Detalle adicional:",
       ].join("\n")
@@ -1791,6 +1796,8 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  if (!mounted) return null;
 
   return (
     <CustomerAccountShell
@@ -1955,6 +1962,7 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
 
       {tab === "sucursales" ? (
         <AccountSucursalesTab
+          company={company}
           branches={branches}
           billingLoading={billingLoading}
           canRequestBranchWithoutPayment={canRequestBranchWithoutPayment}
@@ -2005,6 +2013,7 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
 
       {tab === "facturacion" ? (
         <AccountFacturacionTab
+          company={company}
           billingPaidTotal={billingPaidTotal}
           billingPendingTotal={billingPendingTotal}
           pendingPaymentsCount={pendingPaymentsCount}
@@ -2026,6 +2035,7 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
 
       {tab === "soporte" ? (
         <AccountSoporteTab
+          company={company}
           busy={busy}
           supportSubject={supportSubject}
           setSupportSubject={setSupportSubject}

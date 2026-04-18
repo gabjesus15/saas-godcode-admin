@@ -1,6 +1,6 @@
 "use client";
 
-import type { TicketMessage, TicketSummary } from "../customer-account-types";
+import type { CompanySnapshot, TicketMessage, TicketSummary } from "../customer-account-types";
 import { fmtDate } from "../customer-account-format";
 import {
   TICKET_CATEGORY_LABELS,
@@ -14,6 +14,7 @@ export type SupportCategory = "general" | "billing" | "technical" | "product" | 
 export type SupportPriority = "low" | "medium" | "high" | "critical";
 
 export type AccountSoporteTabProps = {
+  company: CompanySnapshot;
   busy: boolean;
   supportSubject: string;
   setSupportSubject: (v: string) => void;
@@ -37,6 +38,7 @@ export type AccountSoporteTabProps = {
 };
 
 export function AccountSoporteTab({
+  company,
   busy,
   supportSubject,
   setSupportSubject,
@@ -158,7 +160,7 @@ export function AccountSoporteTab({
                 >
                   <p className="font-medium text-zinc-900 dark:text-zinc-100">{ticket.subject}</p>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {TICKET_STATUS_LABELS[ticket.status] ?? ticket.status} · {fmtDate(ticket.lastMessageAt)}
+                    {TICKET_STATUS_LABELS[ticket.status] ?? ticket.status} · {fmtDate(ticket.lastMessageAt, company.timezone)}
                   </p>
                   <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
                     SLA objetivo: {getTicketSlaHours(ticket.priority)}h · Prioridad{" "}
@@ -207,7 +209,7 @@ export function AccountSoporteTab({
                     }`}
                   >
                     <p>{message.message}</p>
-                    <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">{fmtDate(message.created_at)}</p>
+                    <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">{fmtDate(message.created_at, company.timezone)}</p>
                   </div>
                 ))
               )}

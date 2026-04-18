@@ -69,7 +69,7 @@ export function AccountResumenTab({
               <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                 {displayStatus(subscriptionStatus, SUBSCRIPTION_STATUS_LABELS)}
               </p>
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Vence: {fmtDate(subscriptionEndsAt)}</p>
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Vence: {fmtDate(subscriptionEndsAt, company.timezone)}</p>
             </div>
           }
         />
@@ -78,7 +78,7 @@ export function AccountResumenTab({
           <div className="rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-4 dark:border-zinc-700 dark:bg-zinc-800/40">
             <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-indigo-600 dark:text-indigo-400">Plan</p>
             <p className="mt-1 truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{company.planName ?? "Sin plan"}</p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">{fmtMoney(company.planPrice)} mensual</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">{fmtMoney(company.planPrice, company.currency, company.locale)} mensual</p>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">Extras de sucursal activos: {activeEntitlementsCount}</p>
           </div>
           <div className="rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-4 dark:border-zinc-700 dark:bg-zinc-800/40">
@@ -93,8 +93,8 @@ export function AccountResumenTab({
           </div>
           <div className="rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-4 dark:border-zinc-700 dark:bg-zinc-800/40">
             <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-indigo-600 dark:text-indigo-400">Último pago</p>
-            <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{latestPayment ? fmtMoney(latestPayment.amount_paid) : "-"}</p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">{latestPayment ? fmtDate(latestPayment.payment_date) : "Sin pagos"}</p>
+            <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{latestPayment ? fmtMoney(latestPayment.amount_paid, company.currency, company.locale) : "-"}</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">{latestPayment ? fmtDate(latestPayment.payment_date, company.timezone) : "Sin pagos"}</p>
           </div>
         </div>
       </PortalSection>
@@ -122,7 +122,7 @@ export function AccountResumenTab({
 
           <div className="mt-6 rounded-xl border border-zinc-200 bg-zinc-50/70 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-800/50">
             <p className="text-xs font-medium uppercase tracking-[0.14em] text-indigo-600 dark:text-indigo-400">Vencimiento</p>
-            <p className="mt-1 font-semibold text-zinc-900 dark:text-zinc-100">{fmtDate(subscriptionEndsAt)}</p>
+            <p className="mt-1 font-semibold text-zinc-900 dark:text-zinc-100">{fmtDate(subscriptionEndsAt, company.timezone)}</p>
             {expiryDays != null ? (
               <p className={`text-sm ${expiryDays <= 7 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
                 {expiryDays >= 0
@@ -206,7 +206,7 @@ export function AccountResumenTab({
                 <div key={item.id} className="rounded-xl border border-zinc-200 bg-zinc-50/60 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/40">
                   <div className="flex items-center justify-between gap-3">
                     <p className="font-medium text-zinc-900 dark:text-zinc-100">{item.title}</p>
-                    <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{fmtDate(item.occurredAt)}</span>
+                    <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{fmtDate(item.occurredAt, company.timezone)}</span>
                   </div>
                   <p className="mt-1 text-zinc-600 dark:text-zinc-400">{item.detail}</p>
                 </div>

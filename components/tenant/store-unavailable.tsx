@@ -11,6 +11,7 @@ export function StoreUnavailable() {
       </div>
       <Link
         href="/onboarding"
+        prefetch={false}
         className="inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-100"
       >
         Crea tu propio menu digital con GodCode

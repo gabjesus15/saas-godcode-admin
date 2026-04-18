@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCustomerAccountContext } from "../../../../lib/customer-account-context";
 import { sendOnboardingEmail } from "../../../../lib/onboarding/emails";
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
+import { checkRateLimit } from "../../../../lib/rate-limiter";
+import { sanitizeServerText } from "../../../../lib/server-sanitize";
 
 type CompanyRow = {
 	id: string;
@@ -34,11 +36,15 @@ export async function POST(req: NextRequest) {
 		return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 	}
 
+	if (!checkRateLimit(`cancel_post:${ctx.companyId}`, 10, 60000)) {
+		return NextResponse.json({ error: "Demasiadas peticiones. Intenta en un minuto." }, { status: 429 });
+	}
+
 	const body = (await req.json().catch(() => ({}))) as {
 		reason?: string;
 	};
 
-	const reason = String(body.reason ?? "").trim();
+	const reason = sanitizeServerText(body.reason);
 	const { data: company, error } = await supabaseAdmin
 		.from("companies")
 		.select("id,name,email,subscription_status,subscription_ends_at")

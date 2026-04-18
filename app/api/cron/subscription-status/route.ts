@@ -9,17 +9,18 @@ export async function GET(req: NextRequest) {
 	const proxied = await proxyToOnboardingBilling(req, "/api/cron/subscription-status");
 	if (proxied) return proxied;
 
-	const isProd =
-		process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production";
-	if (isProd && !process.env.CRON_SECRET?.trim()) {
+	const isDev = process.env.NODE_ENV === "development" && !process.env.VERCEL_ENV;
+	const expectedSecret = process.env.CRON_SECRET?.trim();
+
+	if (!isDev && !expectedSecret) {
 		return NextResponse.json(
-			{ error: "CRON_SECRET es obligatorio en producción" },
+			{ error: "CRON_SECRET es obligatorio en entornos desplegados" },
 			{ status: 503 },
 		);
 	}
 
 	const secret = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
-	if (process.env.CRON_SECRET?.trim() && secret !== process.env.CRON_SECRET) {
+	if (expectedSecret && secret !== expectedSecret) {
 		return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 	}
 

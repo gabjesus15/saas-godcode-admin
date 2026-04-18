@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { supabaseAdmin } from "../../../lib/supabase-admin";
 import { SAAS_MUTATE_ROLES, SAAS_READ_ROLES, validateAdminRolesOnServer } from "../../../utils/admin/server-auth";
+import { sanitizeServerText } from "../../../lib/server-sanitize";
 
 type TicketStatus = "open" | "in_progress" | "waiting_customer" | "resolved" | "closed";
 type TicketPriority = "low" | "medium" | "high" | "critical";
@@ -163,9 +164,9 @@ export async function POST(req: NextRequest) {
   if (!access.ok) return access.response;
 
   const body = await req.json();
-  const companyId = String(body.companyId ?? "").trim();
-  const subject = String(body.subject ?? "").trim();
-  const description = String(body.description ?? "").trim();
+  const companyId = sanitizeServerText(String(body.companyId ?? ""));
+  const subject = sanitizeServerText(String(body.subject ?? ""));
+  const description = sanitizeServerText(String(body.description ?? ""));
   const category = String(body.category ?? "general").trim().toLowerCase();
   const priority = String(body.priority ?? "medium").trim().toLowerCase() as TicketPriority;
   const assignedTo = String(body.assignedTo ?? "").trim() || null;
@@ -217,10 +218,10 @@ export async function PUT(req: NextRequest) {
   if (!access.ok) return access.response;
 
   const body = await req.json();
-  const id = String(body.id ?? "").trim();
-  const status = String(body.status ?? "").trim().toLowerCase();
-  const assignedTo = String(body.assignedTo ?? "").trim() || null;
-  const responseMessage = String(body.responseMessage ?? "").trim();
+  const id = sanitizeServerText(String(body.id ?? ""));
+  const status = sanitizeServerText(String(body.status ?? "")).toLowerCase();
+  const assignedTo = sanitizeServerText(String(body.assignedTo ?? "")) || null;
+  const responseMessage = sanitizeServerText(String(body.responseMessage ?? ""));
   const internalNote = Boolean(body.internalNote ?? false);
 
   if (!id) return NextResponse.json({ error: "Falta id" }, { status: 400 });

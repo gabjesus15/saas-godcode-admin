@@ -7,14 +7,20 @@ import { useCart } from "./use-cart";
 import { formatCartMoney } from "./utils/format-cart-money";
 import "../../app/[subdomain]/styles/CartFloat.css";
 
-export function CartFloat() {
+export function CartFloat({ currency = "CLP" }: { currency?: string }) {
   const t = useTranslations("tenant.cart.float");
   const { totalItems, grandTotal, toggleCart } = useCart();
   const hasItems = totalItems > 0;
   const [isIdle, setIsIdle] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const userInteractedRef = useRef(false);
   const prevCountRef = useRef(totalItems);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setMounted(true), 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     // Evita warnings/bloqueos de Chrome: vibrate solo está permitido luego
@@ -69,18 +75,19 @@ export function CartFloat() {
 
   return (
     <button
+      suppressHydrationWarning
       onClick={toggleCart}
-      className={`cart-float ${hasItems ? "has-items" : ""} ${isIdle && hasItems ? "pulse-urgent" : ""}`}
+      className={["cart-float", mounted && hasItems ? "has-items" : "", mounted && isIdle && hasItems ? "pulse-urgent" : ""].filter(Boolean).join(" ")}
     >
       <div className="cart-icon-wrapper">
         <ShoppingBag size={24} strokeWidth={2.5} />
-        {hasItems ? <span className="cart-float-badge">{totalItems}</span> : null}
+        {mounted && hasItems ? <span className="cart-float-badge">{totalItems}</span> : null}
       </div>
       <div className="cart-label-container">
         <span className="cart-label-text">
-          {hasItems ? (
+          {mounted && hasItems ? (
             <>
-              <span className="cart-total-prefix">{t("totalPrefix")}</span> ${formatCartMoney(grandTotal)}
+              <span className="cart-total-prefix">{t("totalPrefix")}</span> {formatCartMoney(grandTotal, currency)}
             </>
           ) : (
             t("emptyLabel")

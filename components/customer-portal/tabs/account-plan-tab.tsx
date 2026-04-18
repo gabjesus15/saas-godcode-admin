@@ -218,24 +218,24 @@ export function AccountPlanTab({
             <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/50">
               <p className="text-xs text-zinc-500">Plan actual</p>
               <p className="font-semibold text-zinc-900 dark:text-zinc-100">{company.planName ?? "Sin plan"}</p>
-              <p className="text-xs text-zinc-500">{fmtMoney(company.planPrice)} mensual</p>
+              <p className="text-xs text-zinc-500">{fmtMoney(company.planPrice, company.currency, company.locale)} mensual</p>
             </div>
             <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/50">
               <p className="text-xs text-zinc-500">Recomendado</p>
               <p className="font-semibold text-zinc-900 dark:text-zinc-100">{recommendedPlanOption?.name ?? "-"}</p>
-              <p className="text-xs text-zinc-500">{fmtMoney(recommendedPlanOption?.price ?? null)} mensual</p>
+              <p className="text-xs text-zinc-500">{fmtMoney(recommendedPlanOption?.price ?? null, company.currency, company.locale)} mensual</p>
             </div>
             <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/50">
               <p className="text-xs text-zinc-500">Impacto mensual</p>
               <p className={`font-semibold ${planMonthlyDelta != null && planMonthlyDelta > 0 ? "text-amber-700 dark:text-amber-300" : planMonthlyDelta != null && planMonthlyDelta < 0 ? "text-emerald-700 dark:text-emerald-300" : "text-zinc-900 dark:text-zinc-100"}`}>
-                {planMonthlyDelta != null ? fmtMoney(planMonthlyDelta) : "-"}
+                {planMonthlyDelta != null ? fmtMoney(planMonthlyDelta, company.currency, company.locale) : "-"}
               </p>
               <p className="text-xs text-zinc-500">vs plan actual</p>
             </div>
             <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/50">
                 <p className="text-xs text-zinc-500">Proyección anual</p>
               <p className={`font-semibold ${planAnnualDelta != null && planAnnualDelta > 0 ? "text-amber-700 dark:text-amber-300" : planAnnualDelta != null && planAnnualDelta < 0 ? "text-emerald-700 dark:text-emerald-300" : "text-zinc-900 dark:text-zinc-100"}`}>
-                {planAnnualDelta != null ? fmtMoney(planAnnualDelta) : "-"}
+                {planAnnualDelta != null ? fmtMoney(planAnnualDelta, company.currency, company.locale) : "-"}
               </p>
               <p className="text-xs text-zinc-500">estimado a 12 meses</p>
             </div>
@@ -284,7 +284,7 @@ export function AccountPlanTab({
             </div>
             <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/50">
               <p className="text-xs text-zinc-500">Precio mensual</p>
-              <p className="font-semibold text-zinc-900 dark:text-zinc-100">{fmtMoney(company.planPrice)}</p>
+              <p className="font-semibold text-zinc-900 dark:text-zinc-100">{fmtMoney(company.planPrice, company.currency, company.locale)}</p>
             </div>
             <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/50">
               <p className="text-xs text-zinc-500">Extras activos</p>
@@ -305,7 +305,7 @@ export function AccountPlanTab({
                   Si cancelas ahora, el acceso seguirá funcionando hasta la fecha de vencimiento actual. Después de esa fecha, el tenant quedará suspendido.
                 </p>
                 <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                  Fecha de vencimiento actual: <span className="font-medium text-zinc-700 dark:text-zinc-200">{fmtDate(subscriptionEndsAt)}</span>
+                  Fecha de vencimiento actual: <span className="font-medium text-zinc-700 dark:text-zinc-200">{fmtDate(subscriptionEndsAt, company.timezone)}</span>
                 </p>
     
                 <textarea
@@ -388,24 +388,24 @@ export function AccountPlanTab({
             <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
               <p className="text-xs text-zinc-500">Plan actual</p>
               <p className="font-semibold text-zinc-900 dark:text-zinc-100">{planPreview?.currentPlan?.name ?? company.planName ?? "-"}</p>
-              <p className="text-zinc-600 dark:text-zinc-400">{fmtMoney(planPreview?.pricing.currentPrice ?? company.planPrice)}</p>
+              <p className="text-zinc-600 dark:text-zinc-400">{fmtMoney(planPreview?.pricing.currentPrice ?? company.planPrice, company.currency, company.locale)}</p>
             </div>
             <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
               <p className="text-xs text-zinc-500">Plan objetivo</p>
               <p className="font-semibold text-zinc-900 dark:text-zinc-100">{planPreview?.targetPlan?.name ?? selectedPlanOption?.name ?? "-"}</p>
-              <p className="text-zinc-600 dark:text-zinc-400">{fmtMoney(planPreview?.pricing.targetPrice ?? selectedPlanOption?.price ?? null)}</p>
+              <p className="text-zinc-600 dark:text-zinc-400">{fmtMoney(planPreview?.pricing.targetPrice ?? selectedPlanOption?.price ?? null, company.currency, company.locale)}</p>
             </div>
             <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
               <p className="text-xs text-zinc-500">Impacto mensual</p>
               <p className={`font-semibold ${(planPreview?.pricing.monthlyDiff ?? 0) > 0 ? "text-amber-700 dark:text-amber-300" : (planPreview?.pricing.monthlyDiff ?? 0) < 0 ? "text-emerald-700 dark:text-emerald-300" : "text-zinc-900 dark:text-zinc-100"}`}>
-                {planPreview ? fmtMoney(planPreview.pricing.monthlyDiff) : "-"}
+                {planPreview ? fmtMoney(planPreview.pricing.monthlyDiff, company.currency, company.locale) : "-"}
               </p>
-              <p className="text-zinc-600 dark:text-zinc-400">Pago inmediato: {planPreview ? fmtMoney(planPreview.pricing.amountDue) : "-"}</p>
+              <p className="text-zinc-600 dark:text-zinc-400">Pago inmediato: {planPreview ? fmtMoney(planPreview.pricing.amountDue, company.currency, company.locale) : "-"}</p>
             </div>
           </div>
           {planPreview?.execution?.mode === "scheduled_cycle_end" ? (
             <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-2 text-sm text-sky-900 dark:border-sky-900/50 dark:bg-sky-950/20 dark:text-sky-200">
-                El downgrade se programará para el cierre del ciclo actual. Fecha efectiva: {fmtDate(planPreview.execution.effectiveAt)}.
+                El downgrade se programará para el cierre del ciclo actual. Fecha efectiva: {fmtDate(planPreview.execution.effectiveAt, company.timezone)}.
             </div>
           ) : null}
         </div>
@@ -482,11 +482,11 @@ export function AccountPlanTab({
               </div>
     
               <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
-                <p className="text-zinc-700 dark:text-zinc-300">Precio estimado: <span className="font-semibold">{fmtMoney(selectedPlanOption?.price ?? null)}</span></p>
+                <p className="text-zinc-700 dark:text-zinc-300">Precio estimado: <span className="font-semibold">{fmtMoney(selectedPlanOption?.price ?? null, company.currency, company.locale)}</span></p>
                 <p className="text-zinc-600 dark:text-zinc-400">Incluye hasta {selectedPlanOption?.max_branches ?? "-"} sucursales.</p>
                 {planPreview ? (
                   <p className="text-zinc-600 dark:text-zinc-400">
-                    Diferencia a pagar ahora: <span className="font-semibold">{fmtMoney(planPreview.pricing.amountDue)}</span>
+                    Diferencia a pagar ahora: <span className="font-semibold">{fmtMoney(planPreview.pricing.amountDue, company.currency, company.locale)}</span>
                   </p>
                 ) : null}
               </div>
@@ -716,8 +716,8 @@ export function AccountPlanTab({
               )}
     
               <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
-                <p className="text-zinc-700 dark:text-zinc-300">Precio unitario: <span className="font-semibold">{fmtMoney(addonPreview?.pricing.unitPrice ?? addonEstimatedUnit)}</span></p>
-                <p className="text-zinc-700 dark:text-zinc-300">Total estimado: <span className="font-semibold">{fmtMoney(addonPreview?.pricing.amountDue ?? addonEstimatedTotal)}</span></p>
+                <p className="text-zinc-700 dark:text-zinc-300">Precio unitario: <span className="font-semibold">{fmtMoney(addonPreview?.pricing.unitPrice ?? addonEstimatedUnit, company.currency, company.locale)}</span></p>
+                <p className="text-zinc-700 dark:text-zinc-300">Total estimado: <span className="font-semibold">{fmtMoney(addonPreview?.pricing.amountDue ?? addonEstimatedTotal, company.currency, company.locale)}</span></p>
                   <p className="text-zinc-600 dark:text-zinc-400">{selectedAddonIsMonthly ? "Cobro mensual co-terminado con tu plan." : "Cobro único."}</p>
               </div>
     
@@ -798,7 +798,7 @@ export function AccountPlanTab({
                     <p className="font-medium text-zinc-900 dark:text-zinc-100">{addon.addonName}</p>
                     <p className="text-zinc-600 dark:text-zinc-400">Estado: {displayStatus(addon.status, ADDON_STATUS_LABELS)}</p>
                     <p className="text-zinc-600 dark:text-zinc-400">Tipo: {addon.expires_at ? "Mensual co-terminado" : "Pago único"}</p>
-                    <p className="text-zinc-600 dark:text-zinc-400">Vence: {fmtDate(addon.expires_at)}</p>
+                    <p className="text-zinc-600 dark:text-zinc-400">Vence: {fmtDate(addon.expires_at, company.timezone)}</p>
                   </div>
                 ))
               )}
@@ -905,9 +905,9 @@ export function AccountPlanTab({
                     <div key={entitlement.id} className="rounded-xl border border-zinc-200 bg-zinc-50/60 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/40">
                       <div className="flex items-center justify-between gap-2">
                         <p className="font-medium text-zinc-900 dark:text-zinc-100">
-                          {entitlement.quantity} sucursal(es) · {fmtMoney(entitlement.amountPaid)}
+                          {entitlement.quantity} sucursal(es) · {fmtMoney(entitlement.amountPaid, company.currency, company.locale)}
                         </p>
-                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{fmtDate(entitlement.createdAt)}</span>
+                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{fmtDate(entitlement.createdAt, company.timezone)}</span>
                       </div>
                       <p className="mt-1 text-zinc-600 dark:text-zinc-400">Estado: {branchEntitlementStatusLabel(entitlement.status)}</p>
                       <p className="text-zinc-600 dark:text-zinc-400">Referencia: {entitlement.paymentReference ?? "-"}</p>

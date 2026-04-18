@@ -39,15 +39,9 @@ import { useCart } from "./use-cart";
 import { ordersService } from "./orders-service";
 import { validateImageFile } from "./utils/cloudinary";
 import { getCloudinaryOptimizedUrl } from "./utils/cloudinary";
-// import eliminado porque no se usa
 import { createSupabaseBrowserClient } from "../../utils/supabase/client";
-import {
-  formatRutOnInput,
-  normalizeChilePhoneInput,
-  validateChileCustomerPhone,
-  validateRutChile,
-} from "../../utils/chile-forms";
 import { sanitizeUserText } from "../../utils/sanitize-user-text";
+import { getFormStrategy, type CountryFormStrategy } from "../../lib/country-forms";
 import { mergeCartWithBranchPrices } from "./utils/cart-pricing";
 import { formatCartMoney } from "./utils/format-cart-money";
 import type { Json } from "../../types/supabase-database";
@@ -160,6 +154,7 @@ interface BusinessInfo {
   account_rut?: string | null;
   account_email?: string | null;
   account_holder?: string | null;
+  country?: string | null;
 }
 
 interface CartLineItem {
@@ -303,9 +298,9 @@ const generateWSMessage = (
       msg += `${meta.deliverySummary}\n`;
     }
     if (meta.fulfillment === "delivery" && meta.deliveryFee > 0) {
-      msg += `${c.shipping}: $${formatCartMoney(meta.deliveryFee)}\n`;
+      msg += `${c.shipping}: ${formatCartMoney(meta.deliveryFee)}\n`;
     }
-    msg += `${c.subtotalProducts}: $${formatCartMoney(meta.cartSubtotal)}\n`;
+    msg += `${c.subtotalProducts}: ${formatCartMoney(meta.cartSubtotal)}\n`;
     if (meta.orderNumber != null) msg += `${c.orderNumber}: #${meta.orderNumber}\n`;
     else if (meta.orderId != null) msg += `${c.orderId}: ${meta.orderId}\n`;
     if (meta.handoffCode) msg += `${c.handoffCode}: ${meta.handoffCode}\n`;
@@ -318,7 +313,7 @@ const generateWSMessage = (
       msg += `   (${c.doLabel}: ${item.description})\n`;
     }
   });
-  msg += `\n*${c.total}: $${formatCartMoney(grandTotal)}*\n`;
+  msg += `\n*${c.total}: ${formatCartMoney(grandTotal)}*\n`;
   const methodLabel = paymentMethodLabel ?? paymentMethodKey ?? c.paymentUnknown;
   msg += `${c.payment}: ${methodLabel}\n`;
 
@@ -367,11 +362,13 @@ function CartNamedAreaSelect({
   value,
   onPick,
   formatMoney,
+  currency = "CLP",
 }: {
   areas: DeliveryNamedArea[];
   value: string | null;
   onPick: (id: string | null) => void;
-  formatMoney: (n: number) => string;
+  formatMoney: (n: number, c?: string) => string;
+  currency?: string;
 }) {
   const t = useTranslations("tenant.cart.modal");
   const [open, setOpen] = useState(false);
@@ -404,7 +401,7 @@ function CartNamedAreaSelect({
       >
         <span className="cart-named-area-select-value">
           {selected
-            ? `${selected.name} — $${formatMoney(selected.feeFlat)}`
+            ? `${selected.name} — ${formatMoney(selected.feeFlat, currency)}`
             : t("delivery.pickNamedArea")}
         </span>
         <ChevronDown
@@ -439,7 +436,7 @@ function CartNamedAreaSelect({
                   setOpen(false);
                 }}
               >
-                {a.name} — ${formatMoney(a.feeFlat)}
+                {a.name} — {formatMoney(a.feeFlat, currency)}
               </button>
             </li>
           ))}
@@ -452,15 +449,23 @@ function CartNamedAreaSelect({
 export function CartModal({
   businessInfo,
   selectedBranch,
+  currency = "CLP",
 }: {
   businessInfo?: BusinessInfo | null;
   selectedBranch?: BranchInfo | null;
+  currency?: string;
 }) {
+  const countryCode = businessInfo?.country || "CL";
+  const strategy = useMemo(() => getFormStrategy(countryCode), [countryCode]);
+
   const t = useTranslations("tenant.cart.modal");
-    // const router = useRouter(); // No usado
-    // const pathname = usePathname(); // No usado
     const supabase = useMemo(() => createSupabaseBrowserClient("tenant"), []);
-    // homePath eliminado porque no se usa y generaba error de sintaxis
+
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => {
+      const timer = setTimeout(() => setMounted(true), 0);
+      return () => clearTimeout(timer);
+    }, []);
 
     const {
       cart,
@@ -484,22 +489,22 @@ export function CartModal({
       setDeliveryCommune,
       deliveryReference,
       setDeliveryReference,
-      setDeliveryCoords,
       deliveryLat,
       deliveryLng,
-      isDeliveryOutOfZone,
-      quotedRouteKm,
+      setDeliveryCoords,
       deliveryNamedAreaId,
       setDeliveryNamedAreaId,
       deliveryKmManual,
       setDeliveryKmManual,
+      globalExtras,
+      setGlobalExtras,
+      isDeliveryOutOfZone,
+      quotedRouteKm,
       setShowDeliveryReference,
       deliveryWaivedFree,
       deliveryNamedAreaLabel,
       deliveryQuoteLoading,
       deliveryQuoteError,
-      globalExtras,
-      setGlobalExtras,
       extrasEnabledByBranch,
       beveragesUpsellEnabledByBranch,
       deliveryShowNumericFee,
@@ -507,6 +512,8 @@ export function CartModal({
       uberQuoteId,
       branchPriceRows,
     } = useCart();
+
+
 
     type CheckoutLiveBranch = Pick<
       BranchInfo,
@@ -1388,9 +1395,8 @@ export function CartModal({
 
   const validation = useMemo(() => {
     const values = formValues; // CORRECTO: Usa los valores reactivos de watch()
-    const isPhoneValid = validateChileCustomerPhone(values.phone || "");
-
-    const isRutValid = validateRutChile(values.rut || "");
+    const isRutValid = strategy.validateId(values.rut || "");
+    const isPhoneValid = strategy.validatePhone(values.phone || "");
 
     const nameValue = (values.name || "").trim();
     const namePattern = /^[\p{L} .'-]+$/u;
@@ -1409,20 +1415,19 @@ export function CartModal({
       receipt: isReceiptValid,
       isReady: isNameValid && isPhoneValid && isRutValid && isReceiptValid,
     };
-  }, [formValues, paymentMethodKey]); // CORRECTO: Depende de los valores reactivos
+  }, [formValues, paymentMethodKey, strategy]); // CORRECTO: Depende de los valores reactivos
 
   // Usar setValue de react-hook-form para cambios
   const handleInputChange = useCallback((field: string, value: string) => {
-    if (field === "rut") value = formatRutOnInput(value);
-    if (field === "phone") value = normalizeChilePhoneInput(value);
+    if (field === "rut") value = strategy.formatId ? strategy.formatId(value) : value;
+    if (field === "phone") value = strategy.normalizePhone(value);
     setValue(field as keyof typeof clientSchema.shape, value);
     setViewState((prev) => ({ ...prev, error: null }));
-  }, [setValue, clientSchema]);
+  }, [setValue, clientSchema, strategy]);
 
   const handleFileChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
-      // ...existing code...
       if (file) {
         const preview = URL.createObjectURL(file);
         const { valid, error: validationError } = validateImageFile(file);
@@ -1804,7 +1809,11 @@ export function CartModal({
   const enhanceTabCount =
     (beveragesUpsellEnabledByBranch ? 1 : 0) + (extrasEnabledByBranch ? 1 : 0);
 
-  if (!isCartOpen) return null;
+
+
+
+
+  if (!mounted || !isCartOpen) return null;
 
   if (viewState.showSuccess) {
     return (
@@ -1835,7 +1844,11 @@ export function CartModal({
   }
 
   return (
-    <div className="modal-overlay cart-overlay" onClick={handleCloseCart}>
+    <div
+      suppressHydrationWarning
+      className="modal-overlay cart-overlay"
+      onClick={handleCloseCart}
+    >
       <div
         ref={cartPanelRef}
         className="cart-panel"
@@ -1850,7 +1863,7 @@ export function CartModal({
           <div className="cart-header-main">
             <div className="cart-header-title-row">
               <h3>{t("header.title")}</h3>
-              <span className="cart-count-badge">{filteredCart.length}</span>
+              <span className="cart-count-badge">{mounted ? filteredCart.length : 0}</span>
             </div>
             {selectedBranch ? (
               <div className="cart-branch-row">
@@ -1947,7 +1960,7 @@ export function CartModal({
                                 <span className="cart-enhance-tile-main">
                                   <span className="cart-enhance-tile-title">{bev.name}</span>
                                   <span className="cart-enhance-tile-sub">
-                                    ${formatCartMoney(bev.price)}
+                                    {formatCartMoney(bev.price, currency)}
                                   </span>
                                 </span>
                               </button>
@@ -1992,7 +2005,7 @@ export function CartModal({
                                       {active ? (
                                         <span className="cart-enhance-tile-pill">{t("catalog.inYourOrder")}</span>
                                       ) : (
-                                        `$${formatCartMoney(extra.price)}`
+                                        formatCartMoney(extra.price, currency)
                                       )}
                                     </span>
                                   </span>
@@ -2088,7 +2101,7 @@ export function CartModal({
               <>
                 <div className="total-row">
                   <span>{t("summary.subtotal")}</span>
-                  <span>${formatCartMoney(cartSubtotal)}</span>
+                  <span>{formatCartMoney(cartSubtotal, currency)}</span>
                 </div>
                 {fulfillment === "delivery" && deliverySettings.enabled ? (
                   <div className="total-row total-row-delivery">
@@ -2100,13 +2113,13 @@ export function CartModal({
                           ? "—"
                           : !deliveryShowNumericFee && deliveryExternalHintText
                             ? deliveryExternalHintText
-                            : `$${formatCartMoney(deliveryFee)}`}
+                            : formatCartMoney(deliveryFee, currency)}
                     </span>
                   </div>
                 ) : null}
                 <div className="total-row total-row-grand">
                   <span>{t("summary.total")}</span>
-                  <span className="total-price">${formatCartMoney(grandTotal)}</span>
+                  <span className="total-price">{formatCartMoney(grandTotal, currency)}</span>
                 </div>
 
                 {isShiftLoading ? (
@@ -2189,6 +2202,7 @@ export function CartModal({
                                 areas={deliverySettings.namedAreas}
                                 value={deliveryNamedAreaId}
                                 formatMoney={formatCartMoney}
+                                currency={currency}
                                 onPick={(id) => {
                                   setDeliveryNamedAreaId(id);
                                   if (id) {
@@ -2445,12 +2459,12 @@ export function CartModal({
                                   ? t("delivery.outOfZone")
                                   : !deliveryShowNumericFee && deliveryExternalHintText
                                     ? deliveryExternalHintText
-                                    : `$${formatCartMoney(deliveryFee)}`}
+                                    : formatCartMoney(deliveryFee, currency)}
                             </strong>
                           </div>
                           {!meetsMinDelivery ? (
                             <p className="cart-fulfillment-warn">
-                              {t("delivery.minOrderForDelivery", { amount: formatCartMoney(minOrder) })}
+                              {t("delivery.minOrderForDelivery", { amount: formatCartMoney(minOrder, currency) })}
                             </p>
                           ) : null}
                           {isDeliveryOutOfZone ? (
@@ -2553,7 +2567,7 @@ export function CartModal({
                 }
                 activeInfo={activeInfo}
                 setViewState={setViewState}
-                viewState={viewState}
+                strategy={strategy}
               />
             )}
             </div>
@@ -2584,7 +2598,7 @@ const PaymentFlow = ({
   onBack,
   activeInfo,
   setViewState,
-  // viewState solo usado como tipo
+  strategy,
 }: {
   paymentMethodKey: string | null;
   setPaymentMethodKey: (value: string | null) => void;
@@ -2609,7 +2623,7 @@ const PaymentFlow = ({
   onBack: () => void;
   activeInfo: ActiveSessionInfo;
   setViewState: React.Dispatch<React.SetStateAction<CartModalViewState>>;
-  viewState: CartModalViewState;
+  strategy: CountryFormStrategy;
 }) => {
   const t = useTranslations("tenant.cart.modal");
   const isOnline = paymentMethodKey && PAYMENT_METHOD_CONFIG[paymentMethodKey]?.isOnline;
@@ -2663,14 +2677,14 @@ const PaymentFlow = ({
 
         <div className="form-row">
           <div className="form-group">
-            <label>RUT {validation.rut ? <CheckCircle2 size={14} color="#25d366" /> : null}</label>
+            <label>{strategy.idName} {validation.rut ? <CheckCircle2 size={14} color="#25d366" /> : null}</label>
             <input
               type="text"
               required
               value={formData.rut}
               onChange={(event) => onInputChange("rut", event.target.value)}
               className={`form-input ${showRutError ? "input-error" : ""}`}
-              placeholder="12.345.678-9"
+              placeholder={strategy.idPlaceholder}
             />
           </div>
 
@@ -2684,7 +2698,7 @@ const PaymentFlow = ({
               value={formData.phone}
               onChange={(event) => onInputChange("phone", event.target.value)}
               className={`form-input ${showPhoneError ? "input-error" : ""}`}
-              placeholder="+56 9 1234 5678"
+              placeholder={strategy.phonePlaceholder}
             />
           </div>
         </div>
@@ -2725,7 +2739,7 @@ const PaymentFlow = ({
                 let errorMsg = `${t("validation.completeCorrectly")}:`;
                 const errors = [];
                 if (!validation.name) errors.push(t("validationItems.name"));
-                if (!validation.rut) errors.push("RUT");
+                if (!validation.rut) errors.push(strategy.idName);
                 if (!validation.phone) errors.push(t("validationItems.phone"));
                 if (!validation.receipt && requiresReceipt) errors.push(t("validationItems.receipt"));
                 if (errors.length > 0) errorMsg += " " + errors.join(", ");
@@ -2760,7 +2774,7 @@ const PaymentFlow = ({
               <h4>{resolvePaymentMethodLabel(paymentMethodKey, t)}</h4>
               <p className="text-muted">{t("payment.payInStoreHelp")}</p>
             </div>
-            <div className="pay-total">{t("summary.total")}: ${formatCartMoney(cartTotal)}</div>
+            <div className="pay-total">{t("summary.total")}: {formatCartMoney(cartTotal)}</div>
           </div>
         )}
 
@@ -2915,7 +2929,7 @@ const OnlinePaymentDetails = ({ methodKey, cartTotal, activeInfo }: { methodKey:
     <div className="bank-info glass payment-method-bank-card" key={methodKey}>
       <h4>{t("payment.detailsTitle")}</h4>
       {renderDetails()}
-      <div className="pay-total">{t("summary.total")}: ${formatCartMoney(cartTotal)}</div>
+      <div className="pay-total">{t("summary.total")}: {formatCartMoney(cartTotal)}</div>
     </div>
   );
 };
@@ -3161,7 +3175,7 @@ const CartItem = ({
 
       <div className="item-bottom item-bottom-tight">
         <span className="item-price item-price-strong">
-          ${formatCartMoney(lineUnitTotal * item.quantity)}
+          {formatCartMoney(lineUnitTotal * item.quantity)}
         </span>
         <div className="qty-control-sm">
           <button

@@ -15,15 +15,9 @@ import { Plus, Minus, ChevronDown, X } from "lucide-react";
 import { useCart } from "./use-cart";
 import { getCloudinaryOptimizedUrl } from "./utils/cloudinary";
 
-const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80";
+import { formatCartMoney } from "./utils/format-cart-money";
 
-const formatPrice = (price: number, currency: string = 'CLP') => {
-  return new Intl.NumberFormat(currency === 'USD' ? 'en-US' : 'es-CL', {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 0,
-  }).format(Number(price) || 0);
-};
+const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80";
 
 export const ProductCard = React.memo(function ProductCard({ product, priority = false, country = "CL", currency = "CLP" }: { product: ProductType; priority?: boolean; country?: string; currency?: string }) {
   const { cart, addToCart, decreaseQuantity } = useCart();
@@ -31,8 +25,13 @@ export const ProductCard = React.memo(function ProductCard({ product, priority =
   const [isClosing, setIsClosing] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [isBumping, setIsBumping] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Removed unused failedSrc and setFailedSrc
+
+  useEffect(() => {
+    const timer = setTimeout(() => setMounted(true), 0);
+    return () => clearTimeout(timer);
+  }, []);
   const CLOSE_ANIMATION_MS = 220;
 
   const quantity = useMemo(
@@ -150,7 +149,7 @@ export const ProductCard = React.memo(function ProductCard({ product, priority =
         {product.is_special && <span className="badge-special">ESPECIAL</span>}
         {product.has_discount && <span className="badge-discount">OFERTA</span>}
 
-        {quantity > 0 && (
+        {mounted && quantity > 0 && (
           <div className="qty-badge-overlay animate-bounce-in">{quantity}</div>
         )}
       </div>
@@ -193,26 +192,30 @@ export const ProductCard = React.memo(function ProductCard({ product, priority =
               <>
                 <span className="product-price discounted">
                   {showUSD
-                    ? formatPrice(product.discount_price, 'USD')
-                    : formatPrice(product.discount_price, currency)}
+                    ? formatCartMoney(product.discount_price, 'USD')
+                    : formatCartMoney(product.discount_price, currency)}
                 </span>
                 <span className="product-price original">
                   {showUSD
-                    ? formatPrice(product.price, 'USD')
-                    : formatPrice(product.price, currency)}
+                    ? formatCartMoney(product.price, 'USD')
+                    : formatCartMoney(product.price, currency)}
                 </span>
               </>
             ) : (
               <span className="product-price">
                 {showUSD
-                  ? formatPrice(product.price, 'USD')
-                  : formatPrice(product.price, currency)}
+                  ? formatCartMoney(product.price, 'USD')
+                  : formatCartMoney(product.price, currency)}
               </span>
             )}
           </div>
 
-          {quantity === 0 ? (
-            <button onClick={handleAdd} className="btn-add" aria-label={`Agregar ${product.name} al carrito`}>
+          {(!mounted || quantity === 0) ? (
+            <button
+              onClick={handleAdd}
+              className="btn-add"
+              aria-label={`Agregar ${product.name} al carrito`}
+            >
               <Plus size={18} />
               <span>Agregar</span>
             </button>

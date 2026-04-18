@@ -6,7 +6,12 @@ import { QRCodeSVG } from "qrcode.react";
 import { Building2, Share2, MapPin, MessageCircle, Settings, Utensils, QrCode } from "lucide-react";
 import Image from "next/image";
 
-import { ContactBranchModal } from "./contact-branch-modal";
+import dynamic from "next/dynamic";
+
+const ContactBranchModal = dynamic(
+  () => import("./contact-branch-modal").then((mod) => mod.ContactBranchModal),
+  { ssr: false }
+);
 import { getTenantScopedPath } from "./utils/tenant-route";
 
 interface BranchInfo {
