@@ -21,9 +21,11 @@ export interface HeroBanner {
 function HeroSlide({
 	banner,
 	isActive,
+	isFirst,
 }: {
 	banner: HeroBanner;
 	isActive: boolean;
+	isFirst: boolean;
 }) {
 	const rawUrl = banner.image_url?.trim() ?? "";
 	const isCloudinary = rawUrl.includes("res.cloudinary.com");
@@ -48,7 +50,7 @@ function HeroSlide({
 						fill
 						sizes="100vw"
 						className="hero-slide-image"
-						priority
+						priority={isFirst}
 						unoptimized
 					/>
 				) : (
@@ -57,7 +59,8 @@ function HeroSlide({
 						src={imageUrl || FALLBACK_IMAGE}
 						alt="Promoción"
 						className="hero-slide-image"
-						loading="eager"
+						loading={isFirst ? "eager" : "lazy"}
+						fetchPriority={isFirst ? "high" : "auto"}
 						decoding="async"
 					/>
 				)}
@@ -138,7 +141,7 @@ export function HeroCarousel({ banners }: { banners: HeroBanner[] }) {
 						<div className="hero-carousel-container">
 							{safeBanners.map((banner, i) => (
 								<div className="hero-carousel-slide" key={banner.id}>
-									<HeroSlide banner={banner} isActive={i === selectedIndex} />
+									<HeroSlide banner={banner} isActive={i === selectedIndex} isFirst={i === 0} />
 								</div>
 							))}
 						</div>
