@@ -24,6 +24,7 @@ export const TENANT_ADMIN_TAB_OPTIONS = [
 	{ id: "clients", label: "Clientes" },
 	{ id: "users", label: "Equipo" },
 	{ id: "payment_methods", label: "Métodos de pago" },
+	{ id: "coupons", label: "Cupones" },
 	{ id: "admin_menu_options", label: "Opciones de menú (admin)" },
 ] as const;
 
