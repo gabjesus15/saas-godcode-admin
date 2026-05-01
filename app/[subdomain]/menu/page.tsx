@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { createSupabasePublicServerClient } from "../../../utils/supabase/server";
-import { StoreUnavailable } from "../../../components/tenant/store-unavailable";
 import { MenuClient } from "../../../components/tenant/menu-client";
 import type { HeroBanner } from "../../../components/tenant/hero-carousel";
 
@@ -124,12 +124,12 @@ export default async function TenantMenuPage({ params, searchParams }: TenantMen
         </div>
       );
     }
-    return <StoreUnavailable />;
+    notFound();
   }
 
   const status = company.subscription_status?.toLowerCase();
   if (status === "suspended" || status === "cancelled") {
-    return <StoreUnavailable />;
+    notFound();
   }
 
   // --- B. Ejecutar consultas secundarias en PARALELO para máximo rendimiento ---
@@ -175,7 +175,7 @@ export default async function TenantMenuPage({ params, searchParams }: TenantMen
           </div>
         );
       }
-      return <StoreUnavailable />;
+      notFound();
     }
 
     const openBranchIds = (openShifts ?? [])
@@ -186,7 +186,7 @@ export default async function TenantMenuPage({ params, searchParams }: TenantMen
     // --- C. Selección segura de la sucursal ---
     const safeBranches = branches ?? [];
     if (safeBranches.length === 0) {
-      return <StoreUnavailable />;
+      notFound();
     }
 
     const hasOpenBranches = openBranchIds.length > 0;
@@ -243,7 +243,7 @@ export default async function TenantMenuPage({ params, searchParams }: TenantMen
             </div>
           );
         }
-        return <StoreUnavailable />;
+        notFound();
       }
 
       menuData = Array.isArray(menuResult.data) && menuResult.data.length > 0

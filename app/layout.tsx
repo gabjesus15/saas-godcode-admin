@@ -25,24 +25,14 @@ const geistMono = Geist_Mono({
 });
 
 
-// Mejorar título y descripción según idioma
-// import { SUPPORTED_LOCALES } from "@/lib/i18n/config"; // Eliminado porque no se usa
-const DESCRIPTIONS: Record<string, string> = {
-  es: "Panel de administración multi-tenant: empresas, planes, onboarding y soporte.",
-  en: "Multi-tenant admin panel: companies, plans, onboarding and support.",
-  pt: "Painel de administração multi-tenant: empresas, planos, onboarding e suporte.",
-  fr: "Panneau d'administration multi-tenant : entreprises, plans, onboarding et support.",
-  de: "Multi-Tenant-Admin-Panel: Unternehmen, Pläne, Onboarding und Support.",
-  it: "Pannello di amministrazione multi-tenant: aziende, piani, onboarding e supporto.",
-};
-
 export const metadata: Metadata = {
   metadataBase: new URL(getAppUrl()),
   title: {
-    default: "GodCode",
+    default: "GodCode | Menú digital y pedidos online para restaurantes",
     template: "%s · GodCode",
   },
-  description: DESCRIPTIONS[typeof window !== "undefined" ? (window.navigator.language?.split("-")[0] || "es") : "es"],
+  description:
+    "GodCode ayuda a restaurantes y negocios con sucursales a vender online con menú digital, pedidos por WhatsApp, delivery, caja e inventario. Sin comisiones por venta y listo en minutos.",
   verification: {
     google:
       process.env.GOOGLE_SITE_VERIFICATION?.trim() ||
@@ -71,20 +61,6 @@ export default async function RootLayout({
         <link rel="preload" href="/fonts/Outfit-Regular.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
         <link rel="preload" href="/fonts/Outfit-Bold.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
         <link rel="stylesheet" href="/fonts/custom-fonts.css" />
-        {/* Etiqueta canónica y hreflang para SEO internacional */}
-        <link
-          rel="canonical"
-          href={`${getAppUrl()}`}
-        />
-        {/* Etiquetas hreflang para todos los idiomas soportados */}
-        {['es','en','pt','fr','de','it'].map((lang) => (
-          <link
-            key={lang}
-            rel="alternate"
-            hrefLang={lang}
-            href={`${getAppUrl()}?hl=${lang}`}
-          />
-        ))}
       </head>
       <body
         suppressHydrationWarning

@@ -1,8 +1,36 @@
+import type { Metadata } from "next";
 import { Shield, Mail, Clock } from "lucide-react";
 
 import { OnboardingStep1Form } from "../../components/onboarding/OnboardingStep1Form";
 import { OnboardingStepBar } from "../../components/onboarding/OnboardingStepBar";
 import { getCurrentMessages } from "@/lib/i18n/server";
+import { getAppUrl } from "@/lib/app-url";
+
+export async function generateMetadata(): Promise<Metadata> {
+	const base = getAppUrl();
+	return {
+		title: "Crea tu tienda online en minutos · GodCode",
+		description:
+			"Registra tu negocio en GodCode y crea tu menú digital, pedidos online, caja, inventario y delivery. Sin comisiones por venta y listo en minutos.",
+		alternates: {
+			canonical: `${base}/onboarding`,
+		},
+		openGraph: {
+			title: "Crea tu tienda online en minutos · GodCode",
+			description:
+				"Registra tu negocio en GodCode y empieza a vender online con menú digital, pedidos y delivery.",
+			url: `${base}/onboarding`,
+			siteName: "GodCode",
+			type: "website",
+		},
+		robots: {
+			index: true,
+			follow: true,
+			"max-image-preview": "large",
+			"max-snippet": -1,
+		},
+	};
+}
 
 export default async function OnboardingPage() {
 	const messages = await getCurrentMessages();

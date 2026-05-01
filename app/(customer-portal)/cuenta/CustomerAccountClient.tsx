@@ -4,9 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { CustomerAccountShell } from "@/components/customer-portal/CustomerAccountShell";
 import {
-  ADDON_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
-  PORTAL_TAB_LABELS,
   SUBSCRIPTION_STATUS_LABELS,
   TICKET_CATEGORY_LABELS,
   TICKET_STATUS_LABELS,
@@ -26,18 +24,13 @@ import {
 import type {
   AccountActivityItem,
   ActiveAddon,
-  AddonOption,
   AddonPurchasePreview,
-  BillingMethodOption,
   BillingOptionsResponse,
   BillingPaymentResponse,
   BranchEntitlementSummary,
-  BranchSummary,
-  CompanySnapshot,
   CustomerAccountClientProps,
   PaymentSummary,
   PlanChangePreview,
-  PlanOption,
   PortalTab,
   RealtimeSnapshotResponse,
   StoreThemeAssetField,

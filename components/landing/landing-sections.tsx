@@ -95,6 +95,12 @@ const LANDING_TX: Partial<Record<string, Record<Exclude<SupportedLocale, "es" | 
   "Si ya tienes tus productos y fotos, menos de 1 hora. El proceso de registro toma 5 minutos.": { pt: "Se voce ja tem produtos e fotos, menos de 1 hora. O cadastro leva 5 minutos.", fr: "Si vous avez deja vos produits et photos, moins d'une heure. L'inscription prend 5 minutes.", de: "Wenn du Produkte und Fotos hast, weniger als 1 Stunde. Die Registrierung dauert 5 Minuten.", it: "Se hai gia prodotti e foto, meno di 1 ora. La registrazione richiede 5 minuti." },
   "¿Puedo tener varias sucursales?": { pt: "Posso ter varias filiais?", fr: "Puis-je avoir plusieurs succursales ?", de: "Kann ich mehrere Filialen haben?", it: "Posso avere piu filiali?" },
   "Sí. Cada sucursal tiene su propio inventario, precios, zona de delivery y horarios.": { pt: "Sim. Cada filial tem seu proprio estoque, precos, area de delivery e horarios.", fr: "Oui. Chaque succursale a son inventaire, ses prix, sa zone de livraison et ses horaires.", de: "Ja. Jede Filiale hat eigenes Inventar, Preise, Liefergebiet und Offnungszeiten.", it: "Si. Ogni filiale ha inventario, prezzi, zona delivery e orari propri." },
+  "Ver el producto": { pt: "Ver o produto", fr: "Voir le produit", de: "Das Produkt sehen", it: "Vedere il prodotto" },
+  "Tu tienda lista en": { pt: "Sua loja pronta em", fr: "Votre boutique prete en", de: "Dein Shop bereit in", it: "Il tuo negozio pronto in" },
+  "No necesitas saber de tecnología. Si puedes subir una foto a Instagram, puedes tener tu tienda funcionando hoy.": { pt: "Voce nao precisa saber de tecnologia. Se consegue subir uma foto no Instagram, consegue ter sua loja funcionando hoje.", fr: "Vous n'avez pas besoin de connaitre la technologie. Si vous pouvez publier une photo sur Instagram, vous pouvez avoir votre boutique operationnelle aujourd'hui.", de: "Du musst keine Ahnung von Technik haben. Wenn du ein Foto auf Instagram hochladen kannst, kannst du deinen Shop heute starten.", it: "Non devi sapere di tecnologia. Se riesci a caricare una foto su Instagram, puoi avere il tuo negozio attivo oggi." },
+  "No todas las formas de vender online cuestan lo mismo. Compara el costo real: tiempo, comisión y control de cada opción.": { pt: "Nem todas as formas de vender online custam o mesmo. Compare o custo real: tempo, comissao e controle de cada opcao.", fr: "Toutes les facons de vendre en ligne ne coutent pas la meme chose. Comparez le cout reel: temps, commission et controle de chaque option.", de: "Nicht alle Online-Verkaufswege kosten dasselbe. Vergleiche die echten Kosten: Zeit, Provision und Kontrolle jeder Option.", it: "Non tutti i modi di vendere online costano uguale. Confronta il costo reale: tempo, commissione e controllo di ogni opzione." },
+  "Empieza hoy:": { pt: "Comece hoje:", fr: "Commencez aujourd'hui:", de: "Starte heute:", it: "Inizia oggi:" },
+  "tu canal propio, sin comisiones": { pt: "seu canal proprio, sem comissoes", fr: "votre propre canal, sans commissions", de: "dein eigener Kanal, ohne Provisionen", it: "il tuo canale, senza commissioni" },
   "Crea tu cuenta con email. El primer mes es gratis.": { pt: "Crie sua conta com email. O primeiro mes e gratis.", fr: "Creez votre compte avec email. Le premier mois est gratuit.", de: "Erstelle dein Konto per E-Mail. Der erste Monat ist kostenlos.", it: "Crea il tuo account con email. Il primo mese e gratis." },
   "Arma tu tienda": { pt: "Monte sua loja", fr: "Creez votre boutique", de: "Baue deinen Shop", it: "Crea il tuo negozio" },
   "Sube productos, configura delivery y sucursales.": { pt: "Adicione produtos, configure delivery e filiais.", fr: "Ajoutez des produits, configurez la livraison et les succursales.", de: "Fuege Produkte hinzu und konfiguriere Lieferung und Filialen.", it: "Carica prodotti, configura delivery e filiali." },
@@ -113,12 +119,10 @@ const LANDING_TX: Partial<Record<string, Record<Exclude<SupportedLocale, "es" | 
   "Desde $20": { pt: "A partir de $20", fr: "A partir de $20", de: "Ab $20", it: "Da $20" },
   "Inventario y caja": { pt: "Inventario e caixa", fr: "Inventaire et caisse", de: "Inventar und Kasse", it: "Inventario e cassa" },
   "Lanzamiento: beneficios para primeros negocios (cupos limitados)": { pt: "Lancamento: beneficios para os primeiros negocios (vagas limitadas)", fr: "Lancement: avantages pour les premieres entreprises (places limitees)", de: "Launch: Vorteile fur erste Unternehmen (begrenzte Platze)", it: "Lancio: vantaggi per le prime attivita (posti limitati)" },
-  "Todo lo que tu negocio necesita para": { pt: "Tudo o que seu negocio precisa para", fr: "Tout ce dont votre entreprise a besoin pour", de: "Alles, was dein Unternehmen braucht, um", it: "Tutto cio di cui la tua attivita ha bisogno per" },
-  "vender online": { pt: "vender online", fr: "vendre en ligne", de: "online zu verkaufen", it: "vendere online" },
-  "Menú digital, carrito, delivery, caja, comandas e inventario.": { pt: "Menu digital, carrinho, delivery, caixa, comandas e inventario.", fr: "Menu digital, panier, livraison, caisse, bons cuisine et inventaire.", de: "Digitales Menu, Warenkorb, Lieferung, POS, Kuchenbons und Inventar.", it: "Menu digitale, carrello, delivery, cassa, comande e inventario." },
-  "Crea tu tienda en minutos": { pt: "Crie sua loja em minutos", fr: "Creez votre boutique en quelques minutes", de: "Erstelle deinen Shop in Minuten", it: "Crea il tuo negozio in pochi minuti" },
-  "Hecho para restaurantes, delivery y negocios con sucursales": { pt: "Feito para restaurantes, delivery e negocios com filiais", fr: "Concu pour les restaurants, la livraison et les commerces avec succursales", de: "Gemacht fur Restaurants, Delivery und Unternehmen mit Filialen", it: "Fatto per ristoranti, delivery e attivita con filiali" },
-  "No dependas de marketplaces ni pierdas pedidos por WhatsApp": { pt: "Nao dependa de marketplaces nem perca pedidos no WhatsApp", fr: "Ne dependez pas des marketplaces et ne perdez plus de commandes sur WhatsApp", de: "Hang nicht von Marktplatzern ab und verliere keine Bestellungen uber WhatsApp", it: "Non dipendere dai marketplace e non perdere ordini su WhatsApp" },
+  "Dejas de ganar dinero en cada pedido": { pt: "Voce perde dinheiro em cada pedido", fr: "Vous perdez de l'argent sur chaque commande", de: "Du verlierst Geld bei jeder Bestellung", it: "Perdi denaro su ogni ordine" },
+  "que va por un marketplace.": { pt: "que passa por um marketplace.", fr: "qui passe par une marketplace.", de: "die uber einen Marktplatz geht.", it: "che passa per un marketplace." },
+  "Los marketplaces se quedan con hasta el 30% de cada venta. Tus clientes compran en tu local, pero su historial y sus datos quedan en la plataforma de ellos.": { pt: "Os marketplaces ficam com ate 30% de cada venda. Seus clientes compram de voce, mas o historico e os dados ficam na plataforma deles.", fr: "Les marketplaces prennent jusqu'a 30% de chaque vente. Vos clients achetent chez vous, mais leur historique reste sur leur plateforme.", de: "Marktplatze behalten bis zu 30% jedes Verkaufs. Deine Kunden kaufen bei dir, aber ihre Daten bleiben auf deren Plattform.", it: "I marketplace trattengono fino al 30% di ogni vendita. I tuoi clienti comprano da te, ma i loro dati restano sulla loro piattaforma." },
+  "GodCode te da tu propio canal de ventas: tu dominio, tus clientes, el 100% de tus ingresos.": { pt: "GodCode te da seu proprio canal de vendas: seu dominio, seus clientes, 100% da sua receita.", fr: "GodCode vous donne votre propre canal de vente: votre domaine, vos clients, 100% de vos revenus.", de: "GodCode gibt dir deinen eigenen Verkaufskanal: deine Domain, deine Kunden, 100% deiner Einnahmen.", it: "GodCode ti da il tuo canale di vendita: il tuo dominio, i tuoi clienti, il 100% dei tuoi ricavi." },
   ", sin programar.": { pt: ", sem programar.", fr: ", sans coder.", de: ", ohne Programmierung.", it: ", senza programmare." },
   "Empezar gratis": { pt: "Comecar gratis", fr: "Commencer gratuitement", de: "Kostenlos starten", it: "Inizia gratis" },
   "El primer mes es gratis · Cancela cuando quieras": { pt: "O primeiro mes e gratis · Cancele quando quiser", fr: "Le premier mois est gratuit · Resiliez quand vous voulez", de: "Der erste Monat ist kostenlos · Jederzeit kuendbar", it: "Il primo mese e gratis · Annulla quando vuoi" },
@@ -137,9 +141,9 @@ const LANDING_TX: Partial<Record<string, Record<Exclude<SupportedLocale, "es" | 
   "Cancela cuando quieras": { pt: "Cancele quando quiser", fr: "Resiliez quand vous voulez", de: "Jederzeit kuendbar", it: "Annulla quando vuoi" },
   "Soporte real": { pt: "Suporte real", fr: "Support reel", de: "Echter Support", it: "Supporto reale" },
   "Respuesta humana por correo": { pt: "Resposta humana por email", fr: "Reponse humaine par email", de: "Menschliche Antwort per E-Mail", it: "Risposta umana via email" },
-  "Todo incluido": { pt: "Tudo incluido", fr: "Tout inclus", de: "Alles enthalten", it: "Tutto incluso" },
-  "Una sola plataforma, todo lo que necesitas": { pt: "Uma unica plataforma, tudo o que voce precisa", fr: "Une seule plateforme, tout ce dont vous avez besoin", de: "Eine Plattform, alles was du brauchst", it: "Un'unica piattaforma, tutto cio che ti serve" },
-  "Deja de pagar por 5 herramientas distintas. Aquí está todo.": { pt: "Pare de pagar por 5 ferramentas diferentes. Aqui esta tudo.", fr: "Arretez de payer 5 outils differents. Tout est ici.", de: "Hoer auf, fuer 5 verschiedene Tools zu zahlen. Hier ist alles.", it: "Smetti di pagare 5 strumenti diversi. Qui hai tutto." },
+  "Sin el caos de siempre": { pt: "Sem o caos de sempre", fr: "Sans le chaos habituel", de: "Kein Chaos mehr", it: "Senza il solito caos" },
+  "Un sistema. No cinco herramientas pegadas con cinta.": { pt: "Um sistema. Nao cinco ferramentas coladas com fita.", fr: "Un systeme. Pas cinq outils assembles a la va-vite.", de: "Ein System. Nicht funf Tools zusammengeklebt.", it: "Un sistema. Non cinque strumenti tenuti insieme con il nastro." },
+  "Menú en una app, pedidos por WhatsApp, caja en otra pantalla, inventario en una hoja de cálculo. Con GodCode todo vive en un solo lugar.": { pt: "Menu em um app, pedidos pelo WhatsApp, caixa em outra tela, inventario em uma planilha. Com GodCode tudo fica em um so lugar.", fr: "Menu dans une app, commandes sur WhatsApp, caisse sur un autre ecran, inventaire dans un tableur. Avec GodCode tout est au meme endroit.", de: "Menu in einer App, Bestellungen per WhatsApp, Kasse auf einem anderen Bildschirm, Inventar in einer Tabelle. Mit GodCode ist alles an einem Ort.", it: "Menu in un'app, ordini su WhatsApp, cassa su un altro schermo, inventario in un foglio. Con GodCode tutto vive in un solo posto." },
   "Ventas online": { pt: "Vendas online", fr: "Ventes en ligne", de: "Online-Verkauf", it: "Vendite online" },
   "Menú digital y carrito inteligente": { pt: "Menu digital e carrinho inteligente", fr: "Menu digital et panier intelligent", de: "Digitales Menu und smarter Warenkorb", it: "Menu digitale e carrello intelligente" },
   "Tus clientes ven el menú desde su celular, eligen productos, personalizan extras y pagan online. Todo sin que levantes el teléfono.": { pt: "Seus clientes veem o menu no celular, escolhem produtos, personalizam extras e pagam online. Tudo sem precisar atender telefone.", fr: "Vos clients consultent le menu sur mobile, choisissent des produits, personnalisent des extras et paient en ligne.", de: "Deine Kunden sehen das Menu am Handy, waehlen Produkte, personalisieren Extras und zahlen online.", it: "I clienti vedono il menu da mobile, scelgono prodotti, personalizzano extra e pagano online." },
@@ -345,24 +349,22 @@ export function LandingSections({
 
             <LandingReveal delay={0.08}>
               <h1 className="mt-5 text-[1.7rem] font-bold leading-[1.08] tracking-tight text-slate-900 sm:text-4xl md:text-5xl lg:text-[3.25rem] dark:text-white">
-                {tx("Todo lo que tu negocio necesita para", "Everything your business needs to")}{" "}
+                {tx("Dejas de ganar dinero en cada pedido", "You lose money on every order")}{" "}
                 <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent dark:from-indigo-400 dark:to-violet-400">
-                  {tx("vender online", "sell online")}
+                  {tx("que va por un marketplace.", "that goes through a marketplace.")}
                 </span>
               </h1>
             </LandingReveal>
 
             <LandingReveal delay={0.11}>
               <p className="mt-4 max-w-xl text-balance text-sm font-medium leading-relaxed text-slate-700 sm:text-base lg:mt-5 dark:text-zinc-300">
-                {tx("Hecho para restaurantes, delivery y negocios con sucursales", "Built for restaurants, delivery and multi-branch businesses")}
-                <span className="text-slate-500 dark:text-zinc-500"> · </span>
-                {tx("No dependas de marketplaces ni pierdas pedidos por WhatsApp", "Do not depend on marketplaces or lose orders on WhatsApp")}
+                {tx("Los marketplaces se quedan con hasta el 30% de cada venta. Tus clientes compran en tu local, pero su historial y sus datos quedan en la plataforma de ellos.", "Marketplaces keep up to 30% of every sale. Your customers buy from you, but their history and data stay on someone else's platform.")}
               </p>
             </LandingReveal>
 
             <LandingReveal delay={0.14}>
               <p className="mt-4 text-base leading-relaxed text-slate-600 sm:mt-5 sm:text-lg dark:text-zinc-400">
-                {tx("Menú digital, carrito, delivery, caja e inventario.", "Digital menu, cart, delivery, POS and inventory.")}
+                {tx("GodCode te da tu propio canal de ventas: tu dominio, tus clientes, el 100% de tus ingresos.", "GodCode gives you your own sales channel: your domain, your customers, 100% of your revenue.")}
               </p>
             </LandingReveal>
 
@@ -376,24 +378,27 @@ export function LandingSections({
                   {tx("Empezar gratis", "Start for free")}
                   <ArrowRight className="h-4 w-4" aria-hidden />
                 </Link>
-                <a
-                  href="#demo"
-                  className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-7 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 sm:h-[3.25rem] sm:w-auto sm:px-8 sm:text-base dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-zinc-600 dark:hover:bg-zinc-800"
-                >
-                  {tx("Ver demo", "View demo")}
-                </a>
-                <a
-                  href="https://wa.me/56943848080?text=Hola%2C%20quiero%20conocer%20Godcode%20SaaS"
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 hover:text-emerald-800 sm:h-[3.25rem] sm:w-[3.25rem] dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:border-emerald-400/30 dark:hover:bg-emerald-500/15 dark:hover:text-emerald-200"
-                  aria-label={tx("Hablar por WhatsApp", "Talk on WhatsApp")}
-                  title={tx("Hablar por WhatsApp", "Talk on WhatsApp")}
-                >
-                  <svg viewBox="0 0 32 32" aria-hidden className="h-5 w-5 fill-current">
-                    <path d="M16 3C8.82 3 3 8.64 3 15.58c0 2.79.93 5.37 2.53 7.47L4 29l6.19-1.45c1.97 1.04 4.23 1.63 6.65 1.63 7.18 0 13-5.64 13-12.6C29.84 8.64 24.02 3 16 3Zm0 23.08c-2.2 0-4.31-.58-6.12-1.67l-.44-.26-3.67.86.93-3.55-.29-.46a10.87 10.87 0 0 1-1.75-5.92C4.66 9.55 9.72 4.85 16 4.85c6.28 0 11.34 4.7 11.34 10.23 0 5.55-5.06 10.3-11.34 10.3Zm6.44-7.43c-.34-.17-2.02-.99-2.33-1.1-.31-.1-.53-.17-.75.17-.22.33-.86 1.1-1.05 1.32-.2.23-.39.25-.73.08-.34-.17-1.43-.52-2.72-1.66-1.01-.89-1.69-1.99-1.89-2.33-.2-.33-.02-.52.15-.69.15-.15.34-.39.51-.59.17-.2.23-.34.34-.56.11-.23.06-.43-.03-.6-.09-.17-.75-1.83-1.03-2.51-.27-.65-.55-.56-.75-.57h-.64c-.23 0-.6.09-.91.43-.31.34-1.2 1.17-1.2 2.85 0 1.68 1.23 3.3 1.4 3.53.17.23 2.42 3.73 5.86 5.08 3.44 1.35 3.44.9 4.06.84.62-.06 2.02-.82 2.31-1.61.28-.78.28-1.45.2-1.6-.08-.15-.31-.23-.65-.4Z" />
-                  </svg>
-                </a>
+                {/* En mobile: "Ver demo" y WhatsApp en la misma fila */}
+                <div className="flex w-full items-center gap-3 sm:contents">
+                  <a
+                    href="#demo"
+                    className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-7 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 sm:h-[3.25rem] sm:flex-none sm:w-auto sm:px-8 sm:text-base dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-zinc-600 dark:hover:bg-zinc-800"
+                  >
+                    {tx("Ver demo", "View demo")}
+                  </a>
+                  <a
+                    href="https://wa.me/56943848080?text=Hola%2C%20quiero%20conocer%20Godcode%20SaaS"
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 hover:text-emerald-800 sm:h-[3.25rem] sm:w-[3.25rem] dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:border-emerald-400/30 dark:hover:bg-emerald-500/15 dark:hover:text-emerald-200"
+                    aria-label={tx("Hablar por WhatsApp", "Talk on WhatsApp")}
+                    title={tx("Hablar por WhatsApp", "Talk on WhatsApp")}
+                  >
+                    <svg viewBox="0 0 32 32" aria-hidden className="h-5 w-5 fill-current">
+                      <path d="M16 3C8.82 3 3 8.64 3 15.58c0 2.79.93 5.37 2.53 7.47L4 29l6.19-1.45c1.97 1.04 4.23 1.63 6.65 1.63 7.18 0 13-5.64 13-12.6C29.84 8.64 24.02 3 16 3Zm0 23.08c-2.2 0-4.31-.58-6.12-1.67l-.44-.26-3.67.86.93-3.55-.29-.46a10.87 10.87 0 0 1-1.75-5.92C4.66 9.55 9.72 4.85 16 4.85c6.28 0 11.34 4.7 11.34 10.23 0 5.55-5.06 10.3-11.34 10.3Zm6.44-7.43c-.34-.17-2.02-.99-2.33-1.1-.31-.1-.53-.17-.75.17-.22.33-.86 1.1-1.05 1.32-.2.23-.39.25-.73.08-.34-.17-1.43-.52-2.72-1.66-1.01-.89-1.69-1.99-1.89-2.33-.2-.33-.02-.52.15-.69.15-.15.34-.39.51-.59.17-.2.23-.34.34-.56.11-.23.06-.43-.03-.6-.09-.17-.75-1.83-1.03-2.51-.27-.65-.55-.56-.75-.57h-.64c-.23 0-.6.09-.91.43-.31.34-1.2 1.17-1.2 2.85 0 1.68 1.23 3.3 1.4 3.53.17.23 2.42 3.73 5.86 5.08 3.44 1.35 3.44.9 4.06.84.62-.06 2.02-.82 2.31-1.61.28-.78.28-1.45.2-1.6-.08-.15-.31-.23-.65-.4Z" />
+                    </svg>
+                  </a>
+                </div>
               </div>
               <p className="mt-3 text-center text-xs text-slate-500 sm:text-sm lg:text-left dark:text-zinc-500">
                 {tx("El primer mes es gratis · Cancela cuando quieras", "First month free · Cancel anytime")}
@@ -490,12 +495,12 @@ export function LandingSections({
       <SectionShell id="funciones" variant="white" className="-mt-px">
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
           <LandingReveal>
-            <Eyebrow>{tx("Todo incluido", "All included")}</Eyebrow>
+            <Eyebrow>{tx("Sin el caos de siempre", "No more chaos")}</Eyebrow>
             <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
-              {tx("Una sola plataforma, todo lo que necesitas", "One platform, everything you need")}
+              {tx("Un sistema. No cinco herramientas pegadas con cinta.", "One system. Not five tools held together with tape.")}
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-center text-sm text-slate-500 sm:text-base dark:text-zinc-400">
-              {tx("Deja de pagar por 5 herramientas distintas. Aquí está todo.", "Stop paying for five tools. Everything is here.")}
+              {tx("Menú en una app, pedidos por WhatsApp, caja en otra pantalla, inventario en una hoja de cálculo. Con GodCode todo vive en un solo lugar.", "Menu on one app, orders on WhatsApp, POS on another screen, inventory in a spreadsheet. With GodCode everything lives in one place.")}
             </p>
           </LandingReveal>
         </div>
@@ -668,16 +673,16 @@ export function LandingSections({
           <LandingReveal>
             <div className="mx-auto max-w-3xl text-center">
               <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-indigo-400">
-                {tx("Empieza ahora", "Start now")}
+                {tx("Ver el producto", "See the product")}
               </p>
               <h2 className="text-2xl font-bold text-white sm:text-3xl md:text-[2.75rem] md:leading-[1.15]">
-                {tx("Crea tu tienda en menos de", "Create your store in under")}{" "}
+                {tx("Tu tienda lista en", "Your store ready in")}{" "}
                 <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
                   {tx("5 minutos", "5 minutes")}
                 </span>
               </h2>
               <p className="mx-auto mt-5 max-w-xl text-sm leading-relaxed text-slate-400 sm:text-base">
-                {tx("Sin código, sin servidores, sin complicaciones. Solo tú y tus productos.", "No code, no servers, no complications. Just you and your products.")}
+                {tx("No necesitas saber de tecnología. Si puedes subir una foto a Instagram, puedes tener tu tienda funcionando hoy.", "You do not need to know about tech. If you can upload a photo to Instagram, you can have your store running today.")}
               </p>
               <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
                 <Link
@@ -769,7 +774,7 @@ export function LandingSections({
               {tx("Compara y decide", "Compare and decide")}
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-center text-sm leading-relaxed text-slate-600 sm:text-base dark:text-zinc-400">
-              {tx("Elige una opción que te deje crecer sin comisiones altas, sin depender de terceros y con control total de tu negocio.", "Choose an option that lets you grow without high commissions and with full control.")}
+              {tx("No todas las formas de vender online cuestan lo mismo. Compara el costo real: tiempo, comisión y control de cada opción.", "Not all ways to sell online cost the same. Compare the real cost: time, commission and control of each option.")}
             </p>
           </LandingReveal>
 
@@ -985,9 +990,9 @@ export function LandingSections({
             <div className="mx-auto max-w-3xl text-center">
               <Eyebrow className="!text-indigo-400">{tx("Último paso", "Final step")}</Eyebrow>
               <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl md:text-[2.75rem] md:leading-[1.12]">
-                {tx("Empieza hoy: tu primera tienda es", "Start today: your first store is")}{" "}
+                {tx("Empieza hoy:", "Start today:")}{" "}
                 <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
-                  {tx("gratis", "free")}
+                  {tx("tu canal propio, sin comisiones", "your own channel, zero commissions")}
                 </span>
               </h2>
               <p className="mx-auto mt-4 max-w-xl text-pretty text-sm leading-relaxed text-slate-400 sm:text-base">

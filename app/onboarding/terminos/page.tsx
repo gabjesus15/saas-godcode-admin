@@ -1,7 +1,22 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+import { getAppUrl } from "../../../lib/app-url";
 
 const COMPANY_NAME = "GodCode";
 const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || "hola@godcode.me";
+
+export const metadata: Metadata = {
+	title: "Términos de servicio · GodCode",
+	description: "Términos de servicio de la plataforma GodCode.",
+	alternates: {
+		canonical: `${getAppUrl()}/onboarding/terminos`,
+	},
+	robots: {
+		index: false,
+		follow: true,
+	},
+};
 
 export default function TerminosPage() {
 	return (

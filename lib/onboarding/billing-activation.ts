@@ -6,7 +6,7 @@
  * - El cron `GET/POST /api/cron/subscription-status` (Vercel cron + CRON_SECRET) llama
  *   `suspendExpiredSubscriptions`: pasa a `subscription_status = suspended` si sigue `active` y
  *   `subscription_ends_at < ahora`.
- * - Las páginas públicas del tenant (`/[subdomain]`, menú) muestran `StoreUnavailable` si el estado
+ * - Las páginas públicas del tenant (`/[subdomain]`, menú) devuelven HTTP 404 (notFound) si el estado
  *   es `suspended` o `cancelled`.
  * - El dominio personalizado en el proxy usa la misma regla en SQL (`resolve_public_slug_by_custom_domain`):
  *   no enruta si está suspendido/cancelado o si `subscription_ends_at` ya pasó (aunque el cron aún no corra).

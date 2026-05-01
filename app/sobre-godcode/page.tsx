@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import Script from "next/script";
-import { ArrowRight, BadgeInfo, Building2, ChartNoAxesCombined, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { ArrowRight, ChartNoAxesCombined, ShieldCheck, Sparkles, Users } from "lucide-react";
 
 import { LandingLogo } from "@/components/landing/landing-logo";
 import { getAppUrl } from "@/lib/app-url";
@@ -10,69 +9,83 @@ import { getCurrentLocale } from "@/lib/i18n/server";
 const copy = {
   es: {
     eyebrow: "Sobre GodCode",
-    title: "Una marca pensada para vender online sin perder el control de tu negocio.",
+    title: "Una plataforma pensada para vender online sin perder el control de tu negocio.",
     intro:
-      "GodCode nace para simplificar lo que hoy suele estar fragmentado: menú digital, pedidos online, caja, inventario y delivery en una sola plataforma limpia y fácil de usar.",
+      "GodCode simplifica lo que hoy suele estar fragmentado: menú digital, pedidos online, caja, inventario y delivery, todo en un solo lugar.",
     primaryCta: "Crear mi tienda",
     secondaryCta: "Ver la home",
-    sectionOneTitle: "Qué resuelve",
-    sectionOneText:
-      "Ayuda a restaurantes y negocios con sucursales a vender por su propia web, con menos fricción y sin depender de marketplaces que cobran comisión por cada pedido.",
-    sectionTwoTitle: "Cómo trabajamos",
-    sectionTwoText:
-      "Priorizamos una experiencia simple para el negocio y clara para el cliente final: menos pasos, menos pantallas y una ruta directa desde el menú hasta el pago.",
-    sectionThreeTitle: "Por qué importa",
-    sectionThreeText:
-      "Cuando tu marca vive en tu propio dominio, también construyes autoridad, posicionamiento y una relación más directa con tus clientes.",
-    metrics: [
-      { label: "Menú digital", value: "1" },
-      { label: "Carrito y checkout", value: "1" },
-      { label: "Caja e inventario", value: "1" },
-      { label: "Marca propia", value: "100%" },
+    facts: [
+      { label: "Sin comisión", detail: "Cada venta es tuya al 100%." },
+      { label: "Tu dominio", detail: "Tu marca vive en tu propia URL." },
+      { label: "Multisucursal", detail: "Escala a todas tus ubicaciones." },
+      { label: "En minutos", detail: "Sin necesidad de programar." },
     ],
+      sectionOneEyebrow: "01 · Qué resuelve",
+    sectionOneTitle: "Vende por tu propia web, sin ceder margen.",
+    sectionOneText:
+      "Restaurantes y negocios con sucursales pierden margen en cada pedido que pasa por un marketplace. GodCode les da su propia tienda, con su propio dominio y sin comisiones.",
+    sectionOneFeatures: ["Menú digital con fotos", "Carrito y checkout propio", "Delivery y retiro en tienda", "Caja e inventario integrados"],
+      sectionTwoEyebrow: "02 · Cómo trabajamos",
+    sectionTwoTitle: "Menos pasos, más pedidos.",
+    sectionTwoText:
+      "Priorizamos una experiencia simple para el negocio y clara para el cliente: menos pantallas, menos fricción y una ruta directa desde el menú hasta el pago.",
+    sectionTwoFeatures: ["Onboarding guiado en minutos", "Panel de control centralizado", "Notificaciones en tiempo real", "Soporte humano cuando lo necesitas"],
+    pullQuote: "Cada pedido que llega por tu propia web es tuyo al 100%.",
+      sectionThreeEyebrow: "03 · Por qué importa",
+    sectionThreeTitle: "Construye autoridad en tu propio dominio.",
+    sectionThreeText:
+      "Cuando tu marca vive en tu propio dominio, también construyes posicionamiento en Google y una relación más directa con tus clientes, sin intermediarios que se queden con tu margen.",
+    sectionThreeFeatures: ["Tu URL, tu SEO, tu tráfico", "Datos de tus clientes en tus manos", "Sin dependencia de plataformas externas", "Dominio personalizado incluido"],
     valuesTitle: "Principios de la plataforma",
     values: [
-      { icon: ShieldCheck, title: "Datos protegidos", text: "Cada negocio mantiene su información aislada y segura." },
-      { icon: Sparkles, title: "Experiencia limpia", text: "Interfaces directas, sin ruido visual ni pasos innecesarios." },
-      { icon: Users, title: "Pensado para equipos reales", text: "Funciona para locales únicos y para operaciones con varias sucursales." },
-      { icon: ChartNoAxesCombined, title: "Crecimiento visible", text: "Una marca fuerte y un dominio propio ayudan a posicionarte mejor." },
+      { num: "01", icon: ShieldCheck, title: "Datos protegidos", text: "Cada negocio mantiene su información aislada y segura." },
+      { num: "02", icon: Sparkles, title: "Experiencia limpia", text: "Interfaces directas, sin ruido visual ni pasos innecesarios." },
+      { num: "03", icon: Users, title: "Para equipos reales", text: "Funciona para locales únicos y para operaciones con varias sucursales." },
+      { num: "04", icon: ChartNoAxesCombined, title: "Crecimiento visible", text: "Una marca fuerte y un dominio propio ayudan a posicionarte mejor." },
     ],
-    closingTitle: "Hecho para que GodCode sea fácil de recordar y fácil de encontrar.",
-    closingText:
-      "Mientras Google termina de procesar tu sitio, esta página te ayuda a reforzar la identidad de marca y a tener una URL clara para compartir en perfiles, emails y menciones.",
+    closingEyebrow: "Empieza hoy",
+    closingTitle: "Tu tienda online, en tu propio dominio.",
+    closingText: "Crea tu cuenta, configura tu menú y empieza a recibir pedidos. Sin comisiones, sin contratos.",
   },
   en: {
     eyebrow: "About GodCode",
-    title: "A brand designed to sell online without losing control of your business.",
+    title: "A platform designed to sell online without losing control of your business.",
     intro:
-      "GodCode was built to simplify what is usually fragmented: digital menu, online orders, POS, inventory and delivery in one clean, easy-to-use platform.",
+      "GodCode simplifies what is usually fragmented: digital menu, online orders, POS, inventory and delivery, all in one place.",
     primaryCta: "Create my store",
     secondaryCta: "View home",
-    sectionOneTitle: "What it solves",
-    sectionOneText:
-      "It helps restaurants and multi-branch businesses sell through their own website, with less friction and without depending on marketplaces that charge commission on every order.",
-    sectionTwoTitle: "How we work",
-    sectionTwoText:
-      "We focus on a simple experience for the business and a clear one for the customer: fewer steps, fewer screens and a direct path from menu to payment.",
-    sectionThreeTitle: "Why it matters",
-    sectionThreeText:
-      "When your brand lives on your own domain, you also build authority, visibility and a more direct relationship with your customers.",
-    metrics: [
-      { label: "Digital menu", value: "1" },
-      { label: "Cart and checkout", value: "1" },
-      { label: "POS and inventory", value: "1" },
-      { label: "Own brand", value: "100%" },
+    facts: [
+      { label: "Zero commission", detail: "Every sale is 100% yours." },
+      { label: "Your own domain", detail: "Your brand lives on your own URL." },
+      { label: "Multi-branch", detail: "Scale across all your locations." },
+      { label: "Ready in minutes", detail: "No coding required." },
     ],
+    sectionOneEyebrow: "01 · What it solves",
+    sectionOneTitle: "Sell through your own website, without giving up margin.",
+    sectionOneText:
+      "Restaurants and multi-branch businesses lose margin on every order that goes through a marketplace. GodCode gives them their own store, their own domain and zero commissions.",
+    sectionOneFeatures: ["Digital menu with photos", "Own cart and checkout", "Delivery and in-store pickup", "Integrated POS and inventory"],
+    sectionTwoEyebrow: "02 · How we work",
+    sectionTwoTitle: "Fewer steps, more orders.",
+    sectionTwoText:
+      "We prioritize a simple experience for the business and a clear one for the customer: fewer screens, less friction and a direct path from the menu to payment.",
+    sectionTwoFeatures: ["Guided onboarding in minutes", "Centralized control panel", "Real-time notifications", "Human support when you need it"],
+    pullQuote: "Every order that arrives through your own website is 100% yours.",
+    sectionThreeEyebrow: "03 · Why it matters",
+    sectionThreeTitle: "Build authority on your own domain.",
+    sectionThreeText:
+      "When your brand lives on your own domain, you also build Google rankings and a more direct relationship with your customers, without middlemen taking your margin.",
+    sectionThreeFeatures: ["Your URL, your SEO, your traffic", "Your customer data in your hands", "No dependency on external platforms", "Custom domain included"],
     valuesTitle: "Platform principles",
     values: [
-      { icon: ShieldCheck, title: "Protected data", text: "Each business keeps its information isolated and secure." },
-      { icon: Sparkles, title: "Clean experience", text: "Straightforward interfaces without visual noise or extra steps." },
-      { icon: Users, title: "Built for real teams", text: "Works for single locations and multi-branch operations alike." },
-      { icon: ChartNoAxesCombined, title: "Visible growth", text: "A strong brand and your own domain help you rank better." },
+      { num: "01", icon: ShieldCheck, title: "Protected data", text: "Each business keeps its information isolated and secure." },
+      { num: "02", icon: Sparkles, title: "Clean experience", text: "Straightforward interfaces without visual noise or extra steps." },
+      { num: "03", icon: Users, title: "Built for real teams", text: "Works for single locations and multi-branch operations alike." },
+      { num: "04", icon: ChartNoAxesCombined, title: "Visible growth", text: "A strong brand and your own domain help you rank better." },
     ],
-    closingTitle: "Made to make GodCode easy to remember and easy to find.",
-    closingText:
-      "While Google finishes processing your site, this page helps reinforce your brand identity and gives you a clear URL to share on profiles, emails and mentions.",
+    closingEyebrow: "Get started",
+    closingTitle: "Your online store, on your own domain.",
+    closingText: "Create your account, configure your menu and start receiving orders. No commissions, no contracts.",
   },
 } as const;
 
@@ -87,13 +100,10 @@ export async function generateMetadata(): Promise<Metadata> {
     title: "Sobre GodCode",
     description:
       "Página de marca de GodCode: una plataforma para menú digital, pedidos online, caja, inventario y delivery.",
-    alternates: {
-      canonical: `${base}/sobre-godcode`,
-    },
+    alternates: { canonical: `${base}/sobre-godcode` },
     openGraph: {
       title: "Sobre GodCode",
-      description:
-        "Una página de marca para reforzar la identidad de GodCode y su propuesta de valor.",
+      description: "Una página de marca para reforzar la identidad de GodCode y su propuesta de valor.",
       url: `${base}/sobre-godcode`,
       siteName: "GodCode",
       type: "website",
@@ -112,156 +122,244 @@ export default async function SobreGodCodePage() {
   const t = getLocaleCopy(locale);
   const base = getAppUrl();
   const ld = [
-    {
-      "@context": "https://schema.org",
-      "@type": "AboutPage",
-      name: "Sobre GodCode",
-      url: `${base}/sobre-godcode`,
-      description: t.intro,
-    },
-    {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      name: "GodCode",
-      url: base,
-    },
+    { "@context": "https://schema.org", "@type": "AboutPage", name: "Sobre GodCode", url: `${base}/sobre-godcode`, description: t.intro },
+    { "@context": "https://schema.org", "@type": "Organization", name: "GodCode", url: base },
   ];
 
   return (
-    <main className="relative overflow-hidden bg-white text-slate-800 dark:bg-zinc-950 dark:text-zinc-100">
+    <main className="bg-white text-[#1d1d1f]">
       <Script
         id="godcode-about-jsonld"
         type="application/ld+json"
         strategy="afterInteractive"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }}
       />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.12),transparent_34%),radial-gradient(circle_at_top_right,rgba(168,85,247,0.1),transparent_28%),linear-gradient(to_bottom,rgba(248,250,252,1),rgba(255,255,255,1))] dark:bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.18),transparent_34%),radial-gradient(circle_at_top_right,rgba(168,85,247,0.12),transparent_28%),linear-gradient(to_bottom,rgba(9,9,11,1),rgba(9,9,11,1))]" />
 
-      <section className="relative mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-8 px-5 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-20">
-        <div className="flex items-center justify-between">
-          <Link href="/" className="inline-flex items-center gap-1.5 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+      {/* ── HEADER ── */}
+      <header className="sticky top-0 z-20 border-b border-zinc-100 bg-white/90 backdrop-blur-md">
+        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-6">
+          <a href="/" className="rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
             <LandingLogo className="gap-1" />
-          </Link>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/"
-              className="hidden items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-zinc-700 dark:hover:bg-zinc-800 sm:inline-flex"
-            >
-              ← Volver al inicio
-            </Link>
-            <Link
-              href="/onboarding"
-              className="hidden items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-700 sm:inline-flex"
-            >
-              {t.primaryCta}
-              <ArrowRight className="h-4 w-4" aria-hidden />
-            </Link>
-          </div>
+          </a>
+          <a
+            href="/onboarding"
+            className="inline-flex items-center gap-1.5 rounded-full bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 active:scale-[0.98]"
+          >
+            {t.primaryCta}
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+          </a>
         </div>
+      </header>
 
-        <div className="grid items-start gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:gap-12">
-          <div className="space-y-6 rounded-[2rem] border border-slate-200/80 bg-white/80 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur sm:p-8 dark:border-zinc-800 dark:bg-zinc-900/70">
-            <span className="inline-flex items-center gap-2 rounded-full border border-indigo-200/70 bg-indigo-50/80 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-indigo-700 dark:border-indigo-500/20 dark:bg-indigo-950/40 dark:text-indigo-300">
-              <BadgeInfo className="h-3.5 w-3.5" aria-hidden />
-              {t.eyebrow}
-            </span>
-            <h1 className="max-w-2xl text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl lg:text-6xl dark:text-white">
-              {t.title}
-            </h1>
-            <p className="max-w-2xl text-base leading-relaxed text-slate-600 sm:text-lg dark:text-zinc-300">
-              {t.intro}
-            </p>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/onboarding"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-700"
-              >
-                {t.primaryCta}
-                <ArrowRight className="h-4 w-4" aria-hidden />
-              </Link>
-              <Link
-                href="/"
-                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-zinc-700 dark:hover:bg-zinc-800"
-              >
-                {t.secondaryCta}
-              </Link>
-            </div>
-          </div>
+      {/* ── HERO ── */}
+      <section className="mx-auto max-w-5xl px-6 pb-20 pt-24 sm:pb-28 sm:pt-32 lg:pt-40">
+        <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-400">
+          {t.eyebrow}
+        </p>
+        <h1
+          className="mt-5 max-w-4xl font-semibold leading-[1.06] tracking-[-0.03em] text-[#1d1d1f]"
+          style={{ fontSize: "clamp(2.6rem, 5.5vw, 5.25rem)" }}
+        >
+          {t.title}
+        </h1>
+        <p className="mt-7 max-w-2xl text-xl leading-relaxed text-[#6e6e73]">
+          {t.intro}
+        </p>
+        <div className="mt-10 flex flex-wrap items-center gap-6">
+          <a
+            href="/onboarding"
+            className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-indigo-700 active:scale-[0.98]"
+          >
+            {t.primaryCta}
+            <ArrowRight className="h-4 w-4" aria-hidden />
+          </a>
+          <a
+            href="/"
+            className="text-sm font-medium text-[#6e6e73] underline decoration-zinc-300 underline-offset-4 transition hover:text-[#1d1d1f] hover:decoration-zinc-600"
+          >
+            {t.secondaryCta} →
+          </a>
+        </div>
+      </section>
 
-          <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              {t.metrics.map((metric) => (
-                <div key={metric.label} className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
-                  <p className="text-sm text-slate-500 dark:text-zinc-400">{metric.label}</p>
-                  <p className="mt-3 text-3xl font-bold tracking-tight text-slate-950 dark:text-white">{metric.value}</p>
-                </div>
-              ))}
-            </div>
+      {/* ── FACTS ── */}
+      <section className="border-y border-[#e5e5ea] bg-[#fbfbfd]">
+        <div className="mx-auto max-w-5xl px-6">
+          <dl className="grid divide-y divide-[#e5e5ea] sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
+            {t.facts.map((fact) => (
+              <div key={fact.label} className="py-10 sm:px-8 sm:first:pl-0 sm:last:pr-0">
+                <div className="mb-4 h-px w-8 bg-indigo-500" />
+                <dt className="text-lg font-semibold tracking-tight text-[#1d1d1f]">{fact.label}</dt>
+                <dd className="mt-1.5 text-sm leading-relaxed text-[#6e6e73]">{fact.detail}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </section>
 
-            <div className="rounded-[2rem] border border-indigo-200/70 bg-gradient-to-br from-indigo-600 via-indigo-600 to-violet-700 p-6 text-white shadow-[0_24px_80px_rgba(79,70,229,0.28)] sm:p-8">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-100">GodCode</p>
-              <p className="mt-4 text-xl font-semibold leading-tight sm:text-2xl">
-                Plataforma SaaS para menú digital, pedidos online, caja, inventario y delivery.
+      {/* ── SECTION 01 ── */}
+      <section className="bg-white">
+        <div className="mx-auto max-w-5xl px-6 py-24 sm:py-32 lg:py-40">
+          <div className="grid gap-12 lg:grid-cols-2 lg:gap-24">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-400">
+                {t.sectionOneEyebrow}
               </p>
-              <p className="mt-3 text-sm leading-relaxed text-indigo-100/90">
-                Diseñada para que tu marca viva en tu propio dominio y puedas compartir una URL simple, clara y recordable.
+              <h2
+                className="mt-4 font-semibold leading-[1.1] tracking-[-0.022em] text-[#1d1d1f]"
+                style={{ fontSize: "clamp(1.9rem, 3.5vw, 3rem)" }}
+              >
+                {t.sectionOneTitle}
+              </h2>
+            </div>
+            <div className="flex flex-col justify-center gap-8">
+              <p className="text-lg leading-relaxed text-[#6e6e73]">
+                {t.sectionOneText}
               </p>
+              <ul className="space-y-3">
+                {t.sectionOneFeatures.map((f) => (
+                  <li key={f} className="flex items-center gap-3 text-sm text-[#1d1d1f]">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         </div>
+      </section>
 
-        <div className="grid gap-5 lg:grid-cols-3">
-          <article className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)] dark:border-zinc-800 dark:bg-zinc-900/80">
-            <Building2 className="h-5 w-5 text-indigo-600 dark:text-indigo-400" aria-hidden />
-            <h2 className="mt-4 text-xl font-semibold text-slate-950 dark:text-white">{t.sectionOneTitle}</h2>
-            <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-zinc-300">{t.sectionOneText}</p>
-          </article>
-          <article className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)] dark:border-zinc-800 dark:bg-zinc-900/80">
-            <Sparkles className="h-5 w-5 text-indigo-600 dark:text-indigo-400" aria-hidden />
-            <h2 className="mt-4 text-xl font-semibold text-slate-950 dark:text-white">{t.sectionTwoTitle}</h2>
-            <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-zinc-300">{t.sectionTwoText}</p>
-          </article>
-          <article className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)] dark:border-zinc-800 dark:bg-zinc-900/80">
-            <ChartNoAxesCombined className="h-5 w-5 text-indigo-600 dark:text-indigo-400" aria-hidden />
-            <h2 className="mt-4 text-xl font-semibold text-slate-950 dark:text-white">{t.sectionThreeTitle}</h2>
-            <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-zinc-300">{t.sectionThreeText}</p>
-          </article>
+      {/* ── SECTION 02 ── */}
+      <section className="border-t border-[#e5e5ea] bg-[#fbfbfd]">
+        <div className="mx-auto max-w-5xl px-6 py-24 sm:py-32 lg:py-40">
+          <div className="grid gap-12 lg:grid-cols-2 lg:gap-24">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-400">
+                {t.sectionTwoEyebrow}
+              </p>
+              <h2
+                className="mt-4 font-semibold leading-[1.1] tracking-[-0.022em] text-[#1d1d1f]"
+                style={{ fontSize: "clamp(1.9rem, 3.5vw, 3rem)" }}
+              >
+                {t.sectionTwoTitle}
+              </h2>
+            </div>
+            <div className="flex flex-col justify-center gap-8">
+              <p className="text-lg leading-relaxed text-[#6e6e73]">
+                {t.sectionTwoText}
+              </p>
+              <ul className="space-y-3">
+                {t.sectionTwoFeatures.map((f) => (
+                  <li key={f} className="flex items-center gap-3 text-sm text-[#1d1d1f]">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
         </div>
+      </section>
 
-        <section className="rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)] sm:p-8 dark:border-zinc-800 dark:bg-zinc-900/80">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-indigo-700 dark:text-indigo-300">
-            <ShieldCheck className="h-4 w-4" aria-hidden />
+      {/* ── PULL QUOTE ── */}
+      <section className="border-t border-[#e5e5ea] bg-white">
+        <div className="mx-auto max-w-5xl px-6 py-20 sm:py-28 lg:py-32">
+          <blockquote
+            className="font-semibold leading-[1.15] tracking-[-0.022em] text-[#1d1d1f]"
+            style={{ fontSize: "clamp(1.6rem, 3.8vw, 3.25rem)" }}
+          >
+            <span className="text-indigo-600">&ldquo;</span>
+            {t.pullQuote}
+            <span className="text-indigo-600">&rdquo;</span>
+          </blockquote>
+        </div>
+      </section>
+
+      {/* ── SECTION 03 ── */}
+      <section className="border-t border-[#e5e5ea] bg-[#fbfbfd]">
+        <div className="mx-auto max-w-5xl px-6 py-24 sm:py-32 lg:py-40">
+          <div className="grid gap-12 lg:grid-cols-2 lg:gap-24">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-400">
+                {t.sectionThreeEyebrow}
+              </p>
+              <h2
+                className="mt-4 font-semibold leading-[1.1] tracking-[-0.022em] text-[#1d1d1f]"
+                style={{ fontSize: "clamp(1.9rem, 3.5vw, 3rem)" }}
+              >
+                {t.sectionThreeTitle}
+              </h2>
+            </div>
+            <div className="flex flex-col justify-center gap-8">
+              <p className="text-lg leading-relaxed text-[#6e6e73]">
+                {t.sectionThreeText}
+              </p>
+              <ul className="space-y-3">
+                {t.sectionThreeFeatures.map((f) => (
+                  <li key={f} className="flex items-center gap-3 text-sm text-[#1d1d1f]">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── PRINCIPLES ── */}
+      <section className="border-t border-[#e5e5ea] bg-white">
+        <div className="mx-auto max-w-5xl px-6 py-20 sm:py-28">
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-400">
             {t.valuesTitle}
-          </div>
-          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {t.values.map((item) => {
+          </p>
+          <div className="mt-12 grid gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-[#e5e5ea] lg:gap-0">
+            {t.values.map((item, i) => {
               const Icon = item.icon;
               return (
-                <div key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5 dark:border-zinc-800 dark:bg-zinc-950/50">
-                  <Icon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" aria-hidden />
-                  <h3 className="mt-4 text-base font-semibold text-slate-950 dark:text-white">{item.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-zinc-300">{item.text}</p>
+                <div key={item.title} className={i > 0 ? "lg:pl-10" : ""}>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-zinc-300">{item.num}</p>
+                  <Icon className="mt-4 h-5 w-5 text-zinc-400" aria-hidden />
+                  <h3 className="mt-4 text-base font-semibold text-[#1d1d1f]">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-[#6e6e73]">{item.text}</p>
                 </div>
               );
             })}
           </div>
-        </section>
+        </div>
+      </section>
 
-        <section className="grid gap-6 rounded-[2rem] border border-indigo-200/70 bg-gradient-to-br from-indigo-600 to-violet-700 p-6 text-white shadow-[0_24px_80px_rgba(79,70,229,0.28)] sm:p-8 lg:grid-cols-[1.4fr_0.6fr] lg:items-center">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{t.closingTitle}</h2>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-indigo-100 sm:text-base">{t.closingText}</p>
-          </div>
-          <div className="flex flex-col gap-3 lg:items-end">
-            <Link href="/onboarding" className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-50">
+      {/* ── CLOSING ── */}
+      <section className="border-t border-[#e5e5ea] bg-[#fbfbfd]">
+        <div className="mx-auto max-w-5xl px-6 py-24 sm:py-32 lg:py-40">
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-400">
+            {t.closingEyebrow}
+          </p>
+          <h2
+            className="mt-5 max-w-3xl font-semibold leading-[1.1] tracking-[-0.022em] text-[#1d1d1f]"
+            style={{ fontSize: "clamp(2rem, 4vw, 3.5rem)" }}
+          >
+            {t.closingTitle}
+          </h2>
+          <p className="mt-5 max-w-xl text-lg leading-relaxed text-[#6e6e73]">
+            {t.closingText}
+          </p>
+          <div className="mt-10 flex flex-wrap items-center gap-6">
+            <a
+              href="/onboarding"
+              className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-indigo-700 active:scale-[0.98]"
+            >
               {t.primaryCta}
               <ArrowRight className="h-4 w-4" aria-hidden />
-            </Link>
-            <Link href="/" className="inline-flex items-center justify-center rounded-xl border border-white/20 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
-              {t.secondaryCta}
-            </Link>
+            </a>
+            <a
+              href="/"
+              className="text-sm font-medium text-[#6e6e73] underline decoration-zinc-300 underline-offset-4 transition hover:text-[#1d1d1f] hover:decoration-zinc-600"
+            >
+              {t.secondaryCta} →
+            </a>
           </div>
-        </section>
+        </div>
       </section>
     </main>
   );

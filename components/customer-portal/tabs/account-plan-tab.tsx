@@ -145,7 +145,6 @@ export function AccountPlanTab({
   setAddonQty,
   selectedAddonEffectiveQty,
   addonMonthsNumber,
-  addonMonths,
   setAddonMonths,
   selectedAddonIsMonthly,
   addonMethodSlug,

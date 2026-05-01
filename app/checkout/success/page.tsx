@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { AlertTriangle, ArrowRight, CheckCircle, ExternalLink, ShieldCheck, Sparkles } from "lucide-react";
 
@@ -8,6 +9,15 @@ import { getCurrentLocale } from "../../../lib/i18n/server";
 import { createSupabaseServerClient } from "../../../utils/supabase/server";
 
 type SearchParams = Record<string, string | string[] | undefined>;
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: { index: false, follow: false },
+  },
+};
 
 const statusBadge: Record<string, "success" | "warning" | "destructive" | "neutral"> = {
   paid: "success",

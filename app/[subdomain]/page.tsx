@@ -1,6 +1,7 @@
+import { notFound } from "next/navigation";
+
 import { createSupabasePublicServerClient } from "../../utils/supabase/server";
 import { getCachedCompany } from "../../utils/tenant-cache";
-import { StoreUnavailable } from "../../components/tenant/store-unavailable";
 import { HomeClient } from "../../components/tenant/home-client";
 import { isTenantSubscriptionAccessible } from "../../lib/tenant-subscription";
 
@@ -13,7 +14,7 @@ export default async function TenantPage({ params }: TenantPageProps) {
   const company = await getCachedCompany(resolvedParams.subdomain);
 
   if (!company || !isTenantSubscriptionAccessible(company)) {
-    return <StoreUnavailable />;
+    notFound();
   }
 
   const supabase = createSupabasePublicServerClient();

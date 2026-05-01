@@ -1,6 +1,21 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
+import { getAppUrl } from "../../../lib/app-url";
+
 const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || "hola@godcode.me";
+
+export const metadata: Metadata = {
+	title: "Política de privacidad · GodCode",
+	description: "Política de privacidad de la plataforma GodCode.",
+	alternates: {
+		canonical: `${getAppUrl()}/onboarding/privacidad`,
+	},
+	robots: {
+		index: false,
+		follow: true,
+	},
+};
 
 export default function PrivacidadPage() {
 	return (

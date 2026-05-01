@@ -14,6 +14,12 @@ export const metadata: Metadata = {
 		title: "GodCode Admin",
 		statusBarStyle: "default",
 	},
+	robots: {
+		index: false,
+		follow: false,
+		nocache: true,
+		googleBot: { index: false, follow: false },
+	},
 };
 
 export const viewport: Viewport = {

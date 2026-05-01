@@ -62,7 +62,7 @@ export async function GET() {
   ];
 
   // Negocios activos
-  const { data: companies, error } = await supabaseAdmin
+  const { data: companies } = await supabaseAdmin
     .from("companies")
     .select("public_slug,custom_domain,subscription_status")
     .in("subscription_status", ["active", "trial"])

@@ -11,11 +11,6 @@ import { getLandingMediaBundle } from "../lib/landing-media";
 import { getPublicPlansForLanding } from "../lib/public-plans";
 import { getSubdomainFromHost, isMainDomain } from "../lib/main-domain-host";
 import { getCountryFromHeaders } from "../lib/landing-geo-plans";
-import { SUPPORTED_LOCALES } from "../lib/i18n/config";
-
-function getLanguageAlternates(base: string): Record<string, string> {
-  return Object.fromEntries(SUPPORTED_LOCALES.map((locale) => [locale, `${base}/?hl=${locale}`]));
-}
 
 function getLandingFaq(locale: string) {
   const isSpanish = locale.toLowerCase().startsWith("es");
@@ -91,7 +86,6 @@ export async function generateMetadata(): Promise<Metadata> {
     ],
     alternates: {
       canonical: `${base}/`,
-      languages: getLanguageAlternates(base),
     },
     openGraph: {
       title: shareTitle,
@@ -232,6 +226,18 @@ function JsonLd({
           text: item.answer,
         },
       })),
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "VideoObject",
+      name: "Del caos al control: demo de GodCode",
+      description:
+        "Demo completo de GodCode: menú digital, carrito de pedidos, caja e inventario en una sola plataforma. Sin marketplaces, sin comisiones.",
+      thumbnailUrl: `${base}/api/og`,
+      uploadDate: "2025-01-01T00:00:00+00:00",
+      contentUrl: `${base}/Del_caos_al_control.mp4`,
+      embedUrl: `${base}/#demo`,
+      inLanguage: "es",
     },
   ];
   return (

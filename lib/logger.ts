@@ -5,16 +5,26 @@ export interface LogContext {
   userId?: string;
   requestId?: string;
   path?: string;
+  endpoint?: string;
+  method?: string;
+  service?: string;
   [key: string]: unknown;
 }
 
+function newRequestId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+}
+
 /** Crea un contexto base para trazar una peticion. */
-export function createRequestContext(path?: string, method?: string, tag?: string): LogContext {
+export function createRequestContext(path?: string, method?: string, service?: string): LogContext {
   return {
-    path,
+    endpoint: path,
     method,
-    tag,
-    requestId: Math.random().toString(36).substring(7),
+    service: service ?? "bff",
+    requestId: newRequestId(),
   };
 }
 
@@ -58,7 +68,10 @@ export const logger: Logger = {
       const color = level === "error" ? "\x1b[31m" : level === "warn" ? "\x1b[33m" : "\x1b[32m";
       console.log(`${color}[${level.toUpperCase()}]\x1b[0m ${message}`, context || "");
     } else {
-      console.log(JSON.stringify(payload));
+      const line = JSON.stringify(payload);
+      if (level === "error") console.error(line);
+      else if (level === "warn") console.warn(line);
+      else console.log(line);
     }
   },
 };

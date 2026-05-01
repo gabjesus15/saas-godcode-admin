@@ -26,12 +26,12 @@ export default async function OnboardingLayout({
     <div className="onboarding-page flex min-h-screen flex-col">
       <header className="onboarding-header sticky top-0 z-10 px-4 py-3 sm:px-6">
         <div className="mx-auto flex h-10 max-w-4xl items-center justify-between gap-3">
-          <Link
+          <a
             href="/"
             className="shrink-0 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
           >
             <LandingLogo forceLightText />
-          </Link>
+          </a>
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
             <Link

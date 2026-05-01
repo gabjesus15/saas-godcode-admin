@@ -22,6 +22,13 @@ const eslintConfig = defineConfig([
       "react/no-unknown-property": ["error", { "ignore": ["style"] }],
     },
   },
+  // Navegación con <a> a rutas internas para forzar recarga completa (evita estilos residuales tras 404/onboarding).
+  {
+    files: ["app/onboarding/layout.tsx", "app/sobre-godcode/page.tsx"],
+    rules: {
+      "@next/next/no-html-link-for-pages": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

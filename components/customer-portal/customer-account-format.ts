@@ -25,7 +25,7 @@ export function fmtDate(iso: string | null | undefined, timezone?: string | null
         timeZone: timezone,
         hour12: false,
       }).format(date);
-    } catch (e) {
+    } catch {
       // Fallback to UTC if timezone is invalid
     }
   }

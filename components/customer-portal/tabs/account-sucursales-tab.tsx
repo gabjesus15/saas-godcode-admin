@@ -1,7 +1,7 @@
 "use client";
 
 import type { BillingOptionsResponse, BillingPaymentResponse, BranchSummary, CompanySnapshot } from "../customer-account-types";
-import { displayStatus, fmtDate, fmtMoney } from "../customer-account-format";
+import { displayStatus, fmtMoney } from "../customer-account-format";
 import { PAYMENT_STATUS_LABELS } from "../customer-account-constants";
 import { PortalPageHeader } from "../portal-page-header";
 

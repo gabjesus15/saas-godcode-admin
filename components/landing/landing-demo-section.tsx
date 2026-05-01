@@ -1,5 +1,4 @@
 import { ArrowRight, Sparkles } from "lucide-react";
-import Image from "next/image";
 
 import { LandingReveal } from "./landing-reveal";
 

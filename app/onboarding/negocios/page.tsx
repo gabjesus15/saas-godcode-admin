@@ -1,37 +1,42 @@
-"use client";
-
-import { useEffect, useState } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Store, ExternalLink } from "lucide-react";
-import { useLocale } from "next-intl";
+
+import { getAppUrl } from "../../../lib/app-url";
+import { supabaseAdmin } from "../../../lib/supabase-admin";
+import { getCurrentLocale } from "../../../lib/i18n/server";
 import { getTenantUrl } from "../../../utils/tenant-url";
 
 const COPY = {
 	es: {
-		loadError: "No se pudo cargar el listado",
 		directory: "Directorio",
 		title: "Negocios en la plataforma",
 		desc: "Estos negocios ya confían en nosotros para gestionar sus pedidos, menú y caja.",
-		backStart: "Volver al inicio",
 		emptyTitle: "Aún no hay negocios publicados.",
 		emptySub: "Sé el primero en unirte.",
 		register: "Registrar mi negocio",
 		visit: "Visitar",
 		backRegister: "Volver al registro",
+		metaTitle: "Negocios en GodCode · Tiendas online creadas con la plataforma",
+		metaDescription:
+			"Conoce los restaurantes y negocios que ya venden online con GodCode: menú digital, pedidos y delivery con dominio propio.",
 	},
 	en: {
-		loadError: "Could not load the list",
 		directory: "Directory",
 		title: "Businesses on the platform",
 		desc: "These businesses already trust us to manage orders, menu and checkout.",
-		backStart: "Back to start",
 		emptyTitle: "There are no published businesses yet.",
 		emptySub: "Be the first to join.",
 		register: "Register my business",
 		visit: "Visit",
 		backRegister: "Back to registration",
+		metaTitle: "Businesses on GodCode · Online stores built with the platform",
+		metaDescription:
+			"Discover the restaurants and businesses already selling online with GodCode: digital menu, orders and delivery with your own domain.",
 	},
 } as const;
+
+type ThemeConfig = { displayName?: string; logoUrl?: string } | null;
 
 type CompanyPublic = {
 	id: string;
@@ -40,23 +45,71 @@ type CompanyPublic = {
 	logoUrl: string | null;
 };
 
-export default function NegociosPage() {
-	const locale = useLocale();
-	const t = COPY[locale.toLowerCase().startsWith("es") ? "es" : "en"];
-	const [companies, setCompanies] = useState<CompanyPublic[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
+function getCopy(locale: string) {
+	return locale.toLowerCase().startsWith("es") ? COPY.es : COPY.en;
+}
 
-	useEffect(() => {
-		fetch("/api/companies-public")
-			.then((res) => res.json())
-			.then((data) => {
-				if (data.error) setError(data.error);
-				else setCompanies(data.companies ?? []);
+async function fetchPublicCompanies(): Promise<CompanyPublic[]> {
+	try {
+		const { data, error } = await supabaseAdmin
+			.from("companies")
+			.select("id,name,public_slug,theme_config")
+			.in("subscription_status", ["active", "trial"])
+			.not("public_slug", "is", null)
+			.order("name");
+
+		if (error || !data) {
+			return [];
+		}
+
+		return data
+			.map((row) => {
+				const theme = (row.theme_config as ThemeConfig) ?? null;
+				return {
+					id: row.id as string,
+					name: theme?.displayName ?? row.name ?? "Negocio",
+					slug: (row.public_slug as string | null) ?? "",
+					logoUrl: theme?.logoUrl ?? null,
+				};
 			})
-			.catch(() => setError(t.loadError))
-			.finally(() => setLoading(false));
-	}, [t.loadError]);
+			.filter((item) => item.slug);
+	} catch {
+		return [];
+	}
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+	const locale = await getCurrentLocale();
+	const t = getCopy(locale);
+	const base = getAppUrl();
+	return {
+		title: t.metaTitle,
+		description: t.metaDescription,
+		alternates: {
+			canonical: `${base}/onboarding/negocios`,
+		},
+		openGraph: {
+			title: t.metaTitle,
+			description: t.metaDescription,
+			url: `${base}/onboarding/negocios`,
+			siteName: "GodCode",
+			type: "website",
+		},
+		robots: {
+			index: true,
+			follow: true,
+			"max-image-preview": "large",
+			"max-snippet": -1,
+		},
+	};
+}
+
+export const revalidate = 600;
+
+export default async function NegociosPage() {
+	const locale = await getCurrentLocale();
+	const t = getCopy(locale);
+	const companies = await fetchPublicCompanies();
 
 	return (
 		<div className="mx-auto w-full max-w-5xl px-5 py-8 sm:px-6 sm:py-12 md:py-16">
@@ -73,22 +126,7 @@ export default function NegociosPage() {
 				</p>
 			</div>
 
-			{loading && (
-				<div className="flex justify-center py-16">
-					<div className="h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-slate-900" />
-				</div>
-			)}
-
-			{error && (
-				<div className="onboarding-card mx-auto max-w-md p-6 text-center sm:p-8">
-					<p className="text-sm text-red-600">{error}</p>
-					<Link href="/onboarding" className="mt-4 inline-block text-sm font-medium text-indigo-600 hover:underline">
-						{t.backStart}
-					</Link>
-				</div>
-			)}
-
-			{!loading && !error && companies.length === 0 && (
+			{companies.length === 0 ? (
 				<div className="onboarding-card mx-auto max-w-md p-8 text-center sm:p-10">
 					<Store className="mx-auto h-10 w-10 text-slate-300" />
 					<p className="mt-4 text-sm text-slate-600">{t.emptyTitle}</p>
@@ -100,9 +138,7 @@ export default function NegociosPage() {
 						{t.register}
 					</Link>
 				</div>
-			)}
-
-			{!loading && !error && companies.length > 0 && (
+			) : (
 				<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 					{companies.map((c) => (
 						<a
