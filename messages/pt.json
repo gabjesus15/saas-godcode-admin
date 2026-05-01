@@ -89,7 +89,8 @@
         "contactBranch": { "title": "Escolha sua filial", "subtitle": "De qual loja voce quer obter informacoes?", "closeAria": "Fechar modal", "loading": "Carregando filiais...", "empty": "Nao ha filiais configuradas." },
         "previewMap": { "locationLabel": "Localizacao no mapa", "openMap": "Abrir mapa" },
         "notes": { "label": "Notas da cozinha", "placeholder": "Ex: Sem gergelim..." },
-        "summary": { "subtotal": "Subtotal", "shipping": "Entrega", "free": "Gratis", "total": "Total" },
+        "summary": { "subtotal": "Subtotal", "discount": "Desconto (cupom)", "shipping": "Entrega", "free": "Gratis", "total": "Total" },
+        "coupon": { "title": "Tem um cupom?", "placeholder": "Ex: PROMO", "apply": "Aplicar", "remove": "Remover", "applied": "Cupom {code}", "inputAria": "Codigo do cupom", "errors": { "empty": "Digite um codigo.", "invalid_coupon": "Cupom invalido.", "coupon_expired": "Cupom expirado.", "coupon_min_subtotal": "Subtotal minimo {amount}.", "coupon_phone_required": "Informe seu telefone.", "coupon_wrong_client": "Cupom nao aplicavel.", "coupon_usage_exhausted": "Cupom sem usos.", "coupon_usage_exhausted_client": "Limite de usos atingido.", "branch_not_found": "Filial nao encontrada.", "bad_request": "Dados invalidos.", "server": "Nao foi possivel validar o cupom." } },
         "actions": {
           "close": "Fechar", "loading": "Carregando...", "goToPay": "Ir para pagamento",
           "continueToPaymentMethods": "Continuar para metodos de pagamento", "backToSummary": "Voltar ao resumo",
@@ -159,7 +160,7 @@
         },
         "empty": { "title": "Carrinho vazio" },
         "item": { "productFallback": "Produto", "removeProduct": "Remover produto", "decreaseQuantity": "Diminuir quantidade", "increaseQuantity": "Aumentar quantidade" },
-        "ws": { "titlePrefix": "NOVO PEDIDO WEB", "businessFallback": "RESTAURANTE", "customer": "Cliente", "rut": "Documento", "phone": "Telefone", "typeLabel": "Tipo", "typeDelivery": "ENTREGA", "typePickup": "RETIRADA NO LOCAL", "shipping": "Entrega", "subtotalProducts": "Subtotal dos produtos", "orderNumber": "Pedido #", "orderId": "ID do pedido", "handoffCode": "Codigo de entrega", "detail": "DETALHE", "doLabel": "Fazer", "total": "TOTAL", "payment": "Pagamento", "bankTransferTitle": "Transferencia bancaria", "bank": "Banco", "accountType": "Tipo", "account": "Conta", "holder": "Titular", "bankTransferHint": "Quando concluir a transferencia, anexe o comprovante ao seu pedido.", "note": "Observacao" }
+        "ws": { "titlePrefix": "NOVO PEDIDO WEB", "businessFallback": "RESTAURANTE", "customer": "Cliente", "rut": "Documento", "phone": "Telefone", "typeLabel": "Tipo", "typeDelivery": "ENTREGA", "typePickup": "RETIRADA NO LOCAL", "shipping": "Entrega", "subtotalProducts": "Subtotal dos produtos", "couponLabel": "Cupom", "orderNumber": "Pedido #", "orderId": "ID do pedido", "handoffCode": "Codigo de entrega", "detail": "DETALHE", "doLabel": "Fazer", "total": "TOTAL", "payment": "Pagamento", "bankTransferTitle": "Transferencia bancaria", "bank": "Banco", "accountType": "Tipo", "account": "Conta", "holder": "Titular", "bankTransferHint": "Quando concluir a transferencia, anexe o comprovante ao seu pedido.", "note": "Observacao" }
       }
     }
   }

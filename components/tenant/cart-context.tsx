@@ -124,6 +124,12 @@ interface CartContextType {
   uberQuoteId: string | null;
   /** Cached price rows from the current branch — avoids re-fetching in the modal. */
   branchPriceRows: BranchProductPriceRow[];
+  /** Cupón aplicado (código tal como lo guarda el servidor al validar). */
+  appliedCouponCode: string | null;
+  /** Descuento en moneda del local (entero); solo sobre subtotal de productos/extras, no envío. */
+  appliedCouponDiscount: number;
+  setAppliedCoupon: (code: string, discountAmount: number) => void;
+  clearAppliedCoupon: () => void;
 }
 
 const CartContext = createContext<CartContextType | null>(null);

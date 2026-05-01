@@ -120,9 +120,31 @@
         },
         "summary": {
           "subtotal": "Subtotal",
+          "discount": "Descuento (cupón)",
           "shipping": "Envio",
           "free": "Gratis",
           "total": "Total"
+        },
+        "coupon": {
+          "title": "¿Tienes un cupón?",
+          "placeholder": "Ej: BIENVENIDO",
+          "apply": "Aplicar",
+          "remove": "Quitar",
+          "applied": "Cupón {code}",
+          "inputAria": "Código de cupón",
+          "errors": {
+            "empty": "Escribí un código.",
+            "invalid_coupon": "Cupón no válido.",
+            "coupon_expired": "Este cupón ya no está vigente.",
+            "coupon_min_subtotal": "El subtotal debe ser al menos {amount} para usar este cupón.",
+            "coupon_phone_required": "Completá tu teléfono para usar este cupón.",
+            "coupon_wrong_client": "Este cupón no aplica con tus datos.",
+            "coupon_usage_exhausted": "Este cupón ya no tiene usos disponibles.",
+            "coupon_usage_exhausted_client": "Ya usaste este cupón el máximo de veces permitidas.",
+            "branch_not_found": "No encontramos la sucursal.",
+            "bad_request": "Datos inválidos.",
+            "server": "No pudimos validar el cupón. Intentá de nuevo."
+          }
         },
         "actions": {
           "close": "Cerrar",
@@ -311,6 +333,7 @@
           "typePickup": "RETIRO EN LOCAL",
           "shipping": "Envio",
           "subtotalProducts": "Subtotal productos",
+          "couponLabel": "Cupón",
           "orderNumber": "N pedido",
           "orderId": "ID pedido",
           "handoffCode": "Codigo de entrega",

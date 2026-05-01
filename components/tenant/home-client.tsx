@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
 import { Building2, Share2, MapPin, MessageCircle, Settings, Utensils, QrCode } from "lucide-react";
@@ -123,12 +123,18 @@ export function HomeClient(props: HomeClientProps) {
   };
 
   // Configuración de botones dinámica
-  const buttons = useMemo(() => [
+  const buttons = useMemo((): Array<{
+    label: string;
+    icon: ReactNode;
+    onClick: () => void;
+    primary?: boolean;
+    ariaLabel?: string;
+  }> => [
     {
       label: "Ver Menú Digital",
       icon: <Utensils size={20} />,
       // AL HACER CLIC, VA DIRECTO AL MENÚ SIN ABRIR MODAL AQUÍ
-      onClick: () => router.push(menuPath), 
+      onClick: () => router.push(menuPath),
       primary: true,
     },
     {
@@ -147,11 +153,14 @@ export function HomeClient(props: HomeClientProps) {
       onClick: () => handleActionClick("location"),
     },
     {
-      label: "Registrar mi negocio",
+      label: "¿Quieres tu menú digital?",
+      ariaLabel: "Descubre cómo tener tu propio menú digital",
       icon: <Building2 size={20} />,
-      onClick: () => { window.location.href = "https://www.godcode.me/landing"; },
+      onClick: () => {
+        window.location.href = "https://www.godcode.me/landing";
+      },
     },
-  ], [handleActionClick, router, menuPath]); // Dependencias actualizadas
+  ], [handleActionClick, router, menuPath]);
 
   // Generador de iniciales robusto
   const initials = useMemo(() => {
@@ -218,7 +227,7 @@ export function HomeClient(props: HomeClientProps) {
                   key={btn.label}
                   onClick={btn.onClick}
                   className={`btn ${btn.primary ? "btn-primary" : "btn-secondary glass"}`}
-                  aria-label={`Ir a ${btn.label}`}
+                  aria-label={btn.ariaLabel ?? `Ir a ${btn.label}`}
                 >
                   <span className="btn-icon" aria-hidden="true">{btn.icon}</span>
                   <span className="btn-label">{btn.label}</span>

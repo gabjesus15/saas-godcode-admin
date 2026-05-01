@@ -41,6 +41,8 @@ interface CartState {
   isCartOpen: boolean;
   orderNote: string;
   storedBranchId?: string | null;
+  appliedCouponCode: string | null;
+  appliedCouponDiscount: number;
   fulfillment: CartFulfillment;
   deliveryLine1: string;
   deliveryCommune: string;
@@ -78,6 +80,8 @@ interface CartState {
   setDeliveryKmManual?: (value: string) => void;
   setShowDeliveryReference?: (value: boolean) => void;
   setGlobalExtras?: (extras: CartGlobalExtraSelection[]) => void;
+  setAppliedCoupon?: (code: string, discountAmount: number) => void;
+  clearAppliedCoupon?: () => void;
 }
 
 function buildLineId(productId: string): string {
@@ -118,6 +122,8 @@ const useCartStore = create<CartState>()(
       isCartOpen: false,
       orderNote: "",
       storedBranchId: null,
+      appliedCouponCode: null,
+      appliedCouponDiscount: 0,
       fulfillment: "pickup",
       deliveryLine1: "",
       deliveryCommune: "",
@@ -221,6 +227,20 @@ const useCartStore = create<CartState>()(
           deliveryKmManual: "",
           showDeliveryReference: false,
           globalExtras: [],
+          appliedCouponCode: null,
+          appliedCouponDiscount: 0,
+        }),
+
+      setAppliedCoupon: (code, discountAmount) =>
+        set({
+          appliedCouponCode: String(code ?? "").trim().toUpperCase(),
+          appliedCouponDiscount: Math.max(0, Math.round(Number(discountAmount) || 0)),
+        }),
+
+      clearAppliedCoupon: () =>
+        set({
+          appliedCouponCode: null,
+          appliedCouponDiscount: 0,
         }),
 
       setOrderNote: (note) => set({ orderNote: note }),
@@ -273,6 +293,8 @@ const useCartStore = create<CartState>()(
     }
   )
 );
+
+export { useCartStore as useTenantCartStore };
 
 export function CartProvider({
   children,
@@ -1233,7 +1255,13 @@ export function CartProvider({
         extError,
       ]);
 
-    const grandTotal = Math.round(cartSubtotal) + Math.round(deliveryFee);
+    const appliedCouponDiscount = Math.min(
+      Math.round(cartSubtotal),
+      Math.max(0, Math.round(Number(store.appliedCouponDiscount) || 0)),
+    );
+
+    const grandTotal =
+      Math.max(0, Math.round(cartSubtotal) - appliedCouponDiscount) + Math.round(deliveryFee);
 
     const totalItems = useMemo(() => {
       if (!Array.isArray(store.cart)) return 0;
@@ -1292,6 +1320,13 @@ export function CartProvider({
       if (store.fulfillment === "delivery" && deliveryFee > 0) {
         message += `\nEnvio: $${formatCartMoney(deliveryFee)}\n`;
       }
+      const couponDisc = Math.min(
+        Math.round(cartSubtotal),
+        Math.max(0, Math.round(Number(store.appliedCouponDiscount) || 0)),
+      );
+      if (couponDisc > 0 && store.appliedCouponCode) {
+        message += `\nCupón (${store.appliedCouponCode}): -$${formatCartMoney(couponDisc)}\n`;
+      }
       message += `\n*TOTAL A PAGAR: $${formatCartMoney(grandTotal)}*\n`;
       message += "================================\n";
 
@@ -1301,7 +1336,18 @@ export function CartProvider({
       }
 
       return encodeURIComponent(message);
-    }, [store.cart, store.globalExtras, store.orderNote, store.fulfillment, grandTotal, deliveryFee, getPrice]);
+    }, [
+      store.cart,
+      store.globalExtras,
+      store.orderNote,
+      store.fulfillment,
+      store.appliedCouponCode,
+      store.appliedCouponDiscount,
+      grandTotal,
+      deliveryFee,
+      cartSubtotal,
+      getPrice,
+    ]);
 
     const contextValue = useMemo(() => ({
       cart: isHydrated && Array.isArray(store.cart) ? store.cart : [],
@@ -1353,11 +1399,18 @@ export function CartProvider({
       deliveryExternalHintText: isHydrated ? deliveryExternalHintText : null,
       uberQuoteId: isHydrated ? uberQuoteId : null,
       branchPriceRows,
+      appliedCouponCode: store.appliedCouponCode ?? null,
+      appliedCouponDiscount: isHydrated ? appliedCouponDiscount : 0,
+      setAppliedCoupon:
+        typeof store.setAppliedCoupon === "function" ? store.setAppliedCoupon : () => {},
+      clearAppliedCoupon:
+        typeof store.clearAppliedCoupon === "function" ? store.clearAppliedCoupon : () => {},
     }), [
       store,
       isHydrated,
       cartTotal,
       cartSubtotal,
+      appliedCouponDiscount,
       grandTotal,
       deliveryFee,
       totalItems,

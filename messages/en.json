@@ -120,9 +120,31 @@
         },
         "summary": {
           "subtotal": "Subtotal",
+          "discount": "Discount (coupon)",
           "shipping": "Shipping",
           "free": "Free",
           "total": "Total"
+        },
+        "coupon": {
+          "title": "Have a coupon?",
+          "placeholder": "e.g. WELCOME",
+          "apply": "Apply",
+          "remove": "Remove",
+          "applied": "Coupon {code}",
+          "inputAria": "Coupon code",
+          "errors": {
+            "empty": "Enter a code.",
+            "invalid_coupon": "Invalid coupon.",
+            "coupon_expired": "This coupon is no longer valid.",
+            "coupon_min_subtotal": "Your subtotal must be at least {amount} to use this coupon.",
+            "coupon_phone_required": "Enter your phone to use this coupon.",
+            "coupon_wrong_client": "This coupon does not apply to your details.",
+            "coupon_usage_exhausted": "This coupon has no uses left.",
+            "coupon_usage_exhausted_client": "You have already used this coupon the maximum times allowed.",
+            "branch_not_found": "Branch not found.",
+            "bad_request": "Invalid data.",
+            "server": "We could not validate the coupon. Try again."
+          }
         },
         "actions": {
           "close": "Close",
@@ -311,6 +333,7 @@
           "typePickup": "STORE PICKUP",
           "shipping": "Shipping",
           "subtotalProducts": "Products subtotal",
+          "couponLabel": "Coupon",
           "orderNumber": "Order #",
           "orderId": "Order ID",
           "handoffCode": "Handoff code",

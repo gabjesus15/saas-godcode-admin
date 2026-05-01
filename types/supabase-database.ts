@@ -2570,6 +2570,7 @@ export type Database = {
           p_client_phone: string
           p_client_rut: string
           p_company_id: string
+          p_coupon_code?: string | null
           p_delivery_address?: Json
           p_delivery_fee?: number
           p_items: Json

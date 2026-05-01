@@ -46,6 +46,8 @@ interface CreateOrderPayload {
   namedAreaId?: string | null;
   /** Cotización Uber Direct (opcional; se revalida en servidor). */
   uber_quote_id?: string | null;
+  /** Código de cupón (`discount_coupons`); lo valida `create_order_transaction`. */
+  coupon_code?: string | null;
 }
 
 interface ProductPriceRow {
@@ -471,8 +473,22 @@ export const ordersService = {
     }
 
     deliveryFee = Math.round(deliveryFee);
-    const grandTotal = calculatedItemsTotal + deliveryFee;
-    const totalToUse = grandTotal;
+    const serverItemsPlusDelivery = calculatedItemsTotal + deliveryFee;
+
+    const couponRaw =
+      typeof orderData.coupon_code === "string" ? orderData.coupon_code.trim() : "";
+    const couponPayload = couponRaw.length > 0 ? couponRaw : null;
+
+    // Sin cupón: `p_total` debe ser ítems + envío (recalculados aquí).
+    // Con cupón: el RPC resta el descuento al subtotal de ítems; `p_total` debe ser ese total final.
+    // El cliente ya lo calculó tras validar el cupón; el RPC vuelve a validar cupón y tolerancia (`invalid_item_price`).
+    let totalToUse = serverItemsPlusDelivery;
+    if (couponPayload) {
+      const clientTotal = Math.round(Number(orderData.total));
+      if (Number.isFinite(clientTotal) && clientTotal >= 0) {
+        totalToUse = clientTotal;
+      }
+    }
 
     let receiptUrl: string | null = null;
     let receiptUploadFailed = false;
@@ -502,30 +518,54 @@ export const ordersService = {
       finalNote = `${finalNote}\n[Envio: $${Math.round(deliveryFee).toLocaleString("es-CL")}]`.trim();
     }
 
+    const rpcArgs = {
+      p_client_name: orderData.client_name,
+      p_client_phone: orderData.client_phone,
+      p_client_rut: orderData.client_rut || "",
+      p_items: itemsForRpc,
+      p_total: totalToUse,
+      p_payment_type: orderData.payment_type,
+      p_payment_ref: paymentRef,
+      p_note: finalNote,
+      p_branch_id: orderData.branch_id,
+      p_company_id: orderData.company_id || null,
+      p_status: orderData.status || "pending",
+      p_payment_method_specific: orderData.payment_method_specific ?? null,
+      // Sin estos campos el RPC asume pickup + fee 0 y compara mal `p_total` (subtotal+envío) → invalid_item_price.
+      p_order_type: deliveryMode ? "delivery" : "pickup",
+      p_delivery_fee: deliveryMode ? deliveryFee : 0,
+      p_delivery_address: deliveryMode ? (orderData.delivery_address as Json) : null,
+      ...(couponPayload ? { p_coupon_code: couponPayload } : {}),
+    };
+
     const { data: newOrder, error: orderError } = await supabase.rpc(
       "create_order_transaction",
-      {
-        p_client_name: orderData.client_name,
-        p_client_phone: orderData.client_phone,
-        p_client_rut: orderData.client_rut || "",
-        p_items: itemsForRpc,
-        p_total: totalToUse,
-        p_payment_type: orderData.payment_type,
-        p_payment_ref: paymentRef,
-        p_note: finalNote,
-        p_branch_id: orderData.branch_id,
-        p_company_id: orderData.company_id || null,
-        p_status: orderData.status || "pending",
-        p_payment_method_specific: orderData.payment_method_specific ?? null,
-        // Sin estos campos el RPC asume pickup + fee 0 y compara mal `p_total` (subtotal+envío) → invalid_item_price.
-        p_order_type: deliveryMode ? "delivery" : "pickup",
-        p_delivery_fee: deliveryMode ? deliveryFee : 0,
-        p_delivery_address: deliveryMode ? (orderData.delivery_address as Json) : null,
-      }
+      rpcArgs
     );
 
     if (orderError) {
       const rpcMessage = String(orderError.message || "").toLowerCase();
+      if (rpcMessage.includes("invalid_coupon")) {
+        throw new Error("Cupón no válido.");
+      }
+      if (rpcMessage.includes("coupon_expired")) {
+        throw new Error("Este cupón ya no está vigente.");
+      }
+      if (rpcMessage.includes("coupon_min_subtotal")) {
+        throw new Error("El subtotal no alcanza el mínimo para usar este cupón.");
+      }
+      if (rpcMessage.includes("coupon_wrong_client")) {
+        throw new Error("Este cupón no aplica para tu cuenta.");
+      }
+      if (rpcMessage.includes("coupon_phone_required")) {
+        throw new Error("Este cupón requiere identificar tu teléfono.");
+      }
+      if (
+        rpcMessage.includes("coupon_usage_exhausted") ||
+        rpcMessage.includes("coupon_usage_exhausted_client")
+      ) {
+        throw new Error("Este cupón ya fue utilizado el máximo de veces permitidas.");
+      }
       if (rpcMessage.includes("invalid_item_price")) {
         throw new Error(
           "Hay productos del carrito que no estan disponibles para esta sucursal. Actualiza el menu e intenta nuevamente."
