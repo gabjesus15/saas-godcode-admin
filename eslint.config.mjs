@@ -20,6 +20,12 @@ const eslintConfig = defineConfig([
       "@next/next/no-css-tags": "off",
       // Disable inline styles warning - required for dynamic CSS custom properties
       "react/no-unknown-property": ["error", { "ignore": ["style"] }],
+      // Variables/params prefixed with _ are intentionally unused (e.g. destructured but not consumed)
+      "@typescript-eslint/no-unused-vars": ["warn", {
+        "varsIgnorePattern": "^_",
+        "argsIgnorePattern": "^_",
+        "destructuredArrayIgnorePattern": "^_",
+      }],
     },
   },
   // Navegación con <a> a rutas internas para forzar recarga completa (evita estilos residuales tras 404/onboarding).

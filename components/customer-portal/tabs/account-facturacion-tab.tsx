@@ -1,9 +1,16 @@
 "use client";
 
+import { Download, ExternalLink, HelpCircle, CreditCard, Clock, FileText, CheckCircle2 } from "lucide-react";
 import type { BillingPaymentResponse, PaymentSummary, CompanySnapshot } from "../customer-account-types";
 import { displayStatus, fmtDate, fmtMoney } from "../customer-account-format";
 import { PAYMENT_STATUS_LABELS } from "../customer-account-constants";
-import { PortalPageHeader } from "../portal-page-header";
+import { Badge, paymentStatusVariant } from "../ui/Badge";
+import { Button } from "../ui/Button";
+import { Card } from "../ui/Card";
+import { EmptyState } from "../ui/EmptyState";
+import { PageHeader } from "../ui/PageHeader";
+import { SegmentedControl } from "../ui/SegmentedControl";
+import { StatCard } from "../ui/StatCard";
 
 export type AccountFacturacionTabProps = {
   company: CompanySnapshot;
@@ -25,6 +32,14 @@ export type AccountFacturacionTabProps = {
   onOpenBillingSupport: (payment: PaymentSummary) => void;
 };
 
+const statusFilterOptions = [
+  { value: "all",                label: "Todos"      },
+  { value: "paid",               label: "Pagados"    },
+  { value: "pending",            label: "Pendientes" },
+  { value: "pending_validation", label: "En revision" },
+  { value: "failed",             label: "Fallidos"   },
+] as const;
+
 export function AccountFacturacionTab({
   company,
   billingPaidTotal,
@@ -40,162 +55,113 @@ export function AccountFacturacionTab({
   paymentDateTo,
   setPaymentDateTo,
   filteredPayments,
-  createdExpansionPayment,
   onExportPaymentsCsv,
   onOpenBillingSupport,
 }: AccountFacturacionTabProps) {
   return (
-    <div className="space-y-8">
-      <PortalPageHeader
-        title="Pagos y comprobantes"
-        description="Historial filtrable y exportación CSV. Para reclamos, usa Soporte · Facturación."
+    <div className="space-y-6">
+      <PageHeader
+        title="Facturacion"
+        description="Historial de pagos y comprobantes."
+        aside={
+          <Button variant="secondary" size="sm" icon={<Download className="h-3.5 w-3.5" />} onClick={onExportPaymentsCsv}>
+            Exportar CSV
+          </Button>
+        }
       />
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm shadow-indigo-500/[0.03] dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-indigo-500/[0.04] md:p-8">
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
-          <p className="text-xs text-zinc-500">Total pagado</p>
-          <p className="font-semibold text-zinc-900 dark:text-zinc-100">{fmtMoney(billingPaidTotal, company.currency, company.locale)}</p>
-        </div>
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
-          <p className="text-xs text-zinc-500">Pendiente</p>
-          <p className="font-semibold text-indigo-700 dark:text-indigo-300">{fmtMoney(billingPendingTotal, company.currency, company.locale)}</p>
-        </div>
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
-          <p className="text-xs text-zinc-500">Pagos pendientes</p>
-          <p className="font-semibold text-zinc-900 dark:text-zinc-100">{pendingPaymentsCount}</p>
-        </div>
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
-          <p className="text-xs text-zinc-500">Último pago aprobado</p>
-          <p className="font-semibold text-zinc-900 dark:text-zinc-100">{fmtDate(latestPaidPaymentDate, company.timezone)}</p>
-        </div>
+      {/* KPI row */}
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <StatCard label="Total pagado"      value={fmtMoney(billingPaidTotal,    company.currency, company.locale)} icon={CheckCircle2} accent="emerald" />
+        <StatCard label="Pendiente"         value={fmtMoney(billingPendingTotal, company.currency, company.locale)} icon={Clock}        accent={pendingPaymentsCount > 0 ? "amber" : "indigo"} />
+        <StatCard label="Pagos pendientes"  value={pendingPaymentsCount}                                            icon={CreditCard}   accent={pendingPaymentsCount > 0 ? "amber" : "indigo"} />
+        <StatCard label="Ultimo pago aprobado" value={latestPaidPaymentDate ? fmtDate(latestPaidPaymentDate, company.timezone) : "-"} icon={FileText} accent="sky" />
       </div>
 
-      <details className="mt-4 rounded-xl border border-indigo-100/70 bg-indigo-50/35 dark:border-indigo-500/20 dark:bg-indigo-950/20">
-        <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-indigo-950 dark:text-indigo-100 [&::-webkit-details-marker]:hidden">
-          Filtros de tabla
-        </summary>
-        <div className="grid gap-2 border-t border-zinc-200 px-4 pb-4 pt-3 dark:border-zinc-700 sm:grid-cols-2 lg:grid-cols-4">
-          <select
+      {/* Filters */}
+      <Card compact>
+        <div className="flex flex-wrap items-center gap-3">
+          <SegmentedControl
+            options={statusFilterOptions as unknown as Array<{ value: string; label: string }>}
             value={paymentStatusFilter}
-            onChange={(event) => setPaymentStatusFilter(event.target.value)}
-            aria-label="Filtrar por estado de pago"
-            className="h-11 rounded-xl border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-          >
-            <option value="all">Todos los estados</option>
-            <option value="pending">Pendiente</option>
-            <option value="pending_validation">Pendiente de validación</option>
-            <option value="paid">Pagado</option>
-            <option value="failed">Fallido</option>
-            <option value="cancelled">Cancelado</option>
-          </select>
+            onChange={setPaymentStatusFilter}
+            size="sm"
+          />
           <input
             type="text"
+            placeholder="Buscar referencia…"
             value={paymentReferenceQuery}
-            onChange={(event) => setPaymentReferenceQuery(event.target.value)}
-            placeholder="Buscar referencia"
-            aria-label="Buscar por referencia"
-            className="h-11 rounded-xl border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            onChange={(e) => setPaymentReferenceQuery(e.target.value)}
+            className="h-8 flex-1 rounded-xl border border-[#d2d2d7] bg-white px-3 text-sm placeholder-[#a1a1a6] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
           />
-          <input
-            type="date"
-            value={paymentDateFrom}
-            onChange={(event) => setPaymentDateFrom(event.target.value)}
-            aria-label="Fecha desde"
-            className="h-11 rounded-xl border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-          />
-          <input
-            type="date"
-            value={paymentDateTo}
-            onChange={(event) => setPaymentDateTo(event.target.value)}
-            aria-label="Fecha hasta"
-            className="h-11 rounded-xl border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-          />
+          <div className="flex items-center gap-1.5">
+            <input
+              type="date"
+              value={paymentDateFrom}
+              onChange={(e) => setPaymentDateFrom(e.target.value)}
+              className="h-8 rounded-xl border border-[#d2d2d7] bg-white px-3 text-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              aria-label="Desde"
+            />
+            <span className="text-xs text-[#a1a1a6]">a</span>
+            <input
+              type="date"
+              value={paymentDateTo}
+              onChange={(e) => setPaymentDateTo(e.target.value)}
+              className="h-8 rounded-xl border border-[#d2d2d7] bg-white px-3 text-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              aria-label="Hasta"
+            />
+          </div>
         </div>
-      </details>
+      </Card>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Historial de pagos</h3>
-        <button
-          type="button"
-          onClick={onExportPaymentsCsv}
-          className="h-10 rounded-xl border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
-        >
-          Exportar CSV
-        </button>
-      </div>
-
-      {createdExpansionPayment &&
-      ["pending", "pending_validation"].includes(createdExpansionPayment.payment.status ?? "") ? (
-        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
-          Hay una orden de expansión pendiente de validación: {createdExpansionPayment.payment.payment_reference}. Puedes
-          completar o verificar el comprobante desde la pestaña de Sucursales.
-        </div>
-      ) : null}
-
-      <div className="mt-4 overflow-x-auto">
-        <table className="w-full min-w-[760px] text-sm">
-          <thead>
-            <tr className="text-left text-zinc-500">
-              <th className="px-2 py-2">Fecha</th>
-              <th className="px-2 py-2">Monto</th>
-              <th className="px-2 py-2">Estado</th>
-              <th className="px-2 py-2">Método</th>
-              <th className="px-2 py-2">Meses</th>
-              <th className="px-2 py-2">Referencia</th>
-              <th className="px-2 py-2">Comprobante</th>
-              <th className="px-2 py-2">Acción</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredPayments.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="px-2 py-3 text-zinc-500">
-                  No hay pagos para los filtros seleccionados.
-                </td>
-              </tr>
-            ) : (
-              filteredPayments.map((payment) => (
-                <tr key={payment.id} className="border-t border-zinc-200 dark:border-zinc-700">
-                  <td className="px-2 py-2">{fmtDate(payment.payment_date, company.timezone)}</td>
-                  <td className="px-2 py-2">{fmtMoney(payment.amount_paid, company.currency, company.locale)}</td>
-                  <td className="px-2 py-2">{displayStatus(payment.status, PAYMENT_STATUS_LABELS)}</td>
-                  <td className="px-2 py-2">{payment.payment_method ?? "-"}</td>
-                  <td className="px-2 py-2">{payment.months_paid ?? "-"}</td>
-                  <td className="px-2 py-2">{payment.payment_reference ?? "-"}</td>
-                  <td className="px-2 py-2">
-                    {payment.reference_file_url ? (
-                      <a
-                        href={payment.reference_file_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-indigo-600 hover:underline dark:text-indigo-400"
-                      >
-                        Ver archivo
-                      </a>
-                    ) : (
-                      "-"
-                    )}
-                  </td>
-                  <td className="px-2 py-2">
-                    <button
-                      type="button"
-                      onClick={() => onOpenBillingSupport(payment)}
-                      className="text-indigo-600 hover:underline dark:text-indigo-400"
-                    >
-                      Reportar
-                    </button>
-                  </td>
+      {/* Payment table */}
+      <Card noPadding>
+        {filteredPayments.length === 0 ? (
+          <EmptyState icon={FileText} title="Sin pagos" description="No hay pagos que coincidan con los filtros seleccionados." className="py-12" />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-[#fbfbfd]">
+                <tr>
+                  {["Fecha", "Monto", "Estado", "Metodo", "Meses", "Referencia", ""].map((h, i) => (
+                    <th key={i} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.1em] text-[#a1a1a6]">{h}</th>
+                  ))}
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-      <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-300">
-        Si necesitas factura o ajuste de cobro, usa la pestaña de Soporte y categoría Facturación.
-      </div>
-    </section>
+              </thead>
+              <tbody className="divide-y divide-[#f5f5f7]">
+                {filteredPayments.map((payment) => (
+                  <tr key={payment.id} className="group hover:bg-[#fbfbfd]">
+                    <td className="px-4 py-3 whitespace-nowrap text-[#6e6e73]">{fmtDate(payment.payment_date, company.timezone)}</td>
+                    <td className="px-4 py-3 font-semibold text-[#1d1d1f]">{fmtMoney(payment.amount_paid, company.currency, company.locale)}</td>
+                    <td className="px-4 py-3"><Badge variant={paymentStatusVariant(payment.status)}>{displayStatus(payment.status, PAYMENT_STATUS_LABELS)}</Badge></td>
+                    <td className="px-4 py-3 text-[#6e6e73]">{payment.payment_method ?? "-"}</td>
+                    <td className="px-4 py-3 text-[#6e6e73]">{payment.months_paid ?? "-"}</td>
+                    <td className="px-4 py-3">
+                      {payment.reference_file_url ? (
+                        <a href={payment.reference_file_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-indigo-600 hover:underline">
+                          {payment.payment_reference ?? "Ver"} <ExternalLink className="h-3 w-3" />
+                        </a>
+                      ) : (
+                        <span className="text-[#a1a1a6]">{payment.payment_reference ?? "-"}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        type="button"
+                        onClick={() => onOpenBillingSupport(payment)}
+                        className="hidden rounded-lg p-1.5 text-[#a1a1a6] transition hover:bg-[#f5f5f7] hover:text-[#6e6e73] group-hover:block"
+                        title="Reportar problema"
+                      >
+                        <HelpCircle className="h-4 w-4" aria-hidden />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

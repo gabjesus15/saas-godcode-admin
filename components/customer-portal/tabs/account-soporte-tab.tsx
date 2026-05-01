@@ -1,14 +1,19 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
+import { MessageSquare, Plus, Send } from "lucide-react";
+
 import type { CompanySnapshot, TicketMessage, TicketSummary } from "../customer-account-types";
 import { fmtDate } from "../customer-account-format";
-import {
-  TICKET_CATEGORY_LABELS,
-  TICKET_PRIORITY_LABELS,
-  TICKET_STATUS_LABELS,
-} from "../customer-account-constants";
+import { TICKET_CATEGORY_LABELS, TICKET_PRIORITY_LABELS, TICKET_STATUS_LABELS } from "../customer-account-constants";
 import { getTicketAgeHours, getTicketSlaHours } from "../customer-account-ticket-utils";
-import { PortalPageHeader } from "../portal-page-header";
+import { Badge } from "../ui/Badge";
+import { Button } from "../ui/Button";
+import { Card } from "../ui/Card";
+import { Dialog, DialogFooter } from "../ui/Dialog";
+import { EmptyState } from "../ui/EmptyState";
+import { PageHeader } from "../ui/PageHeader";
+import type { ColorVariant } from "../ui/tokens";
 
 export type SupportCategory = "general" | "billing" | "technical" | "product" | "account";
 export type SupportPriority = "low" | "medium" | "high" | "critical";
@@ -37,6 +42,19 @@ export type AccountSoporteTabProps = {
   onSendMessage: () => void;
 };
 
+const priorityVariant: Record<SupportPriority, ColorVariant> = {
+  low:      "neutral",
+  medium:   "info",
+  high:     "warning",
+  critical: "danger",
+};
+
+const QUICK_TEMPLATES: { kind: "facturacion" | "tecnico" | "sucursales"; label: string }[] = [
+  { kind: "facturacion", label: "Facturacion y cobros" },
+  { kind: "tecnico",     label: "Incidencia tecnica" },
+  { kind: "sucursales",  label: "Sucursales y expansion" },
+];
+
 export function AccountSoporteTab({
   company,
   busy,
@@ -60,181 +78,232 @@ export function AccountSoporteTab({
   setMessageDraft,
   onSendMessage,
 }: AccountSoporteTabProps) {
+  const [createOpen, setCreateOpen] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const handleCreate = () => {
+    onSupportTicket();
+    setCreateOpen(false);
+  };
+
+  const openTickets  = tickets.filter((t) => t.status !== "closed");
+  const closedTickets = tickets.filter((t) => t.status === "closed");
+
   return (
-    <div className="space-y-8">
-      <PortalPageHeader
-        title="Tickets y mensajes"
-        description="Crea un caso nuevo o sigue el hilo con el equipo desde la columna derecha."
-      />
-
-      <section className="grid gap-4 lg:grid-cols-[1.1fr_1.9fr]">
-      <div className="space-y-4">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm shadow-indigo-500/[0.03] dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-indigo-500/[0.04] md:p-8">
-          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Crear ticket</h2>
-          <label className="mt-3 block text-xs font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">
-            Plantilla rápida
-            <select
-              defaultValue=""
-              aria-label="Aplicar plantilla de ticket"
-              onChange={(event) => {
-                const v = event.target.value as "" | "facturacion" | "tecnico" | "sucursales";
-                if (v) onApplySupportTemplate(v);
-                event.target.value = "";
-              }}
-              className="mt-1 h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-            >
-              <option value="">Elegir plantilla…</option>
-              <option value="facturacion">Facturación y cobros</option>
-              <option value="tecnico">Incidencia técnica</option>
-              <option value="sucursales">Sucursales y expansión</option>
-            </select>
-          </label>
-          <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-            Rellena asunto y descripción con un texto base; puedes editarlo antes de enviar.
-          </p>
-          <div className="mt-4 max-w-xl space-y-2">
-            <input
-              value={supportSubject}
-              onChange={(event) => setSupportSubject(event.target.value)}
-              placeholder="Asunto"
-              className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-            />
-            <div className="grid grid-cols-2 gap-2">
-              <select
-                value={supportCategory}
-                onChange={(event) => setSupportCategory(event.target.value as SupportCategory)}
-                aria-label="Categoría del ticket"
-                className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-              >
-                <option value="general">{TICKET_CATEGORY_LABELS.general}</option>
-                <option value="billing">{TICKET_CATEGORY_LABELS.billing}</option>
-                <option value="technical">{TICKET_CATEGORY_LABELS.technical}</option>
-                <option value="product">{TICKET_CATEGORY_LABELS.product}</option>
-                <option value="account">{TICKET_CATEGORY_LABELS.account}</option>
-              </select>
-              <select
-                value={supportPriority}
-                onChange={(event) => setSupportPriority(event.target.value as SupportPriority)}
-                aria-label="Prioridad del ticket"
-                className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-              >
-                <option value="low">{TICKET_PRIORITY_LABELS.low}</option>
-                <option value="medium">{TICKET_PRIORITY_LABELS.medium}</option>
-                <option value="high">{TICKET_PRIORITY_LABELS.high}</option>
-                <option value="critical">{TICKET_PRIORITY_LABELS.critical}</option>
-              </select>
-            </div>
-            <textarea
-              value={supportDescription}
-              onChange={(event) => setSupportDescription(event.target.value)}
-              placeholder="Describe el problema o solicitud"
-              className="min-h-28 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-            />
-            <button
-              type="button"
-              onClick={onSupportTicket}
-              disabled={busy}
-              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
-            >
-              {busy ? "Enviando..." : "Crear ticket"}
-            </button>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm shadow-indigo-500/[0.03] dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-indigo-500/[0.04] md:p-8">
-          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Mis tickets</h3>
-          <div className="mt-3 space-y-2">
-            {tickets.length === 0 ? (
-              <p className="text-sm text-zinc-500">No tienes tickets aún.</p>
-            ) : (
-              tickets.map((ticket) => (
-                <button
-                  key={ticket.id}
-                  type="button"
-                  onClick={() => onSelectTicket(ticket.id)}
-                  className={`w-full rounded-xl border px-3 py-2 text-left text-sm transition ${
-                    selectedTicketId === ticket.id
-                      ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30"
-                      : "border-zinc-200 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800/60"
-                  }`}
-                >
-                  <p className="font-medium text-zinc-900 dark:text-zinc-100">{ticket.subject}</p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {TICKET_STATUS_LABELS[ticket.status] ?? ticket.status} · {fmtDate(ticket.lastMessageAt, company.timezone)}
-                  </p>
-                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                    SLA objetivo: {getTicketSlaHours(ticket.priority)}h · Prioridad{" "}
-                    {TICKET_PRIORITY_LABELS[ticket.priority] ?? ticket.priority}
-                  </p>
-                </button>
-              ))
-            )}
-          </div>
-        </div>
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-4">
+        <PageHeader title="Soporte" description="Gestiona tus tickets y conversa con el equipo." />
+        <Button variant="primary" size="sm" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setCreateOpen(true)}>
+          Nuevo ticket
+        </Button>
       </div>
 
-      <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm shadow-indigo-500/[0.03] dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-indigo-500/[0.04] md:p-8">
-        <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Conversación</h3>
-        {!selectedTicket ? (
-          <p className="mt-3 text-sm text-zinc-500">Selecciona un ticket para ver y responder mensajes.</p>
-        ) : (
-          <div className="mt-3 space-y-3">
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/60">
-              <p className="font-medium text-zinc-900 dark:text-zinc-100">{selectedTicket.subject}</p>
-              <p className="text-zinc-600 dark:text-zinc-400">{selectedTicket.description}</p>
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                SLA objetivo: {getTicketSlaHours(selectedTicket.priority)}h · antigüedad aproximada:{" "}
-                {(() => {
-                  const ageHours = getTicketAgeHours(selectedTicket.createdAt);
-                  if (ageHours == null) return "-";
-                  if (ageHours < 24) return `${Math.max(1, Math.floor(ageHours))}h`;
-                  return `${Math.floor(ageHours / 24)}d`;
-                })()}
-              </p>
-            </div>
+      {/* Master-detail */}
+      <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
 
-            <div className="max-h-80 space-y-2 overflow-y-auto rounded-xl border border-zinc-200 p-3 dark:border-zinc-700">
-              {messageLoading ? (
-                <p className="text-sm text-zinc-500">Cargando mensajes...</p>
-              ) : messages.length === 0 ? (
-                <p className="text-sm text-zinc-500">Sin mensajes adicionales.</p>
-              ) : (
-                messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`rounded-xl px-3 py-2 text-sm ${
-                      message.author_type === "tenant"
-                        ? "ml-6 bg-indigo-50 text-zinc-800 dark:bg-indigo-950/30 dark:text-zinc-100"
-                        : "mr-6 bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100"
-                    }`}
-                  >
-                    <p>{message.message}</p>
-                    <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">{fmtDate(message.created_at, company.timezone)}</p>
-                  </div>
-                ))
+        {/* ── Ticket list (master) ── */}
+        <div className="space-y-2 lg:max-h-[calc(100vh-12rem)] lg:overflow-y-auto">
+          {tickets.length === 0 ? (
+            <EmptyState icon={MessageSquare} title="Sin tickets" description="Aun no tienes ningún ticket abierto." />
+          ) : (
+            <>
+              {openTickets.map((ticket) => (
+                <TicketListItem key={ticket.id} ticket={ticket} isSelected={selectedTicketId === ticket.id} onSelect={onSelectTicket} timezone={company.timezone} />
+              ))}
+              {closedTickets.length > 0 && (
+                <>
+                  <p className="mt-3 px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#a1a1a6]">Cerrados</p>
+                  {closedTickets.map((ticket) => (
+                    <TicketListItem key={ticket.id} ticket={ticket} isSelected={selectedTicketId === ticket.id} onSelect={onSelectTicket} timezone={company.timezone} closed />
+                  ))}
+                </>
               )}
+            </>
+          )}
+        </div>
+
+        {/* ── Conversation thread (detail) ── */}
+        {!selectedTicket ? (
+          <Card compact>
+            <div className="flex h-64 items-center justify-center text-sm text-[#a1a1a6]">
+              Selecciona un ticket para ver la conversacion.
+            </div>
+          </Card>
+        ) : (
+          <div className="flex flex-col overflow-hidden rounded-2xl border border-[#e5e5ea] bg-white shadow-sm shadow-indigo-500/[0.03]" style={{ minHeight: "500px", maxHeight: "calc(100vh - 12rem)" }}>
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3 border-b border-[#e5e5ea] px-5 py-4">
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold text-[#1d1d1f]">{selectedTicket.subject}</p>
+                <p className="mt-0.5 text-xs text-[#6e6e73]">{selectedTicket.description}</p>
+              </div>
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <Badge variant={priorityVariant[selectedTicket.priority as SupportPriority]}>{TICKET_PRIORITY_LABELS[selectedTicket.priority] ?? selectedTicket.priority}</Badge>
+                <span className="text-[10px] text-[#a1a1a6]">
+                  SLA {getTicketSlaHours(selectedTicket.priority)}h
+                  {(() => {
+                    const h = getTicketAgeHours(selectedTicket.createdAt);
+                    if (h == null) return "";
+                    const age = h < 24 ? `${Math.max(1, Math.floor(h))}h` : `${Math.floor(h / 24)}d`;
+                    return ` · ${age} abierto`;
+                  })()}
+                </span>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <textarea
-                value={messageDraft}
-                onChange={(event) => setMessageDraft(event.target.value)}
-                placeholder="Escribe una respuesta..."
-                className="min-h-20 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-              />
-              <button
-                type="button"
-                onClick={onSendMessage}
-                disabled={messageLoading || !messageDraft.trim()}
-                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
-              >
-                Enviar mensaje
-              </button>
+            {/* Chat thread */}
+            <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
+              {messageLoading ? (
+                <p className="text-sm text-[#a1a1a6]">Cargando mensajes…</p>
+              ) : messages.length === 0 ? (
+                <p className="text-sm text-[#a1a1a6]">Sin mensajes adicionales.</p>
+              ) : messages.map((msg) => {
+                const isTenant = msg.author_type === "tenant";
+                return (
+                  <div key={msg.id} className={`flex ${isTenant ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${isTenant ? "rounded-br-md bg-indigo-600 text-white" : "rounded-bl-md bg-[#f5f5f7] text-[#1d1d1f]"}`}>
+                      <p>{msg.message}</p>
+                      <p className={`mt-1 text-[10px] ${isTenant ? "text-indigo-200" : "text-[#a1a1a6]"}`}>{fmtDate(msg.created_at, company.timezone)}</p>
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input */}
+            <div className="border-t border-[#e5e5ea] px-5 py-3">
+              <div className="flex gap-2">
+                <textarea
+                  value={messageDraft}
+                  onChange={(e) => setMessageDraft(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (messageDraft.trim()) onSendMessage(); } }}
+                  placeholder="Escribe un mensaje…"
+                  rows={2}
+                  className="flex-1 resize-none rounded-xl border border-[#d2d2d7] bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                />
+                <Button variant="primary" size="sm" icon={<Send className="h-3.5 w-3.5" />} onClick={onSendMessage} disabled={messageLoading || !messageDraft.trim()}>
+                  Enviar
+                </Button>
+              </div>
             </div>
           </div>
         )}
       </div>
-    </section>
+
+      {/* ── Create ticket Dialog ── */}
+      <Dialog open={createOpen} onOpenChange={(v) => { if (!v) setCreateOpen(false); }} title="Nuevo ticket" description="El equipo te respondera en el tiempo correspondiente al SLA segun la prioridad.">
+        <div className="space-y-4">
+          {/* Quick templates */}
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-[#a1a1a6]">Plantilla rapida</p>
+            <div className="flex flex-wrap gap-2">
+              {QUICK_TEMPLATES.map((t) => (
+                <button
+                  key={t.kind}
+                  type="button"
+                  onClick={() => onApplySupportTemplate(t.kind)}
+                  className="rounded-full border border-[#d2d2d7] bg-white px-3 py-1 text-xs font-medium text-[#6e6e73] transition hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700"
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <label className="block text-xs font-medium text-[#6e6e73]">
+            Asunto
+            <input
+              value={supportSubject}
+              onChange={(e) => setSupportSubject(e.target.value)}
+              placeholder="Resume el problema en una frase"
+              className="mt-1.5 h-10 w-full rounded-xl border border-[#d2d2d7] bg-white px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            />
+          </label>
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block text-xs font-medium text-[#6e6e73]">
+              Categoria
+              <select
+                value={supportCategory}
+                onChange={(e) => setSupportCategory(e.target.value as SupportCategory)}
+                className="mt-1.5 h-10 w-full rounded-xl border border-[#d2d2d7] bg-white px-3 text-sm focus:border-indigo-500 focus:outline-none"
+              >
+                {(Object.keys(TICKET_CATEGORY_LABELS) as SupportCategory[]).map((k) => (
+                  <option key={k} value={k}>{TICKET_CATEGORY_LABELS[k]}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-xs font-medium text-[#6e6e73]">
+              Prioridad
+              <select
+                value={supportPriority}
+                onChange={(e) => setSupportPriority(e.target.value as SupportPriority)}
+                className="mt-1.5 h-10 w-full rounded-xl border border-[#d2d2d7] bg-white px-3 text-sm focus:border-indigo-500 focus:outline-none"
+              >
+                {(Object.keys(TICKET_PRIORITY_LABELS) as SupportPriority[]).map((k) => (
+                  <option key={k} value={k}>{TICKET_PRIORITY_LABELS[k]}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <label className="block text-xs font-medium text-[#6e6e73]">
+            Descripcion
+            <textarea
+              value={supportDescription}
+              onChange={(e) => setSupportDescription(e.target.value)}
+              placeholder="Describe el problema o solicitud con detalle"
+              rows={4}
+              className="mt-1.5 w-full resize-none rounded-xl border border-[#d2d2d7] bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            />
+          </label>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" size="sm" onClick={() => setCreateOpen(false)}>Cancelar</Button>
+          <Button variant="primary" size="sm" loading={busy} disabled={busy || !supportSubject.trim()} onClick={handleCreate}>
+            Crear ticket
+          </Button>
+        </DialogFooter>
+      </Dialog>
     </div>
+  );
+}
+
+// ── Ticket list item ──────────────────────────────────────────────
+type TicketListItemProps = {
+  ticket: TicketSummary;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
+  timezone: string;
+  closed?: boolean;
+};
+
+function TicketListItem({ ticket, isSelected, onSelect, timezone, closed = false }: TicketListItemProps) {
+  const statusLabel = TICKET_STATUS_LABELS[ticket.status] ?? ticket.status;
+  const pv = priorityVariant[ticket.priority as SupportPriority] ?? "neutral";
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(ticket.id)}
+      className={`group w-full rounded-xl border px-3 py-3 text-left transition ${
+        isSelected
+          ? "border-indigo-400 bg-indigo-50 shadow-sm shadow-indigo-500/10"
+          : closed
+          ? "border-[#e5e5ea] bg-[#fbfbfd] opacity-70 hover:opacity-100"
+          : "border-[#e5e5ea] bg-white hover:border-[#d2d2d7] hover:shadow-sm"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <p className="line-clamp-1 text-sm font-medium text-[#1d1d1f]">{ticket.subject}</p>
+        <Badge variant={pv} className="shrink-0">{TICKET_PRIORITY_LABELS[ticket.priority] ?? ticket.priority}</Badge>
+      </div>
+      <p className="mt-0.5 text-xs text-[#6e6e73]">{statusLabel} · {fmtDate(ticket.lastMessageAt, timezone)}</p>
+    </button>
   );
 }

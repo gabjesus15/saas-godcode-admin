@@ -1,9 +1,17 @@
 "use client";
 
+import { useState } from "react";
+import { MapPin, Plus, Store, Upload } from "lucide-react";
 import type { BillingOptionsResponse, BillingPaymentResponse, BranchSummary, CompanySnapshot } from "../customer-account-types";
-import { displayStatus, fmtMoney } from "../customer-account-format";
-import { PAYMENT_STATUS_LABELS } from "../customer-account-constants";
-import { PortalPageHeader } from "../portal-page-header";
+import { fmtMoney } from "../customer-account-format";
+import { Alert } from "../ui/Alert";
+import { Badge } from "../ui/Badge";
+import { Button } from "../ui/Button";
+import { Card } from "../ui/Card";
+import { Dialog, DialogFooter } from "../ui/Dialog";
+import { EmptyState } from "../ui/EmptyState";
+import { PageHeader } from "../ui/PageHeader";
+import { StatCard } from "../ui/StatCard";
 
 export type AccountSucursalesTabProps = {
   company: CompanySnapshot;
@@ -14,7 +22,7 @@ export type AccountSucursalesTabProps = {
   branchFlowStep: 1 | 2 | 3;
   setBranchFlowStep: (step: 1 | 2 | 3) => void;
   isProjectedCapacityInvalid: boolean;
-  setBillingError: (msg: string) => void;
+  setBillingError: (msg: string | null) => void;
   billingOptions: BillingOptionsResponse | null;
   activeBranchesCount: number;
   billingError: string | null;
@@ -54,16 +62,46 @@ export type AccountSucursalesTabProps = {
   onBranchWizardNext: () => void;
 };
 
+type StepDotProps = { step: number; current: number; label: string };
+function StepDot({ step, current, label }: StepDotProps) {
+  const done   = step < current;
+  const active = step === current;
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold transition ${done ? "bg-emerald-500 text-white" : active ? "bg-indigo-600 text-white" : "bg-[#f5f5f7] text-[#a1a1a6]"}`}>
+        {done ? "✓" : step}
+      </div>
+      <span className={`text-[10px] font-medium ${active ? "text-[#1d1d1f]" : "text-[#a1a1a6]"}`}>{label}</span>
+    </div>
+  );
+}
+
+type StepperProps = { step: number; withPayment: boolean };
+function Stepper({ step, withPayment }: StepperProps) {
+  const steps = withPayment
+    ? [{ n: 1, label: "Datos" }, { n: 2, label: "Pago" }, { n: 3, label: "Listo" }]
+    : [{ n: 1, label: "Datos" }, { n: 2, label: "Confirmar" }];
+  return (
+    <div className="mb-6 flex items-center gap-0">
+      {steps.map((s, i) => (
+        <div key={s.n} className="flex items-center">
+          <StepDot step={s.n} current={step} label={s.label} />
+          {i < steps.length - 1 && <div className={`mx-2 h-px w-10 ${step > s.n ? "bg-emerald-400" : "bg-[#e5e5ea]"}`} />}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function AccountSucursalesTab({
   company,
   branches,
   billingLoading,
   canRequestBranchWithoutPayment,
-  branchUnitPrice,
+  branchUnitPrice: _branchUnitPrice,
   branchFlowStep,
   setBranchFlowStep,
   isProjectedCapacityInvalid,
-  setBillingError,
   billingOptions,
   activeBranchesCount,
   billingError,
@@ -84,14 +122,14 @@ export function AccountSucursalesTab({
   setExpansionMethodSlug,
   projectedActiveBranches,
   projectedEffectiveMaxBranches,
-  projectedRemainingBranches,
-  expansionQtyNumber,
-  expansionMonthsNumber,
+  projectedRemainingBranches: _projectedRemainingBranches,
+  expansionQtyNumber: _expansionQtyNumber,
+  expansionMonthsNumber: _expansionMonthsNumber,
   expansionAmount,
   branchRequestNotes,
   setBranchRequestNotes,
-  expansionNotes,
-  setExpansionNotes,
+  expansionNotes: _expansionNotes,
+  setExpansionNotes: _setExpansionNotes,
   busy,
   onBranchRequest,
   onCreateExpansionPayment,
@@ -102,343 +140,208 @@ export function AccountSucursalesTab({
   onBranchWizardBack,
   onBranchWizardNext,
 }: AccountSucursalesTabProps) {
-  const stepSegmentClass = (step: 1 | 2 | 3) =>
-    `rounded-lg px-3 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/50 ${
-      branchFlowStep === step
-        ? "bg-white text-indigo-800 shadow-sm ring-1 ring-indigo-200/90 dark:bg-zinc-800 dark:text-indigo-200 dark:ring-indigo-500/35"
-        : "text-zinc-600 hover:text-indigo-800 dark:text-zinc-400 dark:hover:text-indigo-200"
-    }`;
+  const [wizardOpen, setWizardOpen] = useState(false);
+
+  const maxBranches = billingOptions?.effectiveMaxBranches ?? billingOptions?.maxBranches ?? null;
+  const usedPct     = maxBranches != null ? Math.min(100, Math.round((activeBranchesCount / maxBranches) * 100)) : null;
+  const withPayment = !canRequestBranchWithoutPayment;
+
+  const openWizard = () => { setBranchFlowStep(1); setWizardOpen(true); };
+  const closeWizard = () => { setWizardOpen(false); setBranchFlowStep(1); };
 
   return (
-    <div className="space-y-8">
-      <PortalPageHeader
-        title="Ubicaciones y expansión"
-        description="Lista actual y asistente para solicitar más sucursales según el cupo del plan."
-      />
+    <div className="space-y-6">
+      <PageHeader title="Sucursales" description="Administra tus puntos de venta y solicita expansion de capacidad." />
 
-      <section className="grid gap-4 xl:grid-cols-2">
-      <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm shadow-indigo-500/[0.03] dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-indigo-500/[0.04] md:p-8">
-        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Sucursales actuales</h2>
-        <div className="mt-3 space-y-2">
-          {branches.length === 0 ? (
-            <p className="text-sm text-zinc-500">No tienes sucursales registradas.</p>
-          ) : (
-            branches.map((branch) => (
-              <div key={branch.id} className="rounded-xl border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700">
-                <p className="font-medium text-zinc-900 dark:text-zinc-100">{branch.name}</p>
-                <p className="text-zinc-600 dark:text-zinc-400">{branch.address || "Sin dirección"}</p>
-                <p className="text-zinc-600 dark:text-zinc-400">{branch.is_active ? "Activa" : "Inactiva"}</p>
+      {billingError && <Alert variant="danger">{billingError}</Alert>}
+      {billingOk    && <Alert variant="success">{billingOk}</Alert>}
+
+      {/* KPI row */}
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
+        <StatCard label="Sucursales activas" value={activeBranchesCount}   icon={Store}  accent="indigo" />
+        <StatCard label="Limite del plan"    value={maxBranches ?? "Ilimitado"} icon={Store} accent="emerald" />
+        {maxBranches != null && (
+          <StatCard label="Capacidad usada" value={`${usedPct ?? 0}%`} sub={`${activeBranchesCount} / ${maxBranches}`} icon={Store} accent={usedPct != null && usedPct >= 90 ? "amber" : "sky"} />
+        )}
+      </div>
+
+      {/* Branch list */}
+      <Card>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-[#1d1d1f]">Tus sucursales</p>
+          <Button
+            variant="primary"
+            size="sm"
+            icon={<Plus className="h-3.5 w-3.5" />}
+            onClick={openWizard}
+            loading={billingLoading}
+          >
+            Agregar sucursal
+          </Button>
+        </div>
+
+        {branches.length === 0 ? (
+          <EmptyState icon={Store} title="Sin sucursales registradas" description="Aun no tienes sucursales en tu cuenta." />
+        ) : (
+          <div className="space-y-2">
+            {branches.map((branch) => (
+              <div key={branch.id} className="flex items-center gap-3 rounded-xl border border-[#e5e5ea] p-4 transition hover:bg-[#fbfbfd]">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50">
+                  <Store className="h-5 w-5 text-indigo-600" aria-hidden />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-[#1d1d1f]">{branch.name}</p>
+                  {branch.address && (
+                    <p className="flex items-center gap-1 text-xs text-[#6e6e73]">
+                      <MapPin className="h-3 w-3" aria-hidden /> {branch.address}
+                    </p>
+                  )}
+                </div>
+                <Badge variant={branch.is_active !== false ? "success" : "neutral"} dot>
+                  {branch.is_active !== false ? "Activa" : "Inactiva"}
+                </Badge>
+                {company.tenantAdminUrl && (
+                  <a
+                    href={company.tenantAdminUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-2 text-xs font-medium text-indigo-600 hover:underline"
+                  >
+                    Admin
+                  </a>
+                )}
               </div>
-            ))
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* Wizard Dialog */}
+      <Dialog
+        open={wizardOpen}
+        onOpenChange={(v) => { if (!v) closeWizard(); }}
+        title={withPayment ? "Solicitar expansion de sucursal" : "Solicitar nueva sucursal"}
+        size="md"
+      >
+        <Stepper step={branchFlowStep} withPayment={withPayment} />
+
+        {/* Step 1: datos basicos */}
+        {branchFlowStep === 1 && (
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-[#6e6e73]">Nombre de la sucursal <span className="text-red-500">*</span></label>
+              <input
+                value={withPayment ? expansionBranchName : branchRequestName}
+                onChange={(e) => withPayment ? setExpansionBranchName(e.target.value) : setBranchRequestName(e.target.value)}
+                placeholder="Ej. Sucursal Norte"
+                className="h-10 w-full rounded-xl border border-[#d2d2d7] bg-white px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-[#6e6e73]">Direccion (opcional)</label>
+              <input
+                value={withPayment ? expansionBranchAddress : branchRequestAddress}
+                onChange={(e) => withPayment ? setExpansionBranchAddress(e.target.value) : setBranchRequestAddress(e.target.value)}
+                placeholder="Calle y numero"
+                className="h-10 w-full rounded-xl border border-[#d2d2d7] bg-white px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              />
+            </div>
+            {!withPayment && (
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-[#6e6e73]">Notas adicionales (opcional)</label>
+                <textarea
+                  value={branchRequestNotes}
+                  onChange={(e) => setBranchRequestNotes(e.target.value)}
+                  rows={3}
+                  className="w-full resize-none rounded-xl border border-[#d2d2d7] bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Step 2 con pago: configurar expansion */}
+        {branchFlowStep === 2 && withPayment && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-[#6e6e73]">Cantidad de cupos</label>
+                <input type="number" min={1} value={expansionQty} onChange={(e) => setExpansionQty(e.target.value)} className="h-10 w-full rounded-xl border border-[#d2d2d7] bg-white px-3 text-sm focus:border-indigo-500 focus:outline-none" />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-[#6e6e73]">Meses</label>
+                <input type="number" min={1} value={expansionMonths} onChange={(e) => setExpansionMonths(e.target.value)} className="h-10 w-full rounded-xl border border-[#d2d2d7] bg-white px-3 text-sm focus:border-indigo-500 focus:outline-none" />
+              </div>
+            </div>
+
+            {billingOptions?.paymentMethods && billingOptions.paymentMethods.length > 0 && (
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-[#6e6e73]">Metodo de pago</label>
+                <select value={expansionMethodSlug} onChange={(e) => setExpansionMethodSlug(e.target.value)} className="h-10 w-full rounded-xl border border-[#d2d2d7] bg-white px-3 text-sm focus:border-indigo-500 focus:outline-none">
+                  {billingOptions.paymentMethods.map((m) => <option key={m.id} value={m.slug}>{m.name}</option>)}
+                </select>
+              </div>
+            )}
+
+            <div className="rounded-xl bg-[#fbfbfd] p-3 text-sm">
+              <div className="flex justify-between"><span className="text-[#6e6e73]">Total estimado</span><span className="font-semibold text-[#1d1d1f]">{fmtMoney(expansionAmount, company.currency, company.locale)}</span></div>
+              <div className="flex justify-between mt-1"><span className="text-[#6e6e73]">Sucursales despues</span><span className="font-medium text-[#1d1d1f]">{projectedActiveBranches} / {projectedEffectiveMaxBranches ?? "∞"}</span></div>
+              {isProjectedCapacityInvalid && <p className="mt-1 text-xs text-red-600">La proyeccion supera tu capacidad. Ajusta la cantidad.</p>}
+            </div>
+          </div>
+        )}
+
+        {/* Step 2 sin pago: confirmar */}
+        {branchFlowStep === 2 && !withPayment && (
+          <div className="space-y-3">
+            <Alert variant="info">Un agente revisara tu solicitud y configurara la sucursal. Te notificaremos por correo.</Alert>
+            <div className="rounded-xl bg-[#fbfbfd] p-3 text-sm">
+              <p className="font-medium text-[#1d1d1f]">{branchRequestName}</p>
+              {branchRequestAddress && <p className="text-[#6e6e73]">{branchRequestAddress}</p>}
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: comprobante / completado */}
+        {branchFlowStep === 3 && (
+          <div className="space-y-4">
+            <Alert variant="success" title="Orden de pago creada">
+              {createdExpansionPayment?.instructions.summary.requiresManualProof
+                ? "Sube el comprobante de pago para que podamos validarlo."
+                : "El pago se aplicara automaticamente en breve."}
+            </Alert>
+            {createdExpansionPayment?.instructions.summary.requiresManualProof && (
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-[#6e6e73]">Comprobante de pago</label>
+                <label className={`flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-[#d2d2d7] bg-[#fbfbfd] px-4 py-6 text-center transition hover:border-indigo-400 hover:bg-indigo-50/20 ${proofUploading ? "pointer-events-none opacity-60" : ""}`}>
+                  <Upload className="h-5 w-5 text-[#a1a1a6]" aria-hidden />
+                  <span className="text-sm text-[#6e6e73]">{proofUploading ? "Subiendo…" : proofFileUrl ? "Cambiar comprobante" : "Seleccionar imagen"}</span>
+                  <input type="file" accept="image/*" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadPaymentProof(f); }} disabled={proofUploading} />
+                </label>
+                {proofFileUrl && <p className="mt-1 text-xs text-emerald-600">Comprobante cargado.</p>}
+              </div>
+            )}
+          </div>
+        )}
+
+        <DialogFooter>
+          {branchFlowStep > 1 && branchFlowStep < 3 && (
+            <Button variant="secondary" onClick={onBranchWizardBack} disabled={busy}>Atras</Button>
           )}
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm shadow-indigo-500/[0.03] dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-indigo-500/[0.04] md:p-8">
-        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Solicitar nueva sucursal</h2>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          {billingLoading
-            ? "Cargando reglas de expansión..."
-            : canRequestBranchWithoutPayment
-              ? "Tu plan todavía tiene cupo. Enviaremos la solicitud para crear la sucursal."
-              : "Llegaste al límite de sucursales del plan. Debes generar pago de expansión para continuar."}
-        </p>
-
-        <div
-          className="mt-4 flex flex-wrap gap-1 rounded-xl border border-zinc-200 bg-indigo-50/40 p-1 dark:border-zinc-800 dark:bg-indigo-950/25"
-          role="tablist"
-          aria-label="Pasos de solicitud"
-        >
-          {(
-            [
-              [1, "Datos"],
-              [2, "Impacto"],
-              [3, "Confirmación"],
-            ] as const
-          ).map(([step, label]) => (
-            <button
-              key={step}
-              type="button"
-              role="tab"
-              aria-selected={branchFlowStep === step}
-              onClick={() => {
-                if (step === 3 && isProjectedCapacityInvalid) {
-                  setBillingError(
-                    "La proyección supera tu capacidad disponible. Ajusta la cantidad antes de continuar."
-                  );
-                  return;
-                }
-                setBranchFlowStep(step);
-              }}
-              className={stepSegmentClass(step)}
-            >
-              {step}. {label}
-            </button>
-          ))}
-        </div>
-
-        {!billingLoading && !canRequestBranchWithoutPayment ? (
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            Precio base por sucursal extra: {fmtMoney(branchUnitPrice, company.currency, company.locale)} / mes. Si tu plan vence pronto, el primer cobro se
-            prorratea y el extra queda alineado al vencimiento del plan.
-          </p>
-        ) : null}
-
-        <div className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50/80 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
-          <p className="font-medium text-zinc-900 dark:text-zinc-100">Capacidad actual</p>
-          <p className="text-zinc-600 dark:text-zinc-400">
-            {activeBranchesCount} activas
-            {billingOptions?.maxBranches != null ? ` de ${billingOptions.maxBranches} incluidas` : " (plan sin límite)"}
-          </p>
-          {typeof billingOptions?.extraBranchEntitlements === "number" && billingOptions.extraBranchEntitlements > 0 ? (
-            <p className="text-zinc-600 dark:text-zinc-400">
-              + {billingOptions.extraBranchEntitlements} extra(s) compradas · capacidad efectiva:{" "}
-              {billingOptions.effectiveMaxBranches ?? "sin límite"}
-            </p>
-          ) : null}
-        </div>
-
-        {billingError ? (
-          <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
-            {billingError}
-          </div>
-        ) : null}
-
-        {billingOk ? (
-          <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300">
-            {billingOk}
-          </div>
-        ) : null}
-
-        <div className="mt-3 space-y-3">
-          {branchFlowStep === 1 ? (
-            <>
-              <input
-                value={canRequestBranchWithoutPayment ? branchRequestName : expansionBranchName}
-                onChange={(event) =>
-                  canRequestBranchWithoutPayment
-                    ? setBranchRequestName(event.target.value)
-                    : setExpansionBranchName(event.target.value)
-                }
-                placeholder="Nombre de la sucursal"
-                className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-              />
-              <input
-                value={canRequestBranchWithoutPayment ? branchRequestAddress : expansionBranchAddress}
-                onChange={(event) =>
-                  canRequestBranchWithoutPayment
-                    ? setBranchRequestAddress(event.target.value)
-                    : setExpansionBranchAddress(event.target.value)
-                }
-                placeholder="Dirección estimada"
-                className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-              />
-            </>
-          ) : null}
-
-          {branchFlowStep === 2 ? (
-            <>
-              {!canRequestBranchWithoutPayment ? (
-                <div className="grid gap-2 sm:grid-cols-3">
-                  <input
-                    type="number"
-                    min={1}
-                    value={expansionQty}
-                    onChange={(event) => setExpansionQty(event.target.value)}
-                    className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                    placeholder="Cantidad"
-                  />
-                  <input
-                    type="number"
-                    min={1}
-                    value={expansionMonths}
-                    onChange={(event) => setExpansionMonths(event.target.value)}
-                    className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                    placeholder="Meses"
-                  />
-                  <select
-                    value={expansionMethodSlug}
-                    onChange={(event) => setExpansionMethodSlug(event.target.value)}
-                    aria-label="Método de pago"
-                    className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                  >
-                    {billingOptions?.paymentMethods.map((method) => (
-                      <option key={method.id} value={method.slug}>
-                        {method.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : null}
-
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
-                  <p className="text-xs text-zinc-500">Capacidad actual</p>
-                  <p className="font-semibold text-zinc-900 dark:text-zinc-100">
-                    {activeBranchesCount} activas / {billingOptions?.effectiveMaxBranches ?? "sin límite"}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
-                  <p className="text-xs text-zinc-500">Capacidad proyectada</p>
-                  <p className="font-semibold text-zinc-900 dark:text-zinc-100">
-                    {projectedActiveBranches} activas / {projectedEffectiveMaxBranches ?? "sin límite"}
-                  </p>
-                  <p
-                    className={`text-xs ${projectedRemainingBranches != null && projectedRemainingBranches < 0 ? "text-red-600 dark:text-red-400" : "text-zinc-500 dark:text-zinc-400"}`}
-                  >
-                    Cupo restante: {projectedRemainingBranches ?? "sin límite"}
-                  </p>
-                </div>
-              </div>
-
-              {isProjectedCapacityInvalid ? (
-                <p className="text-xs text-red-600 dark:text-red-400">
-                  La proyección queda por debajo de 0 cupos. Incrementa la cantidad de expansión para continuar.
-                </p>
-              ) : null}
-
-              {!canRequestBranchWithoutPayment ? (
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
-                  <p className="font-medium text-zinc-900 dark:text-zinc-100">Resumen de cobro proyectado</p>
-                  <p className="text-zinc-600 dark:text-zinc-400">
-                    {fmtMoney(branchUnitPrice, company.currency, company.locale)} x {expansionQtyNumber} x {expansionMonthsNumber} = {fmtMoney(expansionAmount, company.currency, company.locale)}
-                  </p>
-                  {typeof billingOptions?.daysUntilPlanEnd === "number" && billingOptions.daysUntilPlanEnd > 0 ? (
-                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                      Días hasta vencimiento del plan: {billingOptions.daysUntilPlanEnd}. El total final puede prorratearse
-                      en el primer ciclo.
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
-            </>
-          ) : null}
-
-          {branchFlowStep === 3 ? (
-            <>
-              <textarea
-                value={canRequestBranchWithoutPayment ? branchRequestNotes : expansionNotes}
-                onChange={(event) =>
-                  canRequestBranchWithoutPayment
-                    ? setBranchRequestNotes(event.target.value)
-                    : setExpansionNotes(event.target.value)
-                }
-                placeholder="Notas para soporte/facturación"
-                className="min-h-24 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-              />
-
-              {canRequestBranchWithoutPayment ? (
-                <button
-                  type="button"
-                  onClick={onBranchRequest}
-                  disabled={busy || billingLoading}
-                  className="h-11 w-full rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60 sm:w-auto"
-                >
-                  {busy ? "Enviando..." : "Enviar solicitud de sucursal"}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={onCreateExpansionPayment}
-                  disabled={busy || billingLoading || !billingOptions?.paymentMethods.length}
-                  className="h-11 w-full rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60 sm:w-auto"
-                >
-                  {busy ? "Creando orden..." : "Generar orden de pago"}
-                </button>
-              )}
-
-              {createdExpansionPayment ? (
-                <div className="space-y-3 rounded-2xl border border-indigo-200 bg-indigo-50/60 p-3 dark:border-indigo-900/50 dark:bg-indigo-950/30">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.14em] text-indigo-600 dark:text-indigo-300">Referencia</p>
-                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                      {createdExpansionPayment.payment.payment_reference}
-                    </p>
-                    <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                      Estado: {displayStatus(createdExpansionPayment.payment.status ?? "pending", PAYMENT_STATUS_LABELS)}
-                    </p>
-                    <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                      Total cobrado: {fmtMoney(createdExpansionPayment.instructions.summary.amount, company.currency, company.locale)}
-                    </p>
-                    {typeof createdExpansionPayment.instructions.summary.firstCycleFactor === "number" &&
-                    typeof createdExpansionPayment.instructions.summary.effectiveMonths === "number" ? (
-                      <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                        Prorrateo primer ciclo: {createdExpansionPayment.instructions.summary.firstCycleFactor.toFixed(3)} ·
-                        meses efectivos: {createdExpansionPayment.instructions.summary.effectiveMonths.toFixed(3)}
-                      </p>
-                    ) : null}
-                  </div>
-
-                  <div className="rounded-xl border border-indigo-200 bg-white px-3 py-2 text-sm dark:border-indigo-900/50 dark:bg-zinc-900/70">
-                    <p className="font-medium text-zinc-900 dark:text-zinc-100">
-                      {createdExpansionPayment.instructions.method.name}
-                    </p>
-                    {Object.entries(createdExpansionPayment.instructions.method.config).length === 0 ? (
-                      <p className="text-zinc-600 dark:text-zinc-400">Sin instrucciones adicionales.</p>
-                    ) : (
-                      Object.entries(createdExpansionPayment.instructions.method.config).map(([key, value]) => (
-                        <p key={key} className="text-zinc-600 dark:text-zinc-400">
-                          <span className="font-medium text-zinc-800 dark:text-zinc-200">{key}:</span> {value}
-                        </p>
-                      ))
-                    )}
-                  </div>
-
-                  {createdExpansionPayment.instructions.summary.requiresManualProof ? (
-                    <div className="space-y-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900/70">
-                      <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Cargar comprobante</p>
-                      <input
-                        type="file"
-                        accept="image/*,application/pdf"
-                        aria-label="Cargar comprobante de pago"
-                        title="Cargar comprobante de pago"
-                        onChange={(event) => {
-                          const file = event.target.files?.[0];
-                          if (file) {
-                            void onUploadPaymentProof(file);
-                          }
-                        }}
-                        className="block w-full text-xs text-zinc-600 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-600 file:px-3 file:py-2 file:font-semibold file:text-white hover:file:bg-indigo-500 dark:text-zinc-300"
-                      />
-                      {proofUploading ? <p className="text-xs text-zinc-500">Subiendo comprobante...</p> : null}
-                      {proofFileUrl ? (
-                        <a
-                          href={proofFileUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
-                        >
-                          Ver comprobante cargado
-                        </a>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-            </>
-          ) : null}
-
-          <div className="flex items-center justify-between gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-700">
-            <button
-              type="button"
-              onClick={onBranchWizardBack}
-              disabled={branchFlowStep === 1}
-              className="h-10 rounded-xl border border-zinc-300 px-4 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-            >
-              Anterior
-            </button>
-            <button
-              type="button"
-              onClick={onBranchWizardNext}
-              disabled={branchFlowStep === 3 || (branchFlowStep === 2 && isProjectedCapacityInvalid)}
-              className="h-10 rounded-xl border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
-            >
-              Continuar
-            </button>
-          </div>
-        </div>
-      </div>
-    </section>
+          {branchFlowStep < (withPayment ? 2 : 2) && (
+            <Button variant="primary" onClick={onBranchWizardNext}>Continuar</Button>
+          )}
+          {branchFlowStep === 2 && withPayment && (
+            <Button variant="primary" loading={busy} onClick={onCreateExpansionPayment} disabled={isProjectedCapacityInvalid}>Crear orden de pago</Button>
+          )}
+          {branchFlowStep === 2 && !withPayment && (
+            <Button variant="primary" loading={busy} onClick={onBranchRequest}>Enviar solicitud</Button>
+          )}
+          {branchFlowStep === 3 && (
+            <Button variant="secondary" onClick={closeWizard}>Cerrar</Button>
+          )}
+        </DialogFooter>
+      </Dialog>
     </div>
   );
 }
