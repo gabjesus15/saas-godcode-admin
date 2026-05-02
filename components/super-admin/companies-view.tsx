@@ -69,7 +69,7 @@ export function CompaniesView({ companies }: CompaniesViewProps) {
         </div>
       </div>
       <div className="min-w-0 overflow-x-auto">
-        <CompaniesTable companies={filtered} />
+        <CompaniesTable companies={filtered} readOnly={readOnly} />
       </div>
     </div>
   );

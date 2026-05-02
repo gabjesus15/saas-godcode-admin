@@ -21,6 +21,7 @@ import { AccountPlanTab }       from "@/components/customer-portal/tabs/account-
 import { AccountSucursalesTab } from "@/components/customer-portal/tabs/account-sucursales-tab";
 import { AccountFacturacionTab } from "@/components/customer-portal/tabs/account-facturacion-tab";
 import { AccountSoporteTab }    from "@/components/customer-portal/tabs/account-soporte-tab";
+import { AccountSeguridadTab }  from "@/components/customer-portal/tabs/account-seguridad-tab";
 
 import type {
   AccountActivityItem,
@@ -419,6 +420,8 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
             onSendMessage={tickets.handleSendMessage}
           />
         )}
+
+        {tab === "seguridad" && <AccountSeguridadTab />}
 
         {/* Cancelación de suscripción — modal legacy (se migrará a ConfirmDialog en Fase 3) */}
         {planManager.subscriptionCancelModalOpen && (

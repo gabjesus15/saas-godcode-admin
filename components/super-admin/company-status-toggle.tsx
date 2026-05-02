@@ -76,16 +76,17 @@ export function CompanyStatusToggle({
   };
 
   return (
-    <div className="flex flex-col items-start gap-2">
+    <div className="inline-flex max-w-[min(100%,14rem)] flex-col gap-1.5">
       <Button
         size="sm"
         variant={nextStatus === "active" ? "default" : "outline"}
         loading={loading}
         onClick={handleToggle}
+        className="w-full shrink-0 sm:w-auto"
       >
         {nextStatus === "active" ? "Activar" : "Suspender"}
       </Button>
-      {error ? <span className="text-xs text-red-600">{error}</span> : null}
+      {error ? <span className="text-xs leading-snug text-red-600">{error}</span> : null}
     </div>
   );
 }

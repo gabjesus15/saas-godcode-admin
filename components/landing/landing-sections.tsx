@@ -226,6 +226,27 @@ const LANDING_TX: Partial<Record<string, Record<Exclude<SupportedLocale, "es" | 
   "Crear mi tienda ya": { pt: "Criar minha loja agora", fr: "Creer ma boutique maintenant", de: "Meinen Shop jetzt erstellen", it: "Crea il mio negozio ora" },
   "Registro en minutos.": { pt: "Cadastro em minutos.", fr: "Inscription en quelques minutes.", de: "Registrierung in wenigen Minuten.", it: "Registrazione in pochi minuti." },
   "Soporte humano si te atoras.": { pt: "Suporte humano se voce travar.", fr: "Support humain si vous bloquez.", de: "Menschlicher Support, wenn du festhangst.", it: "Supporto umano se ti blocchi." },
+  "Cupos de lanzamiento disponibles": { pt: "Vagas de lancamento disponiveis", fr: "Places de lancement disponibles", de: "Launch-Plaetze verfuegbar", it: "Posti di lancio disponibili" },
+  "Con ": { pt: "Com ", fr: "Avec ", de: "Mit ", it: "Con " },
+  " comienza a vender al instante y sin comisiones.": {
+    pt: ", comece a vender na hora e sem comissoes.",
+    fr: ", commencez a vendre tout de suite sans commissions.",
+    de: ", starte sofort mit dem Verkauf — ohne Verkaufsprovisionen.",
+    it: ", inizia a vendere subito e senza commissioni.",
+  },
+  "Menú, pedidos y cobros con tu marca y tu dominio, todo en un solo lugar.": {
+    pt: "Menu, pedidos e pagamentos com sua marca e seu dominio, tudo em um so lugar.",
+    fr: "Menu, commandes et paiements sous votre marque et votre domaine, tout au meme endroit.",
+    de: "Menu, Bestellungen und Zahlungen unter deiner Marke und deiner Domain — alles an einem Ort.",
+    it: "Menu, ordini e incassi con il tuo brand e dominio, tutto in un unico posto.",
+  },
+  "Conoce más sobre GodCode": { pt: "Saiba mais sobre o GodCode", fr: "En savoir plus sur GodCode", de: "Mehr ueber GodCode erfahren", it: "Scopri di piu su GodCode" },
+  "Primer mes gratis · Cancela cuando quieras · Sujeto a disponibilidad.": {
+    pt: "Primeiro mes gratis · Cancele quando quiser · Sujeito a disponibilidade.",
+    fr: "Premier mois gratuit · Resiliez quand vous voulez · Sous reserve de disponibilite.",
+    de: "Erster Monat kostenlos · Jederzeit kuendbar · Abhangig von Verfuegbarkeit.",
+    it: "Primo mese gratis · Annulla quando vuoi · Soggetto a disponibilita.",
+  },
 };
 
 function resolveLocale(locale: string): SupportedLocale {
@@ -343,28 +364,26 @@ export function LandingSections({
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-500 opacity-60" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-indigo-600 dark:bg-indigo-400" />
                 </span>
-                {tx("Lanzamiento: beneficios para primeros negocios (cupos limitados)", "Launch: benefits for early businesses (limited spots)")}
+                {tx("Cupos de lanzamiento disponibles", "Launch spots available")}
               </span>
             </LandingReveal>
 
             <LandingReveal delay={0.08}>
               <h1 className="mt-5 text-[1.7rem] font-bold leading-[1.08] tracking-tight text-slate-900 sm:text-4xl md:text-5xl lg:text-[3.25rem] dark:text-white">
-                {tx("Dejas de ganar dinero en cada pedido", "You lose money on every order")}{" "}
+                {tx("Con ", "With ")}
                 <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent dark:from-indigo-400 dark:to-violet-400">
-                  {tx("que va por un marketplace.", "that goes through a marketplace.")}
+                  GodCode
                 </span>
+                {tx(" comienza a vender al instante y sin comisiones.", ", start selling instantly—with no sales commissions.")}
               </h1>
             </LandingReveal>
 
             <LandingReveal delay={0.11}>
-              <p className="mt-4 max-w-xl text-balance text-sm font-medium leading-relaxed text-slate-700 sm:text-base lg:mt-5 dark:text-zinc-300">
-                {tx("Los marketplaces se quedan con hasta el 30% de cada venta. Tus clientes compran en tu local, pero su historial y sus datos quedan en la plataforma de ellos.", "Marketplaces keep up to 30% of every sale. Your customers buy from you, but their history and data stay on someone else's platform.")}
-              </p>
-            </LandingReveal>
-
-            <LandingReveal delay={0.14}>
-              <p className="mt-4 text-base leading-relaxed text-slate-600 sm:mt-5 sm:text-lg dark:text-zinc-400">
-                {tx("GodCode te da tu propio canal de ventas: tu dominio, tus clientes, el 100% de tus ingresos.", "GodCode gives you your own sales channel: your domain, your customers, 100% of your revenue.")}
+              <p className="mt-4 max-w-xl text-balance text-sm leading-relaxed text-slate-600 sm:text-base lg:mt-5 dark:text-zinc-400">
+                {tx(
+                  "Menú, pedidos y cobros con tu marca y tu dominio, todo en un solo lugar.",
+                  "Menu, orders and payments under your brand and domain—all in one place."
+                )}
               </p>
             </LandingReveal>
 
@@ -400,28 +419,25 @@ export function LandingSections({
                   </a>
                 </div>
               </div>
-              <p className="mt-3 text-center text-xs text-slate-500 sm:text-sm lg:text-left dark:text-zinc-500">
-                {tx("El primer mes es gratis · Cancela cuando quieras", "First month free · Cancel anytime")}
+              <p className="mt-3 text-center text-xs text-slate-400 lg:text-left dark:text-zinc-500">
+                {tx("Primer mes gratis · Cancela cuando quieras · Sujeto a disponibilidad.", "First month free · Cancel anytime · Subject to availability.")}
               </p>
-              <p className="mt-1 text-center text-[11px] text-slate-400 sm:text-xs lg:text-left dark:text-zinc-500">
-                {tx("Descuento de lanzamiento sujeto a disponibilidad y validación de rubro.", "Launch discount subject to availability and business validation.")}
-              </p>
+            </LandingReveal>
+
+            <LandingReveal delay={0.28}>
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-slate-500 sm:gap-x-6 sm:text-sm lg:justify-start dark:text-zinc-400">
+                <span className="inline-flex items-center gap-1.5"><Shield className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" aria-hidden />{tx("Datos protegidos", "Protected data")}</span>
+                <span className="inline-flex items-center gap-1.5"><CreditCard className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" aria-hidden />{tx("Pagos seguros", "Secure payments")}</span>
+                <span className="inline-flex items-center gap-1.5"><Globe className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" aria-hidden />{tx("Tu dominio propio", "Your own domain")}</span>
+              </div>
               <div className="mt-3 text-center lg:text-left">
                 <Link
                   href="/sobre-godcode"
                   prefetch={false}
                   className="text-sm font-semibold text-indigo-700 transition-colors hover:text-indigo-800 hover:underline dark:text-indigo-300 dark:hover:text-indigo-200"
                 >
-                  Conoce más sobre GodCode
+                  {tx("Conoce más sobre GodCode", "Learn more about GodCode")}
                 </Link>
-              </div>
-            </LandingReveal>
-
-            <LandingReveal delay={0.28}>
-              <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-slate-500 sm:gap-x-6 sm:text-sm lg:justify-start dark:text-zinc-400">
-                <span className="inline-flex items-center gap-1.5"><Shield className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" aria-hidden />{tx("Datos protegidos", "Protected data")}</span>
-                <span className="inline-flex items-center gap-1.5"><CreditCard className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" aria-hidden />{tx("Pagos seguros", "Secure payments")}</span>
-                <span className="inline-flex items-center gap-1.5"><Globe className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" aria-hidden />{tx("Tu dominio propio", "Your own domain")}</span>
               </div>
             </LandingReveal>
           </div>

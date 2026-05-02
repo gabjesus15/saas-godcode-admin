@@ -15,6 +15,7 @@ import {
 	Package,
 	ScrollText,
 	ShieldAlert,
+	ShieldCheck,
 	Wrench,
 } from "lucide-react";
 
@@ -39,4 +40,5 @@ export const SUPER_ADMIN_NAV: SuperAdminNavItem[] = [
 	{ href: "/tickets", label: "Tickets", icon: LifeBuoy, keywords: "soporte" },
 	{ href: "/landing", label: "Landing", icon: MonitorSmartphone, keywords: "landing leads media webhooks" },
 	{ href: "/herramientas", label: "Herramientas", icon: Wrench, keywords: "tools" },
+	{ href: "/herramientas/autenticador", label: "Autenticador MFA", icon: ShieldCheck, keywords: "totp google authenticator 2fa seguridad" },
 ];

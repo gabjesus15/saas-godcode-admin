@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Badge } from "../ui/badge";
+import { CompanyDeleteButton } from "./company-delete-button";
 import { CompanyStatusToggle } from "./company-status-toggle";
 import { getTenantHost, getTenantUrl } from "../../utils/tenant-url";
 import { getEffectiveCustomDomain } from "../../lib/tenant-effective-custom-domain";
@@ -36,6 +37,7 @@ type CompanyRow = {
 
 interface CompaniesTableProps {
   companies: CompanyRow[];
+  readOnly?: boolean;
 }
 
 type StatusVariant = "success" | "warning" | "destructive" | "neutral";
@@ -85,7 +87,7 @@ const getExpiryBadge = (subscriptionEndsAt?: string | null) => {
   return { label: `Vence en ${days} dias`, variant: "neutral" as const };
 };
 
-export function CompaniesTable({ companies }: CompaniesTableProps) {
+export function CompaniesTable({ companies, readOnly = false }: CompaniesTableProps) {
   const buildTenantHost = (
     slug: string | null | undefined,
     customDomain?: string | null,
@@ -124,9 +126,10 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
         return (
           <div
             key={company.id}
-            className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/80 md:grid md:grid-cols-12 md:items-center md:gap-4 md:px-6 md:py-4"
+            className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/80 md:px-6 md:py-4"
           >
-                      <div className="min-w-0 md:col-span-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-12 md:items-start md:gap-x-4 md:gap-y-2">
+                      <div className="min-w-0 md:col-span-5">
                         <Link
                           href={`/companies/${company.id}`}
                           className="font-semibold text-zinc-900 hover:underline dark:text-zinc-100"
@@ -162,7 +165,7 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
                           </Link>
                         ) : null}
                       </div>
-                      <div className="min-w-0 md:col-span-3">
+                      <div className="min-w-0 md:col-span-4">
                         <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 md:normal-case md:tracking-normal md:text-zinc-900 dark:md:text-zinc-100">
                           Plan
                         </p>
@@ -178,44 +181,49 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
                           </p>
                         )}
                       </div>
-                      <div className="md:col-span-2 flex flex-col items-start">
-                        <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 md:normal-case md:tracking-normal md:text-zinc-900 dark:md:text-zinc-100">ESTADO</p>
-                        <div className="flex flex-wrap gap-2 items-center">
-                          <Badge variant={status.variant}>{status.label}</Badge>
-                          {expiry ? (
-                            <Badge variant={expiry.variant}>{expiry.label}</Badge>
-                          ) : null}
+                      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:gap-8 md:col-span-3">
+                        <div className="min-w-0 shrink-0">
+                          <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 md:normal-case md:tracking-normal md:text-zinc-900 dark:md:text-zinc-100">Estado</p>
+                          <div className="mt-1 flex flex-wrap gap-2">
+                            <Badge variant={status.variant}>{status.label}</Badge>
+                            {expiry ? <Badge variant={expiry.variant}>{expiry.label}</Badge> : null}
+                          </div>
+                        </div>
+                        <div className="min-w-0 shrink-0">
+                          <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 md:normal-case md:tracking-normal md:text-zinc-900 dark:md:text-zinc-100">Email verificado</p>
+                          <div className="mt-1">
+                            {Boolean(company.email_verified_at || VERIFIED_ONBOARDING_STATUSES.has((company.status ?? "").toLowerCase())) ? (
+                              <span className="text-sm font-medium text-green-600">Sí</span>
+                            ) : (
+                              <span className="text-sm font-medium text-red-600">No</span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <div className="md:col-span-1 flex flex-col items-start">
-                        <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 md:normal-case md:tracking-normal md:text-zinc-900 dark:md:text-zinc-100">EMAIL VERIFICADO</p>
-                        <div className="flex flex-wrap gap-2 items-center">
-                          {Boolean(company.email_verified_at || VERIFIED_ONBOARDING_STATUSES.has((company.status ?? "").toLowerCase())) ? (
-                            <span className="text-green-600 font-medium text-sm">Sí</span>
-                          ) : (
-                            <span className="text-red-600 font-medium text-sm">No</span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 md:col-span-2">
-                        <CompanyStatusToggle
-                          companyId={company.id}
-                          currentStatus={company.subscription_status}
-                        />
-                        <Link
-                          href="/dashboard/salud-pagos"
-                          className="inline-flex h-9 min-w-0 items-center rounded-xl border border-indigo-200 bg-indigo-50/80 px-3 text-xs font-semibold text-indigo-800 transition hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:bg-indigo-900/40"
-                        >
-                          Salud pagos
-                        </Link>
-                        <Link
-                          href={`/companies/${company.id}`}
-                          className="inline-flex h-9 min-w-0 items-center rounded-xl border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                        >
-                          Gestionar
-                        </Link>
-                      </div>
-                    </div>
+            </div>
+            <div className="flex flex-wrap items-center justify-start gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-700 md:justify-end">
+              <CompanyStatusToggle companyId={company.id} currentStatus={company.subscription_status} />
+              <Link
+                href="/dashboard/salud-pagos"
+                className="inline-flex h-9 shrink-0 items-center whitespace-nowrap rounded-xl border border-indigo-200 bg-indigo-50/80 px-3 text-xs font-semibold text-indigo-800 transition hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:bg-indigo-900/40"
+                title="Salud de pagos"
+              >
+                Salud pagos
+              </Link>
+              <Link
+                href={`/companies/${company.id}`}
+                className="inline-flex h-9 shrink-0 items-center whitespace-nowrap rounded-xl border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                Gestionar
+              </Link>
+              <CompanyDeleteButton
+                companyId={company.id}
+                companyName={company.name ?? null}
+                publicSlug={company.public_slug ?? null}
+                readOnly={readOnly}
+              />
+            </div>
+          </div>
         );
       })}
     </div>

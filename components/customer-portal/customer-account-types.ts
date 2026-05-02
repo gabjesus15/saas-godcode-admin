@@ -338,4 +338,4 @@ export type StoreThemeAutosaveStatus = "idle" | "pending" | "saving" | "saved" |
 
 export type StoreThemeAssetField = "logoUrl" | "backgroundImageUrl";
 
-export type PortalTab = "resumen" | "tienda" | "plan" | "sucursales" | "facturacion" | "soporte";
+export type PortalTab = "resumen" | "tienda" | "plan" | "sucursales" | "facturacion" | "soporte" | "seguridad";

@@ -5,7 +5,8 @@ import type { SupabaseAuthScope } from "./auth-scope";
 const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim().replace(/\/$/, "");
 const supabaseAnonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "").trim();
 
-const SUPER_ADMIN_PATHS = ["/dashboard", "/companies", "/plans", "/login"];
+/** Rutas que comparten cookie `sb-super-admin-auth-token` (misma sesión que `/login`). */
+const SUPER_ADMIN_PATHS = ["/dashboard", "/companies", "/plans", "/login", "/cuenta", "/post-login"];
 
 /** Host parece tenant (subdominio), no el dominio principal del panel. */
 function isLikelyTenantHost(): boolean {

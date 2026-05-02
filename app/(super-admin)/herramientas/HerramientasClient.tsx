@@ -1,5 +1,6 @@
 "use client";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useAdminRole } from "@/components/super-admin/admin-role-context";
 
 const RolesManager = dynamic(() => import("@/components/super-admin/roles-manager").then(mod => mod.default), { ssr: false });
@@ -24,6 +25,14 @@ export function HerramientasClient() {
 					Modo soporte: solo lectura en esta página. Los cambios requieren rol de super admin.
 				</p>
 			) : null}
+
+			<div className="rounded-xl border border-indigo-200 bg-indigo-50/60 px-4 py-3 text-sm text-indigo-950 dark:border-indigo-900/50 dark:bg-indigo-950/30 dark:text-indigo-100">
+				<span className="font-medium">Borrar empresas con código MFA:</span> cada super admin debe registrar{" "}
+				<Link href="/herramientas/autenticador" className="font-semibold underline underline-offset-2 hover:text-indigo-800 dark:hover:text-indigo-200">
+					Google Authenticator aquí
+				</Link>
+				.
+			</div>
 
 			<RolesManager />
 			<AdminModulesManager />

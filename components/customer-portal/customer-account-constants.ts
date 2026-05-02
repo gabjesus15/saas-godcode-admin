@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   LifeBuoy,
   Palette,
+  Shield,
   Store,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -16,6 +17,7 @@ export const PORTAL_TAB_ORDER: PortalTab[] = [
   "sucursales",
   "facturacion",
   "soporte",
+  "seguridad",
 ];
 
 export const PORTAL_TAB_LABELS: Record<PortalTab, string> = {
@@ -25,6 +27,7 @@ export const PORTAL_TAB_LABELS: Record<PortalTab, string> = {
   sucursales: "Sucursales",
   facturacion: "Facturación",
   soporte: "Soporte",
+  seguridad: "Seguridad",
 };
 
 export const PORTAL_TAB_ICONS: Record<PortalTab, LucideIcon> = {
@@ -34,6 +37,7 @@ export const PORTAL_TAB_ICONS: Record<PortalTab, LucideIcon> = {
   sucursales: Store,
   facturacion: FileText,
   soporte: LifeBuoy,
+  seguridad: Shield,
 };
 
 /** Alineado con super-admin / companies (mismas claves que `subscription_status` en BD). */
