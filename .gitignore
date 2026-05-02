@@ -39,6 +39,9 @@ yarn-error.log*
 .env*
 !.env.example
 
+# Scripts super-admin (Telegram pairing / watermark local)
+/scripts/.cache/
+
 # vercel
 .vercel
 

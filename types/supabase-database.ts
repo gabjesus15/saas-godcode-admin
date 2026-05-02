@@ -2330,6 +2330,24 @@ export type Database = {
           },
         ]
       }
+      super_admin_notification_state: {
+        Row: {
+          key: string
+          payload: Json
+          updated_at: string
+        }
+        Insert: {
+          key: string
+          payload?: Json
+          updated_at?: string
+        }
+        Update: {
+          key?: string
+          payload?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       subscription_notifications: {
         Row: {
           company_id: string
