@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-import { OnboardingAntiZoom } from "../../components/onboarding/OnboardingAntiZoom";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { getCurrentMessages } from "@/lib/i18n/server";
 import { LandingLogo } from "../../components/landing/landing-logo";
@@ -11,6 +10,8 @@ import "./onboarding.css";
 export const viewport = {
 	width: "device-width",
 	initialScale: 1,
+	maximumScale: 1,
+	userScalable: false,
 };
 
 export default async function OnboardingLayout({
@@ -22,7 +23,6 @@ export default async function OnboardingLayout({
   const t = messages.onboarding.layout;
 
   return (
-    <OnboardingAntiZoom>
     <div className="onboarding-page flex min-h-screen flex-col">
       <header className="onboarding-header sticky top-0 z-10 px-4 py-3 sm:px-6">
         <div className="mx-auto flex h-10 max-w-4xl items-center justify-between gap-3">
@@ -52,6 +52,5 @@ export default async function OnboardingLayout({
         {t.securityFooter}
       </footer>
     </div>
-    </OnboardingAntiZoom>
   );
 }

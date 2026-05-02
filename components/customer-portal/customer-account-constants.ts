@@ -30,6 +30,17 @@ export const PORTAL_TAB_LABELS: Record<PortalTab, string> = {
   seguridad: "Seguridad",
 };
 
+/** Etiquetas breves para la barra inferior en móvil. */
+export const PORTAL_TAB_MOBILE_LABELS: Record<PortalTab, string> = {
+  resumen: "Inicio",
+  tienda: "Tienda",
+  plan: "Plan",
+  sucursales: "Locales",
+  facturacion: "Pagos",
+  soporte: "Ayuda",
+  seguridad: "Seguridad",
+};
+
 export const PORTAL_TAB_ICONS: Record<PortalTab, LucideIcon> = {
   resumen: LayoutDashboard,
   tienda: Palette,

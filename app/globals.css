@@ -113,3 +113,12 @@ body {
 .dark .hover\:text-zinc-900:hover {
   color: #f4f4f5;
 }
+
+/* Portal / cuenta: scroll horizontal de segmentos sin barra visible */
+.portal-scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.portal-scrollbar-none::-webkit-scrollbar {
+  display: none;
+}

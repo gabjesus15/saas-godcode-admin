@@ -452,7 +452,7 @@ export function CustomerAccountClient(props: CustomerAccountClientProps) {
           </div>
         )}
 
-        <div className="rounded-xl border border-[#e5e5ea] bg-[#fbfbfd] px-3 py-2 text-sm text-[#6e6e73]">
+        <div className="rounded-xl border border-[#e5e5ea] bg-[#fbfbfd] px-3.5 py-2.5 text-[13px] leading-relaxed text-[#6e6e73] sm:px-4 sm:text-sm">
           Soporte directo:{" "}
           <a className="font-medium text-indigo-600 hover:underline" href={`mailto:${company.supportEmail}`}>
             {company.supportEmail}

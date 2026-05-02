@@ -139,23 +139,24 @@ export function AccountTiendaTab({
   const busy = storeThemeLoading || storeThemeSaving || storeThemePublishing;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 sm:space-y-5">
       {/* ── Sticky top bar ── */}
-      <div className="sticky top-0 z-10 -mx-3 bg-[#fbfbfd]/90 px-3 pb-2 pt-1 backdrop-blur-md sm:-mx-4 sm:px-4 lg:-mx-8 lg:px-8">
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#e5e5ea] bg-white px-4 py-3 shadow-sm">
-          <div className="flex items-center gap-3">
+      <div className="sticky top-0 z-10 -mx-4 bg-[#fbfbfd]/95 px-4 pb-2 pt-1 backdrop-blur-md md:-mx-5 md:px-5 lg:-mx-8 lg:px-8">
+        <div className="flex flex-col gap-3 rounded-2xl border border-[#e5e5ea] bg-white px-3.5 py-3 shadow-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-4 sm:py-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
             <PageHeader title="Tienda" />
             <Badge variant={autosaveVariant(storeThemeAutosaveStatus)} dot>
               {autosaveLabels[storeThemeAutosaveStatus]}
             </Badge>
             {storeThemeHasLocalUnsavedChanges && (
-              <span className="text-xs text-amber-600">Cambios sin enviar</span>
+              <span className="text-[11px] text-amber-600 sm:text-xs">Cambios sin enviar</span>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <Button
               variant="ghost"
               size="sm"
+              className="w-full justify-center sm:w-auto"
               onClick={discardStoreThemeChanges}
               disabled={busy || !storeThemePublished}
             >
@@ -164,6 +165,7 @@ export function AccountTiendaTab({
             <Button
               variant="secondary"
               size="sm"
+              className="w-full justify-center sm:w-auto"
               onClick={saveStoreDraft}
               loading={storeThemeSaving}
               disabled={busy}
@@ -173,6 +175,7 @@ export function AccountTiendaTab({
             <Button
               variant="primary"
               size="sm"
+              className="w-full justify-center sm:w-auto"
               onClick={publishStoreTheme}
               loading={storeThemePublishing}
               disabled={busy || !storeThemeHasUnpublished || storeThemeDiffRows.length === 0}

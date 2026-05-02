@@ -87,7 +87,7 @@ export function AccountResumenTab({
   onNavigate,
 }: AccountResumenTabProps) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       {/* ── Header ── */}
       <PageHeader
         title="Resumen"
@@ -95,7 +95,7 @@ export function AccountResumenTab({
       />
 
       {/* ── KPI row ── */}
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4">
         <StatCard
           label="Plan actual"
           value={company.planName ?? "Sin plan"}
@@ -140,7 +140,7 @@ export function AccountResumenTab({
       </div>
 
       {/* ── Two-column grid: Suscripcion + Actividad ── */}
-      <div className="grid gap-6 xl:grid-cols-[1fr_1.8fr]">
+      <div className="grid gap-4 sm:gap-6 xl:grid-cols-[1fr_1.8fr]">
 
         {/* ── Left: Plan card + Quick actions ── */}
         <div className="space-y-4">
@@ -196,8 +196,8 @@ export function AccountResumenTab({
 
         {/* ── Right: Activity timeline ── */}
         <Card compact>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <p className="text-sm font-semibold text-[#1d1d1f]">Actividad reciente</p>
               <p className="text-xs text-[#a1a1a6]">Pagos, tickets y compras de extras</p>
             </div>
@@ -209,11 +209,11 @@ export function AccountResumenTab({
             />
           </div>
 
-          <div className="mt-4 max-h-[28rem] space-y-1.5 overflow-y-auto pr-1">
+          <div className="mt-4 max-h-[min(28rem,65vh)] space-y-1.5 overflow-y-auto pr-0.5 sm:pr-1">
             {filteredActivityTimeline.length === 0 ? (
               <EmptyState icon={CalendarClock} title="Sin actividad" description="No hay eventos que mostrar con el filtro seleccionado." />
             ) : filteredActivityTimeline.map((item) => (
-              <div key={item.id} className="flex items-start gap-3 rounded-xl px-3 py-2.5 transition hover:bg-[#f5f5f7]">
+              <div key={item.id} className="flex items-start gap-2.5 rounded-xl px-2.5 py-2 transition hover:bg-[#f5f5f7] sm:gap-3 sm:px-3 sm:py-2.5">
                 <div className="mt-0.5 shrink-0">{typeIcon[item.type]}</div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-[#1d1d1f]">{item.title}</p>

@@ -94,16 +94,22 @@ export function AccountSoporteTab({
   const closedTickets = tickets.filter((t) => t.status === "closed");
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between gap-4">
+    <div className="space-y-4 sm:space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <PageHeader title="Soporte" description="Gestiona tus tickets y conversa con el equipo." />
-        <Button variant="primary" size="sm" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setCreateOpen(true)}>
+        <Button
+          variant="primary"
+          size="sm"
+          className="w-full shrink-0 justify-center sm:w-auto"
+          icon={<Plus className="h-3.5 w-3.5" />}
+          onClick={() => setCreateOpen(true)}
+        >
           Nuevo ticket
         </Button>
       </div>
 
       {/* Master-detail */}
-      <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
 
         {/* ── Ticket list (master) ── */}
         <div className="space-y-2 lg:max-h-[calc(100vh-12rem)] lg:overflow-y-auto">
@@ -134,9 +140,12 @@ export function AccountSoporteTab({
             </div>
           </Card>
         ) : (
-          <div className="flex flex-col overflow-hidden rounded-2xl border border-[#e5e5ea] bg-white shadow-sm shadow-indigo-500/[0.03]" style={{ minHeight: "500px", maxHeight: "calc(100vh - 12rem)" }}>
+          <div
+            className="flex flex-col overflow-hidden rounded-2xl border border-[#e5e5ea] bg-white shadow-sm shadow-indigo-500/[0.03]"
+            style={{ minHeight: "min(420px, 72vh)", maxHeight: "min(560px, calc(100vh - 14rem))" }}
+          >
             {/* Header */}
-            <div className="flex items-start justify-between gap-3 border-b border-[#e5e5ea] px-5 py-4">
+            <div className="flex items-start justify-between gap-2 border-b border-[#e5e5ea] px-4 py-3.5 sm:gap-3 sm:px-5 sm:py-4">
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-[#1d1d1f]">{selectedTicket.subject}</p>
                 <p className="mt-0.5 text-xs text-[#6e6e73]">{selectedTicket.description}</p>
@@ -156,7 +165,7 @@ export function AccountSoporteTab({
             </div>
 
             {/* Chat thread */}
-            <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
+            <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3.5 sm:px-5 sm:py-4">
               {messageLoading ? (
                 <p className="text-sm text-[#a1a1a6]">Cargando mensajes…</p>
               ) : messages.length === 0 ? (
@@ -165,7 +174,9 @@ export function AccountSoporteTab({
                 const isTenant = msg.author_type === "tenant";
                 return (
                   <div key={msg.id} className={`flex ${isTenant ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${isTenant ? "rounded-br-md bg-indigo-600 text-white" : "rounded-bl-md bg-[#f5f5f7] text-[#1d1d1f]"}`}>
+                    <div
+                      className={`max-w-[min(92%,18rem)] rounded-2xl px-3.5 py-2.5 text-[13px] leading-snug sm:max-w-[80%] sm:px-4 sm:text-sm ${isTenant ? "rounded-br-md bg-indigo-600 text-white" : "rounded-bl-md bg-[#f5f5f7] text-[#1d1d1f]"}`}
+                    >
                       <p>{msg.message}</p>
                       <p className={`mt-1 text-[10px] ${isTenant ? "text-indigo-200" : "text-[#a1a1a6]"}`}>{fmtDate(msg.created_at, company.timezone)}</p>
                     </div>
@@ -176,17 +187,24 @@ export function AccountSoporteTab({
             </div>
 
             {/* Input */}
-            <div className="border-t border-[#e5e5ea] px-5 py-3">
-              <div className="flex gap-2">
+            <div className="border-t border-[#e5e5ea] px-4 py-3 sm:px-5">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
                 <textarea
                   value={messageDraft}
                   onChange={(e) => setMessageDraft(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (messageDraft.trim()) onSendMessage(); } }}
                   placeholder="Escribe un mensaje…"
                   rows={2}
-                  className="flex-1 resize-none rounded-xl border border-[#d2d2d7] bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  className="min-h-[4.5rem] w-full flex-1 resize-none rounded-xl border border-[#d2d2d7] bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 sm:min-h-0"
                 />
-                <Button variant="primary" size="sm" icon={<Send className="h-3.5 w-3.5" />} onClick={onSendMessage} disabled={messageLoading || !messageDraft.trim()}>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="w-full shrink-0 justify-center sm:w-auto"
+                  icon={<Send className="h-3.5 w-3.5" />}
+                  onClick={onSendMessage}
+                  disabled={messageLoading || !messageDraft.trim()}
+                >
                   Enviar
                 </Button>
               </div>

@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 
-import { useAntiZoom } from "../tenant/use-anti-zoom";
 import { useAdminRole } from "./admin-role-context";
 import { AdminCommandPalette } from "./admin-command-palette";
 import { AdminHeaderClock } from "./admin-header-clock";
@@ -22,7 +21,6 @@ interface AdminShellProps {
 export function AdminShell({ children }: AdminShellProps) {
   const [open, setOpen] = useState(false);
   const { readOnly } = useAdminRole();
-  useAntiZoom();
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const drawerRef = useRef<HTMLElement | null>(null);
   const touchStartX = useRef<number | null>(null);

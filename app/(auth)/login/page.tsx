@@ -1,7 +1,6 @@
 "use client";
 
-// Eliminar el CSS de scroll
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
@@ -39,17 +38,6 @@ async function firstVerifiedTotpFactorId(
 }
 
 function LoginPageContent() {
-	// Previene zoom con control + scroll
-	useEffect(() => {
-		const handler = (e: WheelEvent) => {
-			if (e.ctrlKey) {
-				e.preventDefault();
-			}
-		};
-		window.addEventListener("wheel", handler, { passive: false });
-		return () => window.removeEventListener("wheel", handler);
-	}, []);
-
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const [email, setEmail] = useState("");

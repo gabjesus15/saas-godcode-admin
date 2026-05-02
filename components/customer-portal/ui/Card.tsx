@@ -12,7 +12,7 @@ export type CardProps = {
 };
 
 export function Card({ children, className = "", compact = false, noPadding = false }: CardProps) {
-  const padding = noPadding ? "" : compact ? "p-4" : "p-6 md:p-8";
+  const padding = noPadding ? "" : compact ? "p-3.5 sm:p-4" : "p-4 sm:p-6 md:p-8";
   return (
     <div
       className={`rounded-2xl border border-[#e5e5ea] bg-white shadow-sm shadow-indigo-500/[0.03] ${padding} ${className}`}

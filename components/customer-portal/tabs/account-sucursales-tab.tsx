@@ -150,14 +150,14 @@ export function AccountSucursalesTab({
   const closeWizard = () => { setWizardOpen(false); setBranchFlowStep(1); };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <PageHeader title="Sucursales" description="Administra tus puntos de venta y solicita expansion de capacidad." />
 
       {billingError && <Alert variant="danger">{billingError}</Alert>}
       {billingOk    && <Alert variant="success">{billingOk}</Alert>}
 
       {/* KPI row */}
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-3">
         <StatCard label="Sucursales activas" value={activeBranchesCount}   icon={Store}  accent="indigo" />
         <StatCard label="Limite del plan"    value={maxBranches ?? "Ilimitado"} icon={Store} accent="emerald" />
         {maxBranches != null && (
@@ -167,11 +167,12 @@ export function AccountSucursalesTab({
 
       {/* Branch list */}
       <Card>
-        <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm font-semibold text-[#1d1d1f]">Tus sucursales</p>
           <Button
             variant="primary"
             size="sm"
+            className="w-full justify-center sm:w-auto"
             icon={<Plus className="h-3.5 w-3.5" />}
             onClick={openWizard}
             loading={billingLoading}
@@ -185,31 +186,38 @@ export function AccountSucursalesTab({
         ) : (
           <div className="space-y-2">
             {branches.map((branch) => (
-              <div key={branch.id} className="flex items-center gap-3 rounded-xl border border-[#e5e5ea] p-4 transition hover:bg-[#fbfbfd]">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50">
-                  <Store className="h-5 w-5 text-indigo-600" aria-hidden />
+              <div
+                key={branch.id}
+                className="flex flex-col gap-3 rounded-xl border border-[#e5e5ea] p-3.5 transition hover:bg-[#fbfbfd] sm:flex-row sm:items-center sm:gap-3 sm:p-4"
+              >
+                <div className="flex min-w-0 flex-1 items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50">
+                    <Store className="h-5 w-5 text-indigo-600" aria-hidden />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-[#1d1d1f]">{branch.name}</p>
+                    {branch.address && (
+                      <p className="mt-0.5 flex items-start gap-1 text-xs leading-snug text-[#6e6e73]">
+                        <MapPin className="mt-0.5 h-3 w-3 shrink-0" aria-hidden /> <span>{branch.address}</span>
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-[#1d1d1f]">{branch.name}</p>
-                  {branch.address && (
-                    <p className="flex items-center gap-1 text-xs text-[#6e6e73]">
-                      <MapPin className="h-3 w-3" aria-hidden /> {branch.address}
-                    </p>
-                  )}
+                <div className="flex items-center justify-end gap-3 border-t border-[#f5f5f7] pt-3 sm:ml-auto sm:border-0 sm:pt-0">
+                  <Badge variant={branch.is_active !== false ? "success" : "neutral"} dot>
+                    {branch.is_active !== false ? "Activa" : "Inactiva"}
+                  </Badge>
+                  {company.tenantAdminUrl ? (
+                    <a
+                      href={company.tenantAdminUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-medium text-indigo-600 hover:underline"
+                    >
+                      Admin
+                    </a>
+                  ) : null}
                 </div>
-                <Badge variant={branch.is_active !== false ? "success" : "neutral"} dot>
-                  {branch.is_active !== false ? "Activa" : "Inactiva"}
-                </Badge>
-                {company.tenantAdminUrl && (
-                  <a
-                    href={company.tenantAdminUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="ml-2 text-xs font-medium text-indigo-600 hover:underline"
-                  >
-                    Admin
-                  </a>
-                )}
               </div>
             ))}
           </div>

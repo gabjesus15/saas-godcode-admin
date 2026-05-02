@@ -1,11 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { useAntiZoom } from "../tenant/use-anti-zoom";
 
 export function LandingThemeEnforcer() {
-  useAntiZoom();
-
   useEffect(() => {
     const root = document.documentElement;
     const applyLightMode = () => {

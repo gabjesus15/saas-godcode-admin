@@ -59,19 +59,25 @@ export function AccountFacturacionTab({
   onOpenBillingSupport,
 }: AccountFacturacionTabProps) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <PageHeader
         title="Facturacion"
         description="Historial de pagos y comprobantes."
         aside={
-          <Button variant="secondary" size="sm" icon={<Download className="h-3.5 w-3.5" />} onClick={onExportPaymentsCsv}>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="w-full justify-center sm:w-auto"
+            icon={<Download className="h-3.5 w-3.5" />}
+            onClick={onExportPaymentsCsv}
+          >
             Exportar CSV
           </Button>
         }
       />
 
       {/* KPI row */}
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4">
         <StatCard label="Total pagado"      value={fmtMoney(billingPaidTotal,    company.currency, company.locale)} icon={CheckCircle2} accent="emerald" />
         <StatCard label="Pendiente"         value={fmtMoney(billingPendingTotal, company.currency, company.locale)} icon={Clock}        accent={pendingPaymentsCount > 0 ? "amber" : "indigo"} />
         <StatCard label="Pagos pendientes"  value={pendingPaymentsCount}                                            icon={CreditCard}   accent={pendingPaymentsCount > 0 ? "amber" : "indigo"} />
@@ -80,7 +86,7 @@ export function AccountFacturacionTab({
 
       {/* Filters */}
       <Card compact>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <SegmentedControl
             options={statusFilterOptions as unknown as Array<{ value: string; label: string }>}
             value={paymentStatusFilter}
@@ -92,22 +98,22 @@ export function AccountFacturacionTab({
             placeholder="Buscar referencia…"
             value={paymentReferenceQuery}
             onChange={(e) => setPaymentReferenceQuery(e.target.value)}
-            className="h-8 flex-1 rounded-xl border border-[#d2d2d7] bg-white px-3 text-sm placeholder-[#a1a1a6] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            className="h-9 min-h-[2.25rem] w-full rounded-xl border border-[#d2d2d7] bg-white px-3 text-sm placeholder-[#a1a1a6] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 sm:h-8 sm:flex-1 sm:min-w-[10rem]"
           />
-          <div className="flex items-center gap-1.5">
+          <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:shrink-0">
             <input
               type="date"
               value={paymentDateFrom}
               onChange={(e) => setPaymentDateFrom(e.target.value)}
-              className="h-8 rounded-xl border border-[#d2d2d7] bg-white px-3 text-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="h-9 min-h-[2.25rem] min-w-0 flex-1 rounded-xl border border-[#d2d2d7] bg-white px-2 text-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 sm:h-8 sm:flex-none sm:px-3"
               aria-label="Desde"
             />
-            <span className="text-xs text-[#a1a1a6]">a</span>
+            <span className="shrink-0 text-xs text-[#a1a1a6]">a</span>
             <input
               type="date"
               value={paymentDateTo}
               onChange={(e) => setPaymentDateTo(e.target.value)}
-              className="h-8 rounded-xl border border-[#d2d2d7] bg-white px-3 text-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="h-9 min-h-[2.25rem] min-w-0 flex-1 rounded-xl border border-[#d2d2d7] bg-white px-2 text-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 sm:h-8 sm:flex-none sm:px-3"
               aria-label="Hasta"
             />
           </div>
@@ -119,24 +125,28 @@ export function AccountFacturacionTab({
         {filteredPayments.length === 0 ? (
           <EmptyState icon={FileText} title="Sin pagos" description="No hay pagos que coincidan con los filtros seleccionados." className="py-12" />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
+            <table className="w-full min-w-[36rem] text-sm">
               <thead className="bg-[#fbfbfd]">
                 <tr>
                   {["Fecha", "Monto", "Estado", "Metodo", "Meses", "Referencia", ""].map((h, i) => (
-                    <th key={i} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.1em] text-[#a1a1a6]">{h}</th>
+                    <th key={i} className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.1em] text-[#a1a1a6] sm:px-4 sm:py-3 sm:text-xs">
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#f5f5f7]">
                 {filteredPayments.map((payment) => (
                   <tr key={payment.id} className="group hover:bg-[#fbfbfd]">
-                    <td className="px-4 py-3 whitespace-nowrap text-[#6e6e73]">{fmtDate(payment.payment_date, company.timezone)}</td>
-                    <td className="px-4 py-3 font-semibold text-[#1d1d1f]">{fmtMoney(payment.amount_paid, company.currency, company.locale)}</td>
-                    <td className="px-4 py-3"><Badge variant={paymentStatusVariant(payment.status)}>{displayStatus(payment.status, PAYMENT_STATUS_LABELS)}</Badge></td>
-                    <td className="px-4 py-3 text-[#6e6e73]">{payment.payment_method ?? "-"}</td>
-                    <td className="px-4 py-3 text-[#6e6e73]">{payment.months_paid ?? "-"}</td>
-                    <td className="px-4 py-3">
+                    <td className="whitespace-nowrap px-3 py-2.5 text-[#6e6e73] sm:px-4 sm:py-3">{fmtDate(payment.payment_date, company.timezone)}</td>
+                    <td className="whitespace-nowrap px-3 py-2.5 font-semibold text-[#1d1d1f] sm:px-4 sm:py-3">{fmtMoney(payment.amount_paid, company.currency, company.locale)}</td>
+                    <td className="px-3 py-2.5 sm:px-4 sm:py-3">
+                      <Badge variant={paymentStatusVariant(payment.status)}>{displayStatus(payment.status, PAYMENT_STATUS_LABELS)}</Badge>
+                    </td>
+                    <td className="max-w-[7rem] truncate px-3 py-2.5 text-[#6e6e73] sm:max-w-none sm:px-4 sm:py-3">{payment.payment_method ?? "-"}</td>
+                    <td className="px-3 py-2.5 text-[#6e6e73] sm:px-4 sm:py-3">{payment.months_paid ?? "-"}</td>
+                    <td className="px-3 py-2.5 sm:px-4 sm:py-3">
                       {payment.reference_file_url ? (
                         <a href={payment.reference_file_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-indigo-600 hover:underline">
                           {payment.payment_reference ?? "Ver"} <ExternalLink className="h-3 w-3" />
@@ -145,7 +155,7 @@ export function AccountFacturacionTab({
                         <span className="text-[#a1a1a6]">{payment.payment_reference ?? "-"}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-3 py-2.5 text-right sm:px-4 sm:py-3">
                       <button
                         type="button"
                         onClick={() => onOpenBillingSupport(payment)}

@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { DevServiceWorkerCleanup } from "../components/dev-sw-cleanup";
+import { GlobalAntiZoom } from "../components/theme/global-anti-zoom";
 import { PageAnalyticsTracker } from "../components/analytics/page-analytics-tracker";
 import { getMessagesForLocale } from "@/lib/i18n/messages";
 import { getCurrentLocale } from "@/lib/i18n/server";
@@ -24,6 +25,13 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
+
+export const viewport: Viewport = {
+	width: "device-width",
+	initialScale: 1,
+	maximumScale: 1,
+	userScalable: false,
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(getAppUrl()),
@@ -67,6 +75,7 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} bg-background text-foreground antialiased transition-colors duration-200`}
       >
         <NextIntlClientProvider locale={locale} messages={messages}>
+          <GlobalAntiZoom />
           {/* Logo y slogan eliminados del layout global por petición del usuario */}
           {process.env.NODE_ENV !== "production" ? <DevServiceWorkerCleanup /> : null}
           {process.env.NODE_ENV === "production" ? <PageAnalyticsTracker /> : null}

@@ -342,7 +342,7 @@ export function AccountPlanTab(props: AccountPlanTabProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <PageHeader title="Plan y extras" description="Gestiona tu suscripcion, extras y historial de capacidad." />
 
       {/* Alerts */}
@@ -363,21 +363,23 @@ export function AccountPlanTab(props: AccountPlanTabProps) {
 
       {/* Plan card */}
       <Card>
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#a1a1a6]">Plan contratado</p>
             <h3 className="mt-1 text-lg font-semibold text-[#1d1d1f]">{company.planName ?? "Sin plan"}</h3>
             <p className="text-sm text-[#6e6e73]">{fmtMoney(company.planPrice, company.currency, company.locale)} / mes · vence {fmtDate(subscriptionEndsAt, company.timezone)}</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" size="sm" onClick={() => setPlanDialogOpen(true)}>Cambiar plan</Button>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
+            <Button variant="secondary" size="sm" className="w-full justify-center sm:w-auto" onClick={() => setPlanDialogOpen(true)}>
+              Cambiar plan
+            </Button>
             {!cancellationScheduled && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => { setSubscriptionCancelAcknowledge(false); setSubscriptionCancelFinalConfirm(false); setSubscriptionCancelModalOpen(true); }}
                 disabled={subscriptionCancelBusy}
-                className="text-red-600 hover:bg-red-50"
+                className="w-full justify-center text-red-600 hover:bg-red-50 sm:w-auto"
               >
                 Cancelar
               </Button>
@@ -387,7 +389,7 @@ export function AccountPlanTab(props: AccountPlanTabProps) {
 
         {/* Plan comparison strip */}
         {(planMonthlyDelta != null || recommendedPlanOption) && (
-          <div className="mt-5 grid grid-cols-2 gap-3 rounded-xl bg-[#fbfbfd] p-4 sm:grid-cols-4">
+          <div className="mt-5 grid grid-cols-1 gap-3 rounded-xl bg-[#fbfbfd] p-3.5 sm:grid-cols-2 sm:p-4 lg:grid-cols-4">
             <div><p className="text-xs text-[#a1a1a6]">Plan actual</p><p className="font-semibold text-[#1d1d1f]">{company.planName ?? "-"}</p></div>
             <div><p className="text-xs text-[#a1a1a6]">Recomendado</p><p className="font-semibold text-[#1d1d1f]">{recommendedPlanOption?.name ?? "-"}</p></div>
             <div><p className="text-xs text-[#a1a1a6]">Impacto mensual</p><p className={`font-semibold ${planMonthlyDelta != null && planMonthlyDelta > 0 ? "text-amber-600" : planMonthlyDelta != null && planMonthlyDelta < 0 ? "text-emerald-600" : "text-[#1d1d1f]"}`}>{planMonthlyDelta != null ? fmtMoney(planMonthlyDelta, company.currency, company.locale) : "-"}</p></div>
@@ -430,11 +432,17 @@ export function AccountPlanTab(props: AccountPlanTabProps) {
                   </div>
                   {isOwned ? <Badge variant="success" dot>Activo</Badge> : <Badge variant="neutral">Disponible</Badge>}
                 </div>
-                <div className="flex items-center justify-between gap-2 border-t border-[#f5f5f7] pt-3">
+                <div className="flex flex-col gap-2 border-t border-[#f5f5f7] pt-3 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm font-semibold text-[#1d1d1f]">
                     {price != null ? `${fmtMoney(price, company.currency, company.locale)}${addon.price_monthly ? "/mes" : " unico"}` : "Gratis"}
                   </p>
-                  <Button variant={isOwned ? "ghost" : "primary"} size="sm" onClick={() => handleOpenAddonDialog(addon.id)} disabled={isOwned && isSingleInstanceAddon(addon)}>
+                  <Button
+                    variant={isOwned ? "ghost" : "primary"}
+                    size="sm"
+                    className="w-full justify-center sm:w-auto"
+                    onClick={() => handleOpenAddonDialog(addon.id)}
+                    disabled={isOwned && isSingleInstanceAddon(addon)}
+                  >
                     {isOwned ? "Renovar" : "Contratar"}
                   </Button>
                 </div>

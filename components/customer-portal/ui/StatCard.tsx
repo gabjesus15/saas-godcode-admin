@@ -31,20 +31,20 @@ export function StatCard({ label, value, sub, icon: Icon, accent = "indigo", onC
     <Tag
       type={onClick ? "button" : undefined}
       onClick={onClick}
-      className={`group flex flex-col rounded-2xl border border-[#e5e5ea] bg-white p-5 shadow-sm shadow-indigo-500/[0.03] transition-shadow ${onClick ? "cursor-pointer hover:shadow-md hover:shadow-indigo-500/10 active:scale-[0.99]" : ""} ${className}`}
+      className={`group flex flex-col rounded-2xl border border-[#e5e5ea] bg-white p-4 shadow-sm shadow-indigo-500/[0.03] transition-shadow sm:p-5 ${onClick ? "cursor-pointer hover:shadow-md hover:shadow-indigo-500/10 active:scale-[0.99]" : ""} ${className}`}
     >
-      <div className="mb-4 h-px w-8 rounded-full transition-all group-hover:w-12" style={{ background: `var(--accent-bar, #6366f1)` }}>
+      <div className="mb-3 h-px w-8 rounded-full transition-all group-hover:w-10 sm:mb-4 sm:group-hover:w-12" style={{ background: `var(--accent-bar, #6366f1)` }}>
         <div className={`h-px w-full rounded-full ${a.bar}`} />
       </div>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#a1a1a6]">{label}</p>
-          <p className="mt-1 text-2xl font-semibold leading-tight tracking-tight text-[#1d1d1f]">{value}</p>
-          {sub && <p className="mt-1 text-xs text-[#6e6e73]">{sub}</p>}
+          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[#a1a1a6] sm:text-xs">{label}</p>
+          <p className="mt-0.5 text-lg font-semibold leading-tight tracking-tight text-[#1d1d1f] sm:mt-1 sm:text-2xl">{value}</p>
+          {sub && <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-[#6e6e73] sm:text-xs">{sub}</p>}
         </div>
         {Icon && (
-          <div className={`shrink-0 rounded-xl p-2.5 ${a.iconBg}`}>
-            <Icon className={`h-5 w-5 ${a.icon}`} aria-hidden />
+          <div className={`shrink-0 rounded-lg p-2 sm:rounded-xl sm:p-2.5 ${a.iconBg}`}>
+            <Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${a.icon}`} aria-hidden />
           </div>
         )}
       </div>

@@ -2,8 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { useAntiZoom } from "./use-anti-zoom";
-
 interface TenantShellProps {
   children: React.ReactNode;
 }
@@ -20,8 +18,6 @@ export function TenantShell({ children }: TenantShellProps) {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  useAntiZoom();
 
   useEffect(() => {
     if (!bgLayerRef.current) return;
